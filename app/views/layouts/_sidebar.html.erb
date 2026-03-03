@@ -531,6 +531,21 @@
         </li>
         <% end %>
 
+        <!-- Notes (Payment Reminders) -->
+        <% if current_user.has_sidebar_permission?('notes') %>
+        <li class="nav-item">
+          <%= link_to admin_notes_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/notes')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-teal">
+                <i class="bi bi-sticky"></i>
+              </div>
+            </div>
+            <span class="nav-text">Notes</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+        <% end %>
+
         <!-- Last Month Pending Amount -->
         <% if current_user.has_sidebar_permission?('pending_amounts') %>
         <li class="nav-item">

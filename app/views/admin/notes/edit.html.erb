@@ -1,0 +1,278 @@
+<% content_for :title, "Edit Payment Note" %>
+
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex align-items-center mb-3">
+        <%= link_to admin_notes_path, class: "btn btn-outline-secondary me-3" do %>
+          <i class="bi bi-arrow-left"></i>
+        <% end %>
+        <div class="d-flex align-items-center">
+          <div class="icon-bg gradient-orange me-3" style="width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; border-radius: 10px;">
+            <i class="bi bi-pencil text-white fs-5"></i>
+          </div>
+          <div>
+            <h4 class="mb-1" style="color: #2c3e50; font-weight: 600;">Edit Payment Note</h4>
+            <p class="text-muted mb-0">Update payment record details</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+    <div class="card-body p-4">
+      <%= form_with model: [:admin, @note], local: true, class: "needs-validation", novalidate: true do |form| %>
+        <div class="row">
+          <!-- Left Column -->
+          <div class="col-md-6">
+            <!-- Title -->
+            <div class="form-group mb-3">
+              <%= form.label :title, "Payment Title", class: "form-label fw-semibold" %>
+              <span class="text-danger">*</span>
+              <%= form.text_field :title, class: "form-control form-control-lg", placeholder: "e.g., Salary Payment, Vendor Payment", required: true %>
+              <div class="invalid-feedback">
+                Please provide a payment title.
+              </div>
+              <% if @note.errors[:title].any? %>
+                <div class="text-danger small"><%= @note.errors[:title].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Paid To -->
+            <div class="form-group mb-3">
+              <%= form.label :paid_to, "Paid To", class: "form-label fw-semibold" %>
+              <span class="text-danger">*</span>
+              <%= form.text_field :paid_to, class: "form-control form-control-lg", placeholder: "Person or company name", required: true %>
+              <div class="invalid-feedback">
+                Please provide who the payment was made to.
+              </div>
+              <% if @note.errors[:paid_to].any? %>
+                <div class="text-danger small"><%= @note.errors[:paid_to].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Amount -->
+            <div class="form-group mb-3">
+              <%= form.label :amount, "Amount", class: "form-label fw-semibold" %>
+              <span class="text-danger">*</span>
+              <div class="input-group input-group-lg">
+                <span class="input-group-text">₹</span>
+                <%= form.number_field :amount, step: 0.01, class: "form-control", placeholder: "0.00", required: true %>
+              </div>
+              <div class="invalid-feedback">
+                Please provide a valid amount.
+              </div>
+              <% if @note.errors[:amount].any? %>
+                <div class="text-danger small"><%= @note.errors[:amount].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="form-group mb-3">
+              <%= form.label :payment_method, "Payment Method", class: "form-label fw-semibold" %>
+              <span class="text-danger">*</span>
+              <%= form.select :payment_method,
+                  options_for_select([
+                    ['💳 UPI', 'UPI'],
+                    ['💵 Cash', 'Cash'],
+                    ['🌐 Online Transfer', 'Online'],
+                    ['🏦 Bank Transfer', 'Bank_Transfer'],
+                    ['📋 Cheque', 'Cheque'],
+                    ['💳 Card', 'Card']
+                  ], @note.payment_method),
+                  {},
+                  { class: "form-select form-select-lg", required: true } %>
+              <div class="invalid-feedback">
+                Please select a payment method.
+              </div>
+              <% if @note.errors[:payment_method].any? %>
+                <div class="text-danger small"><%= @note.errors[:payment_method].first %></div>
+              <% end %>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="col-md-6">
+            <!-- Reference Number -->
+            <div class="form-group mb-3">
+              <%= form.label :reference_number, "Reference Number", class: "form-label fw-semibold" %>
+              <small class="text-muted">(Optional)</small>
+              <%= form.text_field :reference_number, class: "form-control form-control-lg", placeholder: "Transaction ID, Check number, etc." %>
+              <small class="form-text text-muted">
+                Transaction ID, check number, or any reference
+              </small>
+              <% if @note.errors[:reference_number].any? %>
+                <div class="text-danger small"><%= @note.errors[:reference_number].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Status -->
+            <div class="form-group mb-3">
+              <%= form.label :status, "Status", class: "form-label fw-semibold" %>
+              <span class="text-danger">*</span>
+              <%= form.select :status,
+                  options_for_select([
+                    ['🟡 Pending', 'pending'],
+                    ['✅ Completed', 'completed'],
+                    ['❌ Cancelled', 'cancelled']
+                  ], @note.status),
+                  {},
+                  { class: "form-select form-select-lg", required: true } %>
+              <% if @note.errors[:status].any? %>
+                <div class="text-danger small"><%= @note.errors[:status].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Note Date -->
+            <div class="form-group mb-3">
+              <%= form.label :note_date, "Payment Date", class: "form-label fw-semibold" %>
+              <span class="text-danger">*</span>
+              <%= form.date_field :note_date, class: "form-control form-control-lg", required: true %>
+              <div class="invalid-feedback">
+                Please provide a payment date.
+              </div>
+              <% if @note.errors[:note_date].any? %>
+                <div class="text-danger small"><%= @note.errors[:note_date].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group mb-4">
+              <%= form.label :description, "Description", class: "form-label fw-semibold" %>
+              <small class="text-muted">(Optional)</small>
+              <%= form.text_area :description, rows: 4, class: "form-control", placeholder: "Additional notes about this payment..." %>
+              <small class="form-text text-muted">
+                Any additional details about the payment
+              </small>
+              <% if @note.errors[:description].any? %>
+                <div class="text-danger small"><%= @note.errors[:description].first %></div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row">
+          <div class="col-12">
+            <hr class="my-4">
+            <div class="d-flex justify-content-between">
+              <div>
+                <%= link_to admin_notes_path, class: "btn btn-outline-secondary btn-lg px-4" do %>
+                  <i class="bi bi-arrow-left me-2"></i>Cancel
+                <% end %>
+              </div>
+              <div class="d-flex gap-2">
+                <%= link_to admin_note_path(@note), class: "btn btn-outline-info btn-lg px-4" do %>
+                  <i class="bi bi-eye me-2"></i>View
+                <% end %>
+                <%= form.submit "Update Note", class: "btn btn-primary btn-lg px-4 d-flex align-items-center gap-2" do %>
+                  <i class="bi bi-check-circle"></i>
+                  Update Note
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+// Bootstrap form validation
+(function() {
+  'use strict';
+  window.addEventListener('load', function() {
+    var forms = document.getElementsByClassName('needs-validation');
+    var validation = Array.prototype.filter.call(forms, function(form) {
+      form.addEventListener('submit', function(event) {
+        if (form.checkValidity() === false) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+    });
+  }, false);
+})();
+</script>
+
+<style>
+.icon-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-orange {
+  background: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);
+}
+
+.card {
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-control, .form-select {
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  padding: 12px 16px;
+  transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.form-control-lg {
+  font-size: 1.1rem;
+  padding: 15px 18px;
+}
+
+.form-select-lg {
+  font-size: 1.1rem;
+  padding: 15px 18px;
+}
+
+.input-group-lg .input-group-text {
+  font-size: 1.1rem;
+  padding: 15px 18px;
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-right: none;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 1.1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.form-label {
+  color: #2d3748;
+  margin-bottom: 8px;
+}
+
+.text-danger {
+  color: #e53e3e !important;
+}
+
+.text-muted {
+  color: #718096 !important;
+}
+
+hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+}
+</style>

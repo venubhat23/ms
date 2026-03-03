@@ -24,18 +24,6 @@
       <% end %>
     <% end %>
 
-    <!-- Order Conversion -->
-    <% if @booking.order.present? %>
-      <%= link_to admin_order_path(@booking.order), class: "btn btn-info" do %>
-        <i class="bi bi-box me-1"></i>
-        View Order
-      <% end %>
-    <% elsif @booking.payment_status_paid? %>
-      <%= link_to convert_to_order_admin_booking_path(@booking), class: "btn btn-warning", method: :patch do %>
-        <i class="bi bi-arrow-right me-1"></i>
-        Convert to Order
-      <% end %>
-    <% end %>
 
     <div class="dropdown">
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">

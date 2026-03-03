@@ -89,14 +89,9 @@ class Admin::BookingsController < Admin::ApplicationController
       @booking.discount_amount = 0
     end
 
-    # Set payment status from form (user can manually mark as paid/unpaid)
-    payment_status_value = params[:booking][:payment_status]
-    if payment_status_value == 'paid'
-      @booking.payment_status = :paid
-    else
-      @booking.payment_status = :unpaid
-    end
-    Rails.logger.info "Payment status set to: #{@booking.payment_status}"
+    # Store payment status value for after save (to avoid enum conflicts during validation)
+    @payment_status_from_form = params[:booking][:payment_status]
+    Rails.logger.info "Payment status from form: #{@payment_status_from_form}"
 
     # Validate stock availability before saving
     unless validate_stock_availability(@booking)
@@ -110,14 +105,24 @@ class Admin::BookingsController < Admin::ApplicationController
     if @booking.save
       # Calculate totals after saving
       @booking.calculate_totals
-      @booking.save
+
+      # Set payment status after initial save (to avoid enum conflicts)
+      if @payment_status_from_form == 'paid'
+        @booking.payment_status = :paid
+      else
+        @booking.payment_status = :unpaid
+      end
+
+      # Save again to persist the calculated totals and payment status
+      @booking.save!
 
       # Log the calculated totals for debugging
       Rails.logger.info "Booking totals - Subtotal: #{@booking.subtotal}, Tax: #{@booking.tax_amount}, Discount: #{@booking.discount_amount}, Total: #{@booking.total_amount}"
+      Rails.logger.info "Final payment status after save: #{@booking.payment_status}"
 
       # Generate invoice immediately if payment is received
       invoice_notice = ""
-      if @booking.payment_status == 'paid'
+      if @booking.payment_status_paid?
         begin
           invoice = generate_immediate_invoice_for_booking(@booking)
           if invoice
@@ -132,7 +137,7 @@ class Admin::BookingsController < Admin::ApplicationController
       end
 
       # Convert to order if payment is received
-      if @booking.payment_status == 'paid' && params[:create_order] == '1'
+      if @booking.payment_status_paid? && params[:create_order] == '1'
         @booking.convert_to_order!
       end
 
@@ -918,14 +923,15 @@ class Admin::BookingsController < Admin::ApplicationController
 
   # Generate immediate invoice for paid booking
   def generate_immediate_invoice_for_booking(booking)
-    # Create invoice for this specific booking with paid status
+    # Create quick invoice for this specific booking with paid status
     invoice = Invoice.new(
-      customer: booking.customer,
+      customer: booking.customer, # Optional for walk-in customers
       invoice_date: Date.current,
       due_date: Date.current + 30.days,
       status: :sent,
       payment_status: :fully_paid,
-      paid_at: Time.current
+      paid_at: Time.current,
+      quick_invoice: true
     )
 
     total_amount = 0
@@ -964,10 +970,11 @@ class Admin::BookingsController < Admin::ApplicationController
     invoice.total_amount = total_amount
 
     if invoice.save
-      # Mark booking as invoiced
+      # Mark booking as invoiced and quick invoice
       booking.update!(
         invoice_generated: true,
-        invoice_number: invoice.invoice_number
+        invoice_number: invoice.invoice_number,
+        quick_invoice: true
       )
 
       Rails.logger.info "Immediate invoice ##{invoice.invoice_number} generated for paid booking ##{booking.booking_number}"

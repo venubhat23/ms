@@ -217,7 +217,7 @@
                   # Legacy ActiveRecord object
                   invoice_id = invoice_data.id
                   invoice_number = invoice_data.invoice_number
-                  customer_name = invoice_data.customer&.display_name
+                  customer_name = invoice_data.customer&.display_name || 'Walk-in Customer'
                   customer_mobile = invoice_data.customer&.mobile
                   total_amount = invoice_data.total_amount
                   payment_status = invoice_data.payment_status

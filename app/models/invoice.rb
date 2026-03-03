@@ -1,5 +1,5 @@
 class Invoice < ApplicationRecord
-  belongs_to :customer
+  belongs_to :customer, optional: true
   belongs_to :created_by_user, class_name: 'User', foreign_key: 'created_by', optional: true
   has_many :invoice_items, dependent: :destroy
 
@@ -14,6 +14,39 @@ class Invoice < ApplicationRecord
   before_create :generate_share_token
 
   scope :for_month, ->(month, year) { where(invoice_date: Date.new(year, month).beginning_of_month..Date.new(year, month).end_of_month) }
+
+  # Get customer display name (customer or walk-in from booking)
+  def customer_display_name
+    return customer.display_name if customer.present?
+
+    # For walk-in customers, get name from related booking
+    related_booking = Booking.find_by(invoice_number: invoice_number)
+    return related_booking.customer_name if related_booking&.customer_name.present?
+
+    'Walk-in Customer'
+  end
+
+  # Get customer address (customer or walk-in from booking)
+  def customer_address
+    return customer.address if customer&.address.present?
+
+    # For walk-in customers, get address from related booking
+    related_booking = Booking.find_by(invoice_number: invoice_number)
+    return related_booking.delivery_address if related_booking&.delivery_address.present?
+
+    'Walk-in Address'
+  end
+
+  # Get customer mobile (customer or walk-in from booking)
+  def customer_mobile
+    return customer.mobile if customer&.mobile.present?
+
+    # For walk-in customers, get mobile from related booking
+    related_booking = Booking.find_by(invoice_number: invoice_number)
+    return related_booking.customer_phone if related_booking&.customer_phone.present?
+
+    nil
+  end
 
   def generate_share_token!
     self.share_token = SecureRandom.urlsafe_base64(32)

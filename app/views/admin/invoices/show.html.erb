@@ -668,16 +668,16 @@
         <tr>
           <td>
             <div class="bill-title">BILL TO</div>
-            <div class="client-name"><%= @invoice.customer&.display_name || 'Customer Name' %></div>
-            <div><%= @invoice.customer&.address || 'Address' %></div>
-            <% if @invoice.customer&.mobile.present? %>
-              <div class="mobile">Mobile: <%= @invoice.customer.mobile %></div>
+            <div class="client-name"><%= @invoice.customer_display_name %></div>
+            <div><%= @invoice.customer_address %></div>
+            <% if @invoice.customer_mobile.present? %>
+              <div class="mobile">Mobile: <%= @invoice.customer_mobile %></div>
             <% end %>
           </td>
           <td>
             <div class="ship-title">SHIP TO</div>
-            <div class="client-name"><%= @invoice.customer&.display_name || 'Customer Name' %></div>
-            <div><%= @invoice.customer&.address || 'Address' %></div>
+            <div class="client-name"><%= @invoice.customer_display_name %></div>
+            <div><%= @invoice.customer_address %></div>
           </td>
         </tr>
       </table>

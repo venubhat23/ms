@@ -76,60 +76,62 @@
 <% if @invoice_stats.present? %>
   <div class="row mb-4">
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-primary text-white">
-        <div class="card-body">
-          <div class="d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 stats-card-primary">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between">
             <div class="flex-grow-1">
-              <h6 class="mb-1 text-white-50">Total Invoices</h6>
-              <h4 class="mb-0"><%= @invoice_stats[:total_count] %></h4>
+              <h6 class="mb-1 fw-semibold">Total Invoices</h6>
+              <h4 class="mb-0 fw-bold"><%= @invoice_stats[:total_count] %></h4>
             </div>
-            <div>
-              <i class="bi bi-receipt-cutoff fs-2 text-white-50"></i>
+            <div class="align-self-center">
+              <i class="bi bi-receipt-cutoff fs-1 stats-icon"></i>
             </div>
           </div>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-success text-white">
-        <div class="card-body">
-          <div class="d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 stats-card-success">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between">
             <div class="flex-grow-1">
-              <h6 class="mb-1 text-white-50">Regular Invoices</h6>
-              <h4 class="mb-0"><%= @invoice_stats[:regular_invoices][:count] %></h4>
+              <h6 class="mb-1 fw-semibold">Regular Invoices</h6>
+              <h4 class="mb-0 fw-bold"><%= @invoice_stats[:regular_invoices][:count] %></h4>
+              <small class="fw-medium">₹<%= number_with_delimiter(@invoice_stats[:regular_invoices][:amount].to_i) %></small>
             </div>
-            <div>
-              <i class="bi bi-file-earmark-text fs-2 text-white-50"></i>
+            <div class="align-self-center">
+              <i class="bi bi-file-earmark-text fs-1 stats-icon"></i>
             </div>
           </div>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-info text-white">
-        <div class="card-body">
-          <div class="d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 stats-card-info">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between">
             <div class="flex-grow-1">
-              <h6 class="mb-1 text-white-50">Booking Invoices</h6>
-              <h4 class="mb-0"><%= @invoice_stats[:booking_invoices][:count] %></h4>
+              <h6 class="mb-1 fw-semibold">Booking Invoices</h6>
+              <h4 class="mb-0 fw-bold"><%= @invoice_stats[:booking_invoices][:count] %></h4>
+              <small class="fw-medium">₹<%= number_with_delimiter(@invoice_stats[:booking_invoices][:amount].to_i) %></small>
             </div>
-            <div>
-              <i class="bi bi-cart-check fs-2 text-white-50"></i>
+            <div class="align-self-center">
+              <i class="bi bi-cart-check fs-1 stats-icon"></i>
             </div>
           </div>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-warning text-white">
-        <div class="card-body">
-          <div class="d-flex align-items-center">
+      <div class="card border-0 shadow-sm h-100 stats-card-warning">
+        <div class="card-body text-white">
+          <div class="d-flex justify-content-between">
             <div class="flex-grow-1">
-              <h6 class="mb-1 text-white-50">Total Amount</h6>
-              <h4 class="mb-0">₹<%= number_with_precision(@invoice_stats[:total_amount], precision: 0) %></h4>
+              <h6 class="mb-1 fw-semibold">Total Amount</h6>
+              <h4 class="mb-0 fw-bold">₹<%= number_with_delimiter(@invoice_stats[:total_amount].to_i) %></h4>
             </div>
-            <div>
-              <i class="bi bi-currency-rupee fs-2 text-white-50"></i>
+            <div class="align-self-center">
+              <i class="bi bi-currency-rupee fs-1 stats-icon"></i>
             </div>
           </div>
         </div>
@@ -493,6 +495,82 @@ function formatDeliveryPersonSelection(option) {
 .avatar-sm {
   width: 36px;
   height: 36px;
+}
+
+/* Enhanced Stats Cards with Better Contrast */
+.stats-card-primary {
+  background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+}
+
+.stats-card-info {
+  background: linear-gradient(135deg, #36b9cc 0%, #258391 100%);
+}
+
+.stats-card-success {
+  background: linear-gradient(135deg, #1cc88a 0%, #169b6b 100%);
+}
+
+.stats-card-warning {
+  background: linear-gradient(135deg, #f6c23e 0%, #e0a800 100%);
+}
+
+.stats-card-primary, .stats-card-info, .stats-card-success, .stats-card-warning {
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.stats-card-primary:hover, .stats-card-info:hover, .stats-card-success:hover, .stats-card-warning:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.stats-card-primary::before, .stats-card-info::before, .stats-card-success::before, .stats-card-warning::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+  pointer-events: none;
+}
+
+.stats-icon {
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+.stats-card-primary:hover .stats-icon,
+.stats-card-info:hover .stats-icon,
+.stats-card-success:hover .stats-icon,
+.stats-card-warning:hover .stats-icon {
+  opacity: 0.5;
+  transform: scale(1.1);
+}
+
+.stats-card-primary .card-body,
+.stats-card-info .card-body,
+.stats-card-success .card-body,
+.stats-card-warning .card-body {
+  position: relative;
+  z-index: 2;
+}
+
+.stats-card-primary h3, .stats-card-primary h4, .stats-card-primary h6,
+.stats-card-info h3, .stats-card-info h4, .stats-card-info h6,
+.stats-card-success h3, .stats-card-success h4, .stats-card-success h6,
+.stats-card-warning h3, .stats-card-warning h4, .stats-card-warning h6 {
+  text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  color: #ffffff !important;
+}
+
+.stats-card-primary small,
+.stats-card-info small,
+.stats-card-success small,
+.stats-card-warning small {
+  color: rgba(255,255,255,0.9) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 /* Responsive adjustments */

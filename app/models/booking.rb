@@ -29,10 +29,10 @@ class Booking < ApplicationRecord
   }
 
   enum :payment_status, {
-    unpaid: 0,
-    paid: 1,
-    partially_paid: 2,
-    refunded: 3
+    unpaid: 'unpaid',
+    paid: 'paid',
+    partially_paid: 'partially_paid',
+    refunded: 'refunded'
   }, prefix: true
 
   enum :payment_method, {

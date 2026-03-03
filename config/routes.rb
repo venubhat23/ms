@@ -229,6 +229,9 @@ Rails.application.routes.draw do
     # Pending Amounts Management
     resources :pending_amounts, only: [:index, :create, :update, :destroy]
 
+    # Notes Management - Payment Tracking
+    resources :notes
+
     # Invoice Check Management
     get 'invoice_check', to: 'invoice_check#index', as: :invoice_check
     post 'invoice_check/check', to: 'invoice_check#check', as: :invoice_check_check

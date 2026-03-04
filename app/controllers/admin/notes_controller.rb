@@ -7,6 +7,8 @@ class Admin::NotesController < ApplicationController
     # Apply filters
     @notes = @notes.by_status(params[:status]) if params[:status].present?
     @notes = @notes.by_payment_method(params[:payment_method]) if params[:payment_method].present?
+    @notes = @notes.by_paid_from(params[:paid_from]) if params[:paid_from].present?
+    @notes = @notes.by_paid_to_category(params[:paid_to_category]) if params[:paid_to_category].present?
 
     # Date range filter
     if params[:start_date].present? && params[:end_date].present?
@@ -68,7 +70,8 @@ class Admin::NotesController < ApplicationController
 
   def note_params
     params.require(:note).permit(:title, :paid_to, :amount, :payment_method,
-                                 :reference_number, :description, :status, :note_date)
+                                 :reference_number, :description, :status, :note_date,
+                                 :paid_from, :paid_to_category)
   end
 
   def calculate_note_stats

@@ -546,4 +546,286 @@ class Admin::ReportsController < Admin::ApplicationController
     @customer_retention_rate = @repeat_customers > 0 && @new_customers > 0 ?
                               ((@repeat_customers.to_f / @new_customers) * 100).round(2) : 0
   end
+
+  # GET /admin/reports/enhanced_sales
+  def enhanced_sales
+    # Date range parameters
+    @from_date = params[:from_date].present? ? Date.parse(params[:from_date]) : Date.current.beginning_of_month
+    @to_date = params[:to_date].present? ? Date.parse(params[:to_date]) : Date.current.end_of_month
+
+    # Export format check
+    respond_to do |format|
+      format.html do
+        @report_data = build_enhanced_sales_data
+      end
+      format.csv do
+        @report_data = build_enhanced_sales_data
+        send_data generate_csv(@report_data),
+                  filename: "enhanced_sales_report_#{@from_date.strftime('%Y%m%d')}_#{@to_date.strftime('%Y%m%d')}.csv",
+                  type: 'text/csv'
+      end
+      format.xlsx do
+        @report_data = build_enhanced_sales_data
+        send_data generate_excel(@report_data),
+                  filename: "enhanced_sales_report_#{@from_date.strftime('%Y%m%d')}_#{@to_date.strftime('%Y%m%d')}.xlsx",
+                  type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      end
+    end
+  rescue => e
+    Rails.logger.error "Error in enhanced_sales: #{e.message}"
+    flash[:error] = "Error generating report: #{e.message}"
+    redirect_to admin_reports_enhanced_sales_path
+  end
+
+  private
+
+  def build_enhanced_sales_data
+    # Get all invoices in the date range (both regular and booking invoices)
+    regular_invoices = Invoice.includes(:customer, :invoice_items)
+                             .where(invoice_date: @from_date..@to_date)
+                             .order(:invoice_date)
+
+    booking_invoices = BookingInvoice.includes(:customer, :booking)
+                                   .where(invoice_date: @from_date..@to_date)
+                                   .order(:invoice_date)
+
+    report_rows = []
+    totals = {
+      total_amount: 0,
+      total_gst: 0,
+      cgst: 0,
+      sgst: 0,
+      igst: 0
+    }
+
+    # Process regular invoices
+    regular_invoices.each do |invoice|
+      row_data = process_invoice_data(invoice, 'Invoice')
+      report_rows << row_data
+      add_to_totals(totals, row_data)
+    end
+
+    # Process booking invoices
+    booking_invoices.each do |invoice|
+      row_data = process_invoice_data(invoice, 'BookingInvoice')
+      report_rows << row_data
+      add_to_totals(totals, row_data)
+    end
+
+    {
+      rows: report_rows.sort_by { |row| row[:invoice_date] },
+      totals: totals
+    }
+  end
+
+  def process_invoice_data(invoice, invoice_type)
+    customer = invoice.customer
+
+    # Calculate GST breakdown
+    gst_data = calculate_gst_breakdown(invoice, invoice_type)
+
+    # Count assignments (invoice items)
+    assignments = invoice_type == 'BookingInvoice' ?
+                  (invoice.respond_to?(:booking) ? invoice.booking&.booking_items&.count || 0 : 0) :
+                  invoice.invoice_items.count
+
+    {
+      customer_name: customer&.display_name || 'N/A',
+      customer_number: customer&.mobile || 'N/A',
+      customer_address: format_customer_address(customer),
+      invoice_number: invoice.invoice_number,
+      invoice_date: invoice.invoice_date || invoice.created_at.to_date,
+      assignments: assignments,
+      total_amount: invoice.total_amount || 0,
+      total_gst: gst_data[:total_gst],
+      cgst: gst_data[:cgst],
+      sgst: gst_data[:sgst],
+      igst: gst_data[:igst]
+    }
+  end
+
+  def calculate_gst_breakdown(invoice, invoice_type)
+    total_gst = 0
+    cgst = 0
+    sgst = 0
+    igst = 0
+
+    if invoice_type == 'BookingInvoice' && invoice.respond_to?(:booking)
+      # For booking invoices, get GST from booking items
+      booking = invoice.booking
+      if booking&.booking_items
+        booking.booking_items.each do |item|
+          if item.product&.gst_enabled && item.product.gst_percentage > 0
+            base_amount = (item.quantity || 0) * (item.price || 0)
+            gst_rate = item.product.gst_percentage
+            item_gst = (base_amount * gst_rate / 100).round(2)
+
+            total_gst += item_gst
+            cgst += (item_gst / 2).round(2)
+            sgst += (item_gst / 2).round(2)
+          end
+        end
+      end
+    else
+      # For regular invoices, get GST from invoice items
+      if invoice.invoice_items
+        invoice.invoice_items.each do |item|
+          if item.product&.gst_enabled && item.product.gst_percentage > 0
+            base_amount = (item.quantity || 0) * (item.unit_price || 0)
+            gst_rate = item.product.gst_percentage
+            item_gst = (base_amount * gst_rate / 100).round(2)
+
+            total_gst += item_gst
+            cgst += (item_gst / 2).round(2)
+            sgst += (item_gst / 2).round(2)
+          end
+        end
+      end
+    end
+
+    {
+      total_gst: total_gst.round(2),
+      cgst: cgst.round(2),
+      sgst: sgst.round(2),
+      igst: igst.round(2) # IGST is 0 for intra-state transactions
+    }
+  end
+
+  def format_customer_address(customer)
+    return 'N/A' unless customer
+
+    address_parts = []
+    address_parts << customer.address if customer.respond_to?(:address) && customer.address.present?
+    address_parts << customer.city if customer.respond_to?(:city) && customer.city.present?
+
+    address_parts.any? ? address_parts.join(', ') : 'N/A'
+  end
+
+  def add_to_totals(totals, row_data)
+    totals[:total_amount] += row_data[:total_amount]
+    totals[:total_gst] += row_data[:total_gst]
+    totals[:cgst] += row_data[:cgst]
+    totals[:sgst] += row_data[:sgst]
+    totals[:igst] += row_data[:igst]
+  end
+
+  def generate_csv(report_data)
+    require 'csv'
+
+    CSV.generate(headers: true) do |csv|
+      # Header row
+      csv << [
+        'Customer Name',
+        'Customer Number',
+        'Customer Address',
+        'Invoice Number',
+        'Invoice Date',
+        'Assignments',
+        'Total Amount',
+        'Total GST',
+        'CGST',
+        'SGST',
+        'IGST'
+      ]
+
+      # Data rows
+      report_data[:rows].each do |row|
+        csv << [
+          row[:customer_name],
+          row[:customer_number],
+          row[:customer_address],
+          row[:invoice_number],
+          row[:invoice_date].strftime('%d/%m/%Y'),
+          row[:assignments],
+          "₹#{row[:total_amount]&.round(2)}",
+          "₹#{row[:total_gst]&.round(2)}",
+          "₹#{row[:cgst]&.round(2)}",
+          "₹#{row[:sgst]&.round(2)}",
+          "₹#{row[:igst]&.round(2)}"
+        ]
+      end
+
+      # Totals row
+      totals = report_data[:totals]
+      csv << [
+        '',
+        '',
+        '',
+        '',
+        '',
+        'TOTALS:',
+        "₹#{totals[:total_amount]&.round(2)}",
+        "₹#{totals[:total_gst]&.round(2)}",
+        "₹#{totals[:cgst]&.round(2)}",
+        "₹#{totals[:sgst]&.round(2)}",
+        "₹#{totals[:igst]&.round(2)}"
+      ]
+    end
+  end
+
+  def generate_excel(report_data)
+    require 'write_xlsx'
+
+    # Create a temporary file
+    temp_file = Tempfile.new(['enhanced_sales_report', '.xlsx'])
+
+    begin
+      workbook = WriteXLSX.new(temp_file.path)
+      worksheet = workbook.add_worksheet('Enhanced Sales Report')
+
+      # Header format
+      header_format = workbook.add_format(
+        bold: 1,
+        bg_color: '#366092',
+        color: 'white',
+        border: 1
+      )
+
+      # Data format
+      data_format = workbook.add_format(border: 1)
+      currency_format = workbook.add_format(border: 1, num_format: '₹#,##0.00')
+
+      # Headers
+      headers = [
+        'Customer Name', 'Customer Number', 'Customer Address', 'Invoice Number',
+        'Invoice Date', 'Assignments', 'Total Amount', 'Total GST', 'CGST', 'SGST', 'IGST'
+      ]
+
+      headers.each_with_index do |header, col|
+        worksheet.write(0, col, header, header_format)
+      end
+
+      # Data rows
+      report_data[:rows].each_with_index do |row, row_idx|
+        worksheet.write(row_idx + 1, 0, row[:customer_name], data_format)
+        worksheet.write(row_idx + 1, 1, row[:customer_number], data_format)
+        worksheet.write(row_idx + 1, 2, row[:customer_address], data_format)
+        worksheet.write(row_idx + 1, 3, row[:invoice_number], data_format)
+        worksheet.write(row_idx + 1, 4, row[:invoice_date].strftime('%d/%m/%Y'), data_format)
+        worksheet.write(row_idx + 1, 5, row[:assignments], data_format)
+        worksheet.write(row_idx + 1, 6, row[:total_amount], currency_format)
+        worksheet.write(row_idx + 1, 7, row[:total_gst], currency_format)
+        worksheet.write(row_idx + 1, 8, row[:cgst], currency_format)
+        worksheet.write(row_idx + 1, 9, row[:sgst], currency_format)
+        worksheet.write(row_idx + 1, 10, row[:igst], currency_format)
+      end
+
+      # Totals row
+      totals_row = report_data[:rows].size + 1
+      totals = report_data[:totals]
+
+      worksheet.write(totals_row, 5, 'TOTALS:', header_format)
+      worksheet.write(totals_row, 6, totals[:total_amount], currency_format)
+      worksheet.write(totals_row, 7, totals[:total_gst], currency_format)
+      worksheet.write(totals_row, 8, totals[:cgst], currency_format)
+      worksheet.write(totals_row, 9, totals[:sgst], currency_format)
+      worksheet.write(totals_row, 10, totals[:igst], currency_format)
+
+      workbook.close
+      temp_file.read
+    ensure
+      temp_file.close
+      temp_file.unlink
+    end
+  end
 end

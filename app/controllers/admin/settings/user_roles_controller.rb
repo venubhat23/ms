@@ -25,6 +25,11 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
     @user.user_type = 'admin'
     @user.status = true
 
+    # Map role_name to role field
+    if params[:user][:role_name].present?
+      @user.role = params[:user][:role_name]
+    end
+
     # Store the plain password temporarily for display (before it gets encrypted)
     plain_password = @user.password
 
@@ -42,7 +47,14 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
   end
 
   def update
-    if @user.update(user_params)
+    # Map role_name to role field if present
+    if params[:user][:role_name].present?
+      user_params_with_role = user_params.merge(role: params[:user][:role_name])
+    else
+      user_params_with_role = user_params
+    end
+
+    if @user.update(user_params_with_role)
       redirect_to admin_settings_user_role_path(@user), notice: 'User was successfully updated.'
     else
       @sidebar_options = get_sidebar_options
@@ -67,7 +79,7 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
   end
 
   def user_params
-    permitted_params = params.require(:user).permit(:first_name, :last_name, :email, :mobile, :password, :password_confirmation, :role_name, :original_password, sidebar_permissions: [], crud_permissions: {})
+    permitted_params = params.require(:user).permit(:first_name, :last_name, :email, :mobile, :password, :password_confirmation, :original_password, sidebar_permissions: [], crud_permissions: {})
 
     # Handle CRUD permissions - store as JSON in sidebar_permissions field
     if params[:user][:crud_permissions].present?

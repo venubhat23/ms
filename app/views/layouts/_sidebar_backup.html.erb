@@ -813,27 +813,6 @@
       </ul>
     </div>
 
-    <!-- Reports Section -->
-    <div class="nav-section">
-      <div class="nav-section-title">Reports</div>
-      <ul class="nav-menu">
-        <!-- Enhanced Sales Report -->
-        <% if current_user.has_sidebar_permission?('reports') %>
-        <li class="nav-item">
-          <%= link_to admin_reports_enhanced_sales_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/reports/enhanced_sales')}" do %>
-            <div class="nav-icon-modern">
-              <div class="icon-bg gradient-lime">
-                <i class="bi bi-graph-up"></i>
-              </div>
-            </div>
-            <span class="nav-text">Enhanced Sales Report</span>
-            <div class="nav-indicator"></div>
-          <% end %>
-        </li>
-        <% end %>
-      </ul>
-    </div>
-
     <!-- Settings & Configuration Section -->
     <div class="nav-section">
       <div class="nav-section-title">Settings & Configuration</div>

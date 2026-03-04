@@ -230,8 +230,10 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
     @total_stock_value = @stock_batches.sum { |batch| batch.quantity_remaining * batch.purchase_price }
     @total_quantity = @stock_batches.sum(&:quantity_remaining)
 
-    # Product-level statistics (sorted by product name)
-    @product_stats = @products_with_batches.sort_by { |product, _| product.name }.map do |product, batches|
+    # Product-level statistics (sorted by newest batches first to show latest products at top)
+    @product_stats = @products_with_batches.sort_by { |product, batches|
+      -batches.max_by(&:created_at)&.created_at&.to_i.to_i
+    }.map do |product, batches|
       total_quantity = batches.sum(&:quantity_remaining)
       total_value = batches.sum { |batch| batch.quantity_remaining * batch.purchase_price }
       avg_purchase_price = total_quantity > 0 ? (total_value / total_quantity.to_f) : 0

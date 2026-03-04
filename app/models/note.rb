@@ -7,6 +7,21 @@ class Note < ApplicationRecord
   # Status options
   STATUSES = %w[pending completed cancelled].freeze
 
+  # Paid from options
+  PAID_FROM_OPTIONS = [
+    'Atma Nirbhar Farm Account',
+    'Personal Account'
+  ].freeze
+
+  # Paid to category options
+  PAID_TO_CATEGORY_OPTIONS = [
+    'Petrol',
+    'Groceries',
+    'Milk Business',
+    'PG Business',
+    'Other'
+  ].freeze
+
   validates :title, presence: true, length: { maximum: 255 }
   validates :paid_to, presence: true, length: { maximum: 255 }
   validates :amount, presence: true, numericality: { greater_than: 0 }
@@ -15,10 +30,14 @@ class Note < ApplicationRecord
   validates :note_date, presence: true
   validates :description, length: { maximum: 1000 }
   validates :reference_number, length: { maximum: 100 }
+  validates :paid_from, inclusion: { in: PAID_FROM_OPTIONS }, allow_blank: true
+  validates :paid_to_category, inclusion: { in: PAID_TO_CATEGORY_OPTIONS }, allow_blank: true
 
   scope :recent, -> { order(created_at: :desc) }
   scope :by_status, ->(status) { where(status: status) if status.present? }
   scope :by_payment_method, ->(method) { where(payment_method: method) if method.present? }
+  scope :by_paid_from, ->(paid_from) { where(paid_from: paid_from) if paid_from.present? }
+  scope :by_paid_to_category, ->(category) { where(paid_to_category: category) if category.present? }
   scope :by_date_range, ->(start_date, end_date) { where(note_date: start_date..end_date) if start_date && end_date }
 
   def display_amount

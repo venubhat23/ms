@@ -48,6 +48,7 @@ gem "groupdate"
 
 # Excel/CSV handling
 gem "roo"
+gem "write_xlsx"
 # gem "rubyXL"  # Commented out temporarily due to network issues
 
 # Phone number validation

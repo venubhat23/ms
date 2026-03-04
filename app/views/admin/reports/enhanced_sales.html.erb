@@ -1,0 +1,299 @@
+<%# Enhanced Sales Report Details View %>
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h1>Enhanced Sales Report Details</h1>
+    <p class="text-muted">Comprehensive sales data with GST breakdown</p>
+  </div>
+  <div class="d-flex gap-2">
+    <%= link_to admin_reports_enhanced_sales_path(format: :csv, from_date: @from_date, to_date: @to_date),
+                class: "btn btn-outline-success",
+                title: "Download CSV" do %>
+      <i class="bi bi-file-earmark-text"></i> Export CSV
+    <% end %>
+    <%= link_to admin_reports_enhanced_sales_path(format: :xlsx, from_date: @from_date, to_date: @to_date),
+                class: "btn btn-outline-primary",
+                title: "Download Excel" do %>
+      <i class="bi bi-file-earmark-excel"></i> Export Excel
+    <% end %>
+  </div>
+</div>
+
+<!-- Date Range Filter -->
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header">
+        <h5><i class="bi bi-calendar-range"></i> Date Range Filter</h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: admin_reports_enhanced_sales_path, method: :get, local: true, class: "row g-3 align-items-end" do |form| %>
+          <div class="col-md-4">
+            <%= form.label :from_date, "From Date", class: "form-label" %>
+            <%= form.date_field :from_date,
+                                value: @from_date,
+                                class: "form-control",
+                                required: true %>
+          </div>
+          <div class="col-md-4">
+            <%= form.label :to_date, "To Date", class: "form-label" %>
+            <%= form.date_field :to_date,
+                                value: @to_date,
+                                class: "form-control",
+                                required: true %>
+          </div>
+          <div class="col-md-4">
+            <%= form.submit "Generate Report", class: "btn btn-primary w-100" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-2">Total Records</h6>
+            <h3 class="mb-0"><%= @report_data[:rows].count %></h3>
+          </div>
+          <div class="align-self-center">
+            <i class="bi bi-receipt-cutoff fs-1"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card bg-success text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-2">Total Amount</h6>
+            <h3 class="mb-0">₹<%= number_with_delimiter(@report_data[:totals][:total_amount]&.round(2) || 0, delimiter: ',') %></h3>
+          </div>
+          <div class="align-self-center">
+            <i class="bi bi-currency-rupee fs-1"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card bg-warning text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-2">Total GST</h6>
+            <h3 class="mb-0">₹<%= number_with_delimiter(@report_data[:totals][:total_gst]&.round(2) || 0, delimiter: ',') %></h3>
+          </div>
+          <div class="align-self-center">
+            <i class="bi bi-percent fs-1"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card bg-info text-white">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-2">Date Range</h6>
+            <small class="mb-0"><%= @from_date.strftime('%d/%m/%Y') %> to <%= @to_date.strftime('%d/%m/%Y') %></small>
+            <div class="mt-1">
+              <small><%= (@to_date - @from_date).to_i + 1 %> days</small>
+            </div>
+          </div>
+          <div class="align-self-center">
+            <i class="bi bi-calendar-range fs-1"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GST Breakdown Cards -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <h6 class="card-title text-success">CGST Total</h6>
+        <h4 class="text-success">₹<%= number_with_delimiter(@report_data[:totals][:cgst]&.round(2) || 0, delimiter: ',') %></h4>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <h6 class="card-title text-primary">SGST Total</h6>
+        <h4 class="text-primary">₹<%= number_with_delimiter(@report_data[:totals][:sgst]&.round(2) || 0, delimiter: ',') %></h4>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-secondary">
+      <div class="card-body text-center">
+        <h6 class="card-title text-secondary">IGST Total</h6>
+        <h4 class="text-secondary">₹<%= number_with_delimiter(@report_data[:totals][:igst]&.round(2) || 0, delimiter: ',') %></h4>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Report Table -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5><i class="bi bi-table"></i> Enhanced Sales Report Data</h5>
+        <div class="d-flex gap-2">
+          <span class="badge bg-secondary">Total: <%= @report_data[:rows].count %> records</span>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <% if @report_data[:rows].any? %>
+          <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+              <thead class="table-dark">
+                <tr>
+                  <th scope="col" class="text-center">#</th>
+                  <th scope="col">Customer Name</th>
+                  <th scope="col">Customer Number</th>
+                  <th scope="col">Customer Address</th>
+                  <th scope="col">Invoice Number</th>
+                  <th scope="col">Invoice Date</th>
+                  <th scope="col" class="text-center">Assignments</th>
+                  <th scope="col" class="text-end">Total Amount</th>
+                  <th scope="col" class="text-end">Total GST</th>
+                  <th scope="col" class="text-end">CGST</th>
+                  <th scope="col" class="text-end">SGST</th>
+                  <th scope="col" class="text-end">IGST</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @report_data[:rows].each_with_index do |row, index| %>
+                  <tr>
+                    <td class="text-center"><%= index + 1 %></td>
+                    <td>
+                      <strong><%= row[:customer_name] %></strong>
+                    </td>
+                    <td>
+                      <a href="tel:<%= row[:customer_number] %>" class="text-decoration-none">
+                        <%= row[:customer_number] %>
+                      </a>
+                    </td>
+                    <td class="text-muted">
+                      <%= row[:customer_address] %>
+                    </td>
+                    <td>
+                      <span class="badge bg-primary"><%= row[:invoice_number] %></span>
+                    </td>
+                    <td>
+                      <%= row[:invoice_date].strftime('%d/%m/%Y') %>
+                    </td>
+                    <td class="text-center">
+                      <span class="badge bg-info"><%= row[:assignments] %></span>
+                    </td>
+                    <td class="text-end">
+                      <strong>₹<%= number_with_delimiter(row[:total_amount]&.round(2) || 0, delimiter: ',') %></strong>
+                    </td>
+                    <td class="text-end text-warning">
+                      <strong>₹<%= number_with_delimiter(row[:total_gst]&.round(2) || 0, delimiter: ',') %></strong>
+                    </td>
+                    <td class="text-end text-success">
+                      ₹<%= number_with_delimiter(row[:cgst]&.round(2) || 0, delimiter: ',') %>
+                    </td>
+                    <td class="text-end text-primary">
+                      ₹<%= number_with_delimiter(row[:sgst]&.round(2) || 0, delimiter: ',') %>
+                    </td>
+                    <td class="text-end text-secondary">
+                      ₹<%= number_with_delimiter(row[:igst]&.round(2) || 0, delimiter: ',') %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+              <!-- Totals Footer -->
+              <tfoot class="table-warning">
+                <tr>
+                  <th colspan="7" class="text-end"><strong>TOTALS:</strong></th>
+                  <th class="text-end">
+                    <strong>₹<%= number_with_delimiter(@report_data[:totals][:total_amount]&.round(2) || 0, delimiter: ',') %></strong>
+                  </th>
+                  <th class="text-end">
+                    <strong>₹<%= number_with_delimiter(@report_data[:totals][:total_gst]&.round(2) || 0, delimiter: ',') %></strong>
+                  </th>
+                  <th class="text-end">
+                    <strong>₹<%= number_with_delimiter(@report_data[:totals][:cgst]&.round(2) || 0, delimiter: ',') %></strong>
+                  </th>
+                  <th class="text-end">
+                    <strong>₹<%= number_with_delimiter(@report_data[:totals][:sgst]&.round(2) || 0, delimiter: ',') %></strong>
+                  </th>
+                  <th class="text-end">
+                    <strong>₹<%= number_with_delimiter(@report_data[:totals][:igst]&.round(2) || 0, delimiter: ',') %></strong>
+                  </th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        <% else %>
+          <div class="p-5 text-center">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <h4 class="mt-3 text-muted">No data found</h4>
+            <p class="text-muted">No sales data available for the selected date range.</p>
+            <p class="text-muted">
+              Try adjusting your date range or check if there are any invoices in the selected period.
+            </p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.page-header h1 {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.card {
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.table th {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.table td {
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+.badge {
+  font-size: 0.8rem;
+}
+
+.btn {
+  border-radius: 8px;
+}
+
+.form-control {
+  border-radius: 8px;
+}
+
+.table-responsive {
+  border-radius: 8px;
+}
+</style>

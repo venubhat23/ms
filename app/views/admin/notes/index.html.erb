@@ -119,6 +119,22 @@
         </div>
 
         <div class="form-group">
+          <%= form.label :paid_from, "Paid From", class: "form-label small text-muted" %>
+          <%= form.select :paid_from,
+              options_for_select([['All Accounts', ''], ['Atma Nirbhar Farm Account', 'Atma Nirbhar Farm Account'], ['Personal Account', 'Personal Account']], params[:paid_from]),
+              {},
+              { class: "form-select", style: "min-width: 180px;" } %>
+        </div>
+
+        <div class="form-group">
+          <%= form.label :paid_to_category, "Category", class: "form-label small text-muted" %>
+          <%= form.select :paid_to_category,
+              options_for_select([['All Categories', ''], ['Petrol', 'Petrol'], ['Groceries', 'Groceries'], ['Milk Business', 'Milk Business'], ['PG Business', 'PG Business'], ['Other', 'Other']], params[:paid_to_category]),
+              {},
+              { class: "form-select", style: "min-width: 140px;" } %>
+        </div>
+
+        <div class="form-group">
           <%= form.label :start_date, "From Date", class: "form-label small text-muted" %>
           <%= form.date_field :start_date, value: params[:start_date], class: "form-control", style: "min-width: 140px;" %>
         </div>
@@ -137,95 +153,151 @@
   </div>
 
   <!-- Notes Table -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead class="table-light">
-            <tr>
-              <th style="width: 200px;">Title</th>
-              <th style="width: 150px;">Paid To</th>
-              <th style="width: 120px;">Amount</th>
-              <th style="width: 130px;">Payment Method</th>
-              <th style="width: 120px;">Status</th>
-              <th style="width: 100px;">Date</th>
-              <th style="width: 120px;">Reference</th>
-              <th style="width: 120px;">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% if @notes.any? %>
-              <% @notes.each do |note| %>
+  <div class="card border-0 shadow-sm notes-table-container">
+    <div class="card-body p-0">
+      <div class="notes-table-wrapper">
+        <% if @notes.any? %>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 notes-data-table">
+              <thead class="table-light sticky-top">
                 <tr>
-                  <td>
-                    <div class="fw-semibold text-dark"><%= note.title %></div>
-                    <% if note.description.present? %>
-                      <small class="text-muted"><%= truncate(note.description, length: 50) %></small>
-                    <% end %>
-                  </td>
-                  <td>
-                    <span class="text-dark fw-medium"><%= note.paid_to %></span>
-                  </td>
-                  <td>
-                    <span class="fw-semibold text-success"><%= note.display_amount %></span>
-                  </td>
-                  <td>
-                    <div class="d-flex align-items-center gap-2">
-                      <i class="<%= note.payment_method_icon %> text-primary"></i>
-                      <span><%= note.payment_method.gsub('_', ' ') %></span>
-                    </div>
-                  </td>
-                  <td>
-                    <span class="badge <%= note.status_badge_class %> px-3 py-2">
-                      <%= note.status.capitalize %>
-                    </span>
-                  </td>
-                  <td>
-                    <small class="text-muted"><%= note.formatted_date %></small>
-                  </td>
-                  <td>
-                    <% if note.reference_number.present? %>
-                      <code class="small"><%= note.reference_number %></code>
-                    <% else %>
-                      <span class="text-muted">-</span>
-                    <% end %>
-                  </td>
-                  <td>
-                    <div class="dropdown">
-                      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        Actions
-                      </button>
-                      <ul class="dropdown-menu dropdown-menu-end">
-                        <li><%= link_to "View", admin_note_path(note), class: "dropdown-item" %></li>
-                        <li><%= link_to "Edit", edit_admin_note_path(note), class: "dropdown-item" %></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li>
-                          <%= link_to "Delete", admin_note_path(note),
-                              method: :delete,
-                              class: "dropdown-item text-danger",
-                              confirm: "Are you sure you want to delete this note?" %>
-                        </li>
-                      </ul>
-                    </div>
-                  </td>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Title</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Paid To</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Amount</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Payment</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Paid From</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Category</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Status</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Date</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d;">Reference</th>
+                  <th class="border-0 fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 11px; color: #6c757d; text-align: center;">Actions</th>
                 </tr>
+              </thead>
+              <tbody>
+                <% @notes.each do |note| %>
+                  <tr class="border-bottom notes-table-row">
+                    <td class="py-3 border-0">
+                      <div class="fw-semibold text-dark mb-1"><%= note.title %></div>
+                      <% if note.description.present? %>
+                        <small class="text-muted d-block"><%= truncate(note.description, length: 50) %></small>
+                      <% end %>
+                    </td>
+                    <td class="py-3 border-0">
+                      <div class="text-dark fw-medium"><%= note.paid_to %></div>
+                    </td>
+                    <td class="py-3 border-0">
+                      <div class="fw-bold text-success fs-6"><%= note.display_amount %></div>
+                    </td>
+                    <td class="py-3 border-0">
+                      <div class="d-flex align-items-center gap-2">
+                        <div class="payment-method-icon">
+                          <i class="<%= note.payment_method_icon %> text-primary fs-5"></i>
+                        </div>
+                        <span class="small fw-medium"><%= note.payment_method.gsub('_', ' ') %></span>
+                      </div>
+                    </td>
+                    <td class="py-3 border-0">
+                      <% if note.paid_from.present? %>
+                        <span class="badge bg-light text-dark border small fw-medium px-2 py-1 rounded-pill">
+                          <% if note.paid_from == 'Atma Nirbhar Farm Account' %>
+                            🏢 Farm Account
+                          <% else %>
+                            👤 Personal
+                          <% end %>
+                        </span>
+                      <% else %>
+                        <span class="text-muted small">-</span>
+                      <% end %>
+                    </td>
+                    <td class="py-3 border-0">
+                      <% if note.paid_to_category.present? %>
+                        <span class="badge badge-category small fw-medium px-2 py-1 rounded-pill
+                          <%= case note.paid_to_category
+                                when 'Petrol' then 'bg-warning text-dark'
+                                when 'Groceries' then 'bg-success text-white'
+                                when 'Milk Business' then 'bg-info text-white'
+                                when 'PG Business' then 'bg-primary text-white'
+                                when 'Other' then 'bg-secondary text-white'
+                                else 'bg-light text-dark'
+                              end %>">
+                          <%= case note.paid_to_category
+                                when 'Petrol' then '⛽ Petrol'
+                                when 'Groceries' then '🛒 Groceries'
+                                when 'Milk Business' then '🥛 Milk'
+                                when 'PG Business' then '🏠 PG'
+                                when 'Other' then '📋 Other'
+                                else note.paid_to_category
+                              end %>
+                        </span>
+                      <% else %>
+                        <span class="text-muted small">-</span>
+                      <% end %>
+                    </td>
+                    <td class="py-3 border-0">
+                      <span class="badge <%= note.status_badge_class %> px-3 py-2 rounded-pill fw-medium">
+                        <%= note.status.capitalize %>
+                      </span>
+                    </td>
+                    <td class="py-3 border-0">
+                      <span class="text-muted small fw-medium"><%= note.formatted_date %></span>
+                    </td>
+                    <td class="py-3 border-0">
+                      <% if note.reference_number.present? %>
+                        <code class="small text-primary bg-light px-2 py-1 rounded"><%= note.reference_number %></code>
+                      <% else %>
+                        <span class="text-muted">-</span>
+                      <% end %>
+                    </td>
+                    <td class="py-3 border-0 text-center">
+                      <div class="dropdown">
+                        <button class="btn btn-sm btn-light rounded-circle d-flex align-items-center justify-content-center"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                style="width: 32px; height: 32px; border: 1px solid #e9ecef;">
+                          <i class="bi bi-three-dots-vertical text-muted"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="border-radius: 8px;">
+                          <li>
+                            <%= link_to admin_note_path(note), class: "dropdown-item py-2" do %>
+                              <i class="bi bi-eye me-2 text-info"></i>View Details
+                            <% end %>
+                          </li>
+                          <li>
+                            <%= link_to edit_admin_note_path(note), class: "dropdown-item py-2" do %>
+                              <i class="bi bi-pencil me-2 text-warning"></i>Edit Note
+                            <% end %>
+                          </li>
+                          <li><hr class="dropdown-divider my-1"></li>
+                          <li>
+                            <%= link_to admin_note_path(note),
+                                method: :delete,
+                                class: "dropdown-item py-2 text-danger",
+                                confirm: "Are you sure you want to delete this note?" do %>
+                              <i class="bi bi-trash me-2"></i>Delete
+                            <% end %>
+                          </li>
+                        </ul>
+                      </div>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="notes-empty-state">
+            <div class="d-flex flex-column align-items-center justify-content-center text-center py-5" style="min-height: 400px;">
+              <div class="empty-state-icon mb-4">
+                <i class="bi bi-journal-x display-1 text-muted" style="font-size: 4rem; opacity: 0.6;"></i>
+              </div>
+              <h4 class="text-muted mb-2 fw-semibold">No Payment Notes Found</h4>
+              <p class="text-muted mb-4 px-3" style="max-width: 400px;">Start tracking your payments and transactions by creating your first note.</p>
+              <%= link_to new_admin_note_path, class: "btn btn-primary btn-lg px-4 py-2 rounded-pill" do %>
+                <i class="bi bi-plus-circle me-2"></i>Create First Note
               <% end %>
-            <% else %>
-              <tr>
-                <td colspan="8" class="text-center py-5">
-                  <div class="d-flex flex-column align-items-center justify-content-center" style="min-height: 200px;">
-                    <i class="bi bi-journal-x display-1 text-muted mb-3"></i>
-                    <h5 class="text-muted mb-2">No payment notes found</h5>
-                    <p class="text-muted mb-3">Create your first payment note to track transactions</p>
-                    <%= link_to new_admin_note_path, class: "btn btn-primary" do %>
-                      <i class="bi bi-plus-circle me-2"></i>Add First Note
-                    <% end %>
-                  </div>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
+            </div>
+          </div>
+        <% end %>
       </div>
 
       <!-- Pagination -->
@@ -243,6 +315,111 @@
 </div>
 
 <style>
+/* Enhanced Notes Page Styling - Force Table Display */
+
+/* Ensure table always displays as table, never as cards */
+.notes-table-container {
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 25px rgba(0,0,0,0.08);
+}
+
+.notes-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  background: #ffffff;
+}
+
+.notes-data-table {
+  width: 100% !important;
+  min-width: 1200px;
+  display: table !important; /* Force table display */
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: #ffffff;
+}
+
+.notes-data-table thead {
+  display: table-header-group !important; /* Force table header display */
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.notes-data-table tbody {
+  display: table-row-group !important; /* Force table body display */
+  background: #ffffff;
+}
+
+.notes-data-table tr {
+  display: table-row !important; /* Force table row display */
+  border-bottom: 1px solid #f1f3f4;
+  transition: all 0.2s ease;
+}
+
+.notes-data-table th,
+.notes-data-table td {
+  display: table-cell !important; /* Force table cell display */
+  vertical-align: middle !important;
+  white-space: nowrap;
+  padding: 16px 12px !important;
+  border: none !important;
+}
+
+.notes-data-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #6c757d;
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+}
+
+.notes-table-row:hover {
+  background-color: #f8fafc !important;
+  transform: translateX(2px);
+}
+
+/* Mobile Responsive - Keep table structure but allow horizontal scroll */
+@media (max-width: 768px) {
+  .notes-table-container {
+    margin: 0 -15px;
+    border-radius: 0;
+  }
+
+  .notes-table-wrapper {
+    padding: 0 15px;
+  }
+
+  .notes-data-table {
+    min-width: 1200px; /* Ensure horizontal scroll on mobile */
+    font-size: 14px;
+  }
+
+  .notes-data-table th,
+  .notes-data-table td {
+    padding: 12px 8px !important;
+  }
+
+  /* NEVER allow table to break into card layout */
+  .notes-data-table,
+  .notes-data-table thead,
+  .notes-data-table tbody,
+  .notes-data-table tr,
+  .notes-data-table th,
+  .notes-data-table td {
+    display: table !important;
+  }
+
+  .notes-data-table thead { display: table-header-group !important; }
+  .notes-data-table tbody { display: table-row-group !important; }
+  .notes-data-table tr { display: table-row !important; }
+  .notes-data-table th,
+  .notes-data-table td { display: table-cell !important; }
+}
+
+/* Enhanced button styles */
 .btn-modern {
   border-radius: 8px;
   padding: 10px 20px;
@@ -255,39 +432,25 @@
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-.table th {
-  font-weight: 600;
-  color: #6c757d;
-  border-bottom: 1px solid #dee2e6;
-  padding: 12px;
+/* Payment method icon styling */
+.payment-method-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
-.table td {
-  padding: 12px;
-  vertical-align: middle;
-}
-
-.table-hover tbody tr:hover {
-  background-color: rgba(0,123,255,0.05);
-}
-
-.icon-bg {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.gradient-blue {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.card {
+/* Empty state styling */
+.notes-empty-state {
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
   border-radius: 12px;
-  transition: all 0.3s ease;
 }
 
-.card:hover {
-  transform: translateY(-2px);
-}
-
+/* Form controls */
 .form-control, .form-select {
   border-radius: 8px;
   border: 1px solid #e2e8f0;
@@ -298,16 +461,6 @@
 .form-control:focus, .form-select:focus {
   border-color: #4299e1;
   box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-}
-
-.dropdown-toggle::after {
-  margin-left: 8px;
-}
-
-.badge {
-  font-size: 0.75rem;
-  font-weight: 500;
-  border-radius: 6px;
 }
 
 /* Enhanced Stats Cards with Better Contrast */
@@ -331,6 +484,7 @@
   transition: all 0.3s ease;
   overflow: hidden;
   position: relative;
+  border-radius: 12px;
 }
 
 .stats-card-primary:hover, .stats-card-info:hover, .stats-card-success:hover, .stats-card-warning:hover {
@@ -384,5 +538,36 @@
 .stats-card-warning small {
   color: rgba(255,255,255,0.9) !important;
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Icon and gradient styling */
+.icon-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* General card styling for other components */
+.card:not(.notes-table-container) {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.card:not(.notes-table-container):hover {
+  transform: translateY(-2px);
+}
+
+/* Badge styling */
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+/* Dropdown styling */
+.dropdown-toggle::after {
+  margin-left: 8px;
 }
 </style>

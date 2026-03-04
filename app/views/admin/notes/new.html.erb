@@ -70,6 +70,26 @@
               <% end %>
             </div>
 
+            <!-- Paid From -->
+            <div class="form-group mb-3">
+              <%= form.label :paid_from, "Paid From", class: "form-label fw-semibold" %>
+              <small class="text-muted">(Optional)</small>
+              <%= form.select :paid_from,
+                  options_for_select([
+                    ['Select account', ''],
+                    ['🏢 Atma Nirbhar Farm Account', 'Atma Nirbhar Farm Account'],
+                    ['👤 Personal Account', 'Personal Account']
+                  ], @note.paid_from),
+                  {},
+                  { class: "form-select form-select-lg" } %>
+              <small class="form-text text-muted">
+                Which account was the payment made from
+              </small>
+              <% if @note.errors[:paid_from].any? %>
+                <div class="text-danger small"><%= @note.errors[:paid_from].first %></div>
+              <% end %>
+            </div>
+
             <!-- Payment Method -->
             <div class="form-group mb-3">
               <%= form.label :payment_method, "Payment Method", class: "form-label fw-semibold" %>
@@ -124,6 +144,29 @@
                   { class: "form-select form-select-lg", required: true } %>
               <% if @note.errors[:status].any? %>
                 <div class="text-danger small"><%= @note.errors[:status].first %></div>
+              <% end %>
+            </div>
+
+            <!-- Paid To Category -->
+            <div class="form-group mb-3">
+              <%= form.label :paid_to_category, "Paid To Category", class: "form-label fw-semibold" %>
+              <small class="text-muted">(Optional)</small>
+              <%= form.select :paid_to_category,
+                  options_for_select([
+                    ['Select category', ''],
+                    ['⛽ Petrol', 'Petrol'],
+                    ['🛒 Groceries', 'Groceries'],
+                    ['🥛 Milk Business', 'Milk Business'],
+                    ['🏠 PG Business', 'PG Business'],
+                    ['📋 Other', 'Other']
+                  ], @note.paid_to_category),
+                  {},
+                  { class: "form-select form-select-lg" } %>
+              <small class="form-text text-muted">
+                Category of payment for better organization
+              </small>
+              <% if @note.errors[:paid_to_category].any? %>
+                <div class="text-danger small"><%= @note.errors[:paid_to_category].first %></div>
               <% end %>
             </div>
 

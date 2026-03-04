@@ -563,9 +563,9 @@
       # Calculate if any product has GST (adapting for booking structure)
       has_gst = @booking.booking_items&.any? { |item| item.product&.gst_enabled }
 
-      # Calculate totals with proper GST breakdown
-      subtotal_amount = 0
-      taxable_amount = 0
+      # Calculate totals with corrected GST breakdown
+      subtotal_amount = 0  # This will be the total amount INCLUDING taxes (what customer pays)
+      taxable_amount = 0   # This will be the amount BEFORE taxes
       total_cgst = 0
       total_sgst = 0
       total_igst = 0
@@ -575,35 +575,61 @@
         base_amount = item.quantity * (item.price || 0)
 
         if item.product&.gst_enabled
-          # For GST applicable items, add to taxable amount and calculate GST
+          # Only add to taxable amount if GST is enabled
           taxable_amount += base_amount
 
-          # Calculate individual tax components based on base amount
+          # Calculate total GST first, then split to avoid rounding issues
           if item.product.cgst_percentage.present? && item.product.sgst_percentage.present?
             cgst_rate = item.product.cgst_percentage
             sgst_rate = item.product.sgst_percentage
             igst_rate = item.product.igst_percentage || 0
+            total_gst_rate = cgst_rate + sgst_rate + igst_rate
           elsif item.product.gst_percentage.present?
-            # Split total GST equally for intra-state transactions
-            cgst_rate = item.product.gst_percentage / 2.0
-            sgst_rate = item.product.gst_percentage / 2.0
+            # Use total GST rate first
+            total_gst_rate = item.product.gst_percentage || 0
+            cgst_rate = total_gst_rate / 2.0
+            sgst_rate = total_gst_rate / 2.0
             igst_rate = 0
           else
-            cgst_rate = sgst_rate = igst_rate = 0
+            cgst_rate = sgst_rate = igst_rate = total_gst_rate = 0
           end
 
-          cgst_amount = (base_amount * cgst_rate / 100).round(2)
-          sgst_amount = (base_amount * sgst_rate / 100).round(2)
-          igst_amount = (base_amount * igst_rate / 100).round(2)
+          # Calculate total tax first to maintain consistency with item display
+          total_item_tax = (base_amount * total_gst_rate / 100)
+
+          # Split the total tax proportionally to avoid rounding differences
+          if total_gst_rate > 0
+            cgst_amount = (total_item_tax * cgst_rate / total_gst_rate).round(2)
+            sgst_amount = (total_item_tax * sgst_rate / total_gst_rate).round(2)
+            igst_amount = (total_item_tax * igst_rate / total_gst_rate).round(2)
+
+            # Ensure the sum equals the rounded total (handle rounding differences)
+            calculated_sum = cgst_amount + sgst_amount + igst_amount
+            total_item_tax_rounded = total_item_tax.round(2)
+
+            if calculated_sum != total_item_tax_rounded
+              # Adjust the largest component to match the total
+              if cgst_amount >= sgst_amount && cgst_amount >= igst_amount
+                cgst_amount = total_item_tax_rounded - sgst_amount - igst_amount
+              elsif sgst_amount >= igst_amount
+                sgst_amount = total_item_tax_rounded - cgst_amount - igst_amount
+              else
+                igst_amount = total_item_tax_rounded - cgst_amount - sgst_amount
+              end
+            end
+          else
+            cgst_amount = sgst_amount = igst_amount = 0
+          end
 
           total_cgst += cgst_amount
           total_sgst += sgst_amount
           total_igst += igst_amount
 
-          # Add GST-inclusive amount to subtotal
-          subtotal_amount += base_amount + cgst_amount + sgst_amount + igst_amount
+          # Add base amount + taxes to get final amount for this item
+          item_total = base_amount + cgst_amount + sgst_amount + igst_amount
+          subtotal_amount += item_total
         else
-          # Add base amount for non-GST items
+          # For non-GST items, just add base amount (not to taxable_amount)
           subtotal_amount += base_amount
         end
       end
@@ -706,15 +732,10 @@
               <td class="center-align"><%= item.quantity %> <%= item.product&.unit_type || 'PCS' %></td>
               <td class="right-align">
                 <%
-                  # Display GST-inclusive unit price
-                  if item.product&.gst_enabled
-                    gst_rate = item.product.gst_percentage || 0
-                    unit_price_with_gst = (item.price || 0) * (1 + gst_rate/100)
-                  else
-                    unit_price_with_gst = item.price || 0
-                  end
+                  # Display unit price (base price without GST)
+                  unit_price = item.price || 0
                 %>
-                ₹<%= number_with_delimiter(sprintf('%.2f', unit_price_with_gst), delimiter: ',') %>
+                ₹<%= number_with_delimiter(sprintf('%.2f', unit_price), delimiter: ',') %>
               </td>
               <td class="right-align">
                 <%
@@ -738,13 +759,18 @@
               </td>
               <td class="right-align">
                 <%
-                  # Calculate final amount consistently with the rate display
+                  # Calculate final amount: base amount + tax amount
+                  base_amount = item.quantity * (item.price || 0)
                   if item.product&.gst_enabled
-                    gst_rate = item.product.gst_percentage || 0
-                    unit_price_with_gst = (item.price || 0) * (1 + gst_rate/100)
-                    final_amount = item.quantity * unit_price_with_gst
+                    if item.product.cgst_percentage.present? || item.product.sgst_percentage.present?
+                      total_gst_rate = (item.product.cgst_percentage || 0) + (item.product.sgst_percentage || 0) + (item.product.igst_percentage || 0)
+                    else
+                      total_gst_rate = item.product.gst_percentage || 0
+                    end
+                    tax_amount = (base_amount * total_gst_rate) / 100
+                    final_amount = base_amount + tax_amount
                   else
-                    final_amount = item.quantity * (item.price || 0)
+                    final_amount = base_amount
                   end
                 %>
                 ₹<%= number_with_delimiter(final_amount.round(2), delimiter: ',') %>
@@ -892,7 +918,7 @@
                 </div>
                 <div class="tax-line" style="font-weight: normal; font-size: 10px;">
                   <span class="tax-label">Received Amount</span>
-                  <span class="tax-amount">₹ <%= @booking.payment_status_paid? ? number_with_delimiter(@booking.total_amount, delimiter: ',') : '0' %></span>
+                  <span class="tax-amount">₹ <%= @booking.payment_status_paid? ? number_with_delimiter(final_total.round(2), delimiter: ',') : '0' %></span>
                 </div>
               </div>
               <div class="amount-words">

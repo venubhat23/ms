@@ -1,20 +1,34 @@
-<div class="container-fluid px-4">
-  <div class="row">
-    <div class="col-lg-8 mx-auto">
-      <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <h4 class="mb-0">
-            <i class="fas fa-headset me-2"></i>
-            Submit Support Request
-          </h4>
-          <%= link_to "Back to Requests", customer_client_requests_path, class: "btn btn-outline-secondary" %>
-        </div>
+<% content_for :title, "Submit Support Request - Atma Nirbhar Farm" %>
 
-        <div class="card-body">
-          <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            Please provide as much detail as possible so our support team can assist you effectively.
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Submit Support Request</h2>
+    <p class="text-muted mb-0">Submit your issue and our support team will get back to you</p>
+  </div>
+  <%= link_to customer_client_requests_path, class: "btn btn-outline-secondary" do %>
+    <i class="bi bi-arrow-left me-1"></i>
+    Back to Requests
+  <% end %>
+</div>
+
+<div class="row">
+  <div class="col-lg-8 mx-auto">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0">
+        <div class="d-flex align-items-center">
+          <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
+            <i class="bi bi-headset"></i>
           </div>
+          <h5 class="mb-0">Request Details</h5>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="alert alert-info" role="alert">
+          <i class="bi bi-info-circle me-2"></i>
+          Please provide as much detail as possible so our support team can assist you effectively.
+        </div>
 
           <%= form_with(model: [:customer, @client_request], local: true, class: "needs-validation", novalidate: true) do |form| %>
             <% if @client_request.errors.any? %>
@@ -87,16 +101,32 @@
               </div>
             </div>
 
-            <div class="d-flex justify-content-between">
-              <%= link_to "Cancel", customer_client_requests_path, class: "btn btn-light" %>
-              <%= form.submit "Submit Request", class: "btn btn-primary" %>
-            </div>
-          <% end %>
+        <div class="d-flex justify-content-between">
+          <%= link_to "Cancel", customer_client_requests_path, class: "btn btn-outline-secondary" %>
+          <%= form.submit "Submit Request", class: "btn btn-primary" %>
         </div>
-      </div>
+      <% end %>
     </div>
   </div>
 </div>
+</div>
+
+<style>
+/* Avatar styling to match other customer pages */
+.avatar-sm {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+/* Enhanced card styling */
+.card {
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+</style>
 
 <script>
 // Bootstrap form validation

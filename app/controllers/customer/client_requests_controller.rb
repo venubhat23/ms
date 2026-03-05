@@ -16,8 +16,13 @@ class Customer::ClientRequestsController < Customer::ApplicationController
   def create
     @client_request = current_customer.client_requests.build(client_request_params)
     @client_request.status = 'pending'
-    @client_request.priority = 'medium'
+    @client_request.priority = client_request_params[:priority] || 'medium'
     @client_request.stage = 'new'
+
+    # Set customer information fields
+    @client_request.name = current_customer.display_name || "#{current_customer.first_name} #{current_customer.last_name}".strip
+    @client_request.email = current_customer.email
+    @client_request.phone_number = current_customer.mobile
 
     if @client_request.save
       redirect_to customer_client_request_path(@client_request), notice: 'Your request has been submitted successfully. We will get back to you soon.'

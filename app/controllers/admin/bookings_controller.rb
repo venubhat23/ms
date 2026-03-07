@@ -4,7 +4,13 @@ class Admin::BookingsController < Admin::ApplicationController
 
   def index
     # Start with base query for statistics (before filtering)
-    @all_bookings = Booking.includes(:customer, :user, :booking_items, :store)
+    @all_bookings = if current_user.franchise?
+                     # Franchise users see only their own bookings
+                     Booking.where(user_id: current_user.id).includes(:customer, :user, :booking_items, :store)
+                   else
+                     # Admin sees all bookings
+                     Booking.includes(:customer, :user, :booking_items, :store, :franchise)
+                   end
 
     # Apply filters
     @bookings = @all_bookings.recent
@@ -71,6 +77,14 @@ class Admin::BookingsController < Admin::ApplicationController
   def create
     @booking = Booking.new(booking_params)
     @booking.user = current_user
+
+    # Auto-set franchise_id for franchise users
+    if current_user.franchise?
+      @booking.franchise_id = current_user.franchise&.id
+      @booking.booked_by = 'franchise'
+    else
+      @booking.booked_by = 'admin'
+    end
 
     # Only set booking_date to current time if not provided in params
     @booking.booking_date = @booking.booking_date.present? ? @booking.booking_date : Time.current

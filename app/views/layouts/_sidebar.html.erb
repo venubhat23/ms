@@ -669,17 +669,41 @@
         <% end %>
 
         <!-- Referrals -->
-        <% if current_user.has_sidebar_permission?('referrals') %>
-          <li class="nav-item">
-            <%= link_to admin_referrals_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/referrals')}" do %>
+        <% if current_user.has_sidebar_permission?('referrals') || current_user.user_type == 'admin' || current_user.user_type == 'super_admin' %>
+          <li class="nav-item dropdown-menu-item">
+            <a href="#" class="nav-link-modern dropdown-toggle #{'active' if request.path.include?('/admin/referrals')}" data-bs-toggle="collapse" data-bs-target="#referralsSubmenu" aria-expanded="false">
               <div class="nav-icon-modern">
                 <div class="icon-bg gradient-purple">
                   <i class="bi bi-share-fill"></i>
                 </div>
               </div>
               <span class="nav-text">Referrals</span>
-              <div class="nav-indicator"></div>
-            <% end %>
+              <span class="dropdown-arrow ms-auto">
+                <i class="bi bi-chevron-down"></i>
+              </span>
+            </a>
+            <div class="submenu collapse" id="referralsSubmenu">
+              <ul class="submenu-list">
+                <li>
+                  <%= link_to admin_referrals_path, class: "submenu-link #{'active' if current_page?(admin_referrals_path)}" do %>
+                    <span class="submenu-bullet">•</span>
+                    <span>All Referrals</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to affiliate_referrals_admin_referrals_path, class: "submenu-link #{'active' if request.path.include?('/admin/referrals/affiliate_referrals')}" do %>
+                    <span class="submenu-bullet">•</span>
+                    <span>Affiliate Referrals</span>
+                  <% end %>
+                </li>
+                <li>
+                  <%= link_to analytics_admin_referrals_path, class: "submenu-link #{'active' if request.path.include?('/admin/referrals/analytics')}" do %>
+                    <span class="submenu-bullet">•</span>
+                    <span>Analytics</span>
+                  <% end %>
+                </li>
+              </ul>
+            </div>
           </li>
         <% end %>
 

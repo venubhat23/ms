@@ -3,6 +3,8 @@ class Invoice < ApplicationRecord
   belongs_to :created_by_user, class_name: 'User', foreign_key: 'created_by', optional: true
   has_many :invoice_items, dependent: :destroy
 
+  accepts_nested_attributes_for :invoice_items, allow_destroy: true, reject_if: :all_blank
+
   enum :status, { draft: 'draft', sent: 'sent', paid: 'paid', overdue: 'overdue', cancelled: 'cancelled' }
   enum :payment_status, { unpaid: 0, partially_paid: 1, fully_paid: 2 }
 
@@ -11,6 +13,7 @@ class Invoice < ApplicationRecord
   validates :invoice_date, presence: true
 
   before_validation :generate_invoice_number, on: :create
+  before_validation :calculate_total_from_items
   before_create :generate_share_token
 
   scope :for_month, ->(month, year) { where(invoice_date: Date.new(year, month).beginning_of_month..Date.new(year, month).end_of_month) }
@@ -120,5 +123,34 @@ class Invoice < ApplicationRecord
   def generate_share_token
     return if share_token.present?
     self.share_token = SecureRandom.urlsafe_base64(32)
+  end
+
+  private
+
+  def calculate_total_from_items
+    # Only recalculate if invoice_items are present and changed
+    if invoice_items.any? || (respond_to?(:invoice_items_attributes) && invoice_items_attributes.present?)
+      new_total = 0
+
+      # Calculate from existing items
+      invoice_items.each do |item|
+        next if item.marked_for_destruction?
+        new_total += (item.quantity || 0) * (item.unit_price || 0)
+      end
+
+      # Add new items from nested attributes if present
+      if respond_to?(:invoice_items_attributes) && invoice_items_attributes.present?
+        invoice_items_attributes.each do |_, attrs|
+          next if attrs['_destroy'] == '1' || attrs[:_destroy] == '1'
+          next if attrs['id'].present? || attrs[:id].present? # Skip existing items already counted
+
+          quantity = (attrs['quantity'] || attrs[:quantity] || 0).to_f
+          unit_price = (attrs['unit_price'] || attrs[:unit_price] || 0).to_f
+          new_total += quantity * unit_price
+        end
+      end
+
+      self.total_amount = new_total if new_total > 0
+    end
   end
 end

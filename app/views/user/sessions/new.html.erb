@@ -1,0 +1,61 @@
+<% content_for :title, "User Login - Atma Nirbhar Farm" %>
+
+<!-- Simple Centered Login Page -->
+<div class="simple-login-wrapper">
+  <div class="simple-login-container">
+    <div class="simple-login-card">
+
+      <!-- Logo Section -->
+      <div class="text-center mb-4">
+        <div class="simple-logo">
+          <i class="fas fa-user text-success" style="font-size: 4rem;"></i>
+        </div>
+        <h2 class="simple-title">User Portal</h2>
+        <p class="text-muted">Atma Nirbhar Farm</p>
+      </div>
+
+      <!-- Simple Login Form -->
+      <%= form_with url: user_login_path, method: :post, local: true do |f| %>
+        <div class="mb-3">
+          <%= f.label :email, "Email", class: "form-label" %>
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-envelope"></i>
+            </span>
+            <%= f.email_field :email, autofocus: true, autocomplete: "email", class: "form-control", placeholder: "email@example.com" %>
+          </div>
+          <small class="text-muted">Please enter your user email address</small>
+        </div>
+
+        <div class="mb-3">
+          <%= f.label :password, "Password", class: "form-label" %>
+          <div class="input-group">
+            <span class="input-group-text">
+              <i class="fas fa-lock"></i>
+            </span>
+            <%= f.password_field :password, autocomplete: "current-password", class: "form-control", placeholder: "••••••••" %>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="remember_me">
+            <label class="form-check-label" for="remember_me">Remember me</label>
+          </div>
+        </div>
+
+        <%= f.submit "Sign In", class: "btn btn-success w-100 py-3 fs-5 fw-semibold" %>
+      <% end %>
+
+      <!-- Additional Links -->
+      <div class="text-center mt-4">
+        <p class="text-muted mb-0">
+          Need help accessing your account?
+          <br>
+          <small>Contact: <a href="mailto:support@atmanirbharfarm.com" class="text-decoration-none">support@atmanirbharfarm.com</a></small>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>

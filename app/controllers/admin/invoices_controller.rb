@@ -179,11 +179,26 @@ class Admin::InvoicesController < Admin::ApplicationController
   end
 
   def update
-    if @invoice.update(invoice_params)
+    @invoice.assign_attributes(invoice_params)
+
+    # Calculate new total based on invoice items
+    new_total = 0
+    if @invoice.invoice_items_attributes
+      @invoice.invoice_items_attributes.each do |_, item_attrs|
+        next if item_attrs['_destroy'] == '1'
+        quantity = item_attrs['quantity'].to_f
+        unit_price = item_attrs['unit_price'].to_f
+        new_total += quantity * unit_price
+      end
+    end
+
+    @invoice.total_amount = new_total
+
+    if @invoice.save
       redirect_to admin_invoice_path(@invoice), notice: 'Invoice was successfully updated.'
     else
       @invoice_items = @invoice.invoice_items.includes(:product, :milk_delivery_task)
-      render :edit, alert: 'Failed to update invoice.'
+      render :edit, status: :unprocessable_entity
     end
   end
 
@@ -247,6 +262,89 @@ class Admin::InvoicesController < Admin::ApplicationController
       success: false,
       error: "Error marking invoices as paid: #{e.message}"
     }, status: :internal_server_error
+  end
+
+  def partial_payment
+    begin
+      invoice_id = params[:invoice_id]
+      amount = params[:amount].to_f
+      notes = params[:notes]
+
+      if invoice_id.blank? || amount <= 0
+        render json: { success: false, error: 'Invalid invoice ID or amount' }, status: :bad_request
+        return
+      end
+
+      invoice = Invoice.find(invoice_id)
+
+      # Get current paid amount (initialize if needed)
+      current_paid_amount = invoice.paid_amount || 0
+      new_paid_amount = current_paid_amount + amount
+
+      # Calculate remaining amount
+      remaining_amount = invoice.total_amount - new_paid_amount
+
+      # Validate payment amount
+      if new_paid_amount > invoice.total_amount
+        render json: {
+          success: false,
+          error: 'Payment amount exceeds remaining invoice amount'
+        }, status: :bad_request
+        return
+      end
+
+      # Update invoice with payment information
+      Invoice.transaction do
+        # Update paid amount and payment status
+        if remaining_amount <= 0
+          invoice.update!(
+            paid_amount: invoice.total_amount,
+            payment_status: :fully_paid,
+            status: :paid,
+            paid_at: Time.current
+          )
+        else
+          invoice.update!(
+            paid_amount: new_paid_amount,
+            payment_status: :partially_paid
+          )
+        end
+
+        # Create a payment record/note if notes are provided
+        if notes.present?
+          # You can create a separate payment record here if needed
+          # For now, we'll just update the invoice notes
+          existing_notes = invoice.notes.present? ? invoice.notes : ""
+          payment_note = "Payment of ₹#{amount} on #{Time.current.strftime('%Y-%m-%d %H:%M')} - #{notes}"
+
+          if existing_notes.present?
+            invoice.update!(notes: "#{existing_notes}\n#{payment_note}")
+          else
+            invoice.update!(notes: payment_note)
+          end
+        end
+      end
+
+      render json: {
+        success: true,
+        message: remaining_amount <= 0 ? 'Invoice marked as fully paid' : 'Partial payment processed successfully',
+        invoice: {
+          id: invoice.id,
+          paid_amount: invoice.paid_amount,
+          remaining_amount: invoice.total_amount - invoice.paid_amount,
+          payment_status: invoice.payment_status
+        }
+      }
+
+    rescue ActiveRecord::RecordNotFound
+      render json: { success: false, error: 'Invoice not found' }, status: :not_found
+    rescue => e
+      Rails.logger.error "Partial payment error: #{e.message}"
+      render json: {
+        success: false,
+        error: "Error processing partial payment: #{e.message}"
+      }, status: :internal_server_error
+    end
   end
 
   private
@@ -545,7 +643,8 @@ class Admin::InvoicesController < Admin::ApplicationController
   end
 
   def invoice_params
-    params.require(:invoice).permit(:invoice_date, :due_date, :status, :payment_status, :notes, :total_amount)
+    params.require(:invoice).permit(:invoice_date, :due_date, :status, :payment_status, :notes, :total_amount,
+                                   invoice_items_attributes: [:id, :product_id, :description, :quantity, :unit_price, :total_amount, :_destroy])
   end
 
   def generate_customer_invoice(customer, month, year)

@@ -476,7 +476,7 @@
       <% end %>
 
       <% if @referral.status == 'registered' %>
-        <%= link_to admin_referral_mark_converted_path(@referral), method: :patch,
+        <%= link_to mark_converted_admin_referral_path(@referral), method: :patch,
             confirm: "Mark this referral as converted?",
             class: "btn-modern btn-success-modern" do %>
           <i class="bi bi-check-circle"></i>
@@ -500,9 +500,18 @@
   </div>
 </div>
 
+<style>
+  .modal {
+    z-index: 10000 !important;
+  }
+  .modal-backdrop {
+    z-index: 9999 !important;
+  }
+</style>
+
 <!-- Mark as Registered Modal -->
 <% if @referral.status == 'pending' %>
-  <div class="modal fade" id="markRegisteredModal" tabindex="-1">
+  <div class="modal fade" id="markRegisteredModal" tabindex="-1" style="z-index: 10000;">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -512,7 +521,7 @@
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <%= form_with url: admin_referral_mark_registered_path(@referral), method: :patch, local: true do |form| %>
+        <%= form_with url: mark_registered_admin_referral_path(@referral), method: :patch, local: true do |form| %>
           <div class="modal-body">
             <p class="mb-3">
               Select the customer account that corresponds to
@@ -543,7 +552,7 @@
 <% end %>
 
 <!-- Edit Notes Modal -->
-<div class="modal fade" id="editNotesModal" tabindex="-1">
+<div class="modal fade" id="editNotesModal" tabindex="-1" style="z-index: 10000;">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">

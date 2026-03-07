@@ -23,8 +23,10 @@ class ApplicationController < ActionController::Base
   protected
 
   def after_sign_in_path_for(resource)
-    # Check if user has dashboard access
-    if resource.has_sidebar_permission?('dashboard')
+    # Special handling for franchise users - redirect directly to bookings
+    if resource.franchise?
+      franchise_dashboard_path
+    elsif resource.has_sidebar_permission?('dashboard')
       root_path  # Dashboard
     else
       # Find first available sidebar page for the user
@@ -86,14 +88,17 @@ class ApplicationController < ActionController::Base
 
   def set_cache_control_headers
     # Strong cache prevention for all authenticated pages
-    if user_signed_in?
-      response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private, max-age=0'
-      response.headers['Pragma'] = 'no-cache'
-      response.headers['Expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
+    # Skip for franchise controllers to avoid session interference
+    unless controller_name == 'sessions' && params[:controller]&.include?('franchise')
+      if user_signed_in?
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = 'Thu, 01 Jan 1970 00:00:00 GMT'
 
-      # Additional headers to prevent browser caching
-      response.headers['Last-Modified'] = Time.current.httpdate
-      response.headers['ETag'] = SecureRandom.hex(16)
+        # Additional headers to prevent browser caching
+        response.headers['Last-Modified'] = Time.current.httpdate
+        response.headers['ETag'] = SecureRandom.hex(16)
+      end
     end
   end
 

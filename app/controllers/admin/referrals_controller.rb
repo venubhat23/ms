@@ -4,12 +4,8 @@ class Admin::ReferralsController < ApplicationController
 
   # GET /admin/referrals
   def index
-    @q = Referral.ransack(params[:q])
-    @referrals = @q.result
-                   .includes(:affiliate, :referring_customer, :customer)
-                   .order(created_at: :desc)
-                   .page(params[:page])
-                   .per(20)
+    @referrals = Referral.includes(:affiliate, :referring_customer, :customer)
+                        .order(created_at: :desc)
 
     # Filter by referral source (affiliate or customer)
     if params[:source].present?
@@ -25,6 +21,18 @@ class Admin::ReferralsController < ApplicationController
     if params[:status].present?
       @referrals = @referrals.where(status: params[:status])
     end
+
+    # Add basic search functionality
+    if params[:search].present?
+      search_term = "%#{params[:search].downcase}%"
+      @referrals = @referrals.where(
+        "LOWER(referred_name) LIKE ? OR LOWER(referred_email) LIKE ? OR LOWER(referred_mobile) LIKE ?",
+        search_term, search_term, search_term
+      )
+    end
+
+    # Add pagination manually (25 per page)
+    @referrals = @referrals.limit(25).offset((params[:page]&.to_i || 0) * 25)
 
     # Calculate statistics
     @stats = {
@@ -72,6 +80,42 @@ class Admin::ReferralsController < ApplicationController
   def mark_converted
     @referral.mark_as_converted!
     redirect_to admin_referral_path(@referral), notice: 'Referral marked as converted successfully.'
+  end
+
+  # GET /admin/referrals/affiliate_referrals
+  def affiliate_referrals
+    @referrals = Referral.affiliate_referrals
+                        .includes(:affiliate, :referring_customer, :customer)
+                        .order(created_at: :desc)
+
+    # Filter by status if specified
+    if params[:status].present?
+      @referrals = @referrals.where(status: params[:status])
+    end
+
+    # Add basic search functionality
+    if params[:search].present?
+      search_term = "%#{params[:search].downcase}%"
+      @referrals = @referrals.where(
+        "LOWER(referred_name) LIKE ? OR LOWER(referred_email) LIKE ? OR LOWER(referred_mobile) LIKE ?",
+        search_term, search_term, search_term
+      )
+    end
+
+    # Add pagination manually (25 per page)
+    @referrals = @referrals.limit(25).offset((params[:page]&.to_i || 0) * 25)
+
+    # Calculate statistics for affiliate referrals only
+    @stats = {
+      total: Referral.affiliate_referrals.count,
+      affiliate_referrals: Referral.affiliate_referrals.count,
+      pending: Referral.affiliate_referrals.pending.count,
+      registered: Referral.affiliate_referrals.respond_to?(:registered) ? Referral.affiliate_referrals.registered.count : 0,
+      converted: Referral.affiliate_referrals.respond_to?(:converted) ? Referral.affiliate_referrals.converted.count : 0,
+      conversion_rate: calculate_affiliate_conversion_rate
+    }
+
+    render :index
   end
 
   # GET /admin/referrals/analytics
@@ -141,6 +185,14 @@ class Admin::ReferralsController < ApplicationController
       total = Referral.count
       converted = Referral.converted.count
     end
+
+    return 0 if total == 0
+    ((converted.to_f / total) * 100).round(2)
+  end
+
+  def calculate_affiliate_conversion_rate
+    total = Referral.affiliate_referrals.count
+    converted = Referral.affiliate_referrals.respond_to?(:converted) ? Referral.affiliate_referrals.converted.count : 0
 
     return 0 if total == 0
     ((converted.to_f / total) * 100).round(2)

@@ -1,5 +1,6 @@
 class Affiliate::ApplicationController < ApplicationController
   layout 'affiliate'
+  skip_load_and_authorize_resource
   before_action :authenticate_affiliate!
   before_action :set_current_affiliate
 

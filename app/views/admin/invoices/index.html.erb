@@ -313,6 +313,12 @@
                         <i class="bi bi-pencil-square"></i>
                       <% end %>
                       <% unless payment_status == 'fully_paid' %>
+                        <button type="button" class="btn btn-sm btn-outline-warning"
+                               onclick="openPartialPaymentModal(<%= invoice_id %>, '<%= invoice_number %>', <%= total_amount %>, '<%= customer_name %>')"
+                               title="Partial Payment"
+                               data-bs-toggle="tooltip">
+                          <i class="bi bi-cash"></i>
+                        </button>
                         <%= button_to mark_as_paid_admin_invoice_path(model_object),
                                       method: :patch,
                                       class: "btn btn-sm btn-outline-success",
@@ -386,6 +392,90 @@
         <% end %>
       </div>
     <% end %>
+  </div>
+</div>
+
+<!-- Partial Payment Modal -->
+<div class="modal-overlay" id="partialPaymentModal" style="display: none;">
+  <div class="simple-modal">
+    <div class="modal-header bg-warning text-dark">
+      <h5 class="modal-title">
+        <i class="bi bi-cash"></i> Partial Payment
+      </h5>
+      <button type="button" class="btn-close" onclick="closePartialPaymentModal()" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="partialPaymentForm">
+        <input type="hidden" id="partialPaymentInvoiceId" name="invoice_id">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Invoice Details</label>
+          <div class="card bg-light border-0">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-sm-6">
+                  <small class="text-muted">Invoice Number</small>
+                  <div class="fw-medium" id="partialPaymentInvoiceNumber"></div>
+                </div>
+                <div class="col-sm-6">
+                  <small class="text-muted">Customer</small>
+                  <div class="fw-medium" id="partialPaymentCustomerName"></div>
+                </div>
+              </div>
+              <div class="row mt-2">
+                <div class="col-sm-6">
+                  <small class="text-muted">Total Amount</small>
+                  <div class="fw-bold text-primary fs-5">₹<span id="partialPaymentTotalAmount"></span></div>
+                </div>
+                <div class="col-sm-6">
+                  <small class="text-muted">Remaining Amount</small>
+                  <div class="fw-bold text-warning fs-5">₹<span id="partialPaymentRemainingAmount"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="partialPaymentAmount" class="form-label">
+            Payment Amount <span class="text-danger">*</span>
+          </label>
+          <div class="input-group">
+            <span class="input-group-text">₹</span>
+            <input type="number"
+                   class="form-control form-control-lg"
+                   id="partialPaymentAmount"
+                   name="amount"
+                   step="0.01"
+                   min="0.01"
+                   required
+                   placeholder="Enter payment amount">
+          </div>
+          <div class="form-text">
+            Enter the amount being paid (must be less than remaining amount for partial payment)
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label for="partialPaymentNotes" class="form-label">Payment Notes</label>
+          <textarea class="form-control"
+                    id="partialPaymentNotes"
+                    name="notes"
+                    rows="3"
+                    placeholder="Optional notes about this payment..."></textarea>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+          <button type="button" class="btn btn-secondary" onclick="closePartialPaymentModal()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-warning" id="processPartialPaymentBtn">
+            <i class="bi bi-cash me-1"></i>
+            Process Payment
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -1032,8 +1122,152 @@ document.addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     closeBulkInvoiceModal();
+    closePartialPaymentModal();
   }
 });
+
+// Partial Payment Modal Functions
+function openPartialPaymentModal(invoiceId, invoiceNumber, totalAmount, customerName) {
+  // Set modal data
+  document.getElementById('partialPaymentInvoiceId').value = invoiceId;
+  document.getElementById('partialPaymentInvoiceNumber').textContent = invoiceNumber;
+  document.getElementById('partialPaymentCustomerName').textContent = customerName;
+  document.getElementById('partialPaymentTotalAmount').textContent = totalAmount.toFixed(2);
+  document.getElementById('partialPaymentRemainingAmount').textContent = totalAmount.toFixed(2);
+
+  // Reset form
+  document.getElementById('partialPaymentForm').reset();
+  document.getElementById('partialPaymentInvoiceId').value = invoiceId; // Reset clears hidden fields too
+
+  // Set max amount for input
+  const amountInput = document.getElementById('partialPaymentAmount');
+  amountInput.max = totalAmount;
+
+  // Show modal
+  const modal = document.getElementById('partialPaymentModal');
+  if (modal) {
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Focus on amount input
+  setTimeout(() => {
+    amountInput.focus();
+  }, 100);
+}
+
+function closePartialPaymentModal() {
+  const modal = document.getElementById('partialPaymentModal');
+  if (modal) {
+    modal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+}
+
+// Handle partial payment form submission
+document.addEventListener('DOMContentLoaded', function() {
+  const partialPaymentForm = document.getElementById('partialPaymentForm');
+  if (partialPaymentForm) {
+    partialPaymentForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      processPartialPayment();
+    });
+  }
+
+  // Update remaining amount when payment amount changes
+  const amountInput = document.getElementById('partialPaymentAmount');
+  if (amountInput) {
+    amountInput.addEventListener('input', function() {
+      const totalAmount = parseFloat(document.getElementById('partialPaymentTotalAmount').textContent);
+      const paymentAmount = parseFloat(this.value) || 0;
+      const remainingAmount = totalAmount - paymentAmount;
+
+      document.getElementById('partialPaymentRemainingAmount').textContent = remainingAmount.toFixed(2);
+
+      // Update button text based on remaining amount
+      const processBtn = document.getElementById('processPartialPaymentBtn');
+      if (remainingAmount <= 0) {
+        processBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Mark as Fully Paid';
+        processBtn.className = 'btn btn-success';
+      } else {
+        processBtn.innerHTML = '<i class="bi bi-cash me-1"></i>Process Partial Payment';
+        processBtn.className = 'btn btn-warning';
+      }
+    });
+  }
+});
+
+function processPartialPayment() {
+  const form = document.getElementById('partialPaymentForm');
+  const processBtn = document.getElementById('processPartialPaymentBtn');
+
+  if (!form || !processBtn) return;
+
+  // Get form data
+  const formData = new FormData(form);
+  const invoiceId = formData.get('invoice_id');
+  const amount = parseFloat(formData.get('amount'));
+  const notes = formData.get('notes');
+  const totalAmount = parseFloat(document.getElementById('partialPaymentTotalAmount').textContent);
+
+  // Validation
+  if (!invoiceId || !amount || amount <= 0) {
+    alert('Please enter a valid payment amount.');
+    return;
+  }
+
+  if (amount > totalAmount) {
+    alert('Payment amount cannot exceed the total invoice amount.');
+    return;
+  }
+
+  // Show loading state
+  const originalBtnContent = processBtn.innerHTML;
+  processBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing...';
+  processBtn.disabled = true;
+
+  // Prepare request data
+  const requestData = {
+    invoice_id: invoiceId,
+    amount: amount,
+    notes: notes
+  };
+
+  // Send request
+  fetch('/admin/invoices/partial_payment', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    },
+    body: JSON.stringify(requestData)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      // Show success message
+      const remainingAmount = totalAmount - amount;
+      const message = remainingAmount <= 0
+        ? 'Invoice marked as fully paid!'
+        : `Partial payment of ₹${amount.toFixed(2)} processed successfully. Remaining: ₹${remainingAmount.toFixed(2)}`;
+
+      alert(message);
+      closePartialPaymentModal();
+      location.reload(); // Refresh to show updated status
+    } else {
+      alert('Error processing payment: ' + (result.error || 'Unknown error'));
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error processing payment. Please try again.');
+  })
+  .finally(() => {
+    // Reset button
+    processBtn.innerHTML = originalBtnContent;
+    processBtn.disabled = false;
+  });
+}
 
 // Enhanced search functionality
 document.addEventListener('DOMContentLoaded', function() {

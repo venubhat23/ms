@@ -24,6 +24,13 @@ Rails.application.routes.draw do
   # Custom sessions for login
   resource :sessions, only: [:new, :create, :destroy]
 
+  # User login routes
+  namespace :user do
+    get '/login', to: 'sessions#new'
+    post '/login', to: 'sessions#create'
+    delete '/logout', to: 'sessions#destroy'
+  end
+
   # Root route
   root "dashboard#index"
 
@@ -211,6 +218,7 @@ Rails.application.routes.draw do
         post :generate_invoice
         post :generate_bulk_invoices
         post :bulk_mark_as_paid
+        post :partial_payment
         get :customers
         get :delivery_persons
         get :customers_by_delivery_person
@@ -880,8 +888,28 @@ Rails.application.routes.draw do
     root 'dashboard#index'
     get '/dashboard', to: 'dashboard#index'
 
-    # Bookings management
-    resources :bookings, only: [:index, :show, :update]
+    # Bookings management (same as admin)
+    resources :bookings do
+      member do
+        get :generate_invoice
+        post :generate_invoice
+        post :convert_to_order
+        get :invoice
+        patch :update_status
+        patch :cancel_order
+        patch :mark_delivered
+        patch :mark_completed
+        get :stage_transition
+        get :manage_stage
+        patch :process_stage_transition
+        patch :update_stage
+      end
+      collection do
+        get :search_products
+        get :search_customers
+        get :realtime_data
+      end
+    end
   end
 
   # Affiliate routes

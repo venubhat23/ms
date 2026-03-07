@@ -76,6 +76,16 @@
 .action-icon i {
   font-size: 14px;
 }
+
+/* Franchise booking highlighting */
+.franchise-booking {
+  background-color: #e8f4f8 !important;
+  border-left: 4px solid #0dcaf0 !important;
+}
+
+.franchise-booking:hover {
+  background-color: #d1ecf1 !important;
+}
 </style>
 
 
@@ -315,7 +325,7 @@
           </thead>
           <tbody>
             <% @bookings.each do |booking| %>
-              <tr>
+              <tr class="<%= 'franchise-booking' if booking.user&.franchise? %>">
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
                     <div class="avatar-sm bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center me-3">
@@ -324,6 +334,14 @@
                     <div>
                       <h6 class="mb-0">#<%= booking.booking_number %></h6>
                       <small class="text-muted"><%= booking.created_at.strftime("%d %b %Y") if booking.created_at %></small>
+                      <% if booking.user&.franchise? %>
+                        <div class="mt-1">
+                          <span class="badge bg-info-subtle text-info">
+                            <i class="bi bi-building me-1"></i>
+                            <%= booking.user.franchise.name %>
+                          </span>
+                        </div>
+                      <% end %>
                     </div>
                   </div>
                 </td>

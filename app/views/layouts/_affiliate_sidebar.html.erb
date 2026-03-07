@@ -1,0 +1,182 @@
+<style>
+.modern-sidebar {
+  position: fixed !important;
+  top: 70px !important;
+  left: 0 !important;
+  width: 260px !important;
+  height: calc(100vh - 70px) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%) !important;
+  border-right: 2px solid #e2e8f0 !important;
+  z-index: 1040 !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.nav-link-modern {
+  display: flex !important;
+  align-items: center !important;
+  padding: 12px 20px !important;
+  margin: 6px 12px !important;
+  border-radius: 16px !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background: rgba(248, 250, 252, 0.8) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.nav-link-modern::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 4px !important;
+  height: 100% !important;
+  background: linear-gradient(to bottom, #3b82f6, #8b5cf6) !important;
+  transform: scaleY(0) !important;
+  transition: transform 0.3s ease !important;
+}
+
+.nav-link-modern:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%) !important;
+  color: #1e293b !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15) !important;
+  border: 1px solid rgba(59, 130, 246, 0.2) !important;
+}
+
+.nav-link-modern:hover::before {
+  transform: scaleY(1) !important;
+}
+
+.nav-link-modern.active {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+  color: white !important;
+  border: 1px solid #3b82f6 !important;
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+.nav-link-modern.active::before {
+  transform: scaleY(1) !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.nav-link-modern.active:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%) !important;
+  color: white !important;
+}
+
+.nav-link-modern i {
+  font-size: 18px !important;
+  width: 24px !important;
+  margin-right: 12px !important;
+  text-align: center !important;
+}
+
+.sidebar-section {
+  padding: 10px 12px 15px !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+  margin-bottom: 15px !important;
+}
+
+.sidebar-section h6 {
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  margin: 0 0 12px 8px !important;
+}
+
+
+.sidebar-footer {
+  margin-top: auto !important;
+  padding: 20px !important;
+  border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+  background: rgba(248, 250, 252, 0.5) !important;
+}
+
+.user-info {
+  display: flex !important;
+  align-items: center !important;
+  padding: 12px !important;
+  background: white !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.user-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  margin-right: 12px !important;
+}
+
+.user-details h6 {
+  margin: 0 !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  font-size: 14px !important;
+}
+
+.user-details span {
+  color: #64748b !important;
+  font-size: 12px !important;
+}
+</style>
+
+<nav class="modern-sidebar" id="sidebar">
+  <!-- Navigation Section -->
+  <div class="sidebar-section">
+    <h6>Main Menu</h6>
+
+    <!-- Dashboard -->
+    <%= link_to affiliate_root_path,
+        class: "nav-link-modern #{'active' if current_page?(affiliate_root_path) || controller_name == 'dashboard'}" do %>
+      <i class="fas fa-tachometer-alt"></i>
+      <span>Dashboard</span>
+    <% end %>
+
+    <!-- Refer - Main Menu Item as Requested -->
+    <%= link_to affiliate_refer_path,
+        class: "nav-link-modern #{'active' if current_page?(affiliate_refer_path)}" do %>
+      <i class="fas fa-user-plus"></i>
+      <span>Refer</span>
+    <% end %>
+
+    <!-- Referral History -->
+    <%= link_to affiliate_referral_history_path,
+        class: "nav-link-modern #{'active' if current_page?(affiliate_referral_history_path) || (controller_name == 'referrals' && action_name == 'index')}" do %>
+      <i class="fas fa-history"></i>
+      <span>Referral History</span>
+    <% end %>
+  </div>
+
+  <!-- User Info Footer -->
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar">
+        <%= current_affiliate&.display_name&.first&.upcase || 'A' %>
+      </div>
+      <div class="user-details">
+        <h6><%= current_affiliate&.display_name || 'Affiliate User' %></h6>
+        <span>Affiliate Member</span>
+      </div>
+    </div>
+  </div>
+</nav>

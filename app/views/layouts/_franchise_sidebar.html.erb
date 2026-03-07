@@ -1,0 +1,376 @@
+<style>
+.modern-sidebar {
+  position: fixed !important;
+  top: 70px !important;
+  left: 0 !important;
+  width: 260px !important;
+  height: calc(100vh - 70px) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%) !important;
+  border-right: 2px solid #e2e8f0 !important;
+  z-index: 1040 !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.nav-link-modern {
+  display: flex !important;
+  align-items: center !important;
+  padding: 12px 20px !important;
+  margin: 6px 12px !important;
+  border-radius: 16px !important;
+  color: #64748b !important;
+  font-weight: 500 !important;
+  text-decoration: none !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  background: rgba(248, 250, 252, 0.8) !important;
+  border: 1px solid rgba(226, 232, 240, 0.8) !important;
+}
+
+.nav-link-modern::before {
+  content: '' !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 4px !important;
+  height: 100% !important;
+  background: linear-gradient(to bottom, #f97316, #fb923c) !important;
+  transform: scaleY(0) !important;
+  transition: transform 0.3s ease !important;
+}
+
+.nav-link-modern:hover {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(251, 146, 60, 0.1) 100%) !important;
+  color: #1e293b !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 30px rgba(249, 115, 22, 0.15) !important;
+  border: 1px solid rgba(249, 115, 22, 0.2) !important;
+}
+
+.nav-link-modern:hover::before {
+  transform: scaleY(1) !important;
+}
+
+.nav-link-modern:hover .nav-text {
+  color: #1e293b !important;
+  font-weight: 600 !important;
+}
+
+.nav-link-modern.active {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 30px rgba(249, 115, 22, 0.3) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-2px) !important;
+}
+
+.nav-link-modern.active::before {
+  transform: scaleY(1) !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.nav-link-modern.active .nav-text {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.nav-link-modern.active .icon-bg {
+  background: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3) !important;
+}
+
+.nav-text {
+  color: #64748b !important;
+  font-weight: 500 !important;
+  margin-left: 12px !important;
+  font-size: 14px !important;
+  display: inline-block !important;
+  transition: all 0.3s ease !important;
+}
+
+.nav-section-title {
+  color: #f97316 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  padding: 20px 24px 8px 24px !important;
+  margin-bottom: 8px !important;
+  position: relative !important;
+}
+
+.nav-section-title::after {
+  content: '' !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 24px !important;
+  width: 60px !important;
+  height: 3px !important;
+  background: linear-gradient(to right, #f97316, #fb923c) !important;
+  border-radius: 2px !important;
+}
+
+.icon-bg {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+}
+
+.icon-bg::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: 1px !important;
+  border-radius: 9px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.3s ease !important;
+}
+
+.nav-link-modern:hover .icon-bg {
+  transform: scale(1.1) rotate(2deg) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+.nav-link-modern:hover .icon-bg::after {
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.nav-link-modern.active .icon-bg {
+  transform: scale(1.1) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+}
+
+.nav-link-modern.active .icon-bg::after {
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.user-name {
+  color: #f8fafc !important;
+  font-weight: 600 !important;
+  text-shadow: 0 0 8px rgba(248, 250, 252, 0.3) !important;
+}
+
+/* Franchise-themed Gradient Backgrounds */
+.gradient-orange {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%) !important;
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4) !important;
+}
+.gradient-blue {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4) !important;
+}
+.gradient-teal {
+  background: linear-gradient(135deg, #14b8a6 0%, #2dd4bf 100%) !important;
+  box-shadow: 0 6px 20px rgba(20, 184, 166, 0.4) !important;
+}
+.gradient-red {
+  background: linear-gradient(135deg, #ef4444 0%, #f87171 100%) !important;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4) !important;
+}
+.gradient-green {
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%) !important;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4) !important;
+}
+.gradient-gray {
+  background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%) !important;
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.3) !important;
+}
+
+.sidebar-nav {
+  padding: 1rem 0 !important;
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+.nav-section {
+  margin-bottom: 1.5rem !important;
+}
+
+.nav-menu {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.nav-item {
+  margin-bottom: 4px !important;
+}
+
+.user-profile-modern {
+  display: flex !important;
+  align-items: center !important;
+  padding: 1.5rem !important;
+  border-bottom: 1px solid #2d3748 !important;
+}
+
+.avatar-circle {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  margin-right: 12px !important;
+}
+
+.role-badge {
+  background: linear-gradient(135deg, #f97316, #fb923c) !important;
+  color: #ffffff !important;
+  padding: 3px 10px !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3) !important;
+}
+
+.sidebar-footer {
+  margin-top: auto !important;
+  padding: 1rem !important;
+  border-top: 1px solid #e2e8f0 !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+  background: rgba(248, 250, 252, 0.8) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.sidebar-footer::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 20% !important;
+  width: 60% !important;
+  height: 2px !important;
+  background: linear-gradient(to right, transparent, #f97316, #fb923c, transparent) !important;
+}
+
+.logout-btn-modern {
+  display: flex !important;
+  align-items: center !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  color: #f87171 !important;
+  text-decoration: none !important;
+  width: 100% !important;
+  transition: all 0.3s ease !important;
+  background: rgba(248, 113, 113, 0.05) !important;
+  border: 1px solid rgba(248, 113, 113, 0.2) !important;
+}
+
+.logout-btn-modern:hover {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.15), rgba(251, 113, 133, 0.15)) !important;
+  color: #ffffff !important;
+  transform: translateX(4px) !important;
+  box-shadow: 0 6px 20px rgba(248, 113, 113, 0.3) !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.4) !important;
+}
+
+.logout-btn-modern .nav-text {
+  margin-left: 12px !important;
+  font-weight: 500 !important;
+}
+
+.main-content {
+  margin-left: 260px !important;
+  margin-top: 70px !important;
+  padding: 2rem !important;
+}
+
+.franchise-info {
+  padding: 1rem !important;
+  background: rgba(249, 115, 22, 0.05) !important;
+  border-radius: 12px !important;
+  margin: 0 12px 20px 12px !important;
+  border: 1px solid rgba(249, 115, 22, 0.1) !important;
+}
+
+.franchise-info .info-item {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 8px !important;
+  font-size: 12px !important;
+}
+
+.franchise-info .info-item i {
+  color: #f97316 !important;
+  margin-right: 8px !important;
+  width: 16px !important;
+}
+
+.franchise-info .franchise-name {
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  font-size: 13px !important;
+}
+
+.franchise-info .franchise-email {
+  color: #64748b !important;
+  font-size: 11px !important;
+}
+</style>
+
+<div class="modern-sidebar" id="sidebar" data-controller="sidebar">
+  <!-- Sidebar Toggle Button for Mobile -->
+  <button class="sidebar-toggle d-lg-none" onclick="toggleSidebar()">
+    <i class="bi bi-list"></i>
+  </button>
+
+
+  <!-- Navigation Menu -->
+  <nav class="sidebar-nav">
+    <!-- Main Menu Section -->
+    <div class="nav-section">
+      <div class="nav-section-title">Main Menu</div>
+      <ul class="nav-menu">
+        <!-- Dashboard -->
+        <li class="nav-item">
+          <%= link_to franchise_dashboard_path, class: "nav-link-modern #{'active' if current_page?(franchise_dashboard_path)}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-orange">
+                <i class="bi bi-grid-3x3-gap-fill"></i>
+              </div>
+            </div>
+            <span class="nav-text">Dashboard</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+
+        <!-- Bookings -->
+        <li class="nav-item">
+          <%= link_to franchise_bookings_path, class: "nav-link-modern #{'active' if request.path.include?('/franchise/bookings')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-teal">
+                <i class="bi bi-cart-check-fill"></i>
+              </div>
+            </div>
+            <span class="nav-text">Bookings</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Logout Section - Fixed at bottom -->
+  <div class="sidebar-footer">
+    <%= link_to franchise_logout_path, method: :delete, class: "logout-btn-modern" do %>
+      <div class="nav-icon-modern">
+        <div class="icon-bg gradient-gray">
+          <i class="bi bi-box-arrow-right"></i>
+        </div>
+      </div>
+      <span class="nav-text">Logout</span>
+    <% end %>
+  </div>
+</div>

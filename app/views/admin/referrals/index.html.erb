@@ -142,11 +142,32 @@
   <!-- Page Header -->
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h1 class="h3 mb-1 text-gray-800">Referral Management</h1>
-      <p class="text-muted mb-0">Manage customer and affiliate referrals</p>
+      <h1 class="h3 mb-1 text-gray-800">
+        <% if request.path.include?('affiliate_referrals') %>
+          <i class="bi bi-people-fill text-success me-2"></i>Affiliate Referrals
+        <% else %>
+          Referral Management
+        <% end %>
+      </h1>
+      <p class="text-muted mb-0">
+        <% if request.path.include?('affiliate_referrals') %>
+          Showing only referrals submitted by affiliates
+        <% else %>
+          Manage customer and affiliate referrals
+        <% end %>
+      </p>
     </div>
     <div class="d-flex gap-2">
-      <%= link_to admin_referrals_analytics_path, class: "btn btn-outline-primary" do %>
+      <% if request.path.include?('affiliate_referrals') %>
+        <%= link_to admin_referrals_path, class: "btn btn-outline-secondary" do %>
+          <i class="bi bi-arrow-left me-1"></i> Back to All Referrals
+        <% end %>
+      <% else %>
+        <%= link_to affiliate_referrals_admin_referrals_path, class: "btn btn-outline-success" do %>
+          <i class="bi bi-people-fill me-1"></i> Affiliate Referrals Only
+        <% end %>
+      <% end %>
+      <%= link_to analytics_admin_referrals_path, class: "btn btn-outline-primary" do %>
         <i class="bi bi-bar-chart-fill me-1"></i> Analytics
       <% end %>
     </div>
@@ -321,7 +342,7 @@
                       <% if referral.status == 'registered' %>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                          <%= link_to admin_referral_mark_converted_path(referral), method: :patch,
+                          <%= link_to mark_converted_admin_referral_path(referral), method: :patch,
                               confirm: "Mark this referral as converted?", class: "dropdown-item" do %>
                             <i class="bi bi-check-circle me-2"></i> Mark as Converted
                           <% end %>
@@ -340,16 +361,25 @@
                 </td>
               </tr>
 
+              <style>
+                .modal {
+                  z-index: 10000 !important;
+                }
+                .modal-backdrop {
+                  z-index: 9999 !important;
+                }
+              </style>
+
               <!-- Mark as Registered Modal -->
               <% if referral.status == 'pending' %>
-                <div class="modal fade" id="markRegisteredModal<%= referral.id %>" tabindex="-1">
+                <div class="modal fade" id="markRegisteredModal<%= referral.id %>" tabindex="-1" style="z-index: 10000;">
                   <div class="modal-dialog">
                     <div class="modal-content">
                       <div class="modal-header">
                         <h5 class="modal-title">Mark as Registered</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                       </div>
-                      <%= form_with url: admin_referral_mark_registered_path(referral), method: :patch, local: true do |form| %>
+                      <%= form_with url: mark_registered_admin_referral_path(referral), method: :patch, local: true do |form| %>
                         <div class="modal-body">
                           <p>Select the customer account for <strong><%= referral.referred_name %></strong>:</p>
                           <%= form.select :customer_id,

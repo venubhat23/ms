@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atmanirbhar Farm - Fresh Organic Produce & Groceries</title>
+    <script>
+        window.location.href = '/users/sign_in';
+    </script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="header">
+        <nav class="nav">
+            <div class="nav__container">
+                <!-- Logo -->
+                <div class="nav__logo">
+                    <i class="fas fa-leaf"></i>
+                    <span>Atmanirbhar Farm</span>
+                </div>
+
+                <!-- Navigation Menu -->
+                <div class="nav__menu" id="nav-menu">
+                    <ul class="nav__list">
+                        <li class="nav__item">
+                            <a href="#home" class="nav__link active">Home</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#shop" class="nav__link">Shop</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#categories" class="nav__link">Categories</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#farmers" class="nav__link">Farmers</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#about" class="nav__link">About Us</a>
+                        </li>
+                        <li class="nav__item">
+                            <a href="#contact" class="nav__link">Contact</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Navigation Actions -->
+                <div class="nav__actions">
+                    <!-- Search Bar -->
+                    <div class="search-bar">
+                        <input type="text" placeholder="Search products..." class="search__input">
+                        <i class="fas fa-search search__icon"></i>
+                    </div>
+
+                    <!-- User Actions -->
+                    <div class="nav__user">
+                        <a href="#login" class="nav__login">
+                            <i class="fas fa-user"></i>
+                            <span>Login</span>
+                        </a>
+                        <div class="cart__icon" id="cart-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                            <span class="cart__count" id="cart-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile Menu Toggle -->
+                <div class="nav__toggle" id="nav-toggle">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Hero Section -->
+        <section class="hero" id="home">
+            <div class="hero__container">
+                <div class="hero__content">
+                    <h1 class="hero__title">
+                        Fresh Organic Produce & Groceries
+                        <span class="hero__subtitle">Delivered Daily</span>
+                    </h1>
+                    <p class="hero__description">
+                        Shop fresh vegetables, fruits, dairy, and daily groceries directly from trusted farmers.
+                        100% organic, locally sourced, and delivered fresh to your doorstep.
+                    </p>
+                    <div class="hero__buttons">
+                        <a href="#shop" class="btn btn--primary">Shop Now</a>
+                        <a href="#categories" class="btn btn--secondary">Browse Categories</a>
+                    </div>
+                </div>
+                <div class="hero__image">
+                    <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Fresh Organic Groceries" class="hero__img">
+                </div>
+            </div>
+        </section>
+
+        <!-- Popular Categories Section -->
+        <section class="categories" id="categories">
+            <div class="container">
+                <div class="section__header">
+                    <h2 class="section__title">Shop by Categories</h2>
+                    <p class="section__description">Discover our wide range of fresh and organic products</p>
+                </div>
+
+                <div class="categories__grid">
+                    <div class="category__card">
+                        <div class="category__image">
+                            <img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Fresh Vegetables">
+                        </div>
+                        <div class="category__content">
+                            <h3 class="category__title">Fresh Vegetables</h3>
+                            <p class="category__count">120+ Products</p>
+                            <button class="category__btn">Shop Now</button>
+                        </div>
+                    </div>
+
+                    <div class="category__card">
+                        <div class="category__image">
+                            <img src="https://images.unsplash.com/photo-1619566636858-adf3ef46400b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Organic Fruits">
+                        </div>
+                        <div class="category__content">
+                            <h3 class="category__title">Organic Fruits</h3>
+                            <p class="category__count">80+ Products</p>
+                            <button class="category__btn">Shop Now</button>
+                        </div>
+                    </div>
+
+                    <div class="category__card">
+                        <div class="category__image">
+                            <img src="https://images.unsplash.com/photo-1563636619-e9143da7973b?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Dairy & Eggs">
+                        </div>
+                        <div class="category__content">
+                            <h3 class="category__title">Dairy & Eggs</h3>
+                            <p class="category__count">45+ Products</p>
+                            <button class="category__btn">Shop Now</button>
+                        </div>
+                    </div>
+
+                    <div class="category__card">
+                        <div class="category__image">
+                            <img src="https://images.unsplash.com/photo-1586201375761-83865001e31c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Grocery & Staples">
+                        </div>
+                        <div class="category__content">
+                            <h3 class="category__title">Grocery & Staples</h3>
+                            <p class="category__count">200+ Products</p>
+                            <button class="category__btn">Shop Now</button>
+                        </div>
+                    </div>
+
+                    <div class="category__card">
+                        <div class="category__image">
+                            <img src="https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Cold Pressed Oils">
+                        </div>
+                        <div class="category__content">
+                            <h3 class="category__title">Cold Pressed Oils</h3>
+                            <p class="category__count">25+ Products</p>
+                            <button class="category__btn">Shop Now</button>
+                        </div>
+                    </div>
+
+                    <div class="category__card">
+                        <div class="category__image">
+                            <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Natural Products">
+                        </div>
+                        <div class="category__content">
+                            <h3 class="category__title">Natural Products</h3>
+                            <p class="category__count">60+ Products</p>
+                            <button class="category__btn">Shop Now</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Special Offer Banner -->
+        <section class="offer-banner">
+            <div class="container">
+                <div class="offer__content">
+                    <div class="offer__text">
+                        <h2 class="offer__title">25% OFF on Organic Fruits</h2>
+                        <p class="offer__description">Fresh, juicy, and pesticide-free fruits delivered to your door</p>
+                        <p class="offer__code">Use coupon code: <span>FRESH25</span></p>
+                    </div>
+                    <div class="offer__action">
+                        <button class="btn btn--offer">Shop Now</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bestselling Products Section -->
+        <section class="products" id="shop">
+            <div class="container">
+                <div class="section__header">
+                    <h2 class="section__title">Bestselling Products</h2>
+                    <p class="section__description">Most loved products by our customers</p>
+                </div>
+
+                <div class="products__grid">
+                    <!-- Product Card 1 -->
+                    <div class="product__card">
+                        <div class="product__image">
+                            <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Organic Tomatoes">
+                            <div class="product__badge">Organic</div>
+                        </div>
+                        <div class="product__content">
+                            <h3 class="product__title">Fresh Organic Tomatoes</h3>
+                            <p class="product__weight">1 kg</p>
+                            <div class="product__price">
+                                <span class="product__current-price">₹80</span>
+                                <span class="product__original-price">₹100</span>
+                            </div>
+                            <button class="product__add-btn" onclick="addToCart(1, 'Fresh Organic Tomatoes', 80, 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80')">
+                                <i class="fas fa-plus"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Card 2 -->
+                    <div class="product__card">
+                        <div class="product__image">
+                            <img src="https://images.unsplash.com/photo-1551334787-21e6bd3ab135?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Fresh Bananas">
+                            <div class="product__badge">Organic</div>
+                        </div>
+                        <div class="product__content">
+                            <h3 class="product__title">Fresh Bananas</h3>
+                            <p class="product__weight">1 dozen</p>
+                            <div class="product__price">
+                                <span class="product__current-price">₹60</span>
+                                <span class="product__original-price">₹75</span>
+                            </div>
+                            <button class="product__add-btn" onclick="addToCart(2, 'Fresh Bananas', 60, 'https://images.unsplash.com/photo-1551334787-21e6bd3ab135?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80')">
+                                <i class="fas fa-plus"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Card 3 -->
+                    <div class="product__card">
+                        <div class="product__image">
+                            <img src="https://images.unsplash.com/photo-1550258987-190a2d41a8ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Farm Fresh Milk">
+                            <div class="product__badge">Fresh</div>
+                        </div>
+                        <div class="product__content">
+                            <h3 class="product__title">Farm Fresh Milk</h3>
+                            <p class="product__weight">1 liter</p>
+                            <div class="product__price">
+                                <span class="product__current-price">₹65</span>
+                                <span class="product__original-price">₹70</span>
+                            </div>
+                            <button class="product__add-btn" onclick="addToCart(3, 'Farm Fresh Milk', 65, 'https://images.unsplash.com/photo-1550258987-190a2d41a8ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80')">
+                                <i class="fas fa-plus"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Card 4 -->
+                    <div class="product__card">
+                        <div class="product__image">
+                            <img src="https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Organic Spinach">
+                            <div class="product__badge">Organic</div>
+                        </div>
+                        <div class="product__content">
+                            <h3 class="product__title">Organic Spinach</h3>
+                            <p class="product__weight">500g</p>
+                            <div class="product__price">
+                                <span class="product__current-price">₹45</span>
+                                <span class="product__original-price">₹55</span>
+                            </div>
+                            <button class="product__add-btn" onclick="addToCart(4, 'Organic Spinach', 45, 'https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80')">
+                                <i class="fas fa-plus"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Card 5 -->
+                    <div class="product__card">
+                        <div class="product__image">
+                            <img src="https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Organic Carrots">
+                            <div class="product__badge">Organic</div>
+                        </div>
+                        <div class="product__content">
+                            <h3 class="product__title">Organic Carrots</h3>
+                            <p class="product__weight">1 kg</p>
+                            <div class="product__price">
+                                <span class="product__current-price">₹70</span>
+                                <span class="product__original-price">₹85</span>
+                            </div>
+                            <button class="product__add-btn" onclick="addToCart(5, 'Organic Carrots', 70, 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80')">
+                                <i class="fas fa-plus"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Card 6 -->
+                    <div class="product__card">
+                        <div class="product__image">
+                            <img src="https://images.unsplash.com/photo-1507815706738-b9c736ba7656?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Farm Fresh Eggs">
+                            <div class="product__badge">Fresh</div>
+                        </div>
+                        <div class="product__content">
+                            <h3 class="product__title">Farm Fresh Eggs</h3>
+                            <p class="product__weight">12 pieces</p>
+                            <div class="product__price">
+                                <span class="product__current-price">₹120</span>
+                                <span class="product__original-price">₹140</span>
+                            </div>
+                            <button class="product__add-btn" onclick="addToCart(6, 'Farm Fresh Eggs', 120, 'https://images.unsplash.com/photo-1507815706738-b9c736ba7656?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80')">
+                                <i class="fas fa-plus"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Why Shop With Us Section -->
+        <section class="features">
+            <div class="container">
+                <div class="section__header">
+                    <h2 class="section__title">Why Shop With Us</h2>
+                    <p class="section__description">Trusted by thousands of customers for quality and freshness</p>
+                </div>
+
+                <div class="features__grid">
+                    <div class="feature__card">
+                        <div class="feature__icon">
+                            <i class="fas fa-shipping-fast"></i>
+                        </div>
+                        <h3 class="feature__title">Fast Delivery</h3>
+                        <p class="feature__description">Same day delivery for orders placed before 6 PM</p>
+                    </div>
+
+                    <div class="feature__card">
+                        <div class="feature__icon">
+                            <i class="fas fa-leaf"></i>
+                        </div>
+                        <h3 class="feature__title">100% Organic & Natural</h3>
+                        <p class="feature__description">All products are certified organic and pesticide-free</p>
+                    </div>
+
+                    <div class="feature__card">
+                        <div class="feature__icon">
+                            <i class="fas fa-tractor"></i>
+                        </div>
+                        <h3 class="feature__title">Direct From Local Farmers</h3>
+                        <p class="feature__description">Supporting local farmers and ensuring fair prices</p>
+                    </div>
+
+                    <div class="feature__card">
+                        <div class="feature__icon">
+                            <i class="fas fa-seedling"></i>
+                        </div>
+                        <h3 class="feature__title">Fresh Daily Produce</h3>
+                        <p class="feature__description">Harvested daily to ensure maximum freshness</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Customer Testimonials Section -->
+        <section class="testimonials">
+            <div class="container">
+                <div class="section__header">
+                    <h2 class="section__title">What Our Customers Say</h2>
+                    <p class="section__description">Real feedback from our happy customers</p>
+                </div>
+
+                <div class="testimonials__slider" id="testimonials-slider">
+                    <div class="testimonial__card">
+                        <div class="testimonial__content">
+                            <div class="testimonial__stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <p class="testimonial__text">
+                                "Amazing quality vegetables and fruits! Everything is so fresh and the delivery is always on time.
+                                My family loves the organic produce from Atmanirbhar Farm."
+                            </p>
+                            <div class="testimonial__author">
+                                <img src="https://images.unsplash.com/photo-1494790108755-2616b332746c?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Priya Sharma" class="testimonial__photo">
+                                <div class="testimonial__info">
+                                    <h4 class="testimonial__name">Priya Sharma</h4>
+                                    <p class="testimonial__location">Mumbai, Maharashtra</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="testimonial__card">
+                        <div class="testimonial__content">
+                            <div class="testimonial__stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <p class="testimonial__text">
+                                "Best organic grocery service I've used! The milk and dairy products are incredibly fresh.
+                                Customer service is excellent and the prices are very reasonable."
+                            </p>
+                            <div class="testimonial__author">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Rajesh Kumar" class="testimonial__photo">
+                                <div class="testimonial__info">
+                                    <h4 class="testimonial__name">Rajesh Kumar</h4>
+                                    <p class="testimonial__location">Delhi, India</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="testimonial__card">
+                        <div class="testimonial__content">
+                            <div class="testimonial__stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                            <p class="testimonial__text">
+                                "I love supporting local farmers through this platform. The vegetables taste so much better than
+                                store-bought ones. Highly recommend to anyone who cares about quality!"
+                            </p>
+                            <div class="testimonial__author">
+                                <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=100&q=80" alt="Anita Patel" class="testimonial__photo">
+                                <div class="testimonial__info">
+                                    <h4 class="testimonial__name">Anita Patel</h4>
+                                    <p class="testimonial__location">Bangalore, Karnataka</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slider Navigation -->
+                <div class="testimonials__navigation">
+                    <button class="testimonial__nav testimonial__nav--prev" id="prev-btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="testimonial__nav testimonial__nav--next" id="next-btn">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer__content">
+                <!-- Company Info -->
+                <div class="footer__section">
+                    <div class="footer__logo">
+                        <i class="fas fa-leaf"></i>
+                        <span>Atmanirbhar Farm</span>
+                    </div>
+                    <p class="footer__description">
+                        Connecting you with fresh, organic produce directly from local farmers.
+                        Supporting sustainable farming and healthy living.
+                    </p>
+                    <div class="footer__social">
+                        <a href="#" class="footer__social-link">
+                            <i class="fab fa-facebook-f"></i>
+                        </a>
+                        <a href="#" class="footer__social-link">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" class="footer__social-link">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="footer__social-link">
+                            <i class="fab fa-youtube"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Quick Links -->
+                <div class="footer__section">
+                    <h3 class="footer__title">Quick Links</h3>
+                    <ul class="footer__list">
+                        <li><a href="#home" class="footer__link">Home</a></li>
+                        <li><a href="#shop" class="footer__link">Shop</a></li>
+                        <li><a href="#categories" class="footer__link">Categories</a></li>
+                        <li><a href="#farmers" class="footer__link">Farmers</a></li>
+                        <li><a href="#about" class="footer__link">About Us</a></li>
+                    </ul>
+                </div>
+
+                <!-- Customer Service -->
+                <div class="footer__section">
+                    <h3 class="footer__title">Customer Service</h3>
+                    <ul class="footer__list">
+                        <li><a href="#" class="footer__link">Contact Us</a></li>
+                        <li><a href="#" class="footer__link">FAQ</a></li>
+                        <li><a href="#" class="footer__link">Shipping Info</a></li>
+                        <li><a href="#" class="footer__link">Returns</a></li>
+                        <li><a href="#" class="footer__link">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <!-- Contact Info -->
+                <div class="footer__section">
+                    <h3 class="footer__title">Contact Info</h3>
+                    <div class="footer__contact">
+                        <div class="footer__contact-item">
+                            <i class="fas fa-phone"></i>
+                            <span>+91 98765 43210</span>
+                        </div>
+                        <div class="footer__contact-item">
+                            <i class="fas fa-envelope"></i>
+                            <span>info@atmanirbarfarm.com</span>
+                        </div>
+                        <div class="footer__contact-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>123 Farm Street, Green Valley, India</span>
+                        </div>
+                    </div>
+
+                    <!-- Newsletter -->
+                    <div class="newsletter">
+                        <h4 class="newsletter__title">Subscribe to Newsletter</h4>
+                        <div class="newsletter__form">
+                            <input type="email" placeholder="Enter your email" class="newsletter__input">
+                            <button class="newsletter__btn">Subscribe</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Bottom -->
+            <div class="footer__bottom">
+                <p class="footer__copyright">
+                    © 2024 Atmanirbhar Farm. All rights reserved. Made with ❤️ for farmers and customers.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Modal -->
+    <div class="cart-modal" id="cart-modal">
+        <div class="cart-modal__content">
+            <div class="cart-modal__header">
+                <h3>Shopping Cart</h3>
+                <button class="cart-modal__close" id="close-cart">&times;</button>
+            </div>
+            <div class="cart-modal__body" id="cart-items">
+                <div class="cart-empty">
+                    <i class="fas fa-shopping-cart"></i>
+                    <p>Your cart is empty</p>
+                </div>
+            </div>
+            <div class="cart-modal__footer">
+                <div class="cart-total">
+                    <span>Total: ₹<span id="cart-total">0</span></span>
+                </div>
+                <button class="btn btn--primary btn--full" id="checkout-btn">Proceed to Checkout</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

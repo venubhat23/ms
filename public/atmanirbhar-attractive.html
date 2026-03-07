@@ -1,0 +1,1771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmanirbhar Farm — Fresh Organic Delivered</title>
+<link href="https://fonts.googleapis.com/css2?family=Clash+Display:wght@400;500;600;700&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* =============================================
+   DESIGN TOKENS — Light Blue Organic
+   ============================================= */
+:root {
+  --sky:        #e8f4fd;
+  --sky-mid:    #d0eafb;
+  --sky-deep:   #b8ddf7;
+  --blue:       #2d89c8;
+  --blue-dark:  #1a5f8f;
+  --blue-navy:  #0e3a5c;
+  --teal:       #1ea896;
+  --mint:       #e6f7f5;
+  --white:      #ffffff;
+  --off:        #f4f9fd;
+  --border:     #d8edf8;
+  --text:       #0e2233;
+  --muted:      #6b8ea6;
+  --green:      #2d9e6b;
+  --green-lt:   #e4f7ee;
+  --orange:     #f06a35;
+  --gold:       #f5a623;
+  --shadow-sm:  0 2px 12px rgba(45,137,200,.1);
+  --shadow-md:  0 8px 32px rgba(45,137,200,.14);
+  --shadow-lg:  0 20px 60px rgba(45,137,200,.18);
+  --r:          16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--white);
+  color: var(--text);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+img { display: block; width: 100%; }
+a { text-decoration: none; color: inherit; }
+button { font-family: 'Plus Jakarta Sans', sans-serif; cursor: pointer; border: none; outline: none; }
+
+/* ─── UTILS ─── */
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 48px; }
+
+/* reveal */
+[data-r] {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity .7s ease, transform .7s ease;
+}
+[data-r].on { opacity: 1; transform: none; }
+[data-r="l"] { transform: translateX(-30px); }
+[data-r="r"] { transform: translateX(30px); }
+[data-r="l"].on, [data-r="r"].on { transform: none; }
+.d1{transition-delay:.07s} .d2{transition-delay:.14s}
+.d3{transition-delay:.21s} .d4{transition-delay:.28s}
+.d5{transition-delay:.35s} .d6{transition-delay:.42s}
+
+/* ─── TOPBAR ─── */
+.topbar {
+  background: var(--blue-navy);
+  height: 42px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative;
+}
+.tb-scroll {
+  display: flex; gap: 0;
+  animation: tbscroll 30s linear infinite;
+  width: max-content;
+}
+@keyframes tbscroll { to { transform: translateX(-50%); } }
+.tb-item {
+  padding: 0 44px;
+  font-size: .72rem; font-weight: 600;
+  letter-spacing: .09em; text-transform: uppercase;
+  color: rgba(255,255,255,.65);
+  display: flex; align-items: center; gap: 10px;
+  white-space: nowrap;
+}
+.tb-dot { width: 4px; height: 4px; background: var(--sky-deep); border-radius: 50%; opacity: .6; }
+
+/* ─── NAVBAR ─── */
+.nav {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(255,255,255,.97);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  transition: box-shadow .3s;
+}
+.nav.shadow { box-shadow: var(--shadow-md); }
+.nav-inner {
+  height: 72px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+}
+
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-box {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--blue) 0%, var(--blue-dark) 100%);
+  border-radius: 12px;
+  display: grid; place-items: center;
+  font-size: 1.1rem; flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(45,137,200,.35);
+}
+.logo-text { line-height: 1.1; }
+.logo-name {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--blue-navy); display: block;
+}
+.logo-sub {
+  font-size: .58rem; font-weight: 600;
+  letter-spacing: .13em; text-transform: uppercase;
+  color: var(--muted); display: block; margin-top: 1px;
+}
+
+.nav-links { display: flex; gap: 2px; list-style: none; margin-left: 40px; }
+.nav-links a {
+  font-size: .83rem; font-weight: 600;
+  color: var(--muted); padding: 8px 15px;
+  border-radius: 50px; transition: all .2s; letter-spacing: .01em;
+}
+.nav-links a:hover { color: var(--blue); background: var(--sky); }
+.nav-links a.act { color: var(--blue); }
+
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.ni {
+  width: 40px; height: 40px;
+  border: 1.5px solid var(--border);
+  border-radius: 11px; background: none;
+  display: grid; place-items: center;
+  font-size: .95rem; color: var(--text);
+  transition: all .2s;
+}
+.ni:hover { border-color: var(--blue); background: var(--sky); color: var(--blue); }
+.nav-login {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--blue); color: #fff;
+  border-radius: 12px; padding: 9px 20px;
+  font-size: .83rem; font-weight: 700;
+  transition: all .25s; position: relative;
+}
+.nav-login:hover { background: var(--blue-dark); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+/* ─── HERO ─── */
+.hero {
+  background: linear-gradient(160deg, var(--sky) 0%, #dceefb 40%, #cce4f8 100%);
+  min-height: calc(100vh - 114px);
+  display: grid; grid-template-columns: 1fr 1fr;
+  position: relative; overflow: hidden;
+}
+
+/* Decorative circles */
+.hero::before {
+  content: '';
+  position: absolute; right: -120px; top: -120px;
+  width: 500px; height: 500px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(45,137,200,.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute; left: 30%; bottom: -80px;
+  width: 300px; height: 300px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(30,168,150,.1) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.hero-left {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 80px 56px 80px 80px; position: relative; z-index: 2;
+}
+
+.h-eyebrow {
+  display: inline-flex; align-items: center; gap: 9px;
+  background: rgba(255,255,255,.7); backdrop-filter: blur(8px);
+  border: 1px solid rgba(45,137,200,.2);
+  border-radius: 50px; padding: 6px 16px 6px 8px;
+  font-size: .7rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 28px; width: fit-content;
+}
+.h-eyebrow-pulse {
+  width: 22px; height: 22px; background: var(--blue);
+  border-radius: 50%; display: grid; place-items: center;
+  font-size: .6rem; color: #fff;
+  animation: hpulse 2.5s ease-in-out infinite;
+}
+@keyframes hpulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(45,137,200,.5); }
+  50% { box-shadow: 0 0 0 8px rgba(45,137,200,0); }
+}
+
+.hero-h1 {
+  font-family: 'Clash Display', sans-serif;
+  font-size: clamp(3rem, 5.5vw, 5rem);
+  font-weight: 700; line-height: 1.02;
+  color: var(--blue-navy); letter-spacing: -.02em;
+  margin-bottom: 22px;
+}
+.hero-h1 .hl {
+  color: var(--blue);
+  position: relative; display: inline-block;
+}
+.hero-h1 .hl::after {
+  content: '';
+  position: absolute; bottom: 4px; left: 0; right: 0;
+  height: 8px; border-radius: 4px;
+  background: rgba(45,137,200,.15); z-index: -1;
+}
+.hero-h1 .it { font-style: italic; color: var(--teal); font-weight: 400; }
+
+.hero-desc {
+  font-size: 1.02rem; line-height: 1.78;
+  color: var(--muted); font-weight: 400;
+  max-width: 400px; margin-bottom: 40px;
+}
+
+.hero-btns { display: flex; gap: 12px; align-items: center; margin-bottom: 52px; flex-wrap: wrap; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--blue); color: #fff;
+  border-radius: 14px; padding: 15px 30px;
+  font-size: .9rem; font-weight: 700;
+  transition: all .3s; letter-spacing: .01em;
+  box-shadow: 0 8px 24px rgba(45,137,200,.35);
+}
+.btn-primary:hover { background: var(--blue-dark); transform: translateY(-2px); box-shadow: 0 16px 40px rgba(45,137,200,.4); }
+.btn-arr {
+  width: 28px; height: 28px;
+  background: rgba(255,255,255,.2);
+  border-radius: 50%; display: grid; place-items: center; font-size: .75rem;
+  transition: transform .2s;
+}
+.btn-primary:hover .btn-arr { transform: translateX(4px); }
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--blue-navy); font-size: .9rem; font-weight: 600;
+  border-bottom: 1.5px solid var(--blue-dark); padding-bottom: 1px;
+  transition: color .2s, border-color .2s;
+}
+.btn-ghost:hover { color: var(--blue); border-color: var(--blue); }
+
+.hero-stats {
+  display: flex; gap: 0;
+  background: rgba(255,255,255,.65); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 20px; padding: 20px 8px;
+  box-shadow: var(--shadow-sm);
+}
+.hs { flex: 1; text-align: center; position: relative; }
+.hs + .hs::before {
+  content: ''; position: absolute; left: 0; top: 15%; bottom: 15%;
+  width: 1px; background: var(--border);
+}
+.hs-num {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 1.7rem; font-weight: 700;
+  color: var(--blue-navy); display: block; line-height: 1; margin-bottom: 4px;
+}
+.hs-label { font-size: .68rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+
+/* Hero Right */
+.hero-right { position: relative; padding: 40px 48px 40px 24px; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.hero-img-stack { position: relative; width: 100%; max-width: 500px; }
+.hero-main-img {
+  width: 100%; height: 520px; object-fit: cover;
+  border-radius: 28px 28px 28px 0;
+  box-shadow: var(--shadow-lg);
+  display: block;
+}
+.hero-small-img {
+  position: absolute; bottom: -24px; left: -32px;
+  width: 160px; height: 160px; object-fit: cover;
+  border-radius: 20px;
+  border: 4px solid var(--white);
+  box-shadow: var(--shadow-md);
+}
+
+/* floating cards */
+.fc {
+  position: absolute;
+  background: rgba(255,255,255,.95); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 16px; padding: 14px 18px;
+  box-shadow: var(--shadow-md);
+  display: flex; align-items: center; gap: 12px;
+  animation: fcfloat 5s ease-in-out infinite;
+}
+.fc:nth-child(3) { animation-delay: -2.5s; }
+@keyframes fcfloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.fc-1 { top: 14%; right: -16px; }
+.fc-2 { bottom: 18%; right: -20px; }
+.fc-ico { font-size: 1.3rem; }
+.fc-val { font-family:'Clash Display',sans-serif; font-size:.95rem; font-weight:700; color:var(--blue-navy); display:block; line-height:1; }
+.fc-sub { font-size:.62rem; color:var(--muted); margin-top:2px; font-weight:500; }
+
+/* ─── TRUST STRIP ─── */
+.trust {
+  background: var(--blue-navy);
+  padding: 0;
+}
+.trust-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+.trust-cell {
+  display: flex; align-items: center; gap: 14px;
+  padding: 22px 28px;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+.trust-cell:last-child { border-right: none; }
+.trust-ico {
+  width: 42px; height: 42px; flex-shrink: 0;
+  background: rgba(255,255,255,.1);
+  border-radius: 11px; display: grid; place-items: center; font-size: 1.1rem;
+}
+.trust-t { font-size: .82rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.trust-s { font-size: .7rem; color: rgba(255,255,255,.45); }
+
+/* ─── SECTION HELPERS ─── */
+.section { padding: 92px 0; }
+.sec-label {
+  font-size: .68rem; font-weight: 800;
+  letter-spacing: .17em; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sec-label::before { content:''; width: 18px; height: 2px; background: var(--blue); border-radius: 1px; }
+.sec-h2 {
+  font-family: 'Clash Display', sans-serif;
+  font-size: clamp(1.9rem, 3.5vw, 2.8rem);
+  font-weight: 700; line-height: 1.12;
+  color: var(--blue-navy); letter-spacing: -.02em; margin-bottom: 12px;
+}
+.sec-h2 em { font-style: italic; color: var(--blue); font-family:'Plus Jakarta Sans',sans-serif; font-weight:400; }
+.sec-p { font-size: .93rem; color: var(--muted); line-height: 1.78; max-width: 460px; }
+.row-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 48px;
+}
+.see-link {
+  font-size: .82rem; font-weight: 700; color: var(--blue);
+  display: flex; align-items: center; gap: 5px;
+  border-bottom: 1.5px solid rgba(45,137,200,.3);
+  padding-bottom: 1px; transition: border-color .2s; flex-shrink: 0;
+}
+.see-link:hover { border-color: var(--blue); }
+
+/* ─── CATEGORIES ─── */
+.cats-sec { background: var(--sky); }
+.cats-main-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  grid-template-rows: 280px;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.cats-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.ctile {
+  border-radius: 22px; overflow: hidden;
+  position: relative; cursor: pointer;
+  transition: transform .4s cubic-bezier(.25,1,.5,1);
+}
+.ctile:hover { transform: translateY(-6px); }
+.ctile:hover .ctile-img { transform: scale(1.07); }
+.ctile-img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform .6s cubic-bezier(.25,1,.5,1);
+}
+.cats-sub-grid .ctile { height: 170px; }
+.ctile-veil {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(14,34,51,.75) 0%, transparent 55%);
+}
+.ctile-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 22px; }
+.ctile-tag {
+  display: inline-block;
+  background: rgba(255,255,255,.15); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 50px; padding: 3px 11px;
+  font-size: .6rem; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: rgba(255,255,255,.85); margin-bottom: 7px;
+}
+.ctile-name {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 1.35rem; font-weight: 700;
+  color: #fff; display: block; line-height: 1.2;
+}
+.cats-main-grid .ctile:first-child .ctile-name { font-size: 1.75rem; }
+.ctile-count { font-size: .7rem; color: rgba(255,255,255,.5); margin-top: 2px; }
+.ctile-arrow {
+  position: absolute; top: 16px; right: 16px;
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,.15); backdrop-filter: blur(6px);
+  border-radius: 50%; display: grid; place-items: center;
+  font-size: .8rem; color: rgba(255,255,255,.8);
+  opacity: 0; transition: opacity .25s;
+}
+.ctile:hover .ctile-arrow { opacity: 1; }
+
+/* ─── OFFER BANNER ─── */
+.offer-wrap { padding: 0 0 92px; background: var(--sky); }
+.offer {
+  background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-navy) 60%, #071e2f 100%);
+  border-radius: 28px; overflow: hidden;
+  display: grid; grid-template-columns: 1fr 300px 1fr;
+  align-items: center; position: relative;
+  border: 1px solid rgba(255,255,255,.06);
+}
+.offer::before {
+  content: ''; position: absolute;
+  top: -100px; right: -100px;
+  width: 400px; height: 400px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(45,137,200,.18) 0%, transparent 65%);
+  pointer-events: none;
+}
+.offer-left { padding: 54px 52px; position: relative; z-index: 2; }
+.o-tag {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: rgba(240,106,53,.18); border: 1px solid rgba(240,106,53,.3);
+  border-radius: 50px; padding: 5px 14px;
+  font-size: .67rem; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: #ff8c5a; margin-bottom: 18px;
+}
+.o-tag-dot { width: 6px; height: 6px; background: var(--orange); border-radius: 50%; animation: blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.15} }
+.o-h {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 2.3rem; font-weight: 700;
+  color: #fff; line-height: 1.08; margin-bottom: 12px;
+}
+.o-h em { font-style: italic; color: var(--sky-deep); font-family:'Plus Jakarta Sans',sans-serif; font-weight:300; }
+.o-p { font-size: .86rem; color: rgba(255,255,255,.45); line-height: 1.68; margin-bottom: 24px; max-width: 290px; }
+.o-code-row { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+.o-code {
+  font-size: .85rem; font-weight: 700; color: var(--gold);
+  background: rgba(255,255,255,.07);
+  border: 1.5px dashed rgba(255,255,255,.18);
+  border-radius: 10px; padding: 9px 18px;
+  letter-spacing: .12em;
+}
+.o-copy {
+  background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.14);
+  color: rgba(255,255,255,.6); border-radius: 10px;
+  padding: 9px 16px; font-size: .74rem; font-weight: 700;
+  transition: all .2s; letter-spacing: .05em;
+}
+.o-copy:hover { background: rgba(255,255,255,.18); color: #fff; }
+.o-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--blue); color: #fff;
+  border-radius: 12px; padding: 13px 26px;
+  font-size: .875rem; font-weight: 700;
+  transition: all .25s; box-shadow: 0 8px 24px rgba(45,137,200,.4);
+}
+.o-btn:hover { background: #3d9dd8; transform: translateY(-2px); }
+
+/* Offer Center Image */
+.offer-center { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; }
+.offer-img-wrap {
+  width: 220px; height: 220px; border-radius: 50%;
+  overflow: hidden; border: 4px solid rgba(255,255,255,.1);
+  box-shadow: 0 0 0 18px rgba(45,137,200,.07), 0 0 0 36px rgba(45,137,200,.04);
+}
+.offer-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.spin-badge {
+  position: absolute; top: -6px; right: -6px;
+  width: 70px; height: 70px;
+  background: var(--orange); border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fff; border: 3px solid var(--blue-navy);
+  box-shadow: 0 6px 20px rgba(240,106,53,.5);
+  animation: spinslow 9s linear infinite;
+}
+@keyframes spinslow { to { transform: rotate(360deg); } }
+.sb-n { font-family:'Clash Display',sans-serif; font-size: 1.5rem; font-weight: 700; line-height: 1; }
+.sb-t { font-size: .45rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+
+/* Offer Right */
+.offer-right { padding: 54px 52px 54px 20px; position: relative; z-index: 2; }
+.o-feats { display: flex; flex-direction: column; gap: 14px; }
+.o-feat {
+  display: flex; align-items: center; gap: 13px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px; padding: 13px 16px;
+}
+.of-i { font-size: 1rem; flex-shrink: 0; }
+.of-t { font-size: .8rem; font-weight: 700; color: #fff; margin-bottom: 1px; }
+.of-s { font-size: .68rem; color: rgba(255,255,255,.35); }
+.o-timer {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 20px; padding-top: 18px;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.ot-label { font-size: .62rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.3); }
+.ot-units { display: flex; gap: 6px; }
+.ot-u {
+  background: rgba(255,255,255,.08); border-radius: 8px;
+  padding: 7px 10px; text-align: center; min-width: 44px;
+}
+.ot-n { font-family:'Clash Display',sans-serif; font-size: 1.3rem; font-weight: 700; color: #fff; display: block; line-height: 1; }
+.ot-l { font-size: .48rem; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.3); }
+
+/* ─── PRODUCTS ─── */
+.prods-sec { background: var(--off); }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 36px; flex-wrap: wrap; }
+.fb {
+  padding: 7px 18px; border-radius: 50px;
+  font-size: .76rem; font-weight: 700;
+  border: 1.5px solid var(--border);
+  background: var(--white); color: var(--muted);
+  transition: all .2s;
+}
+.fb:hover { border-color: var(--blue); color: var(--blue); }
+.fb.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+.prod-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+.pcard {
+  background: var(--white);
+  border-radius: 22px; overflow: hidden;
+  border: 1.5px solid var(--border);
+  transition: transform .35s cubic-bezier(.25,1,.5,1), box-shadow .35s, border-color .25s;
+}
+.pcard:hover {
+  transform: translateY(-10px);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(45,137,200,.25);
+}
+
+.pcard-img { position: relative; aspect-ratio: 1/1; overflow: hidden; background: var(--sky); }
+.pcard-img img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform .55s cubic-bezier(.25,1,.5,1);
+}
+.pcard:hover .pcard-img img { transform: scale(1.08); }
+
+.pbadges { position: absolute; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 5px; }
+.pb { border-radius: 8px; padding: 3px 9px; font-size: .58rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; width: fit-content; }
+.pb-org { background: var(--blue); color: #fff; }
+.pb-off { background: var(--orange); color: #fff; }
+.pb-new { background: var(--teal); color: #fff; }
+.pb-top { background: var(--gold); color: var(--blue-navy); }
+
+.p-wish {
+  position: absolute; top: 12px; right: 12px;
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,.92);
+  border-radius: 50%; display: grid; place-items: center;
+  font-size: .85rem; color: var(--muted);
+  opacity: 0; transform: scale(.8);
+  transition: all .25s;
+  box-shadow: 0 2px 10px rgba(0,0,0,.1);
+}
+.pcard:hover .p-wish { opacity: 1; transform: scale(1); }
+.p-wish:hover { color: red; background: #fff; }
+.p-wish.on { opacity: 1; transform: scale(1); color: red; background: #fff0f0; }
+
+.pcard-body { padding: 16px 18px 20px; }
+.pc-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.pc-stars { color: var(--gold); font-size: .63rem; letter-spacing: .5px; }
+.pc-revs { font-size: .67rem; color: var(--muted); margin-left: 3px; }
+.pc-farm { font-size: .65rem; font-weight: 700; color: var(--blue); }
+.pc-name { font-family:'Clash Display',sans-serif; font-size: 1.05rem; font-weight: 600; color: var(--blue-navy); margin-bottom: 4px; line-height: 1.3; }
+.pc-desc { font-size: .72rem; color: var(--muted); line-height: 1.55; margin-bottom: 12px; }
+.pc-wts { display: flex; gap: 5px; margin-bottom: 14px; }
+.pw {
+  padding: 3px 10px; border-radius: 50px;
+  font-size: .65rem; font-weight: 700;
+  border: 1.5px solid var(--border);
+  background: none; color: var(--muted); transition: all .15s;
+}
+.pw:hover { border-color: var(--blue); color: var(--blue); }
+.pw.sel { background: var(--blue-navy); border-color: var(--blue-navy); color: #fff; }
+.pc-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+.pnow { font-family:'Clash Display',sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--blue-navy); }
+.pwas { font-size: .72rem; color: var(--muted); text-decoration: line-through; margin-left: 5px; }
+.psave { font-size: .62rem; font-weight: 700; color: var(--green); display: block; margin-top: 1px; }
+.add-btn {
+  width: 40px; height: 40px;
+  background: var(--blue); color: #fff;
+  border-radius: 12px; display: grid; place-items: center;
+  font-size: 1.25rem; font-weight: 300;
+  transition: all .3s; flex-shrink: 0;
+}
+.add-btn:hover { background: var(--blue-dark); transform: scale(1.12) rotate(90deg); box-shadow: 0 8px 24px rgba(45,137,200,.4); }
+
+/* ─── WHY US ─── */
+.why-sec { background: var(--white); }
+.why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+.why-img-col { position: relative; }
+.why-main-img {
+  width: 100%; height: 540px; object-fit: cover;
+  border-radius: 28px; display: block;
+  box-shadow: var(--shadow-lg);
+}
+.why-img-mini {
+  position: absolute; bottom: -20px; right: -20px;
+  width: 170px; height: 170px; object-fit: cover;
+  border-radius: 20px;
+  border: 4px solid var(--white);
+  box-shadow: var(--shadow-md);
+}
+.why-floater {
+  position: absolute; top: 28px; left: -20px;
+  background: var(--white);
+  border-radius: 16px; padding: 16px 20px;
+  box-shadow: var(--shadow-md);
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid var(--border);
+}
+.wf-icon {
+  width: 42px; height: 42px; background: var(--sky);
+  border-radius: 10px; display: grid; place-items: center; font-size: 1.1rem; flex-shrink: 0;
+}
+.wf-t { font-size: .82rem; font-weight: 700; color: var(--blue-navy); margin-bottom: 2px; }
+.wf-s { font-size: .7rem; color: var(--muted); }
+
+.why-right { }
+.why-items { margin-top: 32px; display: flex; flex-direction: column; gap: 0; }
+.wi {
+  display: flex; align-items: flex-start; gap: 18px;
+  padding: 22px 0; border-bottom: 1px solid var(--border);
+  transition: all .25s;
+}
+.wi:first-child { border-top: 1px solid var(--border); }
+.wi:hover .wi-num { color: var(--blue); }
+.wi-num {
+  font-family: 'Clash Display', sans-serif;
+  font-size: 1.9rem; font-weight: 700;
+  color: var(--sky-deep); flex-shrink: 0;
+  width: 44px; line-height: 1; margin-top: 2px;
+  transition: color .25s;
+}
+.wi-title { font-size: .9rem; font-weight: 700; color: var(--blue-navy); margin-bottom: 5px; }
+.wi-desc { font-size: .8rem; color: var(--muted); line-height: 1.65; }
+.wi-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .67rem; font-weight: 700; color: var(--blue);
+  margin-top: 8px;
+}
+.wi-tag::before { content: '→'; }
+
+/* ─── FARMERS ─── */
+.farm-sec { background: var(--sky); }
+.farm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.f-card {
+  border-radius: 22px; overflow: hidden;
+  position: relative; aspect-ratio: .78/1;
+  cursor: pointer;
+}
+.f-card:hover .f-img { transform: scale(1.06); filter: grayscale(0%); }
+.f-img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform .6s cubic-bezier(.25,1,.5,1), filter .4s;
+  filter: grayscale(15%);
+}
+.f-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(14,34,51,.9) 0%, transparent 55%);
+}
+.f-loc {
+  position: absolute; top: 16px; left: 16px;
+  background: rgba(255,255,255,.13); backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 50px; padding: 4px 13px;
+  font-size: .6rem; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: #fff;
+}
+.f-award {
+  position: absolute; top: 16px; right: 16px;
+  background: var(--orange); border-radius: 8px;
+  padding: 4px 10px; font-size: .59rem; font-weight: 800;
+  letter-spacing: .07em; text-transform: uppercase; color: #fff;
+}
+.f-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 22px; }
+.f-origin { font-size: .64rem; font-weight: 700; color: var(--sky-deep); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 5px; }
+.f-name { font-family:'Clash Display',sans-serif; font-size: 1.2rem; color: #fff; margin-bottom: 3px; }
+.f-spec { font-size: .72rem; color: rgba(255,255,255,.45); margin-bottom: 12px; }
+.f-tag {
+  display: inline-block;
+  background: rgba(45,137,200,.2); border: 1px solid rgba(45,137,200,.3);
+  border-radius: 50px; padding: 3px 12px;
+  font-size: .62rem; font-weight: 700; color: var(--sky-deep);
+}
+
+/* ─── TESTIMONIALS ─── */
+.testi-sec { background: var(--white); }
+.testi-layout { display: grid; grid-template-columns: 300px 1fr; gap: 60px; align-items: start; }
+.testi-score-box {
+  background: var(--blue-navy);
+  border-radius: 22px; padding: 32px 28px; text-align: center;
+  margin-top: 28px;
+}
+.tsb-big { font-family:'Clash Display',sans-serif; font-size: 4rem; color: #fff; line-height: 1; margin-bottom: 8px; }
+.tsb-stars { color: var(--gold); font-size: .9rem; margin-bottom: 6px; letter-spacing: 2px; }
+.tsb-label { font-size: .68rem; color: rgba(255,255,255,.3); margin-bottom: 20px; }
+.tsb-bars { display: flex; flex-direction: column; gap: 7px; }
+.tsb-row { display: flex; align-items: center; gap: 8px; }
+.tsb-n { font-size: .67rem; color: rgba(255,255,255,.3); width: 7px; text-align: right; flex-shrink: 0; }
+.tsb-bg { flex: 1; height: 3px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.tsb-fill { height: 100%; background: var(--blue); border-radius: 2px; }
+.tsb-pct { font-size: .6rem; color: rgba(255,255,255,.22); width: 26px; flex-shrink: 0; }
+
+.tcards { display: flex; flex-direction: column; gap: 16px; }
+.tcard {
+  background: var(--white); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 26px 28px;
+  transition: all .3s; position: relative;
+  overflow: hidden;
+}
+.tcard::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(to right, var(--blue), var(--teal));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .4s;
+}
+.tcard:hover { border-color: rgba(45,137,200,.2); transform: translateX(5px); box-shadow: var(--shadow-sm); }
+.tcard:hover::before { transform: scaleX(1); }
+.tc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.tc-author { display: flex; align-items: center; gap: 12px; }
+.tc-ava {
+  width: 46px; height: 46px; border-radius: 50%;
+  object-fit: cover; display: block; flex-shrink: 0;
+  border: 2px solid var(--sky-deep);
+}
+.tc-name { font-size: .85rem; font-weight: 700; color: var(--blue-navy); }
+.tc-role { font-size: .7rem; color: var(--muted); margin-top: 1px; }
+.tc-stars { color: var(--gold); font-size: .65rem; letter-spacing: 1px; }
+.tc-text { font-size: .85rem; color: rgba(14,34,51,.6); line-height: 1.76; }
+.tc-verified { font-size: .65rem; font-weight: 700; color: var(--green); margin-top: 13px; display: flex; align-items: center; gap: 4px; }
+
+/* ─── NEWSLETTER ─── */
+.nl-sec { background: var(--sky); padding: 92px 0; }
+.nl-box {
+  background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue-navy) 100%);
+  border-radius: 28px; overflow: hidden;
+  display: grid; grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+.nl-box::before {
+  content: ''; position: absolute;
+  top: -80px; left: -80px;
+  width: 320px; height: 320px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(45,137,200,.2) 0%, transparent 65%);
+  pointer-events: none;
+}
+.nl-left { padding: 68px 56px; position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; }
+.nl-left .sec-label { color: var(--sky-deep); }
+.nl-left .sec-label::before { background: var(--sky-deep); }
+.nl-left .sec-h2 { color: #fff; }
+.nl-left .sec-h2 em { color: var(--sky-deep); }
+.nl-left .sec-p { color: rgba(255,255,255,.45); margin-bottom: 32px; }
+.nl-form { display: flex; gap: 10px; max-width: 420px; }
+.nl-inp {
+  flex: 1; background: rgba(255,255,255,.09);
+  border: 1.5px solid rgba(255,255,255,.13);
+  border-radius: 12px; padding: 13px 18px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: .875rem; color: #fff; outline: none;
+  transition: border-color .2s;
+}
+.nl-inp::placeholder { color: rgba(255,255,255,.3); }
+.nl-inp:focus { border-color: var(--sky-deep); }
+.nl-btn {
+  background: var(--blue); color: #fff;
+  border-radius: 12px; padding: 13px 24px;
+  font-size: .83rem; font-weight: 700;
+  white-space: nowrap; transition: all .2s;
+}
+.nl-btn:hover { background: #3d9dd8; transform: translateY(-1px); }
+.nl-note { font-size: .68rem; color: rgba(255,255,255,.25); margin-top: 10px; }
+.nl-right { position: relative; overflow: hidden; min-height: 380px; }
+.nl-right img { width: 100%; height: 100%; object-fit: cover; }
+.nl-right::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to right, var(--blue-navy) 0%, transparent 35%);
+  z-index: 1; pointer-events: none;
+}
+
+/* ─── FOOTER ─── */
+footer { background: #06131e; padding: 72px 0 0; }
+.foot-grid { display: grid; grid-template-columns: 1.8fr 1fr 1fr 1.6fr; gap: 48px; margin-bottom: 56px; }
+.f-logo-row { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
+.fl-ico { width: 38px; height: 38px; background: var(--blue); border-radius: 10px; display: grid; place-items: center; font-size: 1rem; }
+.fl-nm { font-family:'Clash Display',sans-serif; font-size: 1.1rem; color: #fff; font-weight: 600; }
+.f-desc { font-size: .8rem; color: rgba(255,255,255,.28); line-height: 1.75; margin-bottom: 22px; max-width: 240px; }
+.f-socials { display: flex; gap: 7px; }
+.fsoc {
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08);
+  border-radius: 9px; display: grid; place-items: center;
+  font-size: .75rem; color: rgba(255,255,255,.3);
+  transition: all .2s;
+}
+.fsoc:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+.fc-h { font-size: .62rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.25); margin-bottom: 20px; }
+.fc-links { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.fc-links a { font-size: .8rem; color: rgba(255,255,255,.28); transition: color .2s; }
+.fc-links a:hover { color: var(--sky-deep); }
+.fc-contacts { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.fcc { display: flex; gap: 10px; align-items: flex-start; }
+.fcc-ico { width: 30px; height: 30px; flex-shrink: 0; background: rgba(45,137,200,.2); border-radius: 7px; display: grid; place-items: center; font-size: .75rem; }
+.fcc-txt { font-size: .75rem; color: rgba(255,255,255,.28); line-height: 1.55; }
+.fcc-txt a { color: rgba(255,255,255,.4); }
+.fcc-txt a:hover { color: var(--sky-deep); }
+.fc-certs { display: flex; flex-direction: column; gap: 7px; }
+.fc-cert { display: flex; align-items: center; gap: 7px; background: rgba(45,137,200,.14); border: 1px solid rgba(45,137,200,.22); border-radius: 8px; padding: 7px 12px; font-size: .68rem; font-weight: 700; color: var(--sky-deep); }
+.foot-bar { border-top: 1px solid rgba(255,255,255,.06); padding: 22px 0; display: flex; align-items: center; justify-content: space-between; }
+.foot-copy { font-size: .72rem; color: rgba(255,255,255,.18); }
+.pay-tags { display: flex; gap: 6px; }
+.ptag { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); border-radius: 5px; padding: 3px 9px; font-size: .6rem; font-weight: 800; color: rgba(255,255,255,.2); letter-spacing: .04em; }
+
+
+/* Image loading shimmer */
+img { background: linear-gradient(90deg, #e8f4fd 25%, #d0eafb 50%, #e8f4fd 75%); background-size: 200% 100%; animation: shimload 1.5s infinite; }
+img.loaded { animation: none; background: transparent; }
+@keyframes shimload { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ─── TOAST ─── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(52px);
+  background: var(--blue-navy); color: #fff;
+  border-radius: 12px; padding: 12px 22px;
+  font-size: .82rem; font-weight: 600;
+  z-index: 9999;
+  border: 1px solid rgba(45,137,200,.4);
+  box-shadow: 0 12px 40px rgba(14,34,51,.4);
+  display: flex; align-items: center; gap: 8px;
+  transition: transform .4s cubic-bezier(.25,1,.5,1), opacity .4s;
+  opacity: 0; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1100px) {
+  .prod-grid { grid-template-columns: repeat(3,1fr); }
+  .offer { grid-template-columns: 1fr 260px; }
+  .offer-right { display: none; }
+}
+@media(max-width:960px) {
+  .hero { grid-template-columns: 1fr; min-height: auto; }
+  .hero-right { display: none; }
+  .hero-left { padding: 64px 40px; }
+  .trust-grid { grid-template-columns: 1fr 1fr; }
+  .why-grid { grid-template-columns: 1fr; gap: 40px; }
+  .why-img-col { display: none; }
+  .testi-layout { grid-template-columns: 1fr; }
+  .nl-box { grid-template-columns: 1fr; }
+  .nl-right { display: none; }
+  .foot-grid { grid-template-columns: 1fr 1fr; }
+  .farm-grid { grid-template-columns: 1fr 1fr; }
+}
+@media(max-width:680px) {
+  .wrap { padding: 0 20px; }
+  .nav-links { display: none; }
+  .hero-left { padding: 48px 20px; }
+  .prod-grid { grid-template-columns: 1fr 1fr; }
+  .cats-main-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 220px; }
+  .cats-main-grid .ctile:last-child { display: none; }
+  .cats-sub-grid { grid-template-columns: 1fr 1fr; }
+  .trust-grid { grid-template-columns: 1fr; }
+  .foot-grid { grid-template-columns: 1fr; }
+  .offer { grid-template-columns: 1fr; text-align: center; padding: 36px 24px; }
+  .offer-center { justify-content: center; padding: 20px 0; }
+  .farm-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════ TOP BAR ══════════ -->
+<div class="topbar">
+  <div class="tb-scroll">
+    <span class="tb-item"><span class="tb-dot"></span>Free delivery above ₹499</span>
+    <span class="tb-item"><span class="tb-dot"></span>100% Certified Organic</span>
+    <span class="tb-item"><span class="tb-dot"></span>Freshly harvested every morning</span>
+    <span class="tb-item"><span class="tb-dot"></span>50+ partner farms across India</span>
+    <span class="tb-item"><span class="tb-dot"></span>2–4 hour same-day delivery</span>
+    <span class="tb-item"><span class="tb-dot"></span>Money-back freshness guarantee</span>
+    <span class="tb-item"><span class="tb-dot"></span>Free delivery above ₹499</span>
+    <span class="tb-item"><span class="tb-dot"></span>100% Certified Organic</span>
+    <span class="tb-item"><span class="tb-dot"></span>Freshly harvested every morning</span>
+    <span class="tb-item"><span class="tb-dot"></span>50+ partner farms across India</span>
+    <span class="tb-item"><span class="tb-dot"></span>2–4 hour same-day delivery</span>
+    <span class="tb-item"><span class="tb-dot"></span>Money-back freshness guarantee</span>
+  </div>
+</div>
+
+<!-- ══════════ NAVBAR ══════════ -->
+<nav class="nav" id="nav">
+  <div class="nav-inner" style="padding-left: 0;">
+    <a href="#" class="logo">
+      <div class="logo-box">🌿</div>
+      <div class="logo-text">
+        <span class="logo-name">Atmanirbhar Farm</span>
+        <span class="logo-sub">Pure · Organic · Local</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="#" class="act">Home</a></li>
+      <li><a href="#shop">Shop</a></li>
+      <li><a href="#categories">Categories</a></li>
+      <li><a href="#farmers">Farmers</a></li>
+      <li><a href="#about">Why Us</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <button class="ni" title="Search">🔍</button>
+      <button class="ni" title="Wishlist">♡</button>
+      <button class="nav-login" onclick="window.location.href='/customer/login'">
+        🔒 Login
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero" id="home">
+  <div class="hero-left">
+    <div class="h-eyebrow" data-r>
+      <div class="h-eyebrow-pulse">✦</div>
+      Freshly harvested this morning
+    </div>
+
+    <h1 class="hero-h1" data-r>
+      <span class="hl">Organic</span> food,<br>
+      <span class="it">straight from</span><br>
+      the farm.
+    </h1>
+
+    <p class="hero-desc" data-r>
+      Farm-to-doorstep organic produce from 50+ trusted local farmers. 100% chemical-free, delivered to your kitchen in hours.
+    </p>
+
+    <div class="hero-btns" data-r>
+      <a href="#shop" class="btn-primary">
+        Shop Now <span class="btn-arr">→</span>
+      </a>
+      <a href="#farmers" class="btn-ghost">Meet our farmers</a>
+    </div>
+
+    <div class="hero-stats" data-r>
+      <div class="hs">
+        <span class="hs-num">500+</span>
+        <span class="hs-label">Products</span>
+      </div>
+      <div class="hs">
+        <span class="hs-num">50+</span>
+        <span class="hs-label">Farmers</span>
+      </div>
+      <div class="hs">
+        <span class="hs-num">10K+</span>
+        <span class="hs-label">Families</span>
+      </div>
+      <div class="hs">
+        <span class="hs-num">4.9★</span>
+        <span class="hs-label">Rating</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="hero-img-stack">
+      <img class="hero-main-img"
+        src="https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=900&q=85"
+        alt="Fresh organic produce basket">
+      <img class="hero-small-img"
+        src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=400&q=80"
+        alt="Fresh vegetables">
+
+      <div class="fc fc-1">
+        <div class="fc-ico">🌱</div>
+        <div>
+          <span class="fc-val">NPOP Certified</span>
+          <span class="fc-sub">100% Organic</span>
+        </div>
+      </div>
+      <div class="fc fc-2">
+        <div class="fc-ico">⚡</div>
+        <div>
+          <span class="fc-val">2–4 hr Delivery</span>
+          <span class="fc-sub">Same day, every day</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ TRUST STRIP ══════════ -->
+<div class="trust">
+  <div class="wrap">
+    <div class="trust-grid">
+      <div class="trust-cell">
+        <div class="trust-ico">🚚</div>
+        <div>
+          <div class="trust-t">Free Same-Day Delivery</div>
+          <div class="trust-s">On all orders above ₹499</div>
+        </div>
+      </div>
+      <div class="trust-cell">
+        <div class="trust-ico">🌿</div>
+        <div>
+          <div class="trust-t">NPOP Certified Organic</div>
+          <div class="trust-s">Verified by independent labs</div>
+        </div>
+      </div>
+      <div class="trust-cell">
+        <div class="trust-ico">🔄</div>
+        <div>
+          <div class="trust-t">Freshness Guarantee</div>
+          <div class="trust-s">100% refund if not satisfied</div>
+        </div>
+      </div>
+      <div class="trust-cell">
+        <div class="trust-ico">🤝</div>
+        <div>
+          <div class="trust-t">Direct from Farmers</div>
+          <div class="trust-s">Fair price, no middlemen</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CATEGORIES ══════════ -->
+<section class="section cats-sec" id="categories">
+  <div class="wrap">
+    <div class="row-header" data-r>
+      <div>
+        <div class="sec-label">Browse</div>
+        <h2 class="sec-h2">Shop by <em>category</em></h2>
+      </div>
+      <a href="#" class="see-link">View all →</a>
+    </div>
+
+    <div class="cats-main-grid">
+      <div class="ctile" data-r>
+        <img class="ctile-img" src="https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=700&q=80" alt="Vegetables">
+        <div class="ctile-veil"></div>
+        <div class="ctile-body">
+          <span class="ctile-tag">Most Popular</span>
+          <span class="ctile-name">Fresh Vegetables</span>
+          <div class="ctile-count">120+ products</div>
+        </div>
+        <div class="ctile-arrow">↗</div>
+      </div>
+      <div class="ctile" data-r class="d1">
+        <img class="ctile-img" src="https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=600&q=80" alt="Fruits">
+        <div class="ctile-veil"></div>
+        <div class="ctile-body">
+          <span class="ctile-tag">Seasonal</span>
+          <span class="ctile-name">Organic Fruits</span>
+          <div class="ctile-count">80+ products</div>
+        </div>
+        <div class="ctile-arrow">↗</div>
+      </div>
+      <div class="ctile" data-r class="d2">
+        <img class="ctile-img" src="https://images.unsplash.com/photo-1550258987-190a2d41a8ba?auto=format&fit=crop&w=600&q=80" alt="Dairy">
+        <div class="ctile-veil"></div>
+        <div class="ctile-body">
+          <span class="ctile-tag">Daily Fresh</span>
+          <span class="ctile-name">Dairy & Eggs</span>
+          <div class="ctile-count">45+ products</div>
+        </div>
+        <div class="ctile-arrow">↗</div>
+      </div>
+    </div>
+
+    <div class="cats-sub-grid" style="margin-top:16px">
+      <div class="ctile" data-r>
+        <img class="ctile-img" src="https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=600&q=80" alt="Grains">
+        <div class="ctile-veil"></div>
+        <div class="ctile-body">
+          <span class="ctile-name" style="font-size:1.1rem">Grains & Staples</span>
+          <div class="ctile-count">200+ products</div>
+        </div>
+        <div class="ctile-arrow">↗</div>
+      </div>
+      <div class="ctile" data-r class="d1">
+        <img class="ctile-img" src="https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=600&q=80" alt="Oils">
+        <div class="ctile-veil"></div>
+        <div class="ctile-body">
+          <span class="ctile-name" style="font-size:1.1rem">Cold-Pressed Oils</span>
+          <div class="ctile-count">25+ products</div>
+        </div>
+        <div class="ctile-arrow">↗</div>
+      </div>
+      <div class="ctile" data-r class="d2">
+        <img class="ctile-img" src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=600&q=80" alt="Herbs">
+        <div class="ctile-veil"></div>
+        <div class="ctile-body">
+          <span class="ctile-name" style="font-size:1.1rem">Herbs & Spices</span>
+          <div class="ctile-count">60+ products</div>
+        </div>
+        <div class="ctile-arrow">↗</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ OFFER BANNER ══════════ -->
+<div class="offer-wrap">
+  <div class="wrap">
+    <div class="offer" data-r>
+      <div class="offer-left">
+        <div class="o-tag"><span class="o-tag-dot"></span>Limited Time Offer</div>
+        <h2 class="o-h">25% off all<br><em>seasonal fruits</em></h2>
+        <p class="o-p">Pesticide-free, naturally ripened fruits from our partner farms. Valid this week only.</p>
+        <div class="o-code-row">
+          <div class="o-code">FRESH25</div>
+          <button class="o-copy" onclick="copyCode()">Copy</button>
+        </div>
+        <button class="o-btn" onclick="window.location.href='/customer/login'">🍎 Shop Fruits Now →</button>
+      </div>
+
+      <div class="offer-center">
+        <div style="position:relative;display:inline-block">
+          <div class="offer-img-wrap">
+            <img src="https://images.unsplash.com/photo-1605027990121-cbae9e0642df?auto=format&fit=crop&w=400&q=85" alt="Fresh Mangoes">
+          </div>
+          <div class="spin-badge">
+            <span class="sb-n">25%</span>
+            <span class="sb-t">OFF</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="offer-right">
+        <div class="o-feats">
+          <div class="o-feat">
+            <span class="of-i">🌱</span>
+            <div><div class="of-t">100% Organic</div><div class="of-s">No pesticides ever</div></div>
+          </div>
+          <div class="o-feat">
+            <span class="of-i">🚚</span>
+            <div><div class="of-t">Same-Day Delivery</div><div class="of-s">Order before 5 PM</div></div>
+          </div>
+          <div class="o-feat">
+            <span class="of-i">❄️</span>
+            <div><div class="of-t">Cold-Chain Kept</div><div class="of-s">Fresh for 7+ days</div></div>
+          </div>
+          <div class="o-feat">
+            <span class="of-i">↩️</span>
+            <div><div class="of-t">Easy Returns</div><div class="of-s">Full refund guaranteed</div></div>
+          </div>
+        </div>
+        <div class="o-timer">
+          <span class="ot-label">Ends in</span>
+          <div class="ot-units">
+            <div class="ot-u"><span class="ot-n" id="th">02</span><span class="ot-l">hrs</span></div>
+            <div class="ot-u"><span class="ot-n" id="tm">47</span><span class="ot-l">min</span></div>
+            <div class="ot-u"><span class="ot-n" id="ts">33</span><span class="ot-l">sec</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PRODUCTS ══════════ -->
+<section class="section prods-sec" id="shop">
+  <div class="wrap">
+    <div class="row-header" data-r>
+      <div>
+        <div class="sec-label">Bestsellers</div>
+        <h2 class="sec-h2">Most loved by our <em>customers</em></h2>
+      </div>
+      <a href="#" class="see-link">View all 500+ →</a>
+    </div>
+
+    <div class="filter-bar" data-r>
+      <button class="fb on" onclick="setF(this)">All</button>
+      <button class="fb" onclick="setF(this)">🥦 Vegetables</button>
+      <button class="fb" onclick="setF(this)">🍎 Fruits</button>
+      <button class="fb" onclick="setF(this)">🥛 Dairy</button>
+      <button class="fb" onclick="setF(this)">🌾 Grains</button>
+      <button class="fb" onclick="setF(this)">🫒 Oils</button>
+    </div>
+
+    <div class="prod-grid">
+
+      <!-- Product 1 -->
+      <div class="pcard" data-r>
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1560472354-b33ff0c44a43?auto=format&fit=crop&w=500&q=80" alt="Tomatoes">
+          <div class="pbadges"><span class="pb pb-org">Organic</span><span class="pb pb-off">20% off</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★★</span><span class="pc-revs">(245)</span></div>
+            <span class="pc-farm">🌾 Ramesh Farms</span>
+          </div>
+          <div class="pc-name">Desi Organic Tomatoes</div>
+          <div class="pc-desc">Vine-ripened, deep red. Perfect for gravies & salads.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">500g</button>
+            <button class="pw" onclick="selW(this)">1 kg</button>
+            <button class="pw" onclick="selW(this)">2 kg</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹80</span><span class="pwas">₹100</span><span class="psave">Save ₹20</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 2 -->
+      <div class="pcard" data-r class="d1">
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=500&q=80" alt="Bananas">
+          <div class="pbadges"><span class="pb pb-top">Bestseller</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★☆</span><span class="pc-revs">(189)</span></div>
+            <span class="pc-farm">🌾 Kerala Farms</span>
+          </div>
+          <div class="pc-name">Nendran Bananas</div>
+          <div class="pc-desc">Sweet Kerala bananas, rich in potassium.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">6 pcs</button>
+            <button class="pw" onclick="selW(this)">12 pcs</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹60</span><span class="pwas">₹75</span><span class="psave">Save ₹15</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 3 -->
+      <div class="pcard" data-r class="d2">
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1550258987-190a2d41a8ba?auto=format&fit=crop&w=500&q=80" alt="Milk">
+          <div class="pbadges"><span class="pb pb-new">Fresh Today</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★★</span><span class="pc-revs">(312)</span></div>
+            <span class="pc-farm">🌾 Gir Dairy</span>
+          </div>
+          <div class="pc-name">A2 Gir Cow Milk</div>
+          <div class="pc-desc">Pure A2 from grass-fed desi cows. Sealed daily.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">500ml</button>
+            <button class="pw" onclick="selW(this)">1 L</button>
+            <button class="pw" onclick="selW(this)">2 L</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹65</span><span class="pwas">₹70</span><span class="psave">Save ₹5</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 4 -->
+      <div class="pcard" data-r class="d3">
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1576045057995-568f588f82fb?auto=format&fit=crop&w=500&q=80" alt="Spinach">
+          <div class="pbadges"><span class="pb pb-org">Organic</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★☆</span><span class="pc-revs">(156)</span></div>
+            <span class="pc-farm">🌾 Local Farm</span>
+          </div>
+          <div class="pc-name">Baby Organic Spinach</div>
+          <div class="pc-desc">Iron-rich, tender leaves. Garden-cut every morning.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">250g</button>
+            <button class="pw" onclick="selW(this)">500g</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹45</span><span class="pwas">₹55</span><span class="psave">Save ₹10</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 5 -->
+      <div class="pcard" data-r>
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?auto=format&fit=crop&w=500&q=80" alt="Carrots">
+          <div class="pbadges"><span class="pb pb-org">Organic</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★★</span><span class="pc-revs">(203)</span></div>
+            <span class="pc-farm">🌾 Punjab Farms</span>
+          </div>
+          <div class="pc-name">Orange Organic Carrots</div>
+          <div class="pc-desc">Crunchy, naturally sweet, beta-carotene rich.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">500g</button>
+            <button class="pw" onclick="selW(this)">1 kg</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹70</span><span class="pwas">₹85</span><span class="psave">Save ₹15</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 6 -->
+      <div class="pcard" data-r class="d1">
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1608475026394-eb6b6fac31d7?auto=format&fit=crop&w=500&q=80" alt="Eggs">
+          <div class="pbadges"><span class="pb pb-new">Free Range</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★★</span><span class="pc-revs">(278)</span></div>
+            <span class="pc-farm">🌾 Happy Hens</span>
+          </div>
+          <div class="pc-name">Free-Range Brown Eggs</div>
+          <div class="pc-desc">Open-pasture hens. Hormone-free, richer yolk.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">6 pcs</button>
+            <button class="pw" onclick="selW(this)">12 pcs</button>
+            <button class="pw" onclick="selW(this)">30 pcs</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹120</span><span class="pwas">₹140</span><span class="psave">Save ₹20</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 7 -->
+      <div class="pcard" data-r class="d2">
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=500&q=80" alt="Coconut Oil">
+          <div class="pbadges"><span class="pb pb-top">Premium</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★★</span><span class="pc-revs">(134)</span></div>
+            <span class="pc-farm">🌾 Coconut Grove</span>
+          </div>
+          <div class="pc-name">Virgin Coconut Oil</div>
+          <div class="pc-desc">Cold-pressed, unrefined. All nutrients intact.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">250ml</button>
+            <button class="pw" onclick="selW(this)">500ml</button>
+            <button class="pw" onclick="selW(this)">1 L</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹245</span><span class="pwas">₹290</span><span class="psave">Save ₹45</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product 8 -->
+      <div class="pcard" data-r class="d3">
+        <div class="pcard-img">
+          <img src="https://images.unsplash.com/photo-1605027990121-cbae9e0642df?auto=format&fit=crop&w=500&q=80" alt="Alphonso Mangoes">
+          <div class="pbadges"><span class="pb pb-off">Seasonal</span></div>
+          <button class="p-wish" onclick="wish(this)">♡</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pc-meta">
+            <div><span class="pc-stars">★★★★★</span><span class="pc-revs">(407)</span></div>
+            <span class="pc-farm">🌾 Ratnagiri Farms</span>
+          </div>
+          <div class="pc-name">Alphonso Mangoes</div>
+          <div class="pc-desc">King of mangoes. Naturally ripened, saffron-sweet.</div>
+          <div class="pc-wts">
+            <button class="pw sel" onclick="selW(this)">6 pcs</button>
+            <button class="pw" onclick="selW(this)">12 pcs</button>
+          </div>
+          <div class="pc-foot">
+            <div><span class="pnow">₹380</span><span class="pwas">₹450</span><span class="psave">Save ₹70</span></div>
+            <button class="add-btn" onclick="window.location.href='/customer/login'">View</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ WHY US ══════════ -->
+<section class="section why-sec" id="about">
+  <div class="wrap">
+    <div class="why-grid">
+      <div class="why-img-col" data-r="l">
+        <img class="why-main-img"
+          src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=700&q=85"
+          alt="Farmer in field">
+        <img class="why-img-mini"
+          src="https://images.unsplash.com/photo-1523741543316-beb7fc7023d8?auto=format&fit=crop&w=400&q=80"
+          alt="Fresh harvest">
+        <div class="why-floater">
+          <div class="wf-icon">🏆</div>
+          <div>
+            <div class="wf-t">Award-winning farmers</div>
+            <div class="wf-s">Govt. recognised, NPOP certified</div>
+          </div>
+        </div>
+      </div>
+
+      <div data-r="r">
+        <div class="sec-label">Why Atmanirbhar</div>
+        <h2 class="sec-h2">Food you can <em>truly trust</em></h2>
+        <p class="sec-p">We connect you directly with the honest farmers who grow your food — no chemicals, no shortcuts, no compromise.</p>
+
+        <div class="why-items">
+          <div class="wi">
+            <div class="wi-num">01</div>
+            <div>
+              <div class="wi-title">Lightning Fast Delivery</div>
+              <div class="wi-desc">Order before 5 PM and receive your groceries in 2–4 hours. Cold-chain maintained throughout.</div>
+              <div class="wi-tag">Free on orders above ₹499</div>
+            </div>
+          </div>
+          <div class="wi">
+            <div class="wi-num">02</div>
+            <div>
+              <div class="wi-title">NPOP Certified Organic</div>
+              <div class="wi-desc">Every product is lab-verified, pesticide-free, and grown using time-tested organic methods.</div>
+              <div class="wi-tag">Third-party certified every batch</div>
+            </div>
+          </div>
+          <div class="wi">
+            <div class="wi-num">03</div>
+            <div>
+              <div class="wi-title">Direct Farmer Partnership</div>
+              <div class="wi-desc">Zero middlemen. We pay farmers 40% above market rate and pass savings on to you.</div>
+              <div class="wi-tag">50+ farming families supported</div>
+            </div>
+          </div>
+          <div class="wi">
+            <div class="wi-num">04</div>
+            <div>
+              <div class="wi-title">100% Freshness Guarantee</div>
+              <div class="wi-desc">Not satisfied? We replace or refund in full within 24 hours. Zero questions asked.</div>
+              <div class="wi-tag">No-hassle return policy</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ FARMERS ══════════ -->
+<section class="section farm-sec" id="farmers">
+  <div class="wrap">
+    <div class="row-header" data-r>
+      <div>
+        <div class="sec-label">Meet the Growers</div>
+        <h2 class="sec-h2">The <em>faces</em> behind your food</h2>
+      </div>
+      <a href="#" class="see-link">See all farmers →</a>
+    </div>
+
+    <div class="farm-grid">
+      <div class="f-card" data-r>
+        <img class="f-img" src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=600&q=85" alt="Ramesh Patil">
+        <div class="f-overlay"></div>
+        <div class="f-loc">Maharashtra</div>
+        <div class="f-award">⭐ Top Seller</div>
+        <div class="f-body">
+          <div class="f-origin">📍 Nashik</div>
+          <div class="f-name">Ramesh Patil</div>
+          <div class="f-spec">Organic vegetables · 18 years</div>
+          <span class="f-tag">NPOP Certified</span>
+        </div>
+      </div>
+      <div class="f-card" data-r class="d1">
+        <img class="f-img" src="https://images.unsplash.com/photo-1560493676-04071c5f467b?auto=format&fit=crop&w=600&q=85" alt="Lakshmi Nair">
+        <div class="f-overlay"></div>
+        <div class="f-loc">Kerala</div>
+        <div class="f-body">
+          <div class="f-origin">📍 Thrissur</div>
+          <div class="f-name">Lakshmi Nair</div>
+          <div class="f-spec">Fruits & coconut · 22 years</div>
+          <span class="f-tag">Heritage Farm</span>
+        </div>
+      </div>
+      <div class="f-card" data-r class="d2">
+        <img class="f-img" src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=600&q=85" alt="Gurpreet Singh">
+        <div class="f-overlay"></div>
+        <div class="f-loc">Punjab</div>
+        <div class="f-award">🏆 2024 Award</div>
+        <div class="f-body">
+          <div class="f-origin">📍 Ludhiana</div>
+          <div class="f-name">Gurpreet Singh</div>
+          <div class="f-spec">Grains & root veg · 30 years</div>
+          <span class="f-tag">Govt. Recognised</span>
+        </div>
+      </div>
+      <div class="f-card" data-r class="d3">
+        <img class="f-img" src="https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=600&q=85" alt="Anand Gowda">
+        <div class="f-overlay"></div>
+        <div class="f-loc">Karnataka</div>
+        <div class="f-body">
+          <div class="f-origin">📍 Hassan</div>
+          <div class="f-name">Anand Gowda</div>
+          <div class="f-spec">Spices & millets · 14 years</div>
+          <span class="f-tag">Zero Carbon Farm</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ TESTIMONIALS ══════════ -->
+<section class="section testi-sec">
+  <div class="wrap">
+    <div class="testi-layout">
+      <div data-r="l">
+        <div class="sec-label">Reviews</div>
+        <h2 class="sec-h2">What our <em>families</em> say</h2>
+        <p class="sec-p">10,000+ verified reviews from families across India.</p>
+        <div class="testi-score-box">
+          <div class="tsb-big">4.9</div>
+          <div class="tsb-stars">★★★★★</div>
+          <div class="tsb-label">Based on 10,000+ reviews</div>
+          <div class="tsb-bars">
+            <div class="tsb-row"><span class="tsb-n">5</span><div class="tsb-bg"><div class="tsb-fill" style="width:88%"></div></div><span class="tsb-pct">88%</span></div>
+            <div class="tsb-row"><span class="tsb-n">4</span><div class="tsb-bg"><div class="tsb-fill" style="width:9%;background:#4a8c63"></div></div><span class="tsb-pct">9%</span></div>
+            <div class="tsb-row"><span class="tsb-n">3</span><div class="tsb-bg"><div class="tsb-fill" style="width:2%;background:#555"></div></div><span class="tsb-pct">2%</span></div>
+            <div class="tsb-row"><span class="tsb-n">2</span><div class="tsb-bg"><div class="tsb-fill" style="width:1%;background:#444"></div></div><span class="tsb-pct">1%</span></div>
+            <div class="tsb-row"><span class="tsb-n">1</span><div class="tsb-bg"><div class="tsb-fill" style="width:0%"></div></div><span class="tsb-pct">0%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tcards" data-r="r">
+        <div class="tcard">
+          <div class="tc-top">
+            <div class="tc-author">
+              <img class="tc-ava" src="https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=100&q=80" alt="Priya">
+              <div><div class="tc-name">Priya Sharma</div><div class="tc-role">Homemaker · Mumbai</div></div>
+            </div>
+            <div class="tc-stars">★★★★★</div>
+          </div>
+          <p class="tc-text">Vegetables stay fresh for 5–6 days. My kids now enjoy their greens because everything tastes so much better. The A2 milk has become a daily staple in our home.</p>
+          <div class="tc-verified">✅ Verified customer · 14 months</div>
+        </div>
+
+        <div class="tcard">
+          <div class="tc-top">
+            <div class="tc-author">
+              <img class="tc-ava" src="https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=100&q=80" alt="Rajesh">
+              <div><div class="tc-name">Rajesh Kumar</div><div class="tc-role">Software Engineer · Bengaluru</div></div>
+            </div>
+            <div class="tc-stars">★★★★★</div>
+          </div>
+          <p class="tc-text">Switched from BigBasket 8 months ago and never looked back. Quality is night and day. Always on time, eco-friendly packaging, and supporting local farmers feels great!</p>
+          <div class="tc-verified">✅ Verified customer · 8 months</div>
+        </div>
+
+        <div class="tcard">
+          <div class="tc-top">
+            <div class="tc-author">
+              <img class="tc-ava" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80" alt="Dr. Anita">
+              <div><div class="tc-name">Dr. Anita Patel</div><div class="tc-role">Nutritionist · Ahmedabad</div></div>
+            </div>
+            <div class="tc-stars">★★★★★</div>
+          </div>
+          <p class="tc-text">As a nutritionist I recommend Atmanirbhar to all my clients. Nutrient density is measurably higher. You can taste the difference — food the way it's supposed to be.</p>
+          <div class="tc-verified">✅ Verified customer · 2 years</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ NEWSLETTER ══════════ -->
+<section class="nl-sec">
+  <div class="wrap">
+    <div class="nl-box" data-r>
+      <div class="nl-left">
+        <div class="sec-label">Stay Fresh</div>
+        <h2 class="sec-h2">Get <em>exclusive</em> deals<br>& seasonal recipes</h2>
+        <p class="sec-p">Join 25,000+ families. Fresh arrivals, organic recipes & members-only discounts — weekly.</p>
+        <div class="nl-form">
+          <input class="nl-inp" type="email" placeholder="your@email.com">
+          <button class="nl-btn">Subscribe</button>
+        </div>
+        <div class="nl-note">🔒 No spam, ever. One-click unsubscribe.</div>
+      </div>
+      <div class="nl-right">
+        <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80" alt="Fresh groceries">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="f-logo-row">
+          <div class="fl-ico">🌿</div>
+          <span class="fl-nm">Atmanirbhar Farm</span>
+        </div>
+        <p class="f-desc">Connecting families with honest local farmers. 100% organic, ethically grown, delivered fresh every day.</p>
+        <div class="f-socials">
+          <a href="#" class="fsoc">f</a>
+          <a href="#" class="fsoc">ig</a>
+          <a href="#" class="fsoc">tw</a>
+          <a href="#" class="fsoc">yt</a>
+        </div>
+      </div>
+      <div>
+        <div class="fc-h">Quick Links</div>
+        <ul class="fc-links">
+          <li><a href="#">Home</a></li>
+          <li><a href="#">Shop</a></li>
+          <li><a href="#">Categories</a></li>
+          <li><a href="#">Our Farmers</a></li>
+          <li><a href="#">About Us</a></li>
+          <li><a href="#">Blog & Recipes</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="fc-h">Customer Care</div>
+        <ul class="fc-links">
+          <li><a href="#">Track My Order</a></li>
+          <li><a href="#">Returns & Refunds</a></li>
+          <li><a href="#">Help & FAQ</a></li>
+          <li><a href="#">Shipping Policy</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Service</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="fc-h">Get in Touch</div>
+        <ul class="fc-contacts">
+          <li class="fcc">
+            <div class="fcc-ico">📞</div>
+            <div class="fcc-txt"><a href="tel:+919876543210">+91 98765 43210</a><br>Mon–Sat 8 AM – 8 PM</div>
+          </li>
+          <li class="fcc">
+            <div class="fcc-ico">✉</div>
+            <div class="fcc-txt"><a href="#">hello@atmanirbharfarm.in</a></div>
+          </li>
+          <li class="fcc">
+            <div class="fcc-ico">📍</div>
+            <div class="fcc-txt">Whitefield, Bengaluru<br>Karnataka — 560066</div>
+          </li>
+        </ul>
+        <div class="fc-certs">
+          <div class="fc-cert">🌿 NPOP Organic Certified</div>
+          <div class="fc-cert">✅ FSSAI · ISO 22000</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot-bar">
+      <p class="foot-copy">© 2025 Atmanirbhar Farm — Made with 🌱 for farmers & families across India.</p>
+      <div class="pay-tags">
+        <span class="ptag">VISA</span>
+        <span class="ptag">MC</span>
+        <span class="ptag">UPI</span>
+        <span class="ptag">GPAY</span>
+        <span class="ptag">COD</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+
+/* Mark images loaded */
+document.querySelectorAll('img').forEach(img => {
+  if (img.complete) img.classList.add('loaded');
+  else img.addEventListener('load', () => img.classList.add('loaded'));
+});
+
+/* ── SCROLL REVEAL ── */
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); }});
+}, { threshold: .08, rootMargin: '0px 0px -32px 0px' });
+document.querySelectorAll('[data-r]').forEach(el => io.observe(el));
+
+/* ── NAV SHADOW ── */
+window.addEventListener('scroll', () =>
+  document.getElementById('nav').classList.toggle('shadow', scrollY > 40));
+
+
+/* ── TOAST ── */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ── WISHLIST ── */
+function wish(btn) {
+  btn.classList.toggle('on');
+  btn.textContent = btn.classList.contains('on') ? '♥' : '♡';
+  toast(btn.classList.contains('on') ? '❤️ Saved to wishlist' : 'Removed from wishlist');
+}
+
+/* ── COPY CODE ── */
+function copyCode() {
+  navigator.clipboard?.writeText('FRESH25').catch(() => {});
+  const b = document.querySelector('.o-copy');
+  b.textContent = '✓ Copied!';
+  toast('✂️ Code FRESH25 copied!');
+  setTimeout(() => b.textContent = 'Copy', 2000);
+}
+
+/* ── FILTER ── */
+function setF(el) {
+  document.querySelectorAll('.fb').forEach(f => f.classList.remove('on'));
+  el.classList.add('on');
+}
+
+/* ── WEIGHT CHIPS ── */
+document.querySelectorAll('.pc-wts').forEach(row => {
+  row.querySelectorAll('.pw').forEach(c => {
+    c.addEventListener('click', () => {
+      row.querySelectorAll('.pw').forEach(x => x.classList.remove('sel'));
+      c.classList.add('sel');
+    });
+  });
+});
+
+/* ── TIMER ── */
+let secs = 2 * 3600 + 47 * 60 + 33;
+setInterval(() => {
+  secs--;
+  if (secs < 0) secs = 86400;
+  const h = Math.floor(secs / 3600),
+        m = Math.floor(secs % 3600 / 60),
+        s = secs % 60;
+  document.getElementById('th').textContent = String(h).padStart(2, '0');
+  document.getElementById('tm').textContent = String(m).padStart(2, '0');
+  document.getElementById('ts').textContent = String(s).padStart(2, '0');
+}, 1000);
+</script>
+</body>
+</html>

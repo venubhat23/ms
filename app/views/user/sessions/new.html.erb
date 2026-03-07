@@ -1,5 +1,22 @@
 <% content_for :title, "User Login - Marali Santhe" %>
 
+<style>
+  .user-portal-logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    border-radius: 15px;
+    margin-bottom: 1rem;
+  }
+
+  .simple-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+</style>
+
 <!-- Simple Centered Login Page -->
 <div class="simple-login-wrapper">
   <div class="simple-login-container">
@@ -8,7 +25,7 @@
       <!-- Logo Section -->
       <div class="text-center mb-4">
         <div class="simple-logo">
-          <i class="fas fa-user text-success" style="font-size: 4rem;"></i>
+          <img src="/logo.jpeg" alt="Marali Santhe Logo" class="user-portal-logo" />
         </div>
         <h2 class="simple-title">User Portal</h2>
         <p class="text-muted">Marali Santhe</p>
@@ -52,7 +69,7 @@
         <p class="text-muted mb-0">
           Need help accessing your account?
           <br>
-          <small>Contact: <a href="mailto:support@Marali Santhefarm.com" class="text-decoration-none">support@Marali Santhefarm.com</a></small>
+          <small>Contact: <a href="mailto:support@maralisanthe.com" class="text-decoration-none">support@maralisanthe.com</a></small>
         </p>
       </div>
 

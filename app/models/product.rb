@@ -151,12 +151,13 @@ class Product < ApplicationRecord
   def update_stock_for_invoice(qty_difference)
     # Update stock when invoice items are modified
     if qty_difference > 0
-      # Increasing quantity - reduce stock (use negative to reduce)
-      update_stock(-qty_difference, 'invoice_increase', Time.current.to_i, 'Stock reduced due to invoice quantity increase')
-    else
-      # Decreasing quantity - increase stock (use positive to increase)
-      update_stock(-qty_difference, 'invoice_decrease', Time.current.to_i, 'Stock increased due to invoice quantity decrease')
+      # Increasing invoice quantity - reduce available stock
+      update_stock(-qty_difference, 'invoice_update', Time.current.to_i, "Stock reduced due to invoice quantity increase by #{qty_difference}")
+    elsif qty_difference < 0
+      # Decreasing invoice quantity - increase available stock
+      update_stock(qty_difference.abs, 'invoice_update', Time.current.to_i, "Stock increased due to invoice quantity decrease by #{qty_difference.abs}")
     end
+    # If qty_difference is 0, no stock update needed
   end
 
   def sold_quantity

@@ -63,10 +63,6 @@
                   ], @invoice.payment_status), {}, { class: "form-select" } %>
             </div>
 
-            <div class="col-12">
-              <%= f.label :notes, class: "form-label" %>
-              <%= f.text_area :notes, rows: 3, class: "form-control", placeholder: "Add any notes or comments..." %>
-            </div>
           </div>
         </div>
       </div>
@@ -332,10 +328,9 @@ function addNewLineItem() {
   // Update input names with new index
   const inputs = newItem.querySelectorAll('input, select');
   inputs.forEach(input => {
-    const nameAttr = input.getAttribute('name');
-    if (nameAttr) {
-      const newName = nameAttr.replace(/\[\d*\]/, `[${lineItemIndex}]`);
-      input.setAttribute('name', `invoice[invoice_items_attributes][${lineItemIndex}]${getFieldName(input)}`);
+    const fieldName = getFieldName(input);
+    if (fieldName) {
+      input.setAttribute('name', `invoice[invoice_items_attributes][${lineItemIndex}]${fieldName}`);
     }
   });
 

@@ -76,6 +76,23 @@ class Invoice < ApplicationRecord
     due_date && due_date < Date.current && payment_status != 'fully_paid'
   end
 
+  def remaining_amount
+    total_amount - (paid_amount || 0)
+  end
+
+  def paid_percentage
+    return 0 if total_amount.zero?
+    ((paid_amount || 0) / total_amount * 100).round(2)
+  end
+
+  def fully_paid?
+    payment_status == 'fully_paid' || remaining_amount <= 0
+  end
+
+  def partially_paid?
+    payment_status == 'partially_paid' || (paid_amount && paid_amount > 0 && paid_amount < total_amount)
+  end
+
   private
 
   def generate_invoice_number

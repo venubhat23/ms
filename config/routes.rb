@@ -32,7 +32,7 @@ Rails.application.routes.draw do
   end
 
   # Root route
-  root "dashboard#index"
+  root "devise/sessions#new"
 
   # Public pages
   get 'adhika/privacy-policy', to: 'public_pages#adhika_privacy_policy'

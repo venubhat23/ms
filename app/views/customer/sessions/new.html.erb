@@ -2,7 +2,7 @@
 
 <div class="welcome-text">
   <h1 class="welcome-title">Welcome Back!</h1>
-  <p class="welcome-subtitle">Sign in to continue to your account</p>
+  <p class="welcome-subtitle">Sign in to continue to your organic journey with Marali Santhe</p>
 </div>
 
 <%= form_with url: customer_login_path, method: :post, local: true, class: "needs-validation", novalidate: true do |f| %>
@@ -40,7 +40,7 @@
       <%= f.check_box :remember_me, class: "form-check-input" %>
       <%= f.label :remember_me, "Keep me signed in", class: "form-check-label" %>
     </div>
-    <%= link_to customer_forgot_password_path, class: "text-decoration-none" do %>
+    <%= link_to customer_forgot_password_path, class: "text-decoration-none", style: "color: var(--green); font-weight: 600;" do %>
       <i class="bi bi-key me-1"></i>Forgot password?
     <% end %>
   </div>

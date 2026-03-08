@@ -168,4 +168,77 @@ class SystemSetting < ApplicationRecord
     setting.update!(collect_from_store_enabled: params[:collect_from_store_enabled] || false)
     setting
   end
+
+  # Delivery Only At Shop Feature Methods
+
+  # Check if delivery only at shop feature is enabled
+  def self.delivery_only_at_shop_enabled?
+    setting = find_by(key: 'system_config')
+    setting&.delivery_only_at_shop || false
+  end
+
+  # Enable or disable delivery only at shop feature
+  def self.set_delivery_only_at_shop_enabled(enabled)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(delivery_only_at_shop: enabled)
+    setting
+  end
+
+  # Get shop addresses as array
+  def self.get_shop_addresses
+    setting = find_by(key: 'system_config')
+    addresses = setting&.shop_addresses
+    return [] if addresses.blank?
+
+    JSON.parse(addresses) rescue []
+  end
+
+  # Set shop addresses from array
+  def self.set_shop_addresses(addresses_array)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(shop_addresses: addresses_array.to_json)
+    setting
+  end
+
+  # Update delivery only at shop settings with addresses
+  def self.update_delivery_only_at_shop_settings(params)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    # Update delivery only at shop setting
+    delivery_enabled = params[:delivery_only_at_shop] == "1"
+
+    # Process addresses if feature is enabled
+    addresses = []
+    if delivery_enabled && params[:shop_addresses].present?
+      # Handle addresses submitted from form
+      addresses = params[:shop_addresses].split("\n").map(&:strip).reject(&:empty?)
+    end
+
+    setting.update!(
+      delivery_only_at_shop: delivery_enabled,
+      shop_addresses: addresses.to_json
+    )
+
+    setting
+  end
+
+  # Get formatted shop addresses for display
+  def formatted_shop_addresses
+    return [] if shop_addresses.blank?
+    JSON.parse(shop_addresses) rescue []
+  end
 end

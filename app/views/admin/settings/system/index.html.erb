@@ -229,6 +229,104 @@
         </div>
       </div>
 
+      <!-- Store Settings Section -->
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h4><i class="bi bi-shop me-2"></i>Store Settings</h4>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <%= form.check_box :collect_from_store_enabled,
+                        { checked: @collect_from_store_enabled,
+                          class: "form-check-input",
+                          id: "collect_from_store_enabled" },
+                        "1", "0" %>
+                  <label class="form-check-label" for="collect_from_store_enabled">
+                    <strong>Enable Collect From Store</strong>
+                  </label>
+                  <div class="form-text">
+                    When enabled, customers can select a store for product collection during checkout.
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <div class="alert alert-info">
+                  <h6 class="alert-heading">Store Status</h6>
+                  <% if @collect_from_store_enabled %>
+                    <span class="badge bg-success">
+                      <i class="bi bi-check-circle me-1"></i>
+                      Enabled
+                    </span>
+                    <p class="mb-0 mt-2">Customers can select stores for collection during checkout.</p>
+                    <small class="text-muted">Current stores: <%= @stores_count %> / <%= @max_stores_limit %> maximum</small>
+                  <% else %>
+                    <span class="badge bg-secondary">
+                      <i class="bi bi-x-circle me-1"></i>
+                      Disabled
+                    </span>
+                    <p class="mb-0 mt-2">Store collection option is hidden from customers.</p>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card mb-4">
+            <div class="card-header">
+              <h4><i class="bi bi-truck me-2"></i>Delivery Settings</h4>
+            </div>
+            <div class="card-body">
+              <div class="mb-3">
+                <div class="form-check form-switch">
+                  <%= form.check_box :delivery_only_at_shop,
+                        { checked: @delivery_only_at_shop_enabled,
+                          class: "form-check-input",
+                          id: "delivery_only_at_shop_enabled",
+                          onchange: "toggleShopAddresses(this)" },
+                        "1", "0" %>
+                  <label class="form-check-label" for="delivery_only_at_shop_enabled">
+                    <strong>Enable Delivery Only at Shop</strong>
+                  </label>
+                  <div class="form-text">
+                    When enabled, customers can only pick up orders from designated shop addresses.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shop Addresses Section -->
+              <div id="shop-addresses-section" style="<%= @delivery_only_at_shop_enabled ? '' : 'display: none;' %>">
+                <div class="mb-3">
+                  <label for="shop_addresses" class="form-label">
+                    <strong>Shop Addresses</strong>
+                  </label>
+                  <%= form.text_area :shop_addresses,
+                        rows: 4,
+                        class: "form-control",
+                        placeholder: "Enter each shop address on a new line:\n\nShop 1: 123 Main Street, City - 12345\nShop 2: 456 Market Road, Town - 67890",
+                        value: @shop_addresses.join("\n") %>
+                  <div class="form-text">
+                    Enter each shop address on a new line.
+                  </div>
+                </div>
+              </div>
+
+              <div class="alert alert-<%= @delivery_only_at_shop_enabled ? 'success' : 'secondary' %> p-2">
+                <small>
+                  <i class="bi bi-<%= @delivery_only_at_shop_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                  Delivery Only at Shop: <%= @delivery_only_at_shop_enabled ? 'Enabled' : 'Disabled' %>
+                </small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="row">
         <div class="col-md-12">
           <div class="card">
@@ -443,6 +541,90 @@
           </div>
         </div>
 
+        <!-- Delivery Only at Shop Feature Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-transparent border-0">
+            <h5 class="mb-0">
+              <i class="bi bi-truck me-2"></i>
+              Delivery Only at Shop Feature
+            </h5>
+          </div>
+          <div class="card-body">
+            <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "delivery-only-at-shop-form" do |form| %>
+              <%= form.hidden_field :delivery_only_at_shop_update, value: "true" %>
+
+              <div class="row">
+                <div class="col-md-12">
+                  <div class="form-check form-switch mb-3">
+                    <%= form.check_box :delivery_only_at_shop,
+                          { checked: @delivery_only_at_shop_enabled,
+                            class: "form-check-input",
+                            id: "delivery_only_at_shop_enabled",
+                            onchange: "toggleShopAddresses(this)" },
+                          "1", "0" %>
+                    <label class="form-check-label" for="delivery_only_at_shop_enabled">
+                      <strong>Enable Delivery Only at Shop</strong>
+                    </label>
+                    <div class="form-text">
+                      When enabled, customers can only pick up orders from designated shop addresses.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shop Addresses Section -->
+              <div id="shop-addresses-section" style="<%= @delivery_only_at_shop_enabled ? '' : 'display: none;' %>">
+                <div class="row">
+                  <div class="col-md-12">
+                    <label for="shop_addresses" class="form-label">
+                      <strong>Shop Addresses</strong>
+                    </label>
+                    <%= form.text_area :shop_addresses,
+                          rows: 6,
+                          class: "form-control",
+                          placeholder: "Enter each shop address on a new line:\n\nShop 1: 123 Main Street, City - 12345\nShop 2: 456 Market Road, Town - 67890\nShop 3: 789 Central Avenue, Village - 54321",
+                          value: @shop_addresses.join("\n") %>
+                    <div class="form-text">
+                      Enter each shop address on a new line. These addresses will be available for customers to select during checkout.
+                    </div>
+                  </div>
+                </div>
+
+                <div class="row mt-3">
+                  <div class="col-md-12">
+                    <div class="alert alert-info">
+                      <h6 class="alert-heading">Current Shop Addresses</h6>
+                      <% if @shop_addresses.any? %>
+                        <ul class="mb-0">
+                          <% @shop_addresses.each_with_index do |address, index| %>
+                            <li><strong>Shop <%= index + 1 %>:</strong> <%= address %></li>
+                          <% end %>
+                        </ul>
+                      <% else %>
+                        <p class="mb-0 text-muted">No shop addresses configured yet.</p>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row mt-3">
+                <div class="col-md-12">
+                  <div class="d-flex gap-2">
+                    <%= form.submit "Update Delivery Settings", class: "btn btn-primary" %>
+                    <div class="alert alert-<%= @delivery_only_at_shop_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                      <small>
+                        <i class="bi bi-<%= @delivery_only_at_shop_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                        Status: <%= @delivery_only_at_shop_enabled ? 'Enabled' : 'Disabled' %>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
         <!-- Store Management Card -->
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-transparent border-0">
@@ -584,25 +766,51 @@
   }, false);
 })();
 
-// Tab Management
+// Tab Management - Manual implementation to ensure it works
 document.addEventListener('DOMContentLoaded', function() {
-  // Store active tab in localStorage
-  const tabs = document.querySelectorAll('#systemTabs button[data-bs-toggle="pill"]');
-  const activeTab = localStorage.getItem('systemActiveTab');
+  const tabs = document.querySelectorAll('#systemTabs button');
+  const panes = document.querySelectorAll('.tab-pane');
 
-  if (activeTab) {
-    const tabButton = document.querySelector(`#systemTabs button[data-bs-target="${activeTab}"]`);
-    if (tabButton) {
-      const tab = new bootstrap.Tab(tabButton);
-      tab.show();
+  function showTab(targetId) {
+    // Hide all panes and deactivate all tabs
+    panes.forEach(pane => {
+      pane.classList.remove('show', 'active');
+    });
+    tabs.forEach(tab => {
+      tab.classList.remove('active');
+      tab.setAttribute('aria-selected', 'false');
+    });
+
+    // Show the target pane and activate the corresponding tab
+    const targetPane = document.querySelector(targetId);
+    const targetTab = document.querySelector(`[data-bs-target="${targetId}"]`);
+
+    if (targetPane && targetTab) {
+      targetPane.classList.add('show', 'active');
+      targetTab.classList.add('active');
+      targetTab.setAttribute('aria-selected', 'true');
     }
   }
 
+  // Add click listeners to tabs
   tabs.forEach(tab => {
-    tab.addEventListener('shown.bs.tab', function(e) {
-      localStorage.setItem('systemActiveTab', e.target.getAttribute('data-bs-target'));
+    tab.addEventListener('click', function(e) {
+      e.preventDefault();
+      const target = this.getAttribute('data-bs-target');
+      if (target) {
+        showTab(target);
+        localStorage.setItem('systemActiveTab', target);
+      }
     });
   });
+
+  // Show default tab (Business Settings) or restore from localStorage
+  const savedTab = localStorage.getItem('systemActiveTab');
+  if (savedTab && document.querySelector(savedTab)) {
+    showTab(savedTab);
+  } else {
+    showTab('#business-settings');
+  }
 });
 
 // UPI Functions
@@ -622,6 +830,18 @@ function handleCollectFromStoreToggle(checkbox) {
   const form = document.getElementById('collect-from-store-form');
   if (form) {
     form.submit();
+  }
+}
+
+// Toggle Shop Addresses Section Function
+function toggleShopAddresses(checkbox) {
+  const addressesSection = document.getElementById('shop-addresses-section');
+  if (addressesSection) {
+    if (checkbox.checked) {
+      addressesSection.style.display = 'block';
+    } else {
+      addressesSection.style.display = 'none';
+    }
   }
 }
 </script>

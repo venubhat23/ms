@@ -31,6 +31,10 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?
     @stores_count = Store.count
     @max_stores_limit = Store::MAX_STORES_LIMIT
+
+    # Get delivery only at shop settings
+    @delivery_only_at_shop_enabled = SystemSetting.delivery_only_at_shop_enabled?
+    @shop_addresses = SystemSetting.get_shop_addresses
   end
 
   def update
@@ -115,6 +119,22 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         # Generate QR code if UPI ID is present
         generate_qr_code if @business_setting.upi_id.present?
 
+        # Handle store settings if present
+        if params[:collect_from_store_enabled].present?
+          SystemSetting.set_collect_from_store_enabled(params[:collect_from_store_enabled] == "1")
+          success_messages << 'Store collection settings updated!'
+        end
+
+        # Handle delivery only at shop settings if present
+        if params[:delivery_only_at_shop].present?
+          delivery_params = {
+            delivery_only_at_shop: params[:delivery_only_at_shop],
+            shop_addresses: params[:shop_addresses]
+          }
+          SystemSetting.update_delivery_only_at_shop_settings(delivery_params)
+          success_messages << 'Delivery settings updated!'
+        end
+
         success_messages << 'Business settings updated successfully!'
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating business settings: #{e.message}"
@@ -136,6 +156,27 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating Collect From Store settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle delivery only at shop settings update
+    if params[:delivery_only_at_shop_update] == "true"
+      begin
+        delivery_params = {
+          delivery_only_at_shop: params[:delivery_only_at_shop],
+          shop_addresses: params[:shop_addresses]
+        }
+
+        SystemSetting.update_delivery_only_at_shop_settings(delivery_params)
+
+        if params[:delivery_only_at_shop] == "1"
+          success_messages << 'Delivery Only at Shop feature enabled successfully with addresses!'
+        else
+          success_messages << 'Delivery Only at Shop feature disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Delivery Only at Shop settings: #{e.message}"
         return
       end
     end

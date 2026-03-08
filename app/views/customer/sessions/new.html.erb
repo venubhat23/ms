@@ -51,12 +51,29 @@
 <% end %>
 
 <div class="auth-links">
+  <div class="auth-separator">
+    <span>or</span>
+  </div>
   <p class="mb-0">
     New to Marali Santhe?
     <%= link_to customer_register_path do %>
       <i class="bi bi-person-plus me-1"></i>Create an account
     <% end %>
   </p>
+  <div class="organic-features mt-4">
+    <div class="feature-badge">
+      <i class="bi bi-shield-check"></i>
+      <span>100% Organic</span>
+    </div>
+    <div class="feature-badge">
+      <i class="bi bi-truck"></i>
+      <span>Free Delivery</span>
+    </div>
+    <div class="feature-badge">
+      <i class="bi bi-heart"></i>
+      <span>Farm Fresh</span>
+    </div>
+  </div>
 </div>
 
 <script>

@@ -349,9 +349,18 @@
                   <div>
                     <h6 class="mb-0"><%= booking.customer&.display_name || booking.customer_name %></h6>
                     <% if booking.customer&.mobile || booking.customer_phone %>
-                      <small class="text-muted">
+                      <small class="text-muted d-block">
                         <i class="bi bi-telephone me-1"></i>
                         <%= booking.customer&.mobile || booking.customer_phone %>
+                      </small>
+                    <% end %>
+                    <% if booking.delivery_store.present? %>
+                      <small class="text-muted d-block">
+                        <i class="bi bi-shop me-1"></i>
+                        <span class="badge bg-warning-subtle text-warning">Pickup</span>
+                      </small>
+                      <small class="text-muted">
+                        <%= booking.delivery_store %>
                       </small>
                     <% end %>
                   </div>

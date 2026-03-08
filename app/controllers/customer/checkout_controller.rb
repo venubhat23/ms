@@ -59,6 +59,16 @@ class Customer::CheckoutController < Customer::BaseController
     @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?
     @selected_store = find_selected_store if @collect_from_store_enabled
 
+    # Check delivery store if delivery only at shop is enabled
+    if SystemSetting.delivery_only_at_shop_enabled?
+      delivery_store = params[:delivery_store] || session[:delivery_store]
+      if delivery_store.blank?
+        redirect_to customer_checkout_path, alert: 'Please select a pickup location.'
+        return
+      end
+      session[:delivery_store] = delivery_store
+    end
+
     # Create booking/order
     begin
       ActiveRecord::Base.transaction do
@@ -255,6 +265,14 @@ class Customer::CheckoutController < Customer::BaseController
     # Add store selection if collect from store is enabled
     if SystemSetting.collect_from_store_enabled? && @selected_store
       booking_attributes[:store_id] = @selected_store.id
+    end
+
+    # Add delivery store if delivery only at shop is enabled
+    if SystemSetting.delivery_only_at_shop_enabled?
+      delivery_store = params[:delivery_store] || session[:delivery_store]
+      if delivery_store.present?
+        booking_attributes[:delivery_store] = delivery_store
+      end
     end
 
     booking = Booking.new(booking_attributes)

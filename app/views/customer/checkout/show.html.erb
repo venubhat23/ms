@@ -110,6 +110,47 @@
           </div>
         <% end %>
       </div>
+
+      <!-- Shop Selection for Delivery Only at Shop -->
+      <% if SystemSetting.delivery_only_at_shop_enabled? %>
+        <div class="bg-white rounded shadow-sm p-4 mt-4">
+          <h4 class="mb-4">
+            <i class="bi bi-shop me-2"></i>Select Pickup Location
+          </h4>
+
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Pickup Only:</strong> Please select a shop location where you would like to collect your order.
+          </div>
+
+          <% shop_addresses = SystemSetting.get_shop_addresses %>
+          <% if shop_addresses.any? %>
+            <div class="row">
+              <% shop_addresses.each_with_index do |address, index| %>
+                <div class="col-md-6 mb-3">
+                  <div class="border rounded p-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="delivery_store" value="<%= address %>" id="shop_<%= index %>" <%= 'checked' if index == 0 %>>
+                      <label class="form-check-label w-100" for="shop_<%= index %>">
+                        <strong><i class="bi bi-shop me-1"></i>Shop <%= index + 1 %></strong>
+                        <br>
+                        <small class="text-muted">
+                          <%= address %>
+                        </small>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle me-2"></i>
+              No pickup locations configured. Please contact support.
+            </div>
+          <% end %>
+        </div>
+      <% end %>
     </div>
 
     <!-- Order Summary Sidebar -->
@@ -172,13 +213,24 @@ function setSelectedAddress() {
   if (selectedAddress) {
     sessionStorage.setItem('selected_address_id', selectedAddress.value);
   }
+
+  // Also save selected delivery store if available
+  const selectedStore = document.querySelector('input[name="delivery_store"]:checked');
+  if (selectedStore) {
+    sessionStorage.setItem('delivery_store', selectedStore.value);
+  }
 }
 
-// Auto-select default address if any
+// Auto-select default address and store if any
 document.addEventListener('DOMContentLoaded', function() {
   const defaultAddress = document.querySelector('input[name="selected_address_id"][checked]');
   if (defaultAddress) {
     sessionStorage.setItem('selected_address_id', defaultAddress.value);
+  }
+
+  const defaultStore = document.querySelector('input[name="delivery_store"][checked]');
+  if (defaultStore) {
+    sessionStorage.setItem('delivery_store', defaultStore.value);
   }
 });
 </script>

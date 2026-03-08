@@ -144,6 +144,11 @@ class Customer::CheckoutController < Customer::BaseController
           delivery_address: params[:delivery_address]
         }
 
+        # Add delivery store if provided (for delivery only at shop feature)
+        if params[:delivery_store].present?
+          booking_attributes[:delivery_store] = params[:delivery_store]
+        end
+
         @booking = Booking.new(booking_attributes)
 
         # Calculate totals before saving (like admin controller)

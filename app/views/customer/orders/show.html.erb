@@ -63,6 +63,22 @@
               <%= simple_format(@booking.delivery_address) %>
             </div>
           <% end %>
+          <% if @booking.delivery_store.present? %>
+            <div class="col-12">
+              <div class="alert alert-info d-flex align-items-start">
+                <div class="me-2">
+                  <i class="bi bi-shop fs-5 text-primary"></i>
+                </div>
+                <div>
+                  <strong class="text-primary d-block">Pickup Location</strong>
+                  <small class="text-muted mb-1 d-block">Please collect your order from the following location:</small>
+                  <div class="fw-medium">
+                    <%= simple_format(@booking.delivery_store) %>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>

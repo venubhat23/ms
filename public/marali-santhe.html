@@ -21,10 +21,15 @@ body{font-family:'Jost',sans-serif;color:var(--text);overflow-x:hidden;backgroun
 .top-bar b{color:var(--gold-light)}
 
 /* ── NAV ── */
-nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px;height:78px;background:var(--white);position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.08)}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px;height:78px;background:var(--white);position:sticky;top:0;z-index:300;box-shadow:0 2px 16px rgba(0,0,0,.08);position:relative}
+.nav-left,.nav-right{flex:1}
+.nav-right{display:flex;justify-content:flex-end;align-items:center;gap:20px}
 .nav-links{display:flex;gap:34px;list-style:none;align-items:center}
 .nav-links a{text-decoration:none;color:var(--dark);font-size:11px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;transition:color .2s}
 .nav-links a:hover{color:var(--green)}
+.mobile-nav-links{display:none;position:absolute;top:100%;left:0;width:100%;background:var(--white);box-shadow:0 2px 10px rgba(0,0,0,.1);flex-direction:column;z-index:200}
+.mobile-nav-links a{display:block;padding:16px 20px;text-decoration:none;color:var(--dark);font-size:11px;font-weight:600;letter-spacing:1.8px;text-transform:uppercase;border-bottom:1px solid #eee;transition:background .2s}
+.mobile-nav-links a:hover{background:var(--green-light)}
 .logo-circle{width:72px;height:72px;border-radius:50%;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;flex-shrink:0;box-shadow:0 4px 20px rgba(27,94,32,.45);overflow:hidden;padding:0}
 .logo-circle .lico{width:72px;height:72px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;}
 .logo-circle .lico img{width:100%;height:100%;object-fit:cover}
@@ -36,6 +41,8 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px
 /* ── BUTTONS ── */
 .btn{display:inline-block;background:var(--green-dark);color:var(--white);padding:13px 36px;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border:none;cursor:pointer;font-family:'Jost',sans-serif;border-radius:2px;transition:background .2s,transform .15s}
 .btn:hover{background:var(--gold);color:var(--dark);transform:translateY(-2px)}
+.btn-login{background:var(--gold);color:var(--dark) !important;text-shadow:none;border:2px solid var(--gold)}
+.btn-login:hover{background:var(--green-dark);color:var(--white) !important;border-color:var(--green-dark)}
 .btn-gold{display:inline-block;background:var(--gold);color:var(--dark);padding:14px 44px;text-decoration:none;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-radius:2px;transition:background .2s}
 .btn-gold:hover{background:var(--gold-light)}
 .btn-outline{padding:13px 36px;border:2px solid var(--green-dark);background:transparent;color:var(--green-dark);font-family:'Jost',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all .2s}
@@ -273,8 +280,14 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
 
+/* Mobile menu toggle */
+.mobile-menu-toggle{display:none;background:none;border:none;font-size:24px;color:var(--dark);cursor:pointer}
+
 @media(max-width:960px){
   nav{padding:0 16px}
+  .mobile-menu-toggle{display:block}
+  .nav-links{display:none}
+  .mobile-nav-links.mobile-open{display:flex}
   .hero-body{flex-direction:column;padding:40px 20px;text-align:center}
   .hero-right{display:none}
   .trust{flex-wrap:wrap}
@@ -285,7 +298,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
   .popup{grid-template-columns:1fr}
   .popup-left{display:none}
   .why-strip{grid-template-columns:1fr 1fr}
-  .mailing{flex-direction:column;text-align:center}
 }
 @media(max-width:600px){
   .cats,.pgrid,.reviews-grid,.arrivals,.blog-grid,.feat-wrap,.footer-grid,.gallery-grid,.why-strip{grid-template-columns:1fr}
@@ -318,27 +330,40 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
 
 <!-- TOP BAR -->
 <div class="top-bar">
-  Free Shipping on Orders above Rs 499 &nbsp;|&nbsp; Flat <b>15% OFF</b> on your First Order &nbsp;|&nbsp; Use Code – <b>CELEBRATE15</b>
+  Free Shipping on Orders above Rs 499 &nbsp;|&nbsp; Fresh Organic Products Daily
 </div>
 
 <!-- NAV -->
 <nav>
-  <ul class="nav-links">
-    <li><a href="#">Home</a></li>
-    <li><a href="#">Organic Foods</a></li>
-    <li><a href="#">Wellness</a></li>
-  </ul>
+  <div class="nav-left">
+    <ul class="nav-links left-links">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Organic Foods</a></li>
+      <li><a href="#">Wellness</a></li>
+    </ul>
+  </div>
   <a class="logo-circle" href="#">
     <div class="logo-text">
       <span class="lt1">Marali</span>
       <span class="lt2">Santhe</span>
     </div>
   </a>
-  <ul class="nav-links">
-    <li><a href="#">Combos</a></li>
-    <li><a href="#">Blogs</a></li>
-    <li><a href="#" class="btn nav-cart" id="cartBtn">🛒 Cart – 0</a></li>
-  </ul>
+  <div class="nav-right">
+    <ul class="nav-links right-links">
+      <li><a href="#">Combos</a></li>
+      <li><a href="#">Blogs</a></li>
+      <li><a href="/customer/login" class="btn btn-login">Login</a></li>
+    </ul>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+  </div>
+  <div class="mobile-nav-links" id="mobileNav">
+    <a href="#">Home</a>
+    <a href="#">Organic Foods</a>
+    <a href="#">Wellness</a>
+    <a href="#">Combos</a>
+    <a href="#">Blogs</a>
+    <a href="/customer/login">Login</a>
+  </div>
 </nav>
 
 <!-- HERO -->
@@ -351,10 +376,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
       <h1>Celebrate<br>Every Moment<br>Naturally With</h1>
       <span class="hero-script">Marali Santhe</span>
       <p class="hero-sub">From farm to your doorstep – pure organic foods, superfoods & wellness essentials for a healthier, happier life.</p>
-      <div class="hero-ctas">
-        <a href="#" class="btn">Shop Now</a>
-        <a href="#" class="btn-gold">Our Story</a>
-      </div>
       <div class="hero-dots" style="margin-top:28px">
         <div class="dot"></div><div class="dot"></div>
         <div class="dot active"></div><div class="dot"></div><div class="dot"></div>
@@ -411,7 +432,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
       <h4>Wild Forest Honey</h4>
       <p class="psub">Raw & Unprocessed · 500g</p>
       <div class="pprice">From Rs. 280.00</div>
-      <button class="btn-add" onclick="addCart(this,'Wild Forest Honey')">View Options</button>
+      <button class="btn-add" onclick="addCart(this,'Wild Forest Honey')">Add to Cart</button>
     </div>
   </div>
   <div class="pcard">
@@ -423,7 +444,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
       <h4>Cold Pressed Coconut Oil</h4>
       <p class="psub">Virgin & Unrefined · 500ml</p>
       <div class="pprice">From Rs. 320.00</div>
-      <button class="btn-add" onclick="addCart(this,'Coconut Oil')">View Options</button>
+      <button class="btn-add" onclick="addCart(this,'Coconut Oil')">Add to Cart</button>
     </div>
   </div>
   <div class="pcard">
@@ -447,7 +468,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
       <h4>Organic Turmeric Powder</h4>
       <p class="psub">High Curcumin · 250g</p>
       <div class="pprice">From Rs. 150.00</div>
-      <button class="btn-add" onclick="addCart(this,'Turmeric Powder')">View Options</button>
+      <button class="btn-add" onclick="addCart(this,'Turmeric Powder')">Add to Cart</button>
     </div>
   </div>
 </div>
@@ -736,17 +757,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
   </div>
 </div>
 
-<!-- MAILING LIST -->
-<div class="mailing">
-  <div class="mailing-left">
-    <h3>Join our Mailing List</h3>
-    <p>And get instant updates on new Products, Organic Tips & Exclusive Offers</p>
-  </div>
-  <div class="mailing-form">
-    <input type="email" placeholder="Enter email">
-    <button>Subscribe</button>
-  </div>
-</div>
 
 <!-- FOOTER -->
 <footer>
@@ -755,9 +765,15 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
       <div class="fbrand-name">Marali Santhe</div>
       <p>Bringing the goodness of certified organic farms directly to your table. Pure, natural and full of freshness.</p>
       <div class="footer-contact" style="margin-top:20px">
-        <b>Marali Santhe Organics Pvt Ltd</b><br>
-        Bengaluru – 560070 | Karnataka | India<br>
-        info@maralisanthe.com
+        <b>Marali Santhe</b><br>
+        Owner: Raghunandan<br><br>
+        #64, Ground Floor,<br>
+        7th Cross, 24th Main,<br>
+        RK Colony, JP Nagar 2nd Phase,<br>
+        Bengaluru - 560078<br><br>
+        Contact: 9035408833<br>
+        Email: maralisanthe@gmail.com<br>
+        GSTIN: 29AWEPR9293C1Z0
       </div>
     </div>
     <div class="fcol">
@@ -768,16 +784,6 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
         <li><a href="#">Spices & Herbs</a></li>
         <li><a href="#">Combo Packs</a></li>
         <li><a href="#">New Arrivals</a></li>
-      </ul>
-    </div>
-    <div class="fcol">
-      <h5>Our Policies</h5>
-      <ul>
-        <li><a href="#">Privacy Policy</a></li>
-        <li><a href="#">Refund Policy</a></li>
-        <li><a href="#">Terms of Service</a></li>
-        <li><a href="#">Shipping Policy</a></li>
-        <li><a href="#">Sitemap</a></li>
       </ul>
     </div>
     <div class="fcol">
@@ -814,17 +820,20 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
     if(e.target===this)this.style.display='none';
   });
 
-  // Cart
-  let count = 0;
+  // Mobile menu toggle
+  function toggleMobileMenu(){
+    const mobileNav = document.getElementById('mobileNav');
+    mobileNav.classList.toggle('mobile-open');
+  }
+
+  // Product interaction
   function addCart(btn, name){
-    count++;
-    document.getElementById('cartBtn').textContent = '🛒 Cart – ' + count;
     const orig = btn.textContent;
     btn.textContent = '✓ Added!';
     btn.style.background = '#2e7d32';
     // show toast
     const t = document.getElementById('toast');
-    t.textContent = '✓ ' + (name||'Item') + ' added to cart!';
+    t.textContent = '✓ ' + (name||'Item') + ' added to wishlist!';
     t.classList.add('show');
     setTimeout(()=>t.classList.remove('show'), 2200);
     setTimeout(()=>{

@@ -31,8 +31,8 @@ Rails.application.routes.draw do
     delete '/logout', to: 'sessions#destroy'
   end
 
-  # Root route
-  root "devise/sessions#new"
+  # Root route - Marali Santhe website
+  root 'home#index'
 
   # Public pages
   get 'adhika/privacy-policy', to: 'public_pages#adhika_privacy_policy'

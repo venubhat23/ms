@@ -45,6 +45,9 @@ class Product < ApplicationRecord
   # Cloudinary image uploads - store URLs in database
   # image_url and additional_images_urls columns will be added via migration
 
+  # R2 image uploads - store URLs in database
+  # r2_image_url and r2_additional_images columns for Cloudflare R2
+
   # Keep Active Storage for backward compatibility if needed
   has_one_attached :image
   has_many_attached :additional_images
@@ -703,21 +706,35 @@ class Product < ApplicationRecord
   def images
     all_images = []
 
-    # Add Cloudinary main image
-    if image_url.present?
+    # Add R2 main image with highest priority
+    if r2_image_url.present?
+      all_images << r2_image_url
+    end
+
+    # Add R2 additional images
+    r2_additional_images_array.each do |r2_url|
+      all_images << r2_url
+    end
+
+    # Add Cloudinary main image (if no R2 images)
+    if image_url.present? && all_images.empty?
       all_images << cloudinary_image_url
     end
 
-    # Add Cloudinary additional images
-    additional_cloudinary_images.each do |cloudinary_url|
-      all_images << Cloudinary::Utils.cloudinary_url(cloudinary_url,
-        width: 800, height: 600, crop: :fill, quality: :auto, fetch_format: :auto
-      )
+    # Add Cloudinary additional images (if no R2 images)
+    if all_images.empty?
+      additional_cloudinary_images.each do |cloudinary_url|
+        all_images << Cloudinary::Utils.cloudinary_url(cloudinary_url,
+          width: 800, height: 600, crop: :fill, quality: :auto, fetch_format: :auto
+        )
+      end
     end
 
-    # Add Active Storage images for backward compatibility
-    all_images << image if image.attached?
-    all_images.concat(additional_images.to_a) if additional_images.attached?
+    # Add Active Storage images for backward compatibility (if no cloud images)
+    if all_images.empty?
+      all_images << image if image.attached?
+      all_images.concat(additional_images.to_a) if additional_images.attached?
+    end
 
     all_images
   end
@@ -749,13 +766,15 @@ class Product < ApplicationRecord
     all_images
   end
 
-  # Check if any images are available (Cloudinary or Active Storage)
+  # Check if any images are available (R2, Cloudinary or Active Storage)
   def images_attached?
-    image_url.present? || additional_images_urls.present? || image.attached? || additional_images.attached?
+    r2_image_url.present? || r2_additional_images.present? || image_url.present? || additional_images_urls.present? || image.attached? || additional_images.attached?
   end
 
   def main_image
-    if image_url.present?
+    if r2_image_url.present?
+      { type: 'r2', url: r2_image_url }
+    elsif image_url.present?
       cloudinary_url = cloudinary_image_url
       if cloudinary_url.present?
         { type: 'cloudinary', url: cloudinary_url }
@@ -770,7 +789,9 @@ class Product < ApplicationRecord
   end
 
   def main_image_url(transformation = {})
-    if image_url.present?
+    if r2_image_url.present?
+      r2_image_url
+    elsif image_url.present?
       cloudinary_url = cloudinary_image_url(transformation)
       cloudinary_url.present? ? cloudinary_url : image_url
     elsif image.attached?
@@ -807,6 +828,42 @@ class Product < ApplicationRecord
     current_urls = additional_cloudinary_images
     current_urls << cloudinary_public_id
     self.additional_images_urls = current_urls.to_json
+  end
+
+  # R2 helper methods
+  def upload_to_r2(file, folder = 'products')
+    return nil unless file
+
+    begin
+      result = R2Service.upload(file, folder: folder)
+
+      if result[:error]
+        Rails.logger.error "R2 upload failed: #{result[:error]}"
+        return nil
+      end
+
+      result[:public_url]
+    rescue => e
+      Rails.logger.error "R2 upload failed: #{e.message}"
+      nil
+    end
+  end
+
+  def r2_additional_images_array
+    return [] unless r2_additional_images.present?
+
+    begin
+      urls = JSON.parse(r2_additional_images)
+      urls.is_a?(Array) ? urls : []
+    rescue JSON::ParserError
+      []
+    end
+  end
+
+  def add_additional_r2_image(r2_url)
+    current_urls = r2_additional_images_array
+    current_urls << r2_url
+    self.r2_additional_images = current_urls.to_json
   end
 
   def formatted_price

@@ -1,0 +1,13 @@
+development:
+  cloudflare_r2:
+    access_key_id: "c7e154b7736c448e74237fdf1e2f14a3"
+    secret_access_key: "7f533752678e5d0fb48ff5d9564a888b52cdbd6ad76166c0ee16d2696bbe1536"
+    bucket: "marali-santhe"
+    endpoint: "https://63bb824effac95b1f3b291eb9385d33c.r2.cloudflarestorage.com"
+
+production:
+  cloudflare_r2:
+    access_key_id: "c7e154b7736c448e74237fdf1e2f14a3"
+    secret_access_key: "7f533752678e5d0fb48ff5d9564a888b52cdbd6ad76166c0ee16d2696bbe1536"
+    bucket: "marali-santhe"
+    endpoint: "https://63bb824effac95b1f3b291eb9385d33c.r2.cloudflarestorage.com"

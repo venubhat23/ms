@@ -386,6 +386,8 @@ Rails.application.routes.draw do
       end
       collection do
         post :upload_cloudinary_image
+        post :upload_r2_image
+        delete :delete_r2_image
       end
     end
 
@@ -432,6 +434,7 @@ Rails.application.routes.draw do
         patch :complete_purchase
         post :complete_purchase
         post :generate_invoice
+        get :mark_as_paid
         patch :mark_as_paid
       end
       collection do
@@ -642,6 +645,8 @@ Rails.application.routes.draw do
         get :categories_for_select
         get :products_chart
         post :upload_cloudinary_image
+        post :upload_r2_image
+        delete :delete_r2_image
       end
     end
 

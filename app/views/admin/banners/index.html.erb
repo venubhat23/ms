@@ -153,7 +153,13 @@ function applyFilters() {
               <tr>
                 <td>
                   <% if banner.has_image? %>
-                    <%= image_tag banner.main_image_url, class: "rounded", style: "width: 60px; height: 40px; object-fit: cover;" %>
+                    <div class="position-relative">
+                      <%= image_tag banner.main_image_url, class: "rounded", style: "width: 60px; height: 40px; object-fit: cover;" %>
+                      <% info = banner.image_display_info %>
+                      <span class="position-absolute bottom-0 end-0 badge <%= info[:class] %> bg-opacity-75" style="font-size: 0.6rem; padding: 0.2rem 0.4rem;">
+                        <i class="<%= info[:icon] %> me-1"></i><%= info[:type] %>
+                      </span>
+                    </div>
                   <% else %>
                     <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 60px; height: 40px;">
                       <i class="bi bi-image text-muted"></i>

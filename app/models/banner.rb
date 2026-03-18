@@ -73,7 +73,9 @@ class Banner < ApplicationRecord
   end
 
   def main_image_url
-    if image_url.present?
+    if r2_image_url.present?
+      r2_image_url
+    elsif image_url.present?
       cloudinary_image_url
     elsif banner_image.attached?
       Rails.application.routes.url_helpers.rails_blob_url(banner_image, only_path: true)
@@ -83,7 +85,55 @@ class Banner < ApplicationRecord
   end
 
   def has_image?
-    image_url.present? || banner_image.attached?
+    r2_image_url.present? || image_url.present? || banner_image.attached?
+  end
+
+  # R2 helper methods
+  def upload_to_r2(file)
+    return nil unless file
+
+    begin
+      result = R2Service.upload(file, folder: 'banners')
+
+      if result[:error]
+        Rails.logger.error "R2 upload failed: #{result[:error]}"
+        return nil
+      end
+
+      result[:public_url]
+    rescue => e
+      Rails.logger.error "R2 upload failed: #{e.message}"
+      nil
+    end
+  end
+
+  def r2_image_url_present?
+    r2_image_url.present?
+  end
+
+  def image_source_type
+    if r2_image_url.present?
+      'r2'
+    elsif image_url.present?
+      'cloudinary'
+    elsif banner_image.attached?
+      'active_storage'
+    else
+      'none'
+    end
+  end
+
+  def image_display_info
+    case image_source_type
+    when 'r2'
+      { type: 'R2 Storage', icon: 'bi-cloud-arrow-up', class: 'text-primary', url: r2_image_url }
+    when 'cloudinary'
+      { type: 'Cloudinary', icon: 'bi-cloud-check', class: 'text-success', url: cloudinary_image_url }
+    when 'active_storage'
+      { type: 'Local Storage', icon: 'bi-server', class: 'text-info', url: main_image_url }
+    else
+      { type: 'No Image', icon: 'bi-image', class: 'text-muted', url: nil }
+    end
   end
 
   def upload_to_cloudinary(file)

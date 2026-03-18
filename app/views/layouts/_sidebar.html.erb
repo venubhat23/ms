@@ -738,34 +738,7 @@
         <% end %>
 
         <!-- Coupons -->
-        <% if current_user.has_sidebar_permission?('coupons') %>
-          <li class="nav-item">
-            <%= link_to admin_coupons_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/coupons')}" do %>
-              <div class="nav-icon-modern">
-                <div class="icon-bg gradient-red">
-                  <i class="bi bi-percent"></i>
-                </div>
-              </div>
-              <span class="nav-text">Coupons</span>
-              <div class="nav-indicator"></div>
-            <% end %>
-          </li>
-        <% end %>
-
         <!-- Customer Wallets -->
-        <% if current_user.has_sidebar_permission?('customer_wallets') %>
-          <li class="nav-item">
-            <%= link_to admin_customer_wallets_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/customer_wallets')}" do %>
-              <div class="nav-icon-modern">
-                <div class="icon-bg gradient-emerald">
-                  <i class="bi bi-wallet2"></i>
-                </div>
-              </div>
-              <span class="nav-text">Customer Wallets</span>
-              <div class="nav-indicator"></div>
-            <% end %>
-          </li>
-        <% end %>
 
         <!-- Franchise -->
         <% if current_user.has_sidebar_permission?('franchises') %>

@@ -1,13 +1,12 @@
 <% content_for :title, 'Customer Login' %>
 
-<div class="welcome-text">
+<div class="welcome-section">
   <h1 class="welcome-title">Welcome Back!</h1>
   <p class="welcome-subtitle">Sign in to continue to your organic journey with Marali Santhe</p>
 </div>
 
 <%= form_with url: customer_login_path, method: :post, local: true, class: "needs-validation", novalidate: true do |f| %>
   <div class="form-group">
-    <%= f.label :email_or_mobile, "Email or Mobile Number", class: "form-label" %>
     <div class="input-group">
       <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
       <%= f.text_field :email_or_mobile,
@@ -15,38 +14,31 @@
                       placeholder: "Enter your email or mobile number",
                       required: true,
                       autofocus: true %>
-      <div class="invalid-feedback">
-        Please enter your email or mobile number.
-      </div>
     </div>
   </div>
 
   <div class="form-group">
-    <%= f.label :password, "Password", class: "form-label" %>
     <div class="input-group">
       <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
       <%= f.password_field :password,
                           class: "form-control",
                           placeholder: "Enter your password",
                           required: true %>
-      <div class="invalid-feedback">
-        Please enter your password.
-      </div>
     </div>
   </div>
 
-  <div class="form-group d-flex justify-content-between align-items-center">
+  <div class="form-options">
     <div class="form-check">
       <%= f.check_box :remember_me, class: "form-check-input" %>
       <%= f.label :remember_me, "Keep me signed in", class: "form-check-label" %>
     </div>
-    <%= link_to customer_forgot_password_path, class: "text-decoration-none", style: "color: var(--green); font-weight: 600;" do %>
+    <%= link_to customer_forgot_password_path, class: "forgot-link" do %>
       <i class="bi bi-key me-1"></i>Forgot password?
     <% end %>
   </div>
 
-  <div class="d-grid gap-2 mb-4">
-    <%= f.submit "Sign In to Account", class: "btn btn-primary btn-lg" %>
+  <div class="d-grid mb-4">
+    <%= f.submit "Sign In to Account", class: "btn btn-login" %>
   </div>
 <% end %>
 
@@ -60,7 +52,7 @@
       <i class="bi bi-person-plus me-1"></i>Create an account
     <% end %>
   </p>
-  <div class="organic-features mt-4">
+  <div class="feature-badges">
     <div class="feature-badge">
       <i class="bi bi-shield-check"></i>
       <span>100% Organic</span>

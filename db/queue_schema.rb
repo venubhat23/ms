@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_07_032837) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_18_041321) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -86,6 +86,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_07_032837) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "image_url"
+    t.string "r2_image_url"
     t.index ["display_location"], name: "index_banners_on_display_location"
     t.index ["display_order"], name: "index_banners_on_display_order"
     t.index ["status"], name: "index_banners_on_status"
@@ -207,6 +208,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_07_032837) do
     t.bigint "franchise_id"
     t.boolean "quick_invoice", default: false
     t.string "booked_by", default: "admin"
+    t.text "selected_shop_address"
+    t.text "delivery_store"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_schedule_id"], name: "index_bookings_on_booking_schedule_id"
     t.index ["courier_service"], name: "index_bookings_on_courier_service"
@@ -785,6 +788,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_07_032837) do
     t.text "additional_images_urls"
     t.integer "display_order"
     t.decimal "base_price_excluding_gst"
+    t.string "r2_image_url"
+    t.text "r2_additional_images"
     t.index ["category_id"], name: "index_products_on_category_id"
     t.index ["is_occasional_product", "occasional_start_date", "occasional_end_date"], name: "index_products_on_occasional_dates"
     t.index ["is_occasional_product"], name: "index_products_on_is_occasional_product"
@@ -1112,6 +1117,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_07_032837) do
     t.string "qr_code_path"
     t.text "terms_and_conditions"
     t.boolean "collect_from_store_enabled"
+    t.boolean "delivery_only_at_shop"
+    t.text "shop_addresses"
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 

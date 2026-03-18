@@ -235,7 +235,124 @@ class Admin::ProductsController < Admin::ApplicationController
     end
   end
 
+  def upload_r2_image
+    respond_to do |format|
+      if params[:image].present?
+        begin
+          Rails.logger.info "🔄 Starting R2 upload for file: #{params[:image].original_filename}"
+          Rails.logger.info "📁 File size: #{params[:image].size} bytes"
+          Rails.logger.info "🎯 Content type: #{params[:image].content_type}"
+
+          # Upload to R2
+          result = R2Service.upload(params[:image], folder: 'products')
+
+          if result[:error]
+            Rails.logger.error "❌ R2 upload failed: #{result[:error]}"
+            format.json { render json: { error: result[:error] }, status: :unprocessable_entity }
+          else
+            Rails.logger.info "✅ R2 upload successful: #{result[:key]}"
+            format.json { render json: {
+              key: result[:key],
+              filename: result[:filename],
+              public_url: result[:public_url],
+              size: result[:size]
+            }}
+          end
+
+        rescue => e
+          Rails.logger.error "💥 R2 upload exception: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          format.json { render json: { error: "Upload failed: #{e.message}" }, status: :internal_server_error }
+        end
+      else
+        Rails.logger.warn "⚠️ No image provided in R2 upload request"
+        format.json { render json: { error: "No image provided" }, status: :bad_request }
+      end
+    end
+  end
+
+  def delete_r2_image
+    respond_to do |format|
+      image_url = params[:image_url]
+      delete_from_storage = params[:permanent] == 'true'
+
+      if image_url.blank?
+        format.json { render json: { error: "Image URL is required" }, status: :bad_request }
+        return
+      end
+
+      begin
+        Rails.logger.info "🗑️ Starting R2 image deletion for URL: #{image_url}"
+        Rails.logger.info "🔥 Permanent deletion: #{delete_from_storage}"
+
+        # Extract key from URL for R2 deletion
+        if delete_from_storage
+          # Extract the key from the public URL
+          # URL format: https://pub-xxx.r2.dev/products/20240318_123456_filename.jpg
+          key = extract_r2_key_from_url(image_url)
+
+          if key
+            Rails.logger.info "🔑 Extracted key: #{key}"
+            success = R2Service.delete(key)
+
+            if success
+              Rails.logger.info "✅ R2 image permanently deleted: #{key}"
+              format.json { render json: {
+                success: true,
+                message: "Image permanently deleted from R2 storage",
+                deleted_from_storage: true
+              }}
+            else
+              Rails.logger.error "❌ Failed to delete from R2 storage: #{key}"
+              format.json { render json: {
+                success: true,
+                message: "Image unlinked from product (R2 deletion failed)",
+                deleted_from_storage: false
+              }}
+            end
+          else
+            Rails.logger.warn "⚠️ Could not extract key from URL: #{image_url}"
+            format.json { render json: {
+              success: true,
+              message: "Image unlinked from product (could not delete from storage)",
+              deleted_from_storage: false
+            }}
+          end
+        else
+          Rails.logger.info "🔗 Only unlinking image from product"
+          format.json { render json: {
+            success: true,
+            message: "Image unlinked from product",
+            deleted_from_storage: false
+          }}
+        end
+
+      rescue => e
+        Rails.logger.error "💥 R2 image deletion exception: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+        format.json { render json: { error: "Deletion failed: #{e.message}" }, status: :internal_server_error }
+      end
+    end
+  end
+
   private
+
+  def extract_r2_key_from_url(image_url)
+    # Extract key from R2 public URL
+    # URL format: https://pub-63bb824effac95b1f3b291eb9385d33c.r2.dev/products/20240318_123456_filename.jpg
+    # Key format: products/20240318_123456_filename.jpg
+
+    begin
+      uri = URI.parse(image_url)
+      # Remove leading slash and return the path as key
+      key = uri.path[1..-1] if uri.path
+      Rails.logger.info "🔍 Extracted key from URL: #{image_url} -> #{key}"
+      key
+    rescue => e
+      Rails.logger.error "❌ Failed to parse URL: #{image_url} - #{e.message}"
+      nil
+    end
+  end
 
   def handle_stock_vendor_purchase_linking(vendor_purchase_id)
     return unless vendor_purchase_id
@@ -462,7 +579,7 @@ class Admin::ProductsController < Admin::ApplicationController
       :is_occasional_product, :occasional_start_date, :occasional_end_date, :occasional_description, :occasional_auto_hide,
       :occasional_schedule_type, :occasional_recurring_from_day, :occasional_recurring_from_time,
       :occasional_recurring_to_day, :occasional_recurring_to_time,
-      :image_url, :additional_images_urls,
+      :image_url, :additional_images_urls, :r2_image_url, :r2_additional_images,
       # GST Configuration Parameters
       :gst_enabled, :gst_percentage, :cgst_percentage, :sgst_percentage, :igst_percentage,
       :gst_amount, :cgst_amount, :sgst_amount, :igst_amount, :final_amount_with_gst, :base_price_excluding_gst,

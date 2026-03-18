@@ -45,6 +45,46 @@
       <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <% end %>
 
+    <!-- Header Brand Left Alignment Fix -->
+    <style>
+      /* Ensure main header container maintains left-right layout - highest specificity */
+      body.insurance-app .header .container-fluid .d-flex.align-items-center.justify-content-between {
+        justify-content: space-between !important;
+        width: 100% !important;
+      }
+
+      /* Force brand section to stay left-aligned - all pages including shop */
+      body.insurance-app .header .d-flex.align-items-center.justify-content-start,
+      body.insurance-app header .d-flex.align-items-center.justify-content-start {
+        justify-content: flex-start !important;
+        flex-shrink: 0 !important;
+        order: 1 !important;
+      }
+
+      /* Ensure brand text itself is left-aligned - all pages */
+      body.insurance-app .brand-text,
+      body.insurance-app .header .brand-text,
+      body.insurance-app header .brand-text {
+        text-align: left !important;
+        margin-left: 1rem !important;
+        display: block !important;
+      }
+
+      /* Ensure header actions stay on the right - all pages */
+      body.insurance-app .header .d-flex.align-items-center.gap-3,
+      body.insurance-app header .d-flex.align-items-center.gap-3 {
+        margin-left: auto !important;
+        flex-shrink: 0 !important;
+        order: 3 !important;
+      }
+
+      /* Brand icon stays with brand text */
+      body.insurance-app .brand-icon {
+        order: 1 !important;
+        margin-right: 0.75rem !important;
+      }
+    </style>
+
   </head>
 
   <body class="insurance-app">
@@ -59,11 +99,11 @@
             </button>
 
             <!-- Header Brand -->
-            <div class="d-flex align-items-center">
+            <div class="d-flex align-items-center justify-content-start">
               <div class="brand-icon">
                 <i class="fas fa-leaf"></i>
               </div>
-              <h1 class="brand-text ms-3 mb-0 d-none d-md-block">Marali Santhe</h1>
+              <h1 class="brand-text ms-3 mb-0">Marali Santhe</h1>
             </div>
 
             <!-- Header Actions -->

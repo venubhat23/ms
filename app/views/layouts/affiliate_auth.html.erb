@@ -52,7 +52,7 @@
       <div class="floating-shape shape-3"></div>
 
       <% if notice && notice.present? && !notice.include?('http://') && !notice.include?('https://') %>
-        <div class="alert alert-success alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 90%; width: 400px;">
+        <div class="alert alert-success alert-dismissible fade show flash-message-unique" role="alert" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 90%; width: 400px;">
           <i class="bi bi-check-circle me-2"></i>
           <%= notice %>
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -60,7 +60,7 @@
       <% end %>
 
       <% if alert && alert.present? && !alert.include?("http://") && !alert.include?("https://") %>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 90%; width: 400px;">
+        <div class="alert alert-danger alert-dismissible fade show flash-message-unique" role="alert" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 90%; width: 400px;">
           <i class="bi bi-exclamation-triangle me-2"></i>
           <%= alert %>
           <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -72,6 +72,29 @@
 
     <!-- Bootstrap JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      // Prevent duplicate flash messages
+      document.addEventListener('DOMContentLoaded', function() {
+        // If there's already a flash message from the layout, prevent form enhancement from creating duplicates
+        if (document.querySelector('.flash-message-unique')) {
+          // Override the form enhancement's alert creation
+          const originalFormEnhancements = window.FormEnhancements;
+          if (originalFormEnhancements) {
+            const originalShowValidationErrors = originalFormEnhancements.showValidationErrors;
+            if (originalShowValidationErrors) {
+              window.FormEnhancements.showValidationErrors = function(form) {
+                // Skip alert creation if flash message already exists
+                if (document.querySelector('.flash-message-unique')) {
+                  return;
+                }
+                return originalShowValidationErrors.call(this, form);
+              };
+            }
+          }
+        }
+      });
+    </script>
 
   </body>
 </html>

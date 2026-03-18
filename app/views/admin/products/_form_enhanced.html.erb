@@ -239,6 +239,133 @@
   padding: 1.5rem;
 }
 
+/* Image Management Styles */
+.existing-images-section {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.image-card {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e9ecef;
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.image-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.image-wrapper {
+  position: relative;
+  aspect-ratio: 1;
+}
+
+.product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.image-wrapper:hover .image-overlay {
+  opacity: 1;
+}
+
+.image-actions {
+  display: flex;
+  gap: 0.25rem;
+  flex-direction: column;
+}
+
+.image-actions .btn-group {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.image-actions .btn {
+  border-radius: 4px !important;
+}
+
+.image-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+}
+
+.image-info {
+  padding: 0.75rem;
+}
+
+.image-preview-small {
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.image-preview-small img {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.upload-area-enhanced.border-success {
+  border-color: #28a745 !important;
+}
+
+.upload-area-enhanced.border-success:hover {
+  border-color: #1e7e34 !important;
+  background: #f0fff4;
+}
+
+/* Image Modal Styles */
+.image-modal {
+  background: rgba(0,0,0,0.9);
+}
+
+.image-modal .modal-content {
+  background: transparent;
+  border: none;
+}
+
+.image-modal .modal-body {
+  padding: 0;
+  text-align: center;
+}
+
+.image-modal img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.image-url-display {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 0.75rem;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 0.875rem;
+  word-break: break-all;
+  margin: 1rem 0;
+}
+
 /* Occasional Product Toggle */
 .toggle-container {
   display: flex;
@@ -529,34 +656,6 @@
       </div>
 
       <!-- Product Type Selection (Required) -->
-      <div class="form-group">
-        <label class="form-label">
-          Product Type <span class="required-mark">*</span>
-        </label>
-        <div class="product-type-cards">
-          <% Product::PRODUCT_TYPES.each do |display, value| %>
-            <label class="product-type-card">
-              <%= form.radio_button :product_type, value,
-                  required: true,
-                  checked: product.product_type == value %>
-              <div class="type-card-content">
-                <div class="type-icon">
-                  <% case value %>
-                  <% when 'Milk' %>
-                    <i class="bi bi-cup-straw"></i>
-                  <% when 'Grocery' %>
-                    <i class="bi bi-basket"></i>
-                  <% when 'Fruit & Vegetable' %>
-                    <i class="bi bi-flower1"></i>
-                  <% end %>
-                </div>
-                <div class="type-name"><%= display %></div>
-              </div>
-            </label>
-          <% end %>
-        </div>
-      </div>
-
       <!-- Unit Selection (Required) -->
       <div class="form-grid form-grid-2">
         <div class="form-group">
@@ -589,59 +688,221 @@
         Product Images
       </h3>
 
+      <!-- Existing Images Display -->
+      <% if product.persisted? && (product.r2_image_url.present? || product.r2_additional_images.present? || product.image_url.present? || product.additional_images_urls.present? || product.images_attached?) %>
+        <div class="existing-images-section mb-4">
+          <h5 class="mb-3">
+            <i class="bi bi-folder-open me-2"></i>Current Images
+          </h5>
+
+          <div class="row g-3" id="existingImagesContainer">
+            <!-- R2 Main Image -->
+            <% if product.r2_image_url.present? %>
+              <div class="col-xl-2 col-lg-3 col-md-4 col-6" data-image-type="r2" data-image-url="<%= product.r2_image_url %>">
+                <div class="image-card">
+                  <div class="image-wrapper position-relative">
+                    <img src="<%= product.r2_image_url %>" alt="Main Product Image" class="product-image w-100 rounded">
+                    <div class="image-overlay">
+                      <div class="image-actions">
+                        <button type="button" class="btn btn-sm btn-primary me-1" onclick="viewImage('<%= product.r2_image_url %>', 'Main Image')">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-info me-1" onclick="copyImageUrl('<%= product.r2_image_url %>')">
+                          <i class="bi bi-link-45deg"></i>
+                        </button>
+                        <div class="btn-group">
+                          <button type="button" class="btn btn-sm btn-outline-warning" onclick="unlinkR2Image('<%= product.r2_image_url %>', 'main')" title="Unlink from product">
+                            <i class="bi bi-link-45deg"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-danger" onclick="deleteR2ImagePermanent('<%= product.r2_image_url %>', 'main')" title="Delete permanently">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="image-badge">
+                      <span class="badge bg-primary">Main - R2</span>
+                    </div>
+                  </div>
+                  <div class="image-info mt-2">
+                    <small class="text-primary d-block fw-bold">
+                      <i class="bi bi-cloud-arrow-up me-1"></i>R2 Storage
+                    </small>
+                    <small class="text-muted text-truncate d-block" title="<%= product.r2_image_url %>">
+                      <%= product.r2_image_url.split('/').last %>
+                    </small>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- R2 Additional Images -->
+            <% product.r2_additional_images_array.each_with_index do |r2_url, index| %>
+              <div class="col-xl-2 col-lg-3 col-md-4 col-6" data-image-type="r2" data-image-url="<%= r2_url %>">
+                <div class="image-card">
+                  <div class="image-wrapper position-relative">
+                    <img src="<%= r2_url %>" alt="Additional Image <%= index + 1 %>" class="product-image w-100 rounded">
+                    <div class="image-overlay">
+                      <div class="image-actions">
+                        <button type="button" class="btn btn-sm btn-primary me-1" onclick="viewImage('<%= r2_url %>', 'Image <%= index + 1 %>')">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-info me-1" onclick="copyImageUrl('<%= r2_url %>')">
+                          <i class="bi bi-link-45deg"></i>
+                        </button>
+                        <div class="btn-group">
+                          <button type="button" class="btn btn-sm btn-outline-warning" onclick="unlinkR2Image('<%= r2_url %>', 'additional')" title="Unlink from product">
+                            <i class="bi bi-link-45deg"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-danger" onclick="deleteR2ImagePermanent('<%= r2_url %>', 'additional')" title="Delete permanently">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="image-badge">
+                      <span class="badge bg-secondary">R2</span>
+                    </div>
+                  </div>
+                  <div class="image-info mt-2">
+                    <small class="text-primary d-block fw-bold">
+                      <i class="bi bi-cloud-arrow-up me-1"></i>R2 Storage
+                    </small>
+                    <small class="text-muted text-truncate d-block" title="<%= r2_url %>">
+                      <%= r2_url.split('/').last %>
+                    </small>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+
+            <!-- Cloudinary Images (fallback) -->
+            <% if product.r2_image_url.blank? && product.image_url.present? %>
+              <div class="col-xl-2 col-lg-3 col-md-4 col-6" data-image-type="cloudinary" data-image-url="<%= product.image_url %>">
+                <div class="image-card">
+                  <div class="image-wrapper position-relative">
+                    <img src="<%= product.cloudinary_image_url(width: 300, height: 300) %>" alt="Main Product Image" class="product-image w-100 rounded">
+                    <div class="image-overlay">
+                      <div class="image-actions">
+                        <button type="button" class="btn btn-sm btn-primary me-1" onclick="viewImage('<%= product.cloudinary_image_url %>', 'Main Image')">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-info me-1" onclick="copyImageUrl('<%= product.cloudinary_image_url %>')">
+                          <i class="bi bi-link-45deg"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="image-badge">
+                      <span class="badge bg-success">Main - Cloudinary</span>
+                    </div>
+                  </div>
+                  <div class="image-info mt-2">
+                    <small class="text-success d-block fw-bold">
+                      <i class="bi bi-cloud-check me-1"></i>Cloudinary
+                    </small>
+                    <small class="text-muted">Optimized Cloud Image</small>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+
       <div class="form-grid">
         <div class="form-group">
-          <label class="form-label">Upload Product Images</label>
-          <div class="upload-area-enhanced">
-            <div class="upload-container">
-              <div class="upload-icon">
-                <i class="bi bi-cloud-arrow-up"></i>
+          <label class="form-label">Upload New Images</label>
+
+          <!-- Upload Options Tabs -->
+          <ul class="nav nav-pills mb-3" id="uploadTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="r2-tab" data-bs-toggle="pill" data-bs-target="#r2-upload" type="button" role="tab">
+                <i class="bi bi-cloud-arrow-up me-2"></i>R2 Storage
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="cloudinary-tab" data-bs-toggle="pill" data-bs-target="#cloudinary-upload" type="button" role="tab">
+                <i class="bi bi-cloud-upload me-2"></i>Cloudinary
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="uploadTabContent">
+            <!-- R2 Upload Tab -->
+            <div class="tab-pane fade show active" id="r2-upload" role="tabpanel">
+              <div class="upload-area-enhanced border-success">
+                <div class="upload-container">
+                  <div class="upload-icon">
+                    <i class="bi bi-cloud-arrow-up text-success"></i>
+                  </div>
+                  <div class="upload-content">
+                    <h6 class="upload-title">Cloudflare R2 Upload</h6>
+                    <p class="upload-subtitle">Fast, reliable cloud storage with global CDN</p>
+                    <input type="file" id="r2ImageInput" class="d-none" multiple accept="image/*">
+                    <button type="button" class="btn btn-success upload-btn" onclick="document.getElementById('r2ImageInput').click()">
+                      <i class="bi bi-upload me-2"></i>Choose Images
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div class="upload-content">
-                <h6 class="upload-title">Cloudinary Upload (Recommended)</h6>
-                <p class="upload-subtitle">Fast, reliable cloud storage with automatic optimization</p>
-                <input type="file" id="cloudinaryImageInput" class="d-none" multiple accept="image/*">
-                <button type="button" class="btn btn-primary upload-btn" onclick="document.getElementById('cloudinaryImageInput').click()">
-                  <i class="bi bi-upload me-2"></i>Choose Images
-                </button>
-              </div>
+              <div class="r2-preview mt-4" id="r2Preview"></div>
+              <!-- Hidden fields for R2 URLs -->
+              <%= form.hidden_field :r2_image_url %>
+              <%= form.hidden_field :r2_additional_images %>
             </div>
 
-            <div class="upload-guidelines">
-              <div class="row">
-                <div class="col-md-6">
-                  <h6 class="guideline-title">
-                    <i class="bi bi-lightbulb text-warning me-1"></i>
-                    Image Guidelines
-                  </h6>
-                  <ul class="guideline-list">
-                    <li>Use high-quality images (minimum 800x600px)</li>
-                    <li>Supported formats: JPG, PNG, WebP</li>
-                    <li>Maximum file size: 10MB per image</li>
-                    <li>First image becomes the main product image</li>
-                  </ul>
-                </div>
-                <div class="col-md-6">
-                  <h6 class="guideline-title">
-                    <i class="bi bi-camera text-primary me-1"></i>
-                    Best Practices
-                  </h6>
-                  <ul class="guideline-list">
-                    <li>Show product from multiple angles</li>
-                    <li>Use good lighting and clear backgrounds</li>
-                    <li>Include close-up details if relevant</li>
-                    <li>Keep consistent style across images</li>
-                  </ul>
+            <!-- Cloudinary Upload Tab -->
+            <div class="tab-pane fade" id="cloudinary-upload" role="tabpanel">
+              <div class="upload-area-enhanced">
+                <div class="upload-container">
+                  <div class="upload-icon">
+                    <i class="bi bi-cloud-arrow-up"></i>
+                  </div>
+                  <div class="upload-content">
+                    <h6 class="upload-title">Cloudinary Upload</h6>
+                    <p class="upload-subtitle">Fast, reliable cloud storage with automatic optimization</p>
+                    <input type="file" id="cloudinaryImageInput" class="d-none" multiple accept="image/*">
+                    <button type="button" class="btn btn-primary upload-btn" onclick="document.getElementById('cloudinaryImageInput').click()">
+                      <i class="bi bi-upload me-2"></i>Choose Images
+                    </button>
+                  </div>
                 </div>
               </div>
+              <div class="cloudinary-preview mt-4" id="cloudinaryPreview"></div>
+              <!-- Hidden fields for Cloudinary URLs -->
+              <%= form.hidden_field :image_url %>
+              <%= form.hidden_field :additional_images_urls %>
             </div>
           </div>
 
-          <div class="cloudinary-preview mt-4" id="cloudinaryPreview"></div>
-
-          <!-- Hidden fields for Cloudinary URLs -->
-          <%= form.hidden_field :image_url %>
-          <%= form.hidden_field :additional_images_urls %>
+          <div class="upload-guidelines mt-4">
+            <div class="row">
+              <div class="col-md-6">
+                <h6 class="guideline-title">
+                  <i class="bi bi-lightbulb text-warning me-1"></i>
+                  Image Guidelines
+                </h6>
+                <ul class="guideline-list">
+                  <li>Use high-quality images (minimum 800x600px)</li>
+                  <li>Supported formats: JPG, PNG, WebP</li>
+                  <li>Maximum file size: 10MB per image</li>
+                  <li>First image becomes the main product image</li>
+                </ul>
+              </div>
+              <div class="col-md-6">
+                <h6 class="guideline-title">
+                  <i class="bi bi-camera text-primary me-1"></i>
+                  Best Practices
+                </h6>
+                <ul class="guideline-list">
+                  <li>Show product from multiple angles</li>
+                  <li>Use good lighting and clear backgrounds</li>
+                  <li>Include close-up details if relevant</li>
+                  <li>Keep consistent style across images</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -2271,5 +2532,367 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }, 5000);
   }
+
+  // R2 Upload Management (similar to existing cloudinary upload)
+  const r2Input = document.getElementById('r2ImageInput');
+  const r2Preview = document.getElementById('r2Preview');
+  const r2ImageUrlField = document.getElementById('enhanced-product-form_r2_image_url');
+  const r2AdditionalImagesField = document.getElementById('enhanced-product-form_r2_additional_images');
+
+  let r2Images = [];
+  let isR2Uploading = false;
+
+  if (r2Input) {
+    r2Input.addEventListener('change', function(e) {
+      const files = Array.from(e.target.files);
+      if (files.length > 0) {
+        handleR2Uploads(files);
+      }
+    });
+  }
+
+  async function handleR2Uploads(files) {
+    if (isR2Uploading) return;
+
+    isR2Uploading = true;
+    const uploadButton = document.querySelector('#r2-upload .btn-success');
+    const originalButtonText = uploadButton.innerHTML;
+
+    uploadButton.disabled = true;
+    uploadButton.innerHTML = '<i class="spinner-border spinner-border-sm me-2"></i>Uploading...';
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        await uploadSingleImageToR2(file, i);
+      }
+
+      showNotification('Images uploaded successfully to R2!', 'success');
+      updateR2Fields();
+    } catch (error) {
+      console.error('R2 Upload error:', error);
+      showNotification('R2 Upload failed: ' + error.message, 'danger');
+    } finally {
+      isR2Uploading = false;
+      uploadButton.disabled = false;
+      uploadButton.innerHTML = originalButtonText;
+    }
+  }
+
+  async function uploadSingleImageToR2(file, index) {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('image', file);
+
+      fetch('/admin/products/upload_r2_image', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.error) {
+          reject(new Error(data.error));
+        } else {
+          r2Images.push(data);
+          displayR2Preview(data, file);
+          resolve(data);
+        }
+      })
+      .catch(error => reject(error));
+    });
+  }
+
+  function displayR2Preview(imageData, file) {
+    r2Preview.insertAdjacentHTML('beforeend', `
+      <div class="r2-image-item d-flex align-items-center mb-2 p-2 border rounded" data-url="${imageData.public_url}">
+        <img src="${imageData.public_url}" alt="Preview" class="me-3" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">
+        <div class="flex-grow-1">
+          <small class="text-muted d-block">${file.name}</small>
+          <small class="text-success">✓ Uploaded to R2</small>
+          <div class="text-muted small">
+            <code style="font-size: 0.75rem;">${imageData.public_url}</code>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-r2-image" data-url="${imageData.public_url}">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    `);
+
+    const removeButton = r2Preview.querySelector(`[data-url="${imageData.public_url}"] .remove-r2-image`);
+    removeButton.addEventListener('click', function() {
+      removeR2Image(imageData.public_url);
+    });
+  }
+
+  function removeR2Image(publicUrl) {
+    const imageItem = r2Preview.querySelector(`[data-url="${publicUrl}"]`);
+    if (imageItem) {
+      imageItem.remove();
+    }
+
+    r2Images = r2Images.filter(img => img.public_url !== publicUrl);
+    updateR2Fields();
+  }
+
+  function updateR2Fields() {
+    if (r2Images.length > 0) {
+      if (r2ImageUrlField) r2ImageUrlField.value = r2Images[0].public_url;
+
+      if (r2AdditionalImagesField && r2Images.length > 1) {
+        const additionalImages = r2Images.slice(1).map(img => img.public_url);
+        r2AdditionalImagesField.value = JSON.stringify(additionalImages);
+      } else if (r2AdditionalImagesField) {
+        r2AdditionalImagesField.value = '';
+      }
+    } else {
+      if (r2ImageUrlField) r2ImageUrlField.value = '';
+      if (r2AdditionalImagesField) r2AdditionalImagesField.value = '';
+    }
+  }
 });
+
+// Global functions for image management (outside DOMContentLoaded)
+function viewImage(imageUrl, title) {
+  // Create and show image modal
+  const modal = document.createElement('div');
+  modal.className = 'modal fade image-modal';
+  modal.innerHTML = `
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-white">${title}</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <img src="${imageUrl}" alt="${title}" class="img-fluid">
+          <div class="image-url-display text-white bg-dark mt-3">
+            <strong>Public URL:</strong><br>
+            <code class="text-light">${imageUrl}</code>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-light" onclick="copyImageUrl('${imageUrl}')">
+            <i class="bi bi-copy me-1"></i>Copy URL
+          </button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  const bootstrapModal = new bootstrap.Modal(modal);
+  bootstrapModal.show();
+
+  modal.addEventListener('hidden.bs.modal', function() {
+    modal.remove();
+  });
+}
+
+function copyImageUrl(imageUrl) {
+  navigator.clipboard.writeText(imageUrl).then(function() {
+    showNotification('Image URL copied to clipboard!', 'success');
+  }).catch(function(err) {
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = imageUrl;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showNotification('Image URL copied to clipboard!', 'success');
+  });
+}
+
+function unlinkR2Image(imageUrl, imageType) {
+  const unlinkModal = document.createElement('div');
+  unlinkModal.className = 'modal fade';
+  unlinkModal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="bi bi-unlink me-2 text-warning"></i>Unlink Image
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>This will <strong>unlink</strong> the image from this product but <strong>keep it in R2 storage</strong>.</p>
+          <p class="text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            The image will remain accessible via its public URL and can be reused for other products.
+          </p>
+          <div class="image-preview-small">
+            <img src="${imageUrl}" alt="Image to unlink" class="img-thumbnail" style="max-width: 150px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-warning" onclick="confirmUnlinkImage('${imageUrl}', '${imageType}'); bootstrap.Modal.getInstance(document.querySelector('.modal.show')).hide();">
+            <i class="bi bi-unlink me-1"></i>Unlink Only
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(unlinkModal);
+  const bootstrapModal = new bootstrap.Modal(unlinkModal);
+  bootstrapModal.show();
+
+  unlinkModal.addEventListener('hidden.bs.modal', function() {
+    unlinkModal.remove();
+  });
+}
+
+function deleteR2ImagePermanent(imageUrl, imageType) {
+  const deleteModal = document.createElement('div');
+  deleteModal.className = 'modal fade';
+  deleteModal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title">
+            <i class="bi bi-exclamation-triangle me-2"></i>Permanent Deletion Warning
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger">
+            <strong>⚠️ This will permanently delete the image from R2 storage!</strong>
+          </div>
+          <p>This action will:</p>
+          <ul>
+            <li><strong>Remove the image from this product</strong></li>
+            <li><strong>Delete the file from R2 storage permanently</strong></li>
+            <li>Make the public URL inaccessible</li>
+          </ul>
+          <p class="text-danger"><strong>This action cannot be undone!</strong></p>
+          <div class="image-preview-small">
+            <img src="${imageUrl}" alt="Image to delete" class="img-thumbnail" style="max-width: 150px;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-outline-warning me-2" onclick="confirmUnlinkImage('${imageUrl}', '${imageType}'); bootstrap.Modal.getInstance(document.querySelector('.modal.show')).hide();">
+            <i class="bi bi-unlink me-1"></i>Unlink Only
+          </button>
+          <button type="button" class="btn btn-danger" onclick="confirmDeleteImage('${imageUrl}', '${imageType}', true); bootstrap.Modal.getInstance(document.querySelector('.modal.show')).hide();">
+            <i class="bi bi-trash me-1"></i>Delete Permanently
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(deleteModal);
+  const bootstrapModal = new bootstrap.Modal(deleteModal);
+  bootstrapModal.show();
+
+  deleteModal.addEventListener('hidden.bs.modal', function() {
+    deleteModal.remove();
+  });
+}
+
+function confirmUnlinkImage(imageUrl, imageType) {
+  // Only unlink from product, keep in R2 storage
+  updateProductImageFields(imageUrl, imageType);
+  showNotification('Image unlinked from product. Save the form to confirm.', 'warning');
+}
+
+async function confirmDeleteImage(imageUrl, imageType, permanent = true) {
+  try {
+    // Show loading state
+    showNotification('Deleting image...', 'info');
+
+    // Call delete endpoint
+    const response = await fetch('/admin/products/delete_r2_image', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+      },
+      body: JSON.stringify({
+        image_url: imageUrl,
+        permanent: permanent.toString()
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      // Update form fields
+      updateProductImageFields(imageUrl, imageType);
+
+      if (result.deleted_from_storage) {
+        showNotification('Image permanently deleted from R2 storage!', 'success');
+      } else {
+        showNotification(result.message || 'Image unlinked from product.', 'warning');
+      }
+    } else {
+      throw new Error(result.error || 'Failed to delete image');
+    }
+
+  } catch (error) {
+    console.error('Delete error:', error);
+    showNotification('Failed to delete image: ' + error.message, 'danger');
+  }
+}
+
+function updateProductImageFields(imageUrl, imageType) {
+  const r2ImageUrlField = document.getElementById('enhanced-product-form_r2_image_url');
+  const r2AdditionalImagesField = document.getElementById('enhanced-product-form_r2_additional_images');
+
+  if (imageType === 'main') {
+    // Clear main image
+    if (r2ImageUrlField) r2ImageUrlField.value = '';
+
+    // Remove from current images display
+    const imageCard = document.querySelector(`[data-image-url="${imageUrl}"]`);
+    if (imageCard) imageCard.remove();
+
+  } else if (imageType === 'additional') {
+    // Remove from additional images
+    try {
+      const currentAdditional = r2AdditionalImagesField ? JSON.parse(r2AdditionalImagesField.value || '[]') : [];
+      const updatedAdditional = currentAdditional.filter(url => url !== imageUrl);
+      if (r2AdditionalImagesField) r2AdditionalImagesField.value = JSON.stringify(updatedAdditional);
+
+      // Remove from current images display
+      const imageCard = document.querySelector(`[data-image-url="${imageUrl}"]`);
+      if (imageCard) imageCard.remove();
+
+    } catch (e) {
+      console.error('Error parsing additional images:', e);
+    }
+  }
+}
+
+// Legacy function for backward compatibility
+function deleteR2Image(imageUrl, imageType) {
+  deleteR2ImagePermanent(imageUrl, imageType);
+}
+
+// Enhanced notification function (outside DOMContentLoaded)
+function showNotification(message, type = 'info') {
+  const alert = document.createElement('div');
+  alert.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x`;
+  alert.style.zIndex = '9999';
+  alert.style.marginTop = '20px';
+  alert.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  document.body.appendChild(alert);
+
+  setTimeout(() => {
+    if (alert.parentNode) {
+      alert.parentNode.removeChild(alert);
+    }
+  }, 5000);
+}
 </script>

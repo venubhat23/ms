@@ -130,16 +130,117 @@ class Admin::BannersController < Admin::ApplicationController
     end
   end
 
+  # POST /admin/banners/upload_r2_image
+  def upload_r2_image
+    respond_to do |format|
+      if params[:image].present?
+        begin
+          Rails.logger.info "🔄 Starting R2 upload for banner image: #{params[:image].original_filename}"
+          Rails.logger.info "📁 File size: #{params[:image].size} bytes"
+          Rails.logger.info "🎯 Content type: #{params[:image].content_type}"
+
+          # Upload to R2
+          result = R2Service.upload(params[:image], folder: 'banners')
+
+          if result[:error]
+            Rails.logger.error "❌ R2 upload failed: #{result[:error]}"
+            format.json { render json: { error: result[:error] }, status: :unprocessable_entity }
+          else
+            Rails.logger.info "✅ R2 upload successful: #{result[:key]}"
+            format.json { render json: {
+              key: result[:key],
+              filename: result[:filename],
+              public_url: result[:public_url],
+              size: result[:size]
+            }}
+          end
+
+        rescue => e
+          Rails.logger.error "💥 R2 upload exception: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+          format.json { render json: { error: "Upload failed: #{e.message}" }, status: :internal_server_error }
+        end
+      else
+        Rails.logger.warn "⚠️ No image provided in R2 upload request"
+        format.json { render json: { error: "No image provided" }, status: :bad_request }
+      end
+    end
+  end
+
+  def delete_r2_image
+    respond_to do |format|
+      image_url = params[:image_url]
+      delete_from_storage = params[:permanent] == 'true'
+
+      if image_url.blank?
+        format.json { render json: { error: "Image URL is required" }, status: :bad_request }
+        return
+      end
+
+      begin
+        Rails.logger.info "🗑️ Starting R2 banner image deletion for URL: #{image_url}"
+
+        if delete_from_storage
+          key = extract_r2_key_from_url(image_url)
+          if key
+            success = R2Service.delete(key)
+            if success
+              format.json { render json: {
+                success: true,
+                message: "Banner image permanently deleted from R2 storage",
+                deleted_from_storage: true
+              }}
+            else
+              format.json { render json: {
+                success: true,
+                message: "Banner image unlinked (R2 deletion failed)",
+                deleted_from_storage: false
+              }}
+            end
+          else
+            format.json { render json: {
+              success: true,
+              message: "Banner image unlinked (could not delete from storage)",
+              deleted_from_storage: false
+            }}
+          end
+        else
+          format.json { render json: {
+            success: true,
+            message: "Banner image unlinked",
+            deleted_from_storage: false
+          }}
+        end
+
+      rescue => e
+        Rails.logger.error "💥 R2 banner image deletion exception: #{e.message}"
+        format.json { render json: { error: "Deletion failed: #{e.message}" }, status: :internal_server_error }
+      end
+    end
+  end
+
   private
 
   def set_banner
     @banner = Banner.find(params[:id])
   end
 
+  def extract_r2_key_from_url(image_url)
+    begin
+      uri = URI.parse(image_url)
+      key = uri.path[1..-1] if uri.path
+      Rails.logger.info "🔍 Extracted key from banner URL: #{image_url} -> #{key}"
+      key
+    rescue => e
+      Rails.logger.error "❌ Failed to parse banner URL: #{image_url} - #{e.message}"
+      nil
+    end
+  end
+
   def banner_params
     params.require(:banner).permit(
       :title, :description, :redirect_link, :display_start_date, :display_end_date,
-      :display_location, :status, :display_order, :banner_image, :image_url
+      :display_location, :status, :display_order, :banner_image, :image_url, :r2_image_url
     )
   end
 end

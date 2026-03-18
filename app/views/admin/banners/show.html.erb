@@ -68,21 +68,29 @@
         <% if @banner.has_image? %>
           <div class="text-center mb-4">
             <%= image_tag @banner.main_image_url, class: "img-fluid rounded shadow-sm", style: "max-width: 100%; max-height: 400px;" %>
-            <% if @banner.image_url.present? %>
-              <div class="mt-2">
-                <small class="badge bg-info">
-                  <i class="bi bi-cloud me-1"></i>
-                  Cloudinary CDN
-                </small>
+            <% info = @banner.image_display_info %>
+            <div class="mt-2">
+              <span class="badge <%= info[:class] %> bg-opacity-10 text-<%= info[:class].split('-').last %>">
+                <i class="<%= info[:icon] %> me-1"></i><%= info[:type] %>
+              </span>
+            </div>
+
+            <!-- Image Management Actions -->
+            <div class="mt-3">
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="viewImage('<%= @banner.main_image_url %>', 'Banner Image')" title="View full image">
+                  <i class="bi bi-eye me-1"></i>View Full
+                </button>
+                <button type="button" class="btn btn-outline-info btn-sm" onclick="copyImageUrl('<%= @banner.main_image_url %>')" title="Copy image URL">
+                  <i class="bi bi-link-45deg me-1"></i>Copy URL
+                </button>
+                <% if @banner.r2_image_url.present? %>
+                  <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadImage('<%= @banner.r2_image_url %>', '<%= @banner.title %>')" title="Download image">
+                    <i class="bi bi-download me-1"></i>Download
+                  </button>
+                <% end %>
               </div>
-            <% elsif @banner.banner_image.attached? %>
-              <div class="mt-2">
-                <small class="badge bg-secondary">
-                  <i class="bi bi-hdd me-1"></i>
-                  Local Storage
-                </small>
-              </div>
-            <% end %>
+            </div>
           </div>
         <% else %>
           <div class="text-center py-5 bg-light rounded">
@@ -191,26 +199,38 @@
             <div class="col-12">
               <label class="form-label text-muted mb-1">Image Details</label>
               <div>
-                <% if @banner.image_url.present? %>
-                  <small class="d-block">
-                    <strong>Storage:</strong>
-                    <span class="badge bg-info">Cloudinary CDN</span>
+                <% info = @banner.image_display_info %>
+                <small class="d-block mb-1">
+                  <strong>Storage:</strong>
+                  <span class="badge <%= info[:class] %> bg-opacity-10 text-<%= info[:class].split('-').last %>">
+                    <i class="<%= info[:icon] %> me-1"></i><%= info[:type] %>
+                  </span>
+                </small>
+
+                <% if @banner.r2_image_url.present? %>
+                  <small class="d-block text-break mb-1">
+                    <strong>Public URL:</strong><br>
+                    <span class="text-primary"><%= @banner.r2_image_url %></span>
                   </small>
                   <small class="d-block">
+                    <strong>Benefits:</strong> Global CDN, Fast delivery, Cost-effective
+                  </small>
+                <% elsif @banner.image_url.present? %>
+                  <small class="d-block mb-1">
                     <strong>Public ID:</strong> <%= @banner.image_url %>
+                  </small>
+                  <small class="d-block text-break mb-1">
+                    <strong>CDN URL:</strong><br>
+                    <span class="text-success"><%= @banner.cloudinary_image_url %></span>
                   </small>
                   <small class="d-block">
                     <strong>Optimizations:</strong> Auto quality, format optimization
                   </small>
                 <% elsif @banner.banner_image.attached? %>
-                  <small class="d-block">
-                    <strong>Storage:</strong>
-                    <span class="badge bg-secondary">Local Storage</span>
-                  </small>
-                  <small class="d-block">
+                  <small class="d-block mb-1">
                     <strong>Filename:</strong> <%= @banner.banner_image.filename %>
                   </small>
-                  <small class="d-block">
+                  <small class="d-block mb-1">
                     <strong>Size:</strong> <%= number_to_human_size(@banner.banner_image.byte_size) %>
                   </small>
                   <small class="d-block">
@@ -236,16 +256,25 @@
           <% end %>
 
           <% if @banner.has_image? %>
-            <% if @banner.image_url.present? %>
-              <%= link_to @banner.cloudinary_image_url,
-                  target: "_blank",
-                  class: "btn btn-outline-secondary btn-sm" do %>
-                <i class="bi bi-box-arrow-up-right me-2"></i>View Original Image
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="viewImage('<%= @banner.main_image_url %>', 'Banner Image')">
+              <i class="bi bi-eye me-2"></i>View Full Image
+            </button>
+
+            <button type="button" class="btn btn-outline-info btn-sm" onclick="copyImageUrl('<%= @banner.main_image_url %>')">
+              <i class="bi bi-clipboard me-2"></i>Copy Image URL
+            </button>
+
+            <% if @banner.r2_image_url.present? %>
+              <button type="button" class="btn btn-outline-success btn-sm" onclick="downloadImage('<%= @banner.r2_image_url %>', '<%= @banner.title %>')">
+                <i class="bi bi-download me-2"></i>Download from R2
+              </button>
+            <% elsif @banner.image_url.present? %>
+              <%= link_to @banner.cloudinary_image_url, target: "_blank", class: "btn btn-outline-success btn-sm" do %>
+                <i class="bi bi-box-arrow-up-right me-2"></i>Open Cloudinary
               <% end %>
             <% elsif @banner.banner_image.attached? %>
-              <%= link_to rails_blob_path(@banner.banner_image, disposition: "attachment"),
-                  class: "btn btn-outline-secondary btn-sm" do %>
-                <i class="bi bi-download me-2"></i>Download Image
+              <%= link_to rails_blob_path(@banner.banner_image, disposition: "attachment"), class: "btn btn-outline-success btn-sm" do %>
+                <i class="bi bi-download me-2"></i>Download Local
               <% end %>
             <% end %>
           <% end %>
@@ -274,3 +303,121 @@
     </div>
   </div>
 </div>
+
+<!-- Image Management JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // View image in modal
+  window.viewImage = function(imageUrl, title) {
+    if (!imageUrl) {
+      alert('No image URL available');
+      return;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${title}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body text-center">
+            <img src="${imageUrl}" alt="${title}" class="img-fluid rounded shadow-sm" style="max-width: 100%; max-height: 80vh;">
+            <div class="mt-3">
+              <small class="text-muted d-block">Click and drag to pan • Scroll to zoom</small>
+              <small class="text-muted">${imageUrl}</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <a href="${imageUrl}" target="_blank" class="btn btn-primary">Open in New Tab</a>
+            <button type="button" class="btn btn-success" onclick="copyImageUrl('${imageUrl}')">
+              <i class="bi bi-clipboard me-1"></i>Copy URL
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+
+    modal.addEventListener('hidden.bs.modal', () => {
+      document.body.removeChild(modal);
+    });
+  };
+
+  // Copy image URL to clipboard
+  window.copyImageUrl = function(imageUrl) {
+    if (!imageUrl) {
+      alert('No image URL available to copy');
+      return;
+    }
+
+    navigator.clipboard.writeText(imageUrl).then(() => {
+      // Show success toast
+      const toast = document.createElement('div');
+      toast.className = 'position-fixed top-0 start-50 translate-middle-x mt-3';
+      toast.style.zIndex = '9999';
+      toast.innerHTML = `
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+          <i class="bi bi-check-circle me-2"></i>
+          <strong>Success!</strong> Image URL copied to clipboard.
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        if (document.body.contains(toast)) {
+          document.body.removeChild(toast);
+        }
+      }, 3000);
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      alert('Failed to copy URL to clipboard. Please copy manually: ' + imageUrl);
+    });
+  };
+
+  // Download image from R2
+  window.downloadImage = function(imageUrl, filename) {
+    if (!imageUrl) {
+      alert('No image URL available for download');
+      return;
+    }
+
+    // Create a temporary anchor element to trigger download
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = filename ? `${filename}.jpg` : 'banner-image.jpg';
+    link.target = '_blank';
+
+    // Append to body, click, then remove
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    // Show success feedback
+    const toast = document.createElement('div');
+    toast.className = 'position-fixed top-0 start-50 translate-middle-x mt-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+      <div class="alert alert-info alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-download me-2"></i>
+        <strong>Download started!</strong> Check your downloads folder.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 3000);
+  };
+});
+</script>

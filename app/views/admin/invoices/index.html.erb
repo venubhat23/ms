@@ -301,6 +301,14 @@
                                    title: "Download PDF", data: { bs_toggle: "tooltip" } do %>
                           <i class="bi bi-download"></i>
                         <% end %>
+                        <% if customer_mobile.present? %>
+                          <button type="button" class="btn btn-sm btn-outline-success"
+                                 onclick="shareBookingViaWhatsApp('<%= model_object.share_token %>', '<%= customer_mobile %>', '<%= invoice_number %>', <%= total_amount %>)"
+                                 title="Share via WhatsApp"
+                                 data-bs-toggle="tooltip">
+                            <i class="bi bi-whatsapp"></i>
+                          </button>
+                        <% end %>
                       <% else %>
                         <span class="text-muted small">No share token</span>
                       <% end %>
@@ -339,6 +347,14 @@
                                    title: "Download PDF", data: { bs_toggle: "tooltip" } do %>
                           <i class="bi bi-download"></i>
                         <% end %>
+                      <% end %>
+                      <% if customer_mobile.present? %>
+                        <button type="button" class="btn btn-sm btn-outline-success"
+                               onclick="shareViaWhatsApp('<%= invoice_id %>', '<%= customer_mobile %>', '<%= invoice_number %>', <%= total_amount %>)"
+                               title="Share via WhatsApp"
+                               data-bs-toggle="tooltip">
+                          <i class="bi bi-whatsapp"></i>
+                        </button>
                       <% end %>
                     <% end %>
                     <% if invoice_type == 'regular' %>
@@ -1560,6 +1576,94 @@ function markSelectedAsPaid() {
     bulkMarkPaidBtn.innerHTML = originalText;
   });
 }
+
+// WhatsApp sharing functions
+function shareViaWhatsApp(invoiceId, customerMobile, invoiceNumber, totalAmount) {
+  // Format the customer mobile number (remove any non-digit characters and ensure it starts with country code)
+  const phoneNumber = formatPhoneNumber(customerMobile);
+
+  if (!phoneNumber) {
+    alert('Invalid phone number for WhatsApp sharing.');
+    return;
+  }
+
+  // Generate invoice URL
+  const invoiceUrl = `${window.location.origin}/admin/invoices/${invoiceId}`;
+
+  // Create a nicely formatted message
+  const message = `🧾 *Invoice from Marali Santhe*
+
+📋 Invoice Number: ${invoiceNumber}
+💰 Amount: ₹${totalAmount.toFixed(2)}
+
+🔗 View Invoice: ${invoiceUrl}
+
+Thank you for your business! 🙏`;
+
+  // Create WhatsApp URL
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+  // Open WhatsApp in new tab
+  window.open(whatsappUrl, '_blank');
+}
+
+function shareBookingViaWhatsApp(shareToken, customerMobile, invoiceNumber, totalAmount) {
+  // Format the customer mobile number
+  const phoneNumber = formatPhoneNumber(customerMobile);
+
+  if (!phoneNumber) {
+    alert('Invalid phone number for WhatsApp sharing.');
+    return;
+  }
+
+  // Generate booking invoice URL
+  const invoiceUrl = `${window.location.origin}/invoice/${shareToken}`;
+
+  // Create a nicely formatted message
+  const message = `🧾 *Invoice from Marali Santhe*
+
+📋 Invoice Number: ${invoiceNumber}
+💰 Amount: ₹${totalAmount.toFixed(2)}
+
+🔗 View Invoice: ${invoiceUrl}
+📥 Download PDF: ${invoiceUrl}.pdf
+
+Thank you for your business! 🙏`;
+
+  // Create WhatsApp URL
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+  // Open WhatsApp in new tab
+  window.open(whatsappUrl, '_blank');
+}
+
+function formatPhoneNumber(mobile) {
+  if (!mobile) return null;
+
+  // Remove all non-digit characters
+  let phoneNumber = mobile.replace(/\D/g, '');
+
+  // If it's a 10-digit number, add India country code (91)
+  if (phoneNumber.length === 10) {
+    phoneNumber = '91' + phoneNumber;
+  }
+  // If it already has country code, keep as is
+  else if (phoneNumber.length === 12 && phoneNumber.startsWith('91')) {
+    // Already has India country code
+  }
+  // If it starts with +91, remove the +
+  else if (phoneNumber.length === 13 && phoneNumber.startsWith('91')) {
+    // Remove the extra digit if it's 13 digits starting with 91
+    phoneNumber = phoneNumber.substring(1);
+  }
+
+  // Validate final number (should be 12 digits for international format)
+  if (phoneNumber.length === 12 && phoneNumber.startsWith('91')) {
+    return phoneNumber;
+  }
+
+  return null;
+}
 </script>
 
 <style>
@@ -1724,5 +1828,29 @@ function markSelectedAsPaid() {
 
 .d-flex.gap-1 {
   gap: 0.25rem !important;
+}
+
+/* WhatsApp button styling */
+.btn-outline-success:hover {
+  background-color: #25D366 !important;
+  border-color: #25D366 !important;
+  color: white !important;
+}
+
+.btn-outline-success .bi-whatsapp {
+  font-size: 0.9rem;
+}
+
+/* WhatsApp button specific styling */
+.btn-outline-success[title*="WhatsApp"] {
+  border-color: #25D366;
+  color: #25D366;
+}
+
+.btn-outline-success[title*="WhatsApp"]:hover {
+  background-color: #25D366;
+  border-color: #25D366;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
 }
 </style>

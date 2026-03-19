@@ -47,13 +47,60 @@
 
     <!-- Header Brand Left Alignment Fix -->
     <style>
-      /* Ensure main header container maintains left-right layout - highest specificity */
+      /* Universal header brand positioning fix - works on all customer pages */
+      .header .container-fluid .d-flex.align-items-center.justify-content-between {
+        justify-content: space-between !important;
+        width: 100% !important;
+        display: flex !important;
+      }
+
+      /* Force brand section to stay left-aligned - all customer pages */
+      .header .d-flex.align-items-center.justify-content-start,
+      header .d-flex.align-items-center.justify-content-start {
+        justify-content: flex-start !important;
+        flex-shrink: 0 !important;
+        order: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+
+      /* Ensure brand text is always left-aligned and properly positioned */
+      .brand-text,
+      .header .brand-text,
+      header .brand-text {
+        text-align: left !important;
+        margin-left: 0.5rem !important;
+        display: block !important;
+        white-space: nowrap !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 1.5rem !important;
+      }
+
+      /* Ensure header actions stay on the right */
+      .header .d-flex.align-items-center.gap-3,
+      header .d-flex.align-items-center.gap-3 {
+        margin-left: auto !important;
+        flex-shrink: 0 !important;
+        order: 3 !important;
+        display: flex !important;
+      }
+
+      /* Brand icon stays with brand text */
+      .brand-icon {
+        order: 1 !important;
+        margin-right: 0.5rem !important;
+        color: #ffffff !important;
+        font-size: 1.5rem !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Insurance app specific styles - stronger specificity */
       body.insurance-app .header .container-fluid .d-flex.align-items-center.justify-content-between {
         justify-content: space-between !important;
         width: 100% !important;
       }
 
-      /* Force brand section to stay left-aligned - all pages including shop */
       body.insurance-app .header .d-flex.align-items-center.justify-content-start,
       body.insurance-app header .d-flex.align-items-center.justify-content-start {
         justify-content: flex-start !important;
@@ -61,16 +108,14 @@
         order: 1 !important;
       }
 
-      /* Ensure brand text itself is left-aligned - all pages */
       body.insurance-app .brand-text,
       body.insurance-app .header .brand-text,
       body.insurance-app header .brand-text {
         text-align: left !important;
-        margin-left: 1rem !important;
+        margin-left: 0.5rem !important;
         display: block !important;
       }
 
-      /* Ensure header actions stay on the right - all pages */
       body.insurance-app .header .d-flex.align-items-center.gap-3,
       body.insurance-app header .d-flex.align-items-center.gap-3 {
         margin-left: auto !important;
@@ -78,10 +123,22 @@
         order: 3 !important;
       }
 
-      /* Brand icon stays with brand text */
       body.insurance-app .brand-icon {
         order: 1 !important;
-        margin-right: 0.75rem !important;
+        margin-right: 0.5rem !important;
+      }
+
+      /* Mobile responsiveness for brand positioning */
+      @media (max-width: 768px) {
+        .brand-text {
+          font-size: 1.25rem !important;
+          margin-left: 0.25rem !important;
+        }
+
+        .brand-icon {
+          margin-right: 0.25rem !important;
+          font-size: 1.25rem !important;
+        }
       }
     </style>
 

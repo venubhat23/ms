@@ -153,6 +153,27 @@ class Customer < ApplicationRecord
     ""
   end
 
+  # Password Reset Methods
+  def generate_password_reset_token!
+    self.password_reset_token = SecureRandom.urlsafe_base64
+    self.password_reset_sent_at = Time.current
+    save!(validate: false)
+  end
+
+  def password_reset_expired?
+    password_reset_sent_at < 24.hours.ago
+  end
+
+  def clear_password_reset_token!
+    self.password_reset_token = nil
+    self.password_reset_sent_at = nil
+    save!(validate: false)
+  end
+
+  def self.find_by_password_reset_token(token)
+    where(password_reset_token: token).where('password_reset_sent_at > ?', 24.hours.ago).first
+  end
+
   private
 
   def handle_password_storage

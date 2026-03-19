@@ -1,118 +1,273 @@
-<%# Forgot Password Form %>
-<div class="container mt-5">
-  <div class="row justify-content-center">
-    <div class="col-lg-5 col-md-7">
-      <div class="card shadow-lg border-0">
-        <div class="card-body p-5">
-          <!-- Header -->
-          <div class="text-center mb-4">
-            <div class="mb-3">
-              <i class="bi bi-key-fill text-primary" style="font-size: 3rem;"></i>
-            </div>
-            <h2 class="card-title fw-bold text-dark">Forgot Password?</h2>
-            <p class="text-muted">Enter your email address and we'll send you instructions to reset your password.</p>
-          </div>
-
-          <!-- Flash Messages -->
-          <% if flash[:notice] %>
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-              <i class="bi bi-check-circle me-2"></i>
-              <%= flash[:notice] %>
-              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-          <% end %>
-
-          <% if flash[:alert] %>
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-              <i class="bi bi-exclamation-triangle me-2"></i>
-              <%= flash[:alert] %>
-              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-          <% end %>
-
-          <!-- Form -->
-          <%= form_with url: customer_forgot_password_path, method: :post, local: true, class: "needs-validation", novalidate: true do |form| %>
-            <div class="mb-4">
-              <%= form.label :email, "Email Address", class: "form-label fw-semibold" %>
-              <div class="input-group">
-                <span class="input-group-text">
-                  <i class="bi bi-envelope"></i>
-                </span>
-                <%= form.email_field :email,
-                    class: "form-control form-control-lg",
-                    placeholder: "Enter your email address",
-                    required: true,
-                    autocomplete: "email" %>
-                <div class="invalid-feedback">
-                  Please enter a valid email address.
-                </div>
-              </div>
-            </div>
-
-            <div class="d-grid mb-4">
-              <%= form.submit "Send Reset Instructions",
-                  class: "btn btn-primary btn-lg fw-semibold",
-                  data: { disable_with: "Sending..." } %>
-            </div>
-          <% end %>
-
-          <!-- Back to Login -->
-          <div class="text-center">
-            <p class="text-muted mb-0">
-              Remember your password?
-              <%= link_to "Sign In", customer_login_path,
-                  class: "text-primary text-decoration-none fw-semibold" %>
-            </p>
-          </div>
-        </div>
+<%# Modern Forgot Password Form %>
+<div class="forgot-password-container">
+  <div class="forgot-password-card">
+    <!-- Logo Section -->
+    <div class="logo-section">
+      <div class="logo-icon">
+        <i class="bi bi-key-fill"></i>
       </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header-section">
+      <h1 class="main-title">Forgot Password?</h1>
+      <p class="subtitle">Enter your email address and we'll send you instructions to reset your password.</p>
+    </div>
+
+    <!-- Flash Messages -->
+    <% if flash[:notice] %>
+      <div class="flash-message success">
+        <i class="bi bi-check-circle"></i>
+        <%= flash[:notice] %>
+      </div>
+    <% end %>
+
+    <% if flash[:alert] %>
+      <div class="flash-message error">
+        <i class="bi bi-exclamation-triangle"></i>
+        <%= flash[:alert] %>
+      </div>
+    <% end %>
+
+    <!-- Form -->
+    <%= form_with url: customer_forgot_password_path, method: :post, local: true, class: "reset-form" do |form| %>
+      <div class="form-group">
+        <%= form.label :email, "Email Address", class: "form-label" %>
+        <%= form.email_field :email,
+            class: "form-input",
+            placeholder: "Enter your email address",
+            required: true,
+            autocomplete: "email" %>
+      </div>
+
+      <div class="form-group">
+        <%= form.submit "SEND RESET INSTRUCTIONS",
+            class: "submit-btn",
+            data: { disable_with: "Sending..." } %>
+      </div>
+    <% end %>
+
+    <!-- Back to Login -->
+    <div class="footer-links">
+      <p class="remember-text">Remember your password?</p>
+      <%= link_to "Sign In", customer_login_path, class: "sign-in-link" %>
     </div>
   </div>
 </div>
 
-<!-- Bootstrap Form Validation -->
-<script>
-(function() {
-  'use strict';
-  window.addEventListener('load', function() {
-    var forms = document.getElementsByClassName('needs-validation');
-    var validation = Array.prototype.filter.call(forms, function(form) {
-      form.addEventListener('submit', function(event) {
-        if (form.checkValidity() === false) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        form.classList.add('was-validated');
-      }, false);
-    });
-  }, false);
-})();
-</script>
-
 <style>
-  .card {
-    border-radius: 1rem;
+/* Modern Forgot Password Styles */
+.forgot-password-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.forgot-password-card {
+  background: white;
+  border-radius: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.forgot-password-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.logo-section {
+  margin-bottom: 32px;
+}
+
+.logo-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.logo-icon i {
+  font-size: 32px;
+  color: white;
+}
+
+.header-section {
+  margin-bottom: 32px;
+}
+
+.main-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 12px;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #718096;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.flash-message {
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.flash-message.success {
+  background: #f0fff4;
+  color: #22543d;
+  border: 1px solid #9ae6b4;
+}
+
+.flash-message.error {
+  background: #fff5f5;
+  color: #742a2a;
+  border: 1px solid #feb2b2;
+}
+
+.reset-form {
+  margin-bottom: 32px;
+}
+
+.form-group {
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 16px 20px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  background: #f8fafc;
+  color: #2d3748;
+  box-sizing: border-box;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-input::placeholder {
+  color: #a0aec0;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+}
+
+.submit-btn:active {
+  transform: translateY(0);
+}
+
+.footer-links {
+  text-align: center;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.remember-text {
+  font-size: 14px;
+  color: #718096;
+  margin: 0 0 8px 0;
+}
+
+.sign-in-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: color 0.3s ease;
+}
+
+.sign-in-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .forgot-password-container {
+    padding: 16px;
   }
 
-  .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
-    border-radius: 0.5rem;
-    transition: all 0.3s ease;
+  .forgot-password-card {
+    padding: 32px 24px;
   }
 
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  .main-title {
+    font-size: 24px;
   }
 
-  .form-control:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  .subtitle {
+    font-size: 13px;
   }
 
-  .input-group-text {
-    background: #f8f9fa;
-    border-color: #dee2e6;
+  .logo-icon {
+    width: 70px;
+    height: 70px;
   }
+
+  .logo-icon i {
+    font-size: 28px;
+  }
+}
 </style>

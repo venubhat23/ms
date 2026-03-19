@@ -43,19 +43,19 @@ div.main-content,
   background: #f7fafc !important;
 }
 
-/* Ensure proper container behavior */
+/* STANDARDIZED CONTAINER BEHAVIOR */
 .main-content .container-fluid {
   width: 100% !important;
-  max-width: none !important;
-  overflow-x: hidden !important;
-  padding: 1rem !important;
+  max-width: 1400px !important;
+  margin: 0 auto !important;
+  padding: 2rem !important;
   box-sizing: border-box !important;
-  margin: 0 !important;
+  overflow-x: hidden !important;
   height: auto !important;
   min-height: 100% !important;
 }
 
-/* Mobile responsive adjustments */
+/* ENHANCED MOBILE RESPONSIVE DESIGN */
 @media (max-width: 768px) {
   .sidebar,
   #sidebar,
@@ -80,13 +80,28 @@ div.main-content,
     top: 60px !important;
     left: 0 !important;
     right: 0 !important;
+    margin-left: 0 !important;
+    margin-top: 60px !important;
   }
 
   .main-content .container-fluid {
-    padding: 0.75rem !important;
+    padding: 1.5rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Tablet optimizations */
+  .main-content .row.g-4 {
+    row-gap: 1.5rem !important;
+  }
+
+  .main-content .col-xl-3,
+  .main-content .col-lg-4,
+  .main-content .col-md-6 {
+    margin-bottom: 1rem !important;
   }
 }
 
+/* MOBILE OPTIMIZATIONS */
 @media (max-width: 480px) {
   .sidebar,
   #sidebar,
@@ -95,7 +110,25 @@ div.main-content,
   }
 
   .main-content .container-fluid {
-    padding: 0.5rem !important;
+    padding: 1rem !important;
+  }
+
+  /* Mobile typography */
+  .main-content h2 {
+    font-size: 1.5rem !important;
+  }
+
+  .main-content .badge {
+    font-size: 0.75rem !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+
+  /* Mobile card grid */
+  .main-content .col-xl-3,
+  .main-content .col-lg-4,
+  .main-content .col-md-6 {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
   }
 }
 

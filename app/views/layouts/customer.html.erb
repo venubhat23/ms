@@ -45,9 +45,22 @@
       <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <% end %>
 
-    <!-- ULTIMATE Header Brand Fix - Override Everything -->
+    <!-- ENHANCED CUSTOMER LAYOUT FIXES -->
     <style>
-      /* FORCE HEADER BACKGROUND - HIGHEST PRIORITY */
+      /* UNIVERSAL LAYOUT RESET AND STANDARDIZATION */
+      * {
+        box-sizing: border-box;
+      }
+
+      body.insurance-app {
+        margin: 0;
+        padding: 0;
+        font-family: 'Poppins', sans-serif;
+        background: #f7fafc;
+        overflow-x: hidden;
+      }
+
+      /* STANDARDIZED HEADER - CONSISTENT ACROSS ALL PAGES */
       html body.insurance-app header.header,
       html body.insurance-app .header,
       html body header.header,
@@ -65,46 +78,34 @@
         -webkit-backdrop-filter: blur(20px) !important;
       }
 
-      /* FORCE HEADER LAYOUT - MAXIMUM SPECIFICITY */
-      html body.insurance-app header.header .container-fluid .d-flex.align-items-center.justify-content-between,
-      html body.insurance-app .header .container-fluid .d-flex.align-items-center.justify-content-between,
-      html body header.header .container-fluid .d-flex.align-items-center.justify-content-between,
-      html body .header .container-fluid .d-flex.align-items-center.justify-content-between {
-        justify-content: space-between !important;
-        width: 100% !important;
+      /* HEADER CONTAINER - STANDARDIZED */
+      .header .container-fluid {
+        height: 100% !important;
         display: flex !important;
-        height: 70px !important;
         align-items: center !important;
+        justify-content: space-between !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        max-width: none !important;
+        margin: 0 !important;
+        width: 100% !important;
       }
 
-      /* FORCE BRAND CONTAINER POSITIONING - LEFT SIDE */
-      html body.insurance-app header.header .d-flex.align-items-center.justify-content-start,
-      html body.insurance-app .header .d-flex.align-items-center.justify-content-start,
-      html body header.header .d-flex.align-items-center.justify-content-start,
-      html body .header .d-flex.align-items-center.justify-content-start {
+      /* BRAND SECTION - LEFT ALIGNED */
+      .header .d-flex.align-items-center.justify-content-start {
+        display: flex !important;
+        align-items: center !important;
         justify-content: flex-start !important;
         flex-shrink: 0 !important;
         order: 1 !important;
-        display: flex !important;
-        align-items: center !important;
-        position: relative !important;
-        left: 0 !important;
-        transform: none !important;
-        float: none !important;
-        text-align: left !important;
+        margin-right: auto !important;
       }
 
-      /* FORCE BRAND ICON POSITIONING */
-      html body.insurance-app header.header .brand-icon,
-      html body.insurance-app .header .brand-icon,
-      html body header.header .brand-icon,
-      html body .header .brand-icon,
-      .brand-icon {
+      /* BRAND ICON - CONSISTENT STYLING */
+      .header .brand-icon {
         color: #ffffff !important;
         font-size: 1.5rem !important;
         margin-right: 0.75rem !important;
-        flex-shrink: 0 !important;
-        order: 1 !important;
         background: rgba(255, 255, 255, 0.1) !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
         width: 42px !important;
@@ -113,107 +114,169 @@
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        position: relative !important;
-        left: auto !important;
-        right: auto !important;
-        top: auto !important;
-        bottom: auto !important;
-        transform: none !important;
-        float: none !important;
+        flex-shrink: 0 !important;
       }
 
-      /* FORCE BRAND TEXT POSITIONING - ABSOLUTE OVERRIDE */
-      html body.insurance-app header.header .brand-text,
-      html body.insurance-app .header .brand-text,
-      html body header.header .brand-text,
-      html body .header .brand-text,
-      html body.insurance-app header.header h1.brand-text,
-      html body.insurance-app .header h1.brand-text,
-      html body header.header h1.brand-text,
-      html body .header h1.brand-text,
-      .brand-text,
-      h1.brand-text {
+      /* BRAND TEXT - STANDARDIZED */
+      .header .brand-text,
+      .header h1.brand-text {
         color: #ffffff !important;
-        background: none !important;
-        background-color: transparent !important;
-        -webkit-background-clip: initial !important;
-        -webkit-text-fill-color: #ffffff !important;
-        background-clip: initial !important;
         font-weight: 700 !important;
         font-size: 1.5rem !important;
-        text-align: left !important;
         margin: 0 !important;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
         padding: 0 !important;
         white-space: nowrap !important;
-        display: block !important;
         letter-spacing: -0.5px !important;
-        order: 2 !important;
-        position: relative !important;
-        left: auto !important;
-        right: auto !important;
-        top: auto !important;
-        bottom: auto !important;
-        transform: none !important;
-        float: none !important;
-        line-height: 1.2 !important;
-        text-decoration: none !important;
-        text-transform: none !important;
+        background: none !important;
+        -webkit-text-fill-color: #ffffff !important;
       }
 
-      /* FORCE HEADER ACTIONS - RIGHT SIDE */
-      html body.insurance-app header.header .d-flex.align-items-center.gap-3,
-      html body.insurance-app .header .d-flex.align-items-center.gap-3,
-      html body header.header .d-flex.align-items-center.gap-3,
-      html body .header .d-flex.align-items-center.gap-3 {
-        margin-left: auto !important;
+      /* HEADER ACTIONS - FORCE RIGHT ALIGNMENT */
+      .header .d-flex.align-items-center.gap-3 {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 1rem !important;
         flex-shrink: 0 !important;
         order: 3 !important;
-        display: flex !important;
-        position: relative !important;
-        left: auto !important;
-        right: auto !important;
-        transform: none !important;
-        float: none !important;
+        margin-left: auto !important;
+        padding-right: 0 !important;
       }
 
-      /* REMOVE ANY POTENTIAL TEXT GRADIENTS OR SPECIAL EFFECTS */
-      .brand-text::before,
-      .brand-text::after,
-      h1.brand-text::before,
-      h1.brand-text::after {
-        display: none !important;
-        content: none !important;
+      /* STANDARDIZED MAIN CONTENT AREA */
+      .main-content {
+        margin-left: 260px !important;
+        margin-top: 70px !important;
+        min-height: calc(100vh - 70px) !important;
+        background: #f7fafc !important;
+        padding: 0 !important;
+        overflow-x: hidden !important;
       }
 
-      /* ENSURE NO POSITIONING CONFLICTS */
-      .brand-text,
-      h1.brand-text {
-        position: relative !important;
-        z-index: auto !important;
-        width: auto !important;
-        height: auto !important;
-        min-width: auto !important;
-        max-width: none !important;
-        min-height: auto !important;
-        max-height: none !important;
-        overflow: visible !important;
-        clip: auto !important;
-        clip-path: none !important;
+      /* CONSISTENT CONTAINER FLUID STYLING */
+      .main-content .container-fluid {
+        max-width: 1400px !important;
+        margin: 0 auto !important;
+        padding: 2rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
       }
 
-      /* Mobile responsiveness */
+      /* PAGE HEADERS - STANDARDIZED */
+      .main-content .d-flex.justify-content-between.align-items-center,
+      .main-content .page-header {
+        margin-bottom: 2rem !important;
+        padding-bottom: 1rem !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+      }
+
+      .main-content h2 {
+        color: #2d3748 !important;
+        font-weight: 700 !important;
+        font-size: 1.75rem !important;
+        margin: 0 !important;
+      }
+
+      /* CARD STANDARDIZATION */
+      .main-content .card {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+        background: white !important;
+        margin-bottom: 1.5rem !important;
+      }
+
+      .main-content .card-header {
+        background: #f8fafc !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        border-radius: 16px 16px 0 0 !important;
+        padding: 1.5rem !important;
+      }
+
+      .main-content .card-body {
+        padding: 1.5rem !important;
+      }
+
+      /* RESPONSIVE DESIGN */
       @media (max-width: 768px) {
-        .brand-text, h1.brand-text {
+        .header {
+          height: 60px !important;
+        }
+
+        .header .brand-text,
+        .header h1.brand-text {
           font-size: 1.25rem !important;
         }
-        .brand-icon {
-          margin-right: 0.5rem !important;
-          font-size: 1.25rem !important;
+
+        .header .brand-icon {
           width: 36px !important;
           height: 36px !important;
+          font-size: 1.25rem !important;
+          margin-right: 0.5rem !important;
         }
+
+        .header .container-fluid {
+          padding-left: 1rem !important;
+          padding-right: 1rem !important;
+        }
+
+        .main-content {
+          margin-left: 0 !important;
+          margin-top: 60px !important;
+        }
+
+        .main-content .container-fluid {
+          padding: 1rem !important;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .main-content .container-fluid {
+          padding: 0.75rem !important;
+        }
+      }
+
+      /* GRID ALIGNMENT - CONSISTENT ACROSS ALL PAGES */
+      .main-content .row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+
+      .main-content .col,
+      .main-content [class*="col-"] {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+
+      /* BUTTON STANDARDIZATION */
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 500 !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+      }
+
+      /* FORM CONTROLS */
+      .form-control,
+      .form-select {
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 8px !important;
+        padding: 0.75rem !important;
+        font-size: 0.875rem !important;
+        transition: all 0.3s ease !important;
+      }
+
+      .form-control:focus,
+      .form-select:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
       }
     </style>
 
@@ -224,7 +287,7 @@
       <!-- Enhanced Insurance-themed Header - Same as Admin -->
       <header class="header">
         <div class="container-fluid h-100">
-          <div class="d-flex align-items-center justify-content-between h-100 px-3">
+          <div class="d-flex align-items-center justify-content-between h-100" style="padding-left: 1.5rem; padding-right: 1.5rem; width: 100%;">
             <!-- Mobile Toggle -->
             <button class="mobile-toggle d-md-none" type="button" data-bs-toggle="sidebar">
               <i class="fas fa-bars"></i>

@@ -13,6 +13,10 @@ class ClientRequest < ApplicationRecord
   validates :priority, presence: true, inclusion: { in: %w[low medium high urgent] }
   validates :stage, presence: true, inclusion: { in: %w[new assigned investigating awaiting_customer in_development testing resolved closed escalated on_hold] }
 
+  # Contact info required for guest requests (when no customer is associated)
+  validates :name, presence: true, if: :guest_request?
+  validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }, if: :guest_request?
+
   # Enums
   STATUSES = %w[pending in_progress resolved closed].freeze
   PRIORITIES = %w[low medium high urgent].freeze
@@ -152,6 +156,10 @@ class ClientRequest < ApplicationRecord
   def stage_duration
     return 0 unless stage_updated_at.present?
     (Time.current - stage_updated_at) / 1.hour
+  end
+
+  def guest_request?
+    customer_id.blank?
   end
 
   private

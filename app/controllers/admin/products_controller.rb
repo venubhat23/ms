@@ -57,6 +57,10 @@ class Admin::ProductsController < Admin::ApplicationController
     if @product.save
       # Handle Cloudinary uploads
       handle_cloudinary_uploads if params[:product][:cloudinary_images].present?
+
+      # Handle automatic R2 uploads for regular file uploads
+      handle_automatic_r2_uploads
+
       redirect_to admin_product_path(@product), notice: 'Product was successfully created.'
     else
       @categories = Category.active.ordered
@@ -82,6 +86,9 @@ class Admin::ProductsController < Admin::ApplicationController
     if @product.update(product_params)
       # Handle Cloudinary uploads
       handle_cloudinary_uploads if params[:product][:cloudinary_images].present?
+
+      # Handle automatic R2 uploads for regular file uploads
+      handle_automatic_r2_uploads
 
       # Link stock changes to vendor purchase if provided
       handle_stock_vendor_purchase_linking(vendor_purchase_id) if vendor_purchase_id && @product.saved_change_to_stock?
@@ -635,5 +642,105 @@ class Admin::ProductsController < Admin::ApplicationController
         @product.update_column(:additional_images_urls, (current_additional + additional_images).to_json)
       end
     end
+  end
+
+  def handle_automatic_r2_uploads
+    uploaded_r2_images = []
+
+    # Handle main image upload to R2
+    if @product.image.attached?
+      begin
+        Rails.logger.info "🔄 Uploading main image to R2: #{@product.image.filename}"
+
+        # Convert the Active Storage attachment to a format R2Service can handle
+        temp_file = create_temp_file_from_attachment(@product.image)
+
+        result = R2Service.upload(temp_file, folder: 'products')
+
+        if result[:error]
+          Rails.logger.error "❌ R2 main image upload failed: #{result[:error]}"
+        else
+          Rails.logger.info "✅ R2 main image upload successful: #{result[:key]}"
+          @product.update_column(:r2_image_url, result[:public_url])
+          uploaded_r2_images << result
+        end
+
+        # Clean up temp file
+        temp_file.unlink if temp_file && File.exist?(temp_file.path)
+      rescue => e
+        Rails.logger.error "💥 R2 main image upload exception: #{e.message}"
+        Rails.logger.error e.backtrace.join("\n")
+      end
+    end
+
+    # Handle additional images upload to R2
+    if @product.additional_images.attached?
+      additional_r2_urls = []
+
+      @product.additional_images.each_with_index do |additional_image, index|
+        begin
+          Rails.logger.info "🔄 Uploading additional image #{index + 1} to R2: #{additional_image.filename}"
+
+          # Convert the Active Storage attachment to a format R2Service can handle
+          temp_file = create_temp_file_from_attachment(additional_image)
+
+          result = R2Service.upload(temp_file, folder: 'products')
+
+          if result[:error]
+            Rails.logger.error "❌ R2 additional image #{index + 1} upload failed: #{result[:error]}"
+          else
+            Rails.logger.info "✅ R2 additional image #{index + 1} upload successful: #{result[:key]}"
+            additional_r2_urls << result[:public_url]
+            uploaded_r2_images << result
+          end
+
+          # Clean up temp file
+          temp_file.unlink if temp_file && File.exist?(temp_file.path)
+        rescue => e
+          Rails.logger.error "💥 R2 additional image #{index + 1} upload exception: #{e.message}"
+          Rails.logger.error e.backtrace.join("\n")
+        end
+      end
+
+      # Update additional R2 images if any were uploaded
+      if additional_r2_urls.any?
+        # Parse existing additional images or create empty array
+        existing_additional = begin
+          JSON.parse(@product.r2_additional_images || '[]')
+        rescue JSON::ParserError
+          []
+        end
+
+        # Merge with new uploads
+        combined_additional = (existing_additional + additional_r2_urls).uniq
+        @product.update_column(:r2_additional_images, combined_additional.to_json)
+      end
+    end
+
+    if uploaded_r2_images.any?
+      Rails.logger.info "✅ Successfully uploaded #{uploaded_r2_images.count} image(s) to R2 for product #{@product.id}"
+    else
+      Rails.logger.info "ℹ️ No new images to upload to R2 for product #{@product.id}"
+    end
+
+    uploaded_r2_images
+  end
+
+  def create_temp_file_from_attachment(attachment)
+    # Create a temporary file that mimics the uploaded file format
+    temp_file = Tempfile.new([File.basename(attachment.filename.to_s, ".*"), File.extname(attachment.filename.to_s)])
+    temp_file.binmode
+    temp_file.write(attachment.download)
+    temp_file.rewind
+
+    # Create a wrapper object that has the methods R2Service expects
+    temp_file_wrapper = OpenStruct.new(
+      tempfile: temp_file,
+      original_filename: attachment.filename.to_s,
+      content_type: attachment.content_type,
+      size: attachment.byte_size
+    )
+
+    temp_file_wrapper
   end
 end

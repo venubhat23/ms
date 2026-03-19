@@ -31,8 +31,11 @@
                       <% @product.images.each do |image| %>
                         <div class="swiper-slide">
                           <% if image.is_a?(String) %>
-                            <!-- Cloudinary URL -->
+                            <!-- CloudFront/R2 or Cloudinary URL -->
                             <img src="<%= image %>" alt="<%= @product.name %>" class="img-fluid d-block" style="height: 300px; width: 100%; object-fit: cover;">
+                          <% elsif image.is_a?(Hash) && image[:url] %>
+                            <!-- URL from hash (CloudFront/R2) -->
+                            <img src="<%= image[:url] %>" alt="<%= @product.name %>" class="img-fluid d-block" style="height: 300px; width: 100%; object-fit: cover;">
                           <% else %>
                             <!-- Active Storage attachment -->
                             <%= image_tag image, class: "img-fluid d-block", style: "height: 300px; width: 100%; object-fit: cover;" %>
@@ -69,6 +72,19 @@
                     <div class="text-center">
                       <i class="bi bi-image display-4 text-muted"></i>
                       <p class="text-muted mt-2">No images uploaded</p>
+
+                      <% if Rails.env.development? %>
+                        <!-- Debug information for development -->
+                        <div class="mt-3 text-start">
+                          <small class="text-muted d-block"><strong>Debug Info:</strong></small>
+                          <small class="text-muted d-block">R2 Image URL: <%= @product.r2_image_url.present? ? @product.r2_image_url : 'Empty' %></small>
+                          <small class="text-muted d-block">R2 Additional: <%= @product.r2_additional_images.present? ? 'Present' : 'Empty' %></small>
+                          <small class="text-muted d-block">Cloudinary URL: <%= @product.image_url.present? ? @product.image_url : 'Empty' %></small>
+                          <small class="text-muted d-block">Additional URLs: <%= @product.additional_images_urls.present? ? 'Present' : 'Empty' %></small>
+                          <small class="text-muted d-block">Active Storage: <%= @product.image.attached? ? 'Attached' : 'Not attached' %></small>
+                          <small class="text-muted d-block">Additional AS: <%= @product.additional_images.attached? ? 'Attached' : 'Not attached' %></small>
+                        </div>
+                      <% end %>
                     </div>
                   </div>
                 <% end %>

@@ -246,7 +246,7 @@
         <div class="floating-shape shape-2"></div>
         <div class="floating-shape shape-3"></div>
 
-        <% if notice && notice.present? && !notice.include?('http://') && !notice.include?('https://') %>
+        <% if notice && notice.present? && !notice.include?('http://') && !notice.include?('https://') && !user_signed_in? %>
           <div class="alert alert-success alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 90%; width: 400px;">
             <i class="bi bi-check-circle me-2"></i>
             <%= notice %>
@@ -254,7 +254,7 @@
           </div>
         <% end %>
 
-        <% if alert && alert.present? && !alert.include?("http://") && !alert.include?("https://") && !request.path.include?("sign_in") %>
+        <% if alert && alert.present? && !alert.include?("http://") && !alert.include?("https://") && !request.path.include?("sign_in") && !user_signed_in? %>
         <div class="alert alert-danger alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 90%; width: 400px;">
           <i class="bi bi-exclamation-triangle me-2"></i>
           <%= alert %>

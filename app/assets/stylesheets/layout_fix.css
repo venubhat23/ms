@@ -138,12 +138,52 @@ div.main-content,
   left: 0 !important;
   right: 0 !important;
   height: 70px !important;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%) !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
   border-bottom: 1px solid #e2e8f0 !important;
   z-index: 1050 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
+}
+
+/* Header Brand Positioning - Customer Pages */
+.header .container-fluid {
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.header .d-flex.align-items-center.justify-content-start {
+  order: 1 !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+}
+
+.header .brand-icon {
+  color: #ffffff !important;
+  font-size: 1.5rem !important;
+  margin-right: 0.75rem !important;
+  flex-shrink: 0 !important;
+}
+
+.header .brand-text {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 1.5rem !important;
+  text-align: left !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  display: block !important;
+}
+
+.header .d-flex.align-items-center.gap-3 {
+  order: 3 !important;
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
 }
 
 .header::after {

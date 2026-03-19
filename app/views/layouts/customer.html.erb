@@ -45,99 +45,174 @@
       <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <% end %>
 
-    <!-- Header Brand Left Alignment Fix -->
+    <!-- ULTIMATE Header Brand Fix - Override Everything -->
     <style>
-      /* Universal header brand positioning fix - works on all customer pages */
-      .header .container-fluid .d-flex.align-items-center.justify-content-between {
+      /* FORCE HEADER BACKGROUND - HIGHEST PRIORITY */
+      html body.insurance-app header.header,
+      html body.insurance-app .header,
+      html body header.header,
+      html body .header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 70px !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        z-index: 1050 !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+      }
+
+      /* FORCE HEADER LAYOUT - MAXIMUM SPECIFICITY */
+      html body.insurance-app header.header .container-fluid .d-flex.align-items-center.justify-content-between,
+      html body.insurance-app .header .container-fluid .d-flex.align-items-center.justify-content-between,
+      html body header.header .container-fluid .d-flex.align-items-center.justify-content-between,
+      html body .header .container-fluid .d-flex.align-items-center.justify-content-between {
         justify-content: space-between !important;
         width: 100% !important;
         display: flex !important;
+        height: 70px !important;
+        align-items: center !important;
       }
 
-      /* Force brand section to stay left-aligned - all customer pages */
-      .header .d-flex.align-items-center.justify-content-start,
-      header .d-flex.align-items-center.justify-content-start {
+      /* FORCE BRAND CONTAINER POSITIONING - LEFT SIDE */
+      html body.insurance-app header.header .d-flex.align-items-center.justify-content-start,
+      html body.insurance-app .header .d-flex.align-items-center.justify-content-start,
+      html body header.header .d-flex.align-items-center.justify-content-start,
+      html body .header .d-flex.align-items-center.justify-content-start {
         justify-content: flex-start !important;
         flex-shrink: 0 !important;
         order: 1 !important;
         display: flex !important;
         align-items: center !important;
+        position: relative !important;
+        left: 0 !important;
+        transform: none !important;
+        float: none !important;
+        text-align: left !important;
       }
 
-      /* Ensure brand text is always left-aligned and properly positioned */
-      .brand-text,
-      .header .brand-text,
-      header .brand-text {
-        text-align: left !important;
-        margin-left: 0.5rem !important;
-        display: block !important;
-        white-space: nowrap !important;
+      /* FORCE BRAND ICON POSITIONING */
+      html body.insurance-app header.header .brand-icon,
+      html body.insurance-app .header .brand-icon,
+      html body header.header .brand-icon,
+      html body .header .brand-icon,
+      .brand-icon {
         color: #ffffff !important;
+        font-size: 1.5rem !important;
+        margin-right: 0.75rem !important;
+        flex-shrink: 0 !important;
+        order: 1 !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: relative !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+        float: none !important;
+      }
+
+      /* FORCE BRAND TEXT POSITIONING - ABSOLUTE OVERRIDE */
+      html body.insurance-app header.header .brand-text,
+      html body.insurance-app .header .brand-text,
+      html body header.header .brand-text,
+      html body .header .brand-text,
+      html body.insurance-app header.header h1.brand-text,
+      html body.insurance-app .header h1.brand-text,
+      html body header.header h1.brand-text,
+      html body .header h1.brand-text,
+      .brand-text,
+      h1.brand-text {
+        color: #ffffff !important;
+        background: none !important;
+        background-color: transparent !important;
+        -webkit-background-clip: initial !important;
+        -webkit-text-fill-color: #ffffff !important;
+        background-clip: initial !important;
         font-weight: 700 !important;
         font-size: 1.5rem !important;
+        text-align: left !important;
+        margin: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding: 0 !important;
+        white-space: nowrap !important;
+        display: block !important;
+        letter-spacing: -0.5px !important;
+        order: 2 !important;
+        position: relative !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        transform: none !important;
+        float: none !important;
+        line-height: 1.2 !important;
+        text-decoration: none !important;
+        text-transform: none !important;
       }
 
-      /* Ensure header actions stay on the right */
-      .header .d-flex.align-items-center.gap-3,
-      header .d-flex.align-items-center.gap-3 {
+      /* FORCE HEADER ACTIONS - RIGHT SIDE */
+      html body.insurance-app header.header .d-flex.align-items-center.gap-3,
+      html body.insurance-app .header .d-flex.align-items-center.gap-3,
+      html body header.header .d-flex.align-items-center.gap-3,
+      html body .header .d-flex.align-items-center.gap-3 {
         margin-left: auto !important;
         flex-shrink: 0 !important;
         order: 3 !important;
         display: flex !important;
+        position: relative !important;
+        left: auto !important;
+        right: auto !important;
+        transform: none !important;
+        float: none !important;
       }
 
-      /* Brand icon stays with brand text */
-      .brand-icon {
-        order: 1 !important;
-        margin-right: 0.5rem !important;
-        color: #ffffff !important;
-        font-size: 1.5rem !important;
-        flex-shrink: 0 !important;
+      /* REMOVE ANY POTENTIAL TEXT GRADIENTS OR SPECIAL EFFECTS */
+      .brand-text::before,
+      .brand-text::after,
+      h1.brand-text::before,
+      h1.brand-text::after {
+        display: none !important;
+        content: none !important;
       }
 
-      /* Insurance app specific styles - stronger specificity */
-      body.insurance-app .header .container-fluid .d-flex.align-items-center.justify-content-between {
-        justify-content: space-between !important;
-        width: 100% !important;
+      /* ENSURE NO POSITIONING CONFLICTS */
+      .brand-text,
+      h1.brand-text {
+        position: relative !important;
+        z-index: auto !important;
+        width: auto !important;
+        height: auto !important;
+        min-width: auto !important;
+        max-width: none !important;
+        min-height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        clip: auto !important;
+        clip-path: none !important;
       }
 
-      body.insurance-app .header .d-flex.align-items-center.justify-content-start,
-      body.insurance-app header .d-flex.align-items-center.justify-content-start {
-        justify-content: flex-start !important;
-        flex-shrink: 0 !important;
-        order: 1 !important;
-      }
-
-      body.insurance-app .brand-text,
-      body.insurance-app .header .brand-text,
-      body.insurance-app header .brand-text {
-        text-align: left !important;
-        margin-left: 0.5rem !important;
-        display: block !important;
-      }
-
-      body.insurance-app .header .d-flex.align-items-center.gap-3,
-      body.insurance-app header .d-flex.align-items-center.gap-3 {
-        margin-left: auto !important;
-        flex-shrink: 0 !important;
-        order: 3 !important;
-      }
-
-      body.insurance-app .brand-icon {
-        order: 1 !important;
-        margin-right: 0.5rem !important;
-      }
-
-      /* Mobile responsiveness for brand positioning */
+      /* Mobile responsiveness */
       @media (max-width: 768px) {
-        .brand-text {
+        .brand-text, h1.brand-text {
           font-size: 1.25rem !important;
-          margin-left: 0.25rem !important;
         }
-
         .brand-icon {
-          margin-right: 0.25rem !important;
+          margin-right: 0.5rem !important;
           font-size: 1.25rem !important;
+          width: 36px !important;
+          height: 36px !important;
         }
       }
     </style>

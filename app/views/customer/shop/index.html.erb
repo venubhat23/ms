@@ -562,7 +562,9 @@
                   <div class="card h-100 border-0 shadow-sm hover-lift product-card">
                 <!-- Product Image -->
                 <div class="position-relative">
-                  <% if product.image.present? %>
+                  <% if product.images_attached? && product.images.any? %>
+                    <%= image_tag product.images.first, class: "card-img-top", style: "height: 200px; object-fit: cover;" %>
+                  <% elsif product.image.present? %>
                     <%= image_tag product.image, class: "card-img-top", style: "height: 200px; object-fit: cover;" %>
                   <% elsif product.image_url.present? %>
                     <img src="<%= product.image_url %>" class="card-img-top" style="height: 200px; object-fit: cover;" alt="<%= product.name %>">

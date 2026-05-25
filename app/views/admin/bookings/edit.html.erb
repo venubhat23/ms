@@ -323,6 +323,8 @@
         <%
           edit_total_base = 0
           edit_total_tax = 0
+          edit_total_tax_rate = 0
+          edit_gst_item_count = 0
           @booking.booking_items.each do |item|
             if item.product&.gst_enabled && item.product.gst_percentage.to_f > 0
               gst_rate = item.product.gst_percentage.to_f
@@ -331,34 +333,41 @@
               rounded_base = (rounded_final / (1 + (gst_rate / 100.0))).round
               edit_total_base += rounded_base * qty
               edit_total_tax += (rounded_final - rounded_base) * qty
+              edit_total_tax_rate += gst_rate
+              edit_gst_item_count += 1
             else
               edit_total_base += (item.price || 0) * item.quantity.to_f
             end
           end
           edit_discount = @booking.discount_amount.to_f
           edit_total = edit_total_base + edit_total_tax - edit_discount
+          edit_avg_tax_rate = edit_gst_item_count > 0 ? (edit_total_tax_rate / edit_gst_item_count.to_f).round(2) : 0
+          edit_tax_display = edit_avg_tax_rate.to_i == edit_avg_tax_rate ? edit_avg_tax_rate.to_i : edit_avg_tax_rate
         %>
+        <%= f.hidden_field :subtotal, value: edit_total_base.round(2) %>
+        <%= f.hidden_field :tax_amount, value: edit_total_tax.round(2) %>
+        <%= f.hidden_field :total_amount, value: edit_total.round(2) %>
         <div class="card-body">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">Subtotal</label>
-              <%= f.number_field :subtotal, class: 'form-control', step: '0.01', readonly: true, value: edit_total_base.round(2) %>
-            </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Subtotal:</span>
+            <span class="fw-medium" id="display-subtotal">₹<%= number_with_delimiter(edit_total_base.round(2)) %></span>
+          </div>
 
-            <div class="col-12">
-              <label class="form-label">Discount Amount</label>
-              <%= f.number_field :discount_amount, class: 'form-control', step: '0.01', onchange: 'calculateTotals()' %>
+          <div class="col-12 mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0 text-muted">Discount Amount</label>
             </div>
+            <%= f.number_field :discount_amount, class: 'form-control form-control-sm', step: '0.01', onchange: 'calculateTotals()' %>
+          </div>
 
-            <div class="col-12">
-              <label class="form-label">Tax Amount</label>
-              <%= f.number_field :tax_amount, class: 'form-control', step: '0.01', readonly: true, value: edit_total_tax.round(2) %>
-            </div>
+          <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+            <span class="text-muted">Tax (<span id="display-tax-rate"><%= edit_tax_display %></span>%):</span>
+            <span class="fw-medium" id="display-tax">₹<%= number_with_delimiter(edit_total_tax.round(2)) %></span>
+          </div>
 
-            <div class="col-12">
-              <label class="form-label fw-bold">Total Amount</label>
-              <%= f.number_field :total_amount, class: 'form-control fw-bold text-success', step: '0.01', readonly: true, value: edit_total.round(2) %>
-            </div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-bold fs-6">Total:</span>
+            <span class="fw-bold fs-6 text-primary" id="display-total">₹<%= number_with_delimiter(edit_total.round(2)) %></span>
           </div>
         </div>
       </div>
@@ -527,9 +536,16 @@ function calculateTotals() {
   const discountAmount = parseFloat(document.querySelector('input[name="booking[discount_amount]"]').value) || 0;
   const totalAmount = subtotal + taxAmount - discountAmount;
 
+  // Update hidden fields for form submission
   document.querySelector('input[name="booking[subtotal]"]').value = subtotal.toFixed(2);
   document.querySelector('input[name="booking[tax_amount]"]').value = taxAmount.toFixed(2);
   document.querySelector('input[name="booking[total_amount]"]').value = totalAmount.toFixed(2);
+
+  // Update display
+  const fmt = v => '₹' + parseFloat(v).toLocaleString('en-IN', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  document.getElementById('display-subtotal').textContent = fmt(subtotal);
+  document.getElementById('display-tax').textContent = fmt(taxAmount);
+  document.getElementById('display-total').textContent = fmt(totalAmount);
 }
 
 // Payment method selection

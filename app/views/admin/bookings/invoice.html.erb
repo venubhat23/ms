@@ -589,66 +589,53 @@
       total_igst = 0
 
       (@booking.booking_items || []).each do |item|
-        # Base amount (quantity × price)
-        base_amount = item.quantity * (item.price || 0)
+        qty = item.quantity.to_f
+        unit_price = (item.price || 0)
 
         if item.product&.gst_enabled
-          # Only add to taxable amount if GST is enabled
-          taxable_amount += base_amount
-
-          # Calculate total GST first, then split to avoid rounding issues
           if item.product.cgst_percentage.present? && item.product.sgst_percentage.present?
-            cgst_rate = item.product.cgst_percentage
-            sgst_rate = item.product.sgst_percentage
-            igst_rate = item.product.igst_percentage || 0
+            cgst_rate = item.product.cgst_percentage.to_f
+            sgst_rate = item.product.sgst_percentage.to_f
+            igst_rate = item.product.igst_percentage.to_f
             total_gst_rate = cgst_rate + sgst_rate + igst_rate
           elsif item.product.gst_percentage.present?
-            # Use total GST rate first
-            total_gst_rate = item.product.gst_percentage || 0
+            total_gst_rate = item.product.gst_percentage.to_f
             cgst_rate = total_gst_rate / 2.0
             sgst_rate = total_gst_rate / 2.0
-            igst_rate = 0
+            igst_rate = 0.0
           else
-            cgst_rate = sgst_rate = igst_rate = total_gst_rate = 0
+            cgst_rate = sgst_rate = igst_rate = total_gst_rate = 0.0
           end
 
-          # Calculate total tax first to maintain consistency with item display
-          total_item_tax = (base_amount * total_gst_rate / 100)
-
-          # Split the total tax proportionally to avoid rounding differences
           if total_gst_rate > 0
-            cgst_amount = (total_item_tax * cgst_rate / total_gst_rate).round(2)
-            sgst_amount = (total_item_tax * sgst_rate / total_gst_rate).round(2)
-            igst_amount = (total_item_tax * igst_rate / total_gst_rate).round(2)
+            # Price is GST-inclusive: extract base and tax using per-unit rounding
+            rounded_final = unit_price.round
+            rounded_base = (rounded_final / (1 + total_gst_rate / 100.0)).round
+            rounded_tax  = rounded_final - rounded_base
 
-            # Ensure the sum equals the rounded total (handle rounding differences)
-            calculated_sum = cgst_amount + sgst_amount + igst_amount
-            total_item_tax_rounded = total_item_tax.round(2)
+            item_base = rounded_base * qty
+            item_tax  = rounded_tax  * qty
 
-            if calculated_sum != total_item_tax_rounded
-              # Adjust the largest component to match the total
-              if cgst_amount >= sgst_amount && cgst_amount >= igst_amount
-                cgst_amount = total_item_tax_rounded - sgst_amount - igst_amount
-              elsif sgst_amount >= igst_amount
-                sgst_amount = total_item_tax_rounded - cgst_amount - igst_amount
-              else
-                igst_amount = total_item_tax_rounded - cgst_amount - sgst_amount
-              end
-            end
+            cgst_amount = (item_tax * cgst_rate / total_gst_rate).round(2)
+            sgst_amount = (item_tax * sgst_rate / total_gst_rate).round(2)
+            igst_amount = (item_tax * igst_rate / total_gst_rate).round(2)
+
+            # Fix rounding residual
+            diff = item_tax.round(2) - cgst_amount - sgst_amount - igst_amount
+            cgst_amount += diff if diff != 0
           else
-            cgst_amount = sgst_amount = igst_amount = 0
+            item_base = unit_price * qty
+            item_tax  = 0.0
+            cgst_amount = sgst_amount = igst_amount = 0.0
           end
 
-          total_cgst += cgst_amount
-          total_sgst += sgst_amount
-          total_igst += igst_amount
-
-          # Add base amount + taxes to get final amount for this item
-          item_total = base_amount + cgst_amount + sgst_amount + igst_amount
-          subtotal_amount += item_total
+          taxable_amount  += item_base
+          total_cgst      += cgst_amount
+          total_sgst      += sgst_amount
+          total_igst      += igst_amount
+          subtotal_amount += item_base + item_tax
         else
-          # For non-GST items, just add base amount (not to taxable_amount)
-          subtotal_amount += base_amount
+          subtotal_amount += unit_price * qty
         end
       end
 
@@ -758,19 +745,22 @@
               </td>
               <td class="right-align">
                 <%
-                  base_amount = item.quantity * (item.price || 0)
                   if item.product&.gst_enabled
-                    # Use individual tax percentages if available, otherwise split the total GST rate
                     if item.product.cgst_percentage.present? || item.product.sgst_percentage.present?
-                      total_gst_rate = (item.product.cgst_percentage || 0) + (item.product.sgst_percentage || 0) + (item.product.igst_percentage || 0)
+                      total_gst_rate = (item.product.cgst_percentage || 0).to_f + (item.product.sgst_percentage || 0).to_f + (item.product.igst_percentage || 0).to_f
                     else
-                      # If individual rates not set, use main GST percentage
-                      total_gst_rate = item.product.gst_percentage || 0
+                      total_gst_rate = (item.product.gst_percentage || 0).to_f
                     end
-                    tax_amount = (base_amount * total_gst_rate) / 100
+                    if total_gst_rate > 0
+                      rounded_final = (item.price || 0).round
+                      rounded_base  = (rounded_final / (1 + total_gst_rate / 100.0)).round
+                      tax_amount    = (rounded_final - rounded_base) * item.quantity.to_f
+                    else
+                      tax_amount = 0.0
+                    end
                   else
                     total_gst_rate = 0
-                    tax_amount = 0
+                    tax_amount = 0.0
                   end
                 %>
                 ₹<%= number_with_delimiter(tax_amount.round(2), delimiter: ',') %><br />
@@ -778,19 +768,8 @@
               </td>
               <td class="right-align">
                 <%
-                  # Calculate final amount: base amount + tax amount
-                  base_amount = item.quantity * (item.price || 0)
-                  if item.product&.gst_enabled
-                    if item.product.cgst_percentage.present? || item.product.sgst_percentage.present?
-                      total_gst_rate = (item.product.cgst_percentage || 0) + (item.product.sgst_percentage || 0) + (item.product.igst_percentage || 0)
-                    else
-                      total_gst_rate = item.product.gst_percentage || 0
-                    end
-                    tax_amount = (base_amount * total_gst_rate) / 100
-                    final_amount = base_amount + tax_amount
-                  else
-                    final_amount = base_amount
-                  end
+                  # Price is GST-inclusive: amount = price × qty (no extra tax added)
+                  final_amount = (item.price || 0).round * item.quantity.to_f
                 %>
                 ₹<%= number_with_delimiter(final_amount.round(2), delimiter: ',') %>
               </td>
@@ -866,35 +845,37 @@
                 <span class="tax-amount">₹ <%= number_with_delimiter(taxable_amount.round(2), delimiter: ',') %></span>
               </div>
               <%
-                # Group tax amounts by individual tax rates
+                # Group tax amounts by individual tax rates (GST-inclusive extraction)
                 cgst_groups = {}
                 sgst_groups = {}
 
                 (@booking.booking_items || []).each do |item|
                   if item.product&.gst_enabled
-                    base_amount = item.quantity * (item.price || 0)
-
-                    # Handle CGST/SGST calculation
                     if item.product.cgst_percentage.present? && item.product.sgst_percentage.present?
-                      # Use individual rates if available
-                      cgst_rate = item.product.cgst_percentage
-                      sgst_rate = item.product.sgst_percentage
+                      cgst_rate = item.product.cgst_percentage.to_f
+                      sgst_rate = item.product.sgst_percentage.to_f
+                      total_gst_rate = cgst_rate + sgst_rate + (item.product.igst_percentage || 0).to_f
                     elsif item.product.gst_percentage.present?
-                      # If only total GST is set, split it equally for intra-state transactions
-                      cgst_rate = item.product.gst_percentage / 2.0
-                      sgst_rate = item.product.gst_percentage / 2.0
+                      total_gst_rate = item.product.gst_percentage.to_f
+                      cgst_rate = total_gst_rate / 2.0
+                      sgst_rate = total_gst_rate / 2.0
                     else
-                      cgst_rate = 0
-                      sgst_rate = 0
+                      cgst_rate = sgst_rate = total_gst_rate = 0.0
                     end
 
+                    next unless total_gst_rate > 0
+
+                    rounded_final = (item.price || 0).round
+                    rounded_base  = (rounded_final / (1 + total_gst_rate / 100.0)).round
+                    item_tax      = (rounded_final - rounded_base) * item.quantity.to_f
+
                     if cgst_rate > 0
-                      cgst_amount = (base_amount * cgst_rate / 100).round(2)
+                      cgst_amount = (item_tax * cgst_rate / total_gst_rate).round(2)
                       cgst_groups[cgst_rate] = (cgst_groups[cgst_rate] || 0) + cgst_amount
                     end
 
                     if sgst_rate > 0
-                      sgst_amount = (base_amount * sgst_rate / 100).round(2)
+                      sgst_amount = (item_tax * sgst_rate / total_gst_rate).round(2)
                       sgst_groups[sgst_rate] = (sgst_groups[sgst_rate] || 0) + sgst_amount
                     end
                   end

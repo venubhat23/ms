@@ -53,14 +53,6 @@
         </div>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">Existing Customer</label>
-              <%= f.select :customer_id,
-                  options_for_select([['Select existing customer', '']] + Customer.limit(100).map { |c| ["#{c.respond_to?(:display_name) ? c.display_name : "#{c.first_name} #{c.last_name}"} - #{c.mobile}", c.id] }, @booking.customer_id),
-                  {},
-                  { class: 'form-select', onchange: 'fillCustomerDetails(this)' } %>
-            </div>
-
             <div class="col-md-6">
               <label class="form-label">Customer Name <span class="text-danger">*</span></label>
               <%= f.text_field :customer_name, class: 'form-control', placeholder: 'Enter customer name', required: true %>
@@ -328,11 +320,29 @@
         <div class="card-header bg-transparent border-0">
           <h6 class="mb-0">Payment Summary</h6>
         </div>
+        <%
+          edit_total_base = 0
+          edit_total_tax = 0
+          @booking.booking_items.each do |item|
+            if item.product&.gst_enabled && item.product.gst_percentage.to_f > 0
+              gst_rate = item.product.gst_percentage.to_f
+              qty = item.quantity.to_f
+              rounded_final = (item.price || 0).round
+              rounded_base = (rounded_final / (1 + (gst_rate / 100.0))).round
+              edit_total_base += rounded_base * qty
+              edit_total_tax += (rounded_final - rounded_base) * qty
+            else
+              edit_total_base += (item.price || 0) * item.quantity.to_f
+            end
+          end
+          edit_discount = @booking.discount_amount.to_f
+          edit_total = edit_total_base + edit_total_tax - edit_discount
+        %>
         <div class="card-body">
           <div class="row g-3">
             <div class="col-12">
               <label class="form-label">Subtotal</label>
-              <%= f.number_field :subtotal, class: 'form-control', step: '0.01', readonly: true %>
+              <%= f.number_field :subtotal, class: 'form-control', step: '0.01', readonly: true, value: edit_total_base.round(2) %>
             </div>
 
             <div class="col-12">
@@ -341,13 +351,13 @@
             </div>
 
             <div class="col-12">
-              <label class="form-label">Tax Amount (18%)</label>
-              <%= f.number_field :tax_amount, class: 'form-control', step: '0.01', readonly: true %>
+              <label class="form-label">Tax Amount</label>
+              <%= f.number_field :tax_amount, class: 'form-control', step: '0.01', readonly: true, value: edit_total_tax.round(2) %>
             </div>
 
             <div class="col-12">
               <label class="form-label fw-bold">Total Amount</label>
-              <%= f.number_field :total_amount, class: 'form-control fw-bold text-success', step: '0.01', readonly: true %>
+              <%= f.number_field :total_amount, class: 'form-control fw-bold text-success', step: '0.01', readonly: true, value: edit_total.round(2) %>
             </div>
           </div>
         </div>
@@ -412,6 +422,12 @@
 <script>
 let itemIndex = <%= @booking.booking_items.count %>;
 
+const productData = {
+  <% Product.all.each do |p| %>
+    <%= p.id %>: { price: <%= p.price.to_f %>, gstEnabled: <%= p.gst_enabled ? 'true' : 'false' %>, gstRate: <%= p.gst_percentage.to_f %> },
+  <% end %>
+};
+
 // Add new booking item
 function addBookingItem() {
   const template = document.getElementById('item-template');
@@ -452,13 +468,13 @@ function removeNewBookingItem(button) {
 
 // Update item price when product is selected
 function updateItemPrice(select) {
-  const selectedOption = select.options[select.selectedIndex];
-  const price = selectedOption.getAttribute('data-price');
+  const productId = parseInt(select.value);
+  const product = productData[productId];
   const row = select.closest('.booking-item-row');
   const priceInput = row.querySelector('input[name*="[price]"]');
 
-  if (price && priceInput) {
-    priceInput.value = price;
+  if (product && priceInput) {
+    priceInput.value = product.price;
     calculateItemTotal(priceInput);
   }
 }
@@ -480,28 +496,37 @@ function calculateItemTotal(input) {
   }
 }
 
-// Calculate booking totals
+// Calculate booking totals using GST-inclusive price extraction (same logic as view page)
 function calculateTotals() {
   let subtotal = 0;
+  let taxAmount = 0;
 
-  // Calculate subtotal from all visible items
   document.querySelectorAll('.booking-item-row:not([style*="display: none"])').forEach(row => {
+    const productSelect = row.querySelector('select[name*="[product_id]"]');
     const quantityInput = row.querySelector('input[name*="[quantity]"]');
     const priceInput = row.querySelector('input[name*="[price]"]');
 
     if (quantityInput && priceInput) {
       const quantity = parseFloat(quantityInput.value) || 0;
       const price = parseFloat(priceInput.value) || 0;
-      subtotal += quantity * price;
+      const productId = productSelect ? parseInt(productSelect.value) : null;
+      const product = productId ? productData[productId] : null;
+
+      if (product && product.gstEnabled && product.gstRate > 0) {
+        const roundedFinal = Math.round(price);
+        const roundedBase = Math.round(roundedFinal / (1 + product.gstRate / 100));
+        const roundedTax = roundedFinal - roundedBase;
+        subtotal += roundedBase * quantity;
+        taxAmount += roundedTax * quantity;
+      } else {
+        subtotal += price * quantity;
+      }
     }
   });
 
   const discountAmount = parseFloat(document.querySelector('input[name="booking[discount_amount]"]').value) || 0;
-  const taxRate = 0.18; // 18%
-  const taxAmount = (subtotal - discountAmount) * taxRate;
-  const totalAmount = subtotal - discountAmount + taxAmount;
+  const totalAmount = subtotal + taxAmount - discountAmount;
 
-  // Update form fields
   document.querySelector('input[name="booking[subtotal]"]').value = subtotal.toFixed(2);
   document.querySelector('input[name="booking[tax_amount]"]').value = taxAmount.toFixed(2);
   document.querySelector('input[name="booking[total_amount]"]').value = totalAmount.toFixed(2);
@@ -542,9 +567,6 @@ function fillCustomerDetails(select) {
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
-  // Calculate initial totals
-  calculateTotals();
-
   // Set initial payment method
   const currentPaymentMethod = '<%= @booking.payment_method %>';
   selectPaymentMethod(currentPaymentMethod);

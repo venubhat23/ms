@@ -606,11 +606,39 @@
               <span>GST</span>
               <span>₹<span id="checkoutTax">0</span></span>
             </div>
-            <div class="d-flex justify-content-between mb-2">
+            <!-- Normal discount row (hidden when B2B is on) -->
+            <div class="d-flex justify-content-between mb-2" id="normalDiscountRow">
               <span>Discount</span>
               <span>
                 ₹<input type="number" id="checkoutDiscount" value="0" min="0" max="999999" step="0.01" class="form-control form-control-sm d-inline-block w-auto" style="width: 80px;" onchange="updateCheckoutTotals()" oninput="updateCheckoutTotals()">
               </span>
+            </div>
+
+            <!-- B2B discount row (shown only when B2B is on) -->
+            <div id="b2bDiscountSection" style="display: none;" class="mb-2">
+              <div class="d-flex justify-content-between align-items-start">
+                <span>Discount</span>
+                <div class="text-end">
+                  <div class="d-flex gap-3 mb-1 justify-content-end">
+                    <div class="form-check form-check-inline me-0">
+                      <input class="form-check-input" type="radio" name="b2bDiscountType" id="discountTypeFixed" value="fixed" checked onchange="updateB2BDiscount()">
+                      <label class="form-check-label small" for="discountTypeFixed">Fixed (₹)</label>
+                    </div>
+                    <div class="form-check form-check-inline me-0">
+                      <input class="form-check-input" type="radio" name="b2bDiscountType" id="discountTypePercent" value="percent" onchange="updateB2BDiscount()">
+                      <label class="form-check-label small" for="discountTypePercent">Percentage (%)</label>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-1 justify-content-end">
+                    <span id="b2bDiscountPrefix" class="text-muted small">₹</span>
+                    <input type="number" id="b2bDiscountValue" value="0" min="0" step="0.01"
+                           class="form-control form-control-sm d-inline-block"
+                           style="width: 80px;"
+                           onchange="updateB2BDiscount()" oninput="updateB2BDiscount()">
+                    <span id="b2bDiscountCalc" class="text-success small fw-medium"></span>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="d-flex justify-content-between border-top pt-2 mb-0">
               <span class="fw-bold">Total Amount</span>
@@ -1177,20 +1205,25 @@ function updateCheckoutTotals() {
     }
   }
 
-  let discount = parseFloat(document.getElementById('checkoutDiscount')?.value || 0);
+  const isB2B = document.getElementById('b2bBookingToggle')?.checked;
+  let discount = 0;
 
-  // Validate discount doesn't exceed subtotal + GST
-  const maxDiscount = subtotal + totalGST;
-  if (discount > maxDiscount) {
-    discount = maxDiscount;
-    document.getElementById('checkoutDiscount').value = discount;
+  if (isB2B) {
+    discount = calculateB2BDiscountAmount(subtotal + totalGST);
+  } else {
+    discount = parseFloat(document.getElementById('checkoutDiscount')?.value || 0);
+    // Validate discount doesn't exceed subtotal + GST
+    const maxDiscount = subtotal + totalGST;
+    if (discount > maxDiscount) {
+      discount = maxDiscount;
+      document.getElementById('checkoutDiscount').value = discount;
+    }
   }
 
   // Update the hidden field with the discount value
   const hiddenDiscountField = document.getElementById('hiddenDiscountAmount');
   if (hiddenDiscountField) {
     hiddenDiscountField.value = discount;
-    console.log('Updated hidden discount field to:', discount);
   }
 
   const total = subtotal + totalGST - discount; // Final total after discount
@@ -1198,14 +1231,13 @@ function updateCheckoutTotals() {
   // Update display
   document.getElementById('checkoutSubtotal').textContent = subtotal.toFixed(2);
 
-  // Show/highlight discount row when discount is applied
-  const discountInput = document.getElementById('checkoutDiscount');
-  if (discount > 0) {
-    discountInput.style.borderColor = '#198754';
-    discountInput.style.backgroundColor = '#f8fff9';
-  } else {
-    discountInput.style.borderColor = '';
-    discountInput.style.backgroundColor = '';
+  // Highlight normal discount input when a discount is applied
+  if (!isB2B) {
+    const discountInput = document.getElementById('checkoutDiscount');
+    if (discountInput) {
+      discountInput.style.borderColor = discount > 0 ? '#198754' : '';
+      discountInput.style.backgroundColor = discount > 0 ? '#f8fff9' : '';
+    }
   }
 
   // Only show GST if there is any GST amount
@@ -1225,6 +1257,55 @@ function updateCheckoutTotals() {
 
   // Update change calculation when total changes
   calculateChange();
+}
+
+// Returns the calculated B2B discount in rupees given the gross total
+function calculateB2BDiscountAmount(grossTotal) {
+  const type  = document.querySelector('input[name="b2bDiscountType"]:checked')?.value || 'fixed';
+  const value = parseFloat(document.getElementById('b2bDiscountValue')?.value || 0);
+  let amount  = 0;
+  if (type === 'fixed') {
+    amount = value;
+  } else {
+    amount = (grossTotal * value) / 100;
+  }
+  return Math.min(Math.max(amount, 0), grossTotal);
+}
+
+// Called whenever B2B discount type or value changes
+function updateB2BDiscount() {
+  const type  = document.querySelector('input[name="b2bDiscountType"]:checked')?.value || 'fixed';
+  const prefix = document.getElementById('b2bDiscountPrefix');
+  const calc   = document.getElementById('b2bDiscountCalc');
+
+  if (type === 'percent') {
+    prefix.textContent = '%';
+    const grossTotal = parseFloat(document.getElementById('checkoutSubtotal')?.textContent || 0)
+                     + parseFloat(document.getElementById('checkoutTax')?.textContent || 0);
+    const amount = calculateB2BDiscountAmount(grossTotal);
+    calc.textContent = amount > 0 ? `= ₹${amount.toFixed(2)}` : '';
+  } else {
+    prefix.textContent = '₹';
+    calc.textContent   = '';
+  }
+
+  updateCheckoutTotals();
+}
+
+// Toggle B2B discount UI and normal discount visibility
+function toggleB2BDiscount(enabled) {
+  document.getElementById('normalDiscountRow').style.display  = enabled ? 'none' : '';
+  document.getElementById('b2bDiscountSection').style.display = enabled ? '' : 'none';
+
+  if (!enabled) {
+    // Reset B2B fields when turning off
+    document.getElementById('b2bDiscountValue').value = 0;
+    document.getElementById('b2bDiscountCalc').textContent = '';
+    document.getElementById('discountTypeFixed').checked = true;
+    document.getElementById('b2bDiscountPrefix').textContent = '₹';
+  }
+
+  updateCheckoutTotals();
 }
 
 // Payment method selection
@@ -1770,6 +1851,14 @@ document.addEventListener('DOMContentLoaded', function() {
     discountInput.addEventListener('change', updateCheckoutTotals);
   }
 
+  // B2B toggle wires discount section visibility
+  const b2bToggle = document.getElementById('b2bBookingToggle');
+  if (b2bToggle) {
+    b2bToggle.addEventListener('change', function() {
+      toggleB2BDiscount(this.checked);
+    });
+  }
+
   // Add category filter listener
   const categoryFilter = document.getElementById('categoryFilter');
   if (categoryFilter) {
@@ -1798,19 +1887,19 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
       }
 
-      // Clean discount input and update hidden field before submission
-      const discountInput = document.getElementById('checkoutDiscount');
+      // Update hidden discount field before submission
       const hiddenDiscountField = document.getElementById('hiddenDiscountAmount');
-
-      if (discountInput && hiddenDiscountField) {
-        // Clean the discount value - remove any whitespace/newlines
-        let discountValue = discountInput.value || 0;
-        const cleanedValue = discountValue.toString().replace(/\s+/g, '').trim();
-        const numericValue = parseFloat(cleanedValue) || 0;
-
-        discountInput.value = cleanedValue;
-        hiddenDiscountField.value = numericValue;
-        console.log('Final discount value before submission:', numericValue);
+      if (hiddenDiscountField) {
+        const b2bOn = document.getElementById('b2bBookingToggle')?.checked;
+        if (b2bOn) {
+          const grossTotal = parseFloat(document.getElementById('checkoutSubtotal').textContent || 0)
+                           + parseFloat(document.getElementById('checkoutTax').textContent || 0);
+          hiddenDiscountField.value = calculateB2BDiscountAmount(grossTotal).toFixed(2);
+        } else {
+          const discountInput = document.getElementById('checkoutDiscount');
+          const cleaned = (discountInput?.value || '0').toString().replace(/\s+/g, '').trim();
+          hiddenDiscountField.value = parseFloat(cleaned) || 0;
+        }
       }
 
       // Check if status is selected

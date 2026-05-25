@@ -119,7 +119,7 @@ class Admin::BookingsController < Admin::ApplicationController
     # Validate stock availability before saving
     unless validate_stock_availability(@booking)
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
+      @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
       @stores = Store.where(status: true)
       render :new, status: :unprocessable_entity
       return
@@ -170,7 +170,7 @@ class Admin::BookingsController < Admin::ApplicationController
       Rails.logger.error "Booking items errors: #{@booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"
 
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
+      @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
       @stores = Store.where(status: true)
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
@@ -182,15 +182,20 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def edit
-    @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-    @customers = Customer.all.order(:first_name, :last_name)
+    @products = Product.active
+                       .select(:id, :name, :price, :gst_enabled, :gst_percentage,
+                               :cgst_percentage, :sgst_percentage, :igst_percentage,
+                               :unit_type, :hsn_code)
+                       .order(:name)
   end
 
   def update
-    # Validate stock availability for updates
     unless validate_stock_availability(@booking, is_update: true)
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
+      @products = Product.active
+                         .select(:id, :name, :price, :gst_enabled, :gst_percentage,
+                                 :cgst_percentage, :sgst_percentage, :igst_percentage,
+                                 :unit_type, :hsn_code)
+                         .order(:name)
       render :edit, status: :unprocessable_entity
       return
     end
@@ -198,8 +203,11 @@ class Admin::BookingsController < Admin::ApplicationController
     if @booking.update(booking_params)
       redirect_to admin_booking_path(@booking), notice: 'Booking updated successfully!'
     else
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
+      @products = Product.active
+                         .select(:id, :name, :price, :gst_enabled, :gst_percentage,
+                                 :cgst_percentage, :sgst_percentage, :igst_percentage,
+                                 :unit_type, :hsn_code)
+                         .order(:name)
       render :edit
     end
   end
@@ -270,6 +278,7 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def invoice
+    @booking_items = @booking.booking_items.includes(:product)
     respond_to do |format|
       format.html { render template: 'admin/bookings/invoice', layout: 'invoice' }
       format.pdf do

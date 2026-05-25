@@ -115,18 +115,14 @@ class Booking < ApplicationRecord
         quantity = item.quantity
         price = item.price
 
-        # Check if product has GST enabled
+        # Price is GST-inclusive: extract base via per-unit rounding
         if item.product && item.product.gst_enabled && item.product.gst_percentage.to_f > 0
-          # Price is inclusive of GST: tax = price * rate/100, base = price - tax
-          gst_rate = item.product.gst_percentage.to_f
-          total_price = price * quantity
-          item_gst = (total_price * gst_rate / 100).round(2)
-          item_base = total_price - item_gst
-
-          items_total += item_base
-          total_gst += item_gst
+          gst_rate      = item.product.gst_percentage.to_f
+          rounded_final = price.round
+          rounded_base  = (rounded_final / (1 + gst_rate / 100.0)).round
+          items_total  += rounded_base * quantity
+          total_gst    += (rounded_final - rounded_base) * quantity
         else
-          # No GST, use price as is
           items_total += price * quantity
         end
       end

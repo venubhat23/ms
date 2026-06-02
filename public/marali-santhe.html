@@ -256,7 +256,10 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
 .fcol ul li a:hover{color:var(--gold)}
 .footer-contact{font-size:13px;color:rgba(255,255,255,.45);line-height:1.8;margin-top:16px}
 .footer-contact b{color:rgba(255,255,255,.7)}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:26px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.28)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:26px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.28);flex-wrap:wrap;gap:12px}
+.footer-policy-links{display:flex;gap:20px}
+.footer-policy-links a{color:rgba(255,255,255,.45);text-decoration:none;font-size:12px;letter-spacing:.3px;transition:color .2s}
+.footer-policy-links a:hover{color:var(--gold)}
 .socials{display:flex;gap:18px}
 .socials a{color:rgba(255,255,255,.38);text-decoration:none;font-size:13px;transition:color .2s}
 .socials a:hover{color:var(--gold)}
@@ -787,6 +790,10 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
   </div>
   <div class="footer-bottom">
     <span>© 2025 Marali Santhe. All rights reserved. Powered by Marali Santhe Organics Pvt Ltd</span>
+    <div class="footer-policy-links">
+      <a href="/terms-and-conditions.html" target="_blank">Terms &amp; Conditions</a>
+      <a href="/privacy-policy.html" target="_blank">Privacy Policy</a>
+    </div>
   </div>
 </footer>
 

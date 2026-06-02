@@ -1294,7 +1294,7 @@ function updateB2BDiscount() {
 
 // Toggle B2B discount UI and normal discount visibility
 function toggleB2BDiscount(enabled) {
-  document.getElementById('normalDiscountRow').style.display  = enabled ? 'none' : '';
+  document.getElementById('normalDiscountRow').classList.toggle('d-none', enabled);
   document.getElementById('b2bDiscountSection').style.display = enabled ? '' : 'none';
 
   if (!enabled) {

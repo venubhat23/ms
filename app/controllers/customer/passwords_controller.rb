@@ -91,18 +91,16 @@ class Customer::PasswordsController < Customer::BaseController
       @customer.password_confirmation = password_confirmation
 
       if @customer.save
-        # Clear the reset token
         @customer.clear_password_reset_token!
 
-        # Send confirmation email (optional)
         begin
           CustomerMailer.password_changed_notification(@customer).deliver_now
         rescue => e
           Rails.logger.error "Failed to send password changed notification: #{e.message}"
         end
 
-        flash[:notice] = 'Your password has been reset successfully. Please log in with your new password.'
-        redirect_to customer_login_path
+        flash[:reset_success] = true
+        redirect_to customer_reset_password_path
       else
         flash[:alert] = @customer.errors.full_messages.join(', ')
         render :edit

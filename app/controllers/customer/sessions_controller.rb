@@ -17,6 +17,13 @@ class Customer::SessionsController < Customer::BaseController
     if customer&.authenticate(params[:password])
       sign_in_customer(customer)
       redirect_to customer_dashboard_path, notice: 'Successfully logged in!'
+    elsif customer && authenticate_via_user_record(customer, params[:password])
+      # Customer was registered via mobile — password lives on the User (Devise) record.
+      # Sync it to the Customer record now so future logins use the direct path.
+      customer.password = params[:password]
+      customer.save(validate: false)
+      sign_in_customer(customer)
+      redirect_to customer_dashboard_path, notice: 'Successfully logged in!'
     else
       flash.now[:alert] = 'Invalid email/mobile or password.'
       render :new
@@ -64,5 +71,14 @@ class Customer::SessionsController < Customer::BaseController
     else
       nil
     end
+  end
+
+  def authenticate_via_user_record(customer, password)
+    return false if customer.email.blank?
+    user = User.find_by('LOWER(email) = ?', customer.email.downcase)
+    user&.valid_password?(password) && user.status
+  rescue => e
+    Rails.logger.error "User fallback auth error for #{customer.email}: #{e.message}"
+    false
   end
 end

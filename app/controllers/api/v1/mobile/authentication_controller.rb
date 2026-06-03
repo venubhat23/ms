@@ -478,15 +478,17 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           last_name: customer_params[:last_name],
           middle_name: customer_params[:middle_name],
           email: customer_params[:email],
-          mobile: mobile_number, # Use formatted mobile number
+          mobile: mobile_number,
           address: customer_params[:address],
           whatsapp_number: customer_params[:whatsapp_number],
           latitude: customer_params[:latitude],
           longitude: customer_params[:longitude],
-          is_registered_by_mobile: true, # Always set to true for mobile registrations
+          is_registered_by_mobile: true,
           status: true
         )
-        customer.save!(validate: false)  # Skip validations to avoid password requirements
+        # Set password so the Customer record can authenticate on the web login page too
+        customer.password = customer_params[:password]
+        customer.save!(validate: false)
 
         # Create User record for login
         user = User.new(

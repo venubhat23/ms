@@ -444,111 +444,122 @@
                         <button class="btn-close" onclick="closeCartModal()"></button>
                       </div>
                       <div class="checkout-body">
-                        <!-- Address Selection -->
-                        <div class="checkout-step" id="address-step">
-                          <h5 class="mb-3"><i class="fas fa-map-marker-alt me-2"></i>Delivery Address</h5>
-                          <div id="address-list">
-                            <!-- Addresses will be loaded here -->
+                        <!-- Delivery Method Toggle -->
+                        <div class="checkout-step" id="delivery-method-step">
+                          <h5 class="mb-3"><i class="fas fa-truck me-2"></i>Delivery Option</h5>
+                          <div class="row g-2 mb-3">
+                            <div class="col-6">
+                              <div class="delivery-option-card text-center" id="option-shop" onclick="selectDeliveryMethod('shop')">
+                                <i class="fas fa-store mb-1 d-block fs-4"></i>
+                                <strong class="small">Collect from Shop</strong>
+                              </div>
+                            </div>
+                            <div class="col-6">
+                              <div class="delivery-option-card text-center" id="option-home" onclick="selectDeliveryMethod('home')">
+                                <i class="fas fa-home mb-1 d-block fs-4"></i>
+                                <strong class="small">Deliver to My Location</strong>
+                              </div>
+                            </div>
                           </div>
-                          <button class="btn btn-outline-primary" onclick="showAddAddressForm()">
-                            <i class="fas fa-plus me-2"></i>Add New Address
-                          </button>
 
-                          <!-- Add Address Form -->
-                          <div id="add-address-form" style="display: none;" class="mt-3">
-                            <h6>Add New Address</h6>
-                            <form id="new-address-form">
-                              <div class="row">
-                                <div class="col-md-6">
-                                  <input type="text" class="form-control mb-2" name="name" placeholder="Full Name" required>
-                                </div>
-                                <div class="col-md-6">
-                                  <input type="text" class="form-control mb-2" name="mobile" placeholder="Mobile Number" required>
-                                </div>
-                              </div>
-                              <div class="row">
-                                <div class="col-md-6">
-                                  <select class="form-control mb-2" name="address_type" required>
-                                    <option value="">Address Type</option>
-                                    <option value="home">Home</option>
-                                    <option value="office">Office</option>
-                                    <option value="other">Other</option>
-                                  </select>
-                                </div>
-                                <div class="col-md-6">
-                                  <input type="text" class="form-control mb-2" name="pincode" placeholder="Pincode" required>
-                                </div>
-                              </div>
-                              <textarea class="form-control mb-2" name="address" placeholder="Address" rows="2" required></textarea>
-                              <input type="text" class="form-control mb-2" name="landmark" placeholder="Landmark (Optional)">
-                              <div class="row">
-                                <div class="col-md-6">
-                                  <input type="text" class="form-control mb-2" name="city" placeholder="City" required>
-                                </div>
-                                <div class="col-md-6">
-                                  <input type="text" class="form-control mb-2" name="state" placeholder="State" required>
-                                </div>
-                              </div>
-                              <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary">Save Address</button>
-                                <button type="button" class="btn btn-secondary" onclick="hideAddAddressForm()">Cancel</button>
-                              </div>
-                            </form>
-                          </div>
-                        </div>
-
-                        <!-- Shop Selection for Delivery Only at Shop -->
-                        <% if SystemSetting.delivery_only_at_shop_enabled? %>
-                        <div class="checkout-step mt-4" id="shop-selection-step">
-                          <h5 class="mb-3"><i class="fas fa-store me-2"></i>Select Pickup Location</h5>
-                          <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <small>Please select a shop location where you would like to collect your order.</small>
-                          </div>
-                          <div id="shop-list">
-                            <% shop_addresses = SystemSetting.get_shop_addresses %>
+                          <!-- Shop Pickup Panel -->
+                          <div id="shop-panel" style="display:none;">
+                            <h6 class="mb-2 text-muted">Select Pickup Location</h6>
+                            <% shop_addresses = (SystemSetting.get_shop_addresses rescue []) %>
                             <% if shop_addresses.any? %>
-                              <% shop_addresses.each_with_index do |address, index| %>
-                                <div class="form-check shop-option mb-3">
-                                  <input class="form-check-input" type="radio" name="delivery_store"
-                                         id="shop_<%= index %>" value="<%= address %>" <%= 'checked' if index == 0 %>>
-                                  <label class="form-check-label w-100" for="shop_<%= index %>">
-                                    <div class="d-flex align-items-start">
-                                      <div class="shop-icon me-3">
-                                        <i class="fas fa-store text-primary fs-5"></i>
-                                      </div>
-                                      <div class="flex-grow-1">
-                                        <strong class="d-block">Shop <%= index + 1 %></strong>
-                                        <small class="text-muted"><%= address %></small>
-                                      </div>
+                              <% shop_addresses.each_with_index do |addr, i| %>
+                                <div class="shop-option-card mb-2" id="shop-card-<%= i %>"
+                                     onclick="selectShop(<%= i %>, '<%= j addr %>')"
+                                     data-address="<%= j addr %>">
+                                  <div class="d-flex align-items-start">
+                                    <i class="fas fa-store text-primary me-3 mt-1"></i>
+                                    <div>
+                                      <strong>Shop <%= i + 1 %></strong>
+                                      <div class="text-muted small"><%= addr %></div>
                                     </div>
-                                  </label>
+                                  </div>
                                 </div>
                               <% end %>
                             <% else %>
-                              <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                No pickup locations configured. Please contact support.
-                              </div>
+                              <div class="alert alert-warning small py-2">No pickup locations configured.</div>
                             <% end %>
                           </div>
+
+                          <!-- Home Delivery Panel -->
+                          <div id="home-panel" style="display:none;">
+                            <h6 class="mb-2 text-muted">Select Delivery Address</h6>
+                            <div id="address-list"></div>
+                            <button class="btn btn-outline-primary btn-sm w-100 mt-2" onclick="showAddAddressForm()">
+                              <i class="fas fa-plus me-1"></i> Add New Address
+                            </button>
+
+                            <!-- Add Address Form -->
+                            <div id="add-address-form" style="display: none;" class="mt-3 p-3 border rounded bg-light">
+                              <h6 class="mb-3">Add New Address</h6>
+                              <div id="new-address-form">
+                                <div class="row g-2">
+                                  <div class="col-12 col-sm-6">
+                                    <input type="text" class="form-control form-control-sm" id="new_name" placeholder="Full Name" required>
+                                  </div>
+                                  <div class="col-12 col-sm-6">
+                                    <input type="text" class="form-control form-control-sm" id="new_mobile" placeholder="Mobile Number" required inputmode="numeric">
+                                  </div>
+                                  <div class="col-12 col-sm-6">
+                                    <select class="form-control form-control-sm" id="new_address_type" required>
+                                      <option value="">Address Type</option>
+                                      <option value="home">Home</option>
+                                      <option value="office">Office</option>
+                                      <option value="other">Other</option>
+                                    </select>
+                                  </div>
+                                  <div class="col-12 col-sm-6">
+                                    <input type="text" class="form-control form-control-sm" id="new_pincode"
+                                           placeholder="Pincode" required inputmode="numeric" maxlength="6"
+                                           onblur="onNewAddressPincodeBlur(this)">
+                                    <div id="pincode-validation-msg" class="small mt-1"></div>
+                                  </div>
+                                  <div class="col-12">
+                                    <textarea class="form-control form-control-sm" id="new_address" placeholder="Address" rows="2" required></textarea>
+                                  </div>
+                                  <div class="col-12">
+                                    <input type="text" class="form-control form-control-sm" id="new_landmark" placeholder="Landmark (Optional)">
+                                  </div>
+                                  <div class="col-12 col-sm-6">
+                                    <input type="text" class="form-control form-control-sm" id="new_city" placeholder="City" required>
+                                  </div>
+                                  <div class="col-12 col-sm-6">
+                                    <input type="text" class="form-control form-control-sm" id="new_state" placeholder="State" required>
+                                  </div>
+                                  <div class="col-12">
+                                    <div class="d-flex gap-2">
+                                      <button type="button" class="btn btn-primary btn-sm flex-fill" onclick="saveNewAddress()">
+                                        <i class="fas fa-save me-1"></i>Save Address
+                                      </button>
+                                      <button type="button" class="btn btn-secondary btn-sm" onclick="hideAddAddressForm()">Cancel</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <% end %>
 
                         <!-- Payment Method -->
                         <div class="checkout-step mt-4" id="payment-step">
                           <h5 class="mb-3"><i class="fas fa-credit-card me-2"></i>Payment Method</h5>
                           <div class="payment-methods">
-                            <div class="form-check mb-2">
-                              <input class="form-check-input" type="radio" name="payment_method" id="cod" value="cod" checked>
-                              <label class="form-check-label" for="cod">
-                                <i class="fas fa-money-bill-wave me-2"></i>Cash on Delivery
+                            <div class="payment-option active" id="payment-card-cod" onclick="selectPaymentOption('cod')">
+                              <input class="form-check-input me-2" type="radio" name="payment_method" id="cod" value="cod" checked>
+                              <label class="form-check-label mb-0" for="cod">
+                                <i class="fas fa-money-bill-wave me-2 text-success"></i>
+                                <span class="fw-medium">Cash on Delivery</span>
                               </label>
                             </div>
-                            <div class="form-check mb-2">
-                              <input class="form-check-input" type="radio" name="payment_method" id="upi" value="upi">
-                              <label class="form-check-label" for="upi">
-                                <i class="fab fa-google-pay me-2"></i>Pay Now
+                            <div class="payment-option" id="payment-card-upi" onclick="selectPaymentOption('upi')">
+                              <input class="form-check-input me-2" type="radio" name="payment_method" id="upi" value="upi">
+                              <label class="form-check-label mb-0" for="upi">
+                                <i class="fas fa-bolt me-2 text-warning"></i>
+                                <span class="fw-medium">Pay Now (Online)</span>
                               </label>
                             </div>
                           </div>
@@ -565,9 +576,13 @@
                               <span>Subtotal:</span>
                               <span id="subtotal-amount">₹0</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2">
+                            <div class="d-flex justify-content-between mb-2" id="delivery-free-row" style="display:none;">
                               <span>Delivery:</span>
-                              <span class="text-success">Free</span>
+                              <span class="text-success" id="delivery-free-label">Free (Pickup)</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2" id="delivery-charge-row" style="display:none;">
+                              <span>Delivery (<span id="delivery-pincode-label"></span>):</span>
+                              <span id="delivery-charge-amount" class="text-danger fw-medium">₹0</span>
                             </div>
                             <hr>
                             <div class="d-flex justify-content-between fw-bold">
@@ -578,7 +593,11 @@
                         </div>
                       </div>
                       <div class="checkout-footer">
-                        <button class="btn btn-success btn-lg w-100" onclick="placeOrder()">
+                        <div id="delivery-unavailable-notice" class="alert alert-danger py-2 mb-2 small text-center" style="display:none;">
+                          <i class="fas fa-times-circle me-1"></i>
+                          Delivery not available for the selected pincode. Please choose a different address or <strong>Collect from Shop</strong>.
+                        </div>
+                        <button id="place-order-btn" class="btn btn-success btn-lg w-100" onclick="placeOrder()" style="display:none;">
                           <i class="fas fa-check me-2"></i>Place Order
                         </button>
                       </div>
@@ -844,36 +863,78 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       }
 
-      .address-card {
-        transition: all 0.3s ease;
+      .delivery-option-card {
+        border: 2px solid #dee2e6;
+        border-radius: 12px;
+        padding: 14px 8px;
         cursor: pointer;
+        transition: border-color 0.2s, background 0.2s, color 0.2s;
+        background: #fff;
+        user-select: none;
+      }
+      .delivery-option-card.active {
+        border-color: #0d6efd;
+        background: #e8f0fe;
+        color: #0d6efd;
+      }
+      .delivery-option-card:hover { border-color: #0d6efd; }
+
+      .shop-option-card {
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        padding: 12px;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+      }
+      .shop-option-card.active {
+        border-color: #0d6efd;
+        background: #e8f0fe;
+      }
+      .shop-option-card:hover { border-color: #0d6efd; }
+
+      .address-card {
+        transition: border-color 0.2s, background 0.2s;
+        cursor: pointer;
+        border: 2px solid #dee2e6!important;
+        border-radius: 10px;
+      }
+      .address-card:hover { border-color: #0d6efd !important; }
+      .address-card.active {
+        border-color: #0d6efd !important;
+        background: #e8f0fe !important;
       }
 
-      .address-card:hover {
-        background: #f8fafc !important;
-        border-color: #10b981 !important;
-      }
-
-      .address-card.border-primary {
-        background: #f0fdf4 !important;
-      }
-
-      .payment-methods .form-check {
+      .payment-option {
+        display: flex;
+        align-items: center;
         background: white;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 1rem;
-        transition: all 0.3s ease;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+        user-select: none;
       }
-
-      .payment-methods .form-check:hover {
-        background: #f8fafc;
+      .payment-option:hover {
         border-color: #10b981;
+        background: #f8fafc;
       }
-
-      .payment-methods .form-check-input:checked ~ .form-check-label {
-        color: #10b981;
+      .payment-option.active {
+        border-color: #10b981;
+        background: #f0fdf4;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+      }
+      .payment-option.active .form-check-label {
+        color: #065f46;
         font-weight: 600;
+      }
+      .payment-option .form-check-input {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        accent-color: #10b981;
+        cursor: pointer;
       }
 
       .order-total {
@@ -1308,7 +1369,6 @@
       let cartModalOpen = false;
       let currentView = 'cart'; // cart, checkout, success
       let selectedAddress = null;
-      let customerAddresses = [];
 
       // Cart Modal Functions
       function openCartModal() {
@@ -1340,7 +1400,16 @@
         document.getElementById('checkout-view').style.display = 'block';
         document.getElementById('success-view').style.display = 'none';
         currentView = 'checkout';
-        loadAddresses();
+        // Reset delivery method selection
+        cartDeliveryMethod = '';
+        cartShopAddress    = '';
+        cartDeliveryCharge = 0;
+        cartPincodeValid   = false;
+        document.getElementById('option-shop').classList.remove('active');
+        document.getElementById('option-home').classList.remove('active');
+        document.getElementById('shop-panel').style.display = 'none';
+        document.getElementById('home-panel').style.display = 'none';
+        togglePlaceOrderBtn(false);
         loadCheckoutSummary();
       }
 
@@ -1459,58 +1528,225 @@
         alert('Item removed from cart');
       }
 
-      // Address Management
+      // ── Delivery Method ──────────────────────────────────────────────
+      let cartDeliveryMethod = '';
+      let cartShopAddress    = '';
+      let cartDeliveryCharge  = 0;
+      let customerAddresses      = <%= raw (current_customer ? current_customer.customer_addresses.order(is_default: :desc, created_at: :asc).map { |a| { id: a.id, name: a.name, mobile: a.mobile, address_type: a.address_type, address: a.address, landmark: a.landmark, city: a.city, state: a.state, pincode: a.pincode, is_default: a.is_default } } : []).to_json %>;
+
+      function selectDeliveryMethod(method) {
+        cartDeliveryMethod = method;
+        document.getElementById('option-shop').classList.toggle('active', method === 'shop');
+        document.getElementById('option-home').classList.toggle('active', method === 'home');
+        document.getElementById('shop-panel').style.display  = method === 'shop'  ? 'block' : 'none';
+        document.getElementById('home-panel').style.display  = method === 'home'  ? 'block' : 'none';
+
+        if (method === 'shop') {
+          cartPincodeValid = true;
+          setDeliveryCharge(0, '', 'pickup');
+          togglePlaceOrderBtn(true);
+        } else {
+          cartPincodeValid = false;
+          setDeliveryCharge(0, '', 'unavailable');
+          togglePlaceOrderBtn(false);
+          loadAddresses();
+        }
+      }
+
+      function selectShop(index, address) {
+        cartShopAddress = address;
+        document.querySelectorAll('[id^="shop-card-"]').forEach(el => el.classList.remove('active'));
+        const card = document.getElementById('shop-card-' + index);
+        if (card) card.classList.add('active');
+        setDeliveryCharge(0, '', 'pickup');
+      }
+
+      // ── Address Management ────────────────────────────────────────────
       function loadAddresses() {
-        // Simulate loading customer addresses (replace with actual API call)
-        const addressContainer = document.getElementById('address-list');
-
-        // Mock addresses for now
-        customerAddresses = [
-          {
-            id: 1,
-            name: '<%= current_customer&.display_name || "Guest User" %>',
-            mobile: '<%= current_customer&.mobile || "N/A" %>',
-            address: 'Sample Address, Street 1',
-            city: 'City Name',
-            state: 'State Name',
-            pincode: '123456',
-            address_type: 'home',
-            is_default: true
-          }
-        ];
-
+        const container = document.getElementById('address-list');
+        if (!container) return;
         if (customerAddresses.length === 0) {
-          addressContainer.innerHTML = '<p class="text-muted">No saved addresses. Please add a new address.</p>';
+          container.innerHTML = '<p class="text-muted small">No saved addresses. Add one below.</p>';
+          return;
+        }
+        container.innerHTML = customerAddresses.map((addr, i) => {
+          const badge = addr.address_type ? `<span class="badge bg-secondary ms-1">${addr.address_type}</span>` : '';
+          return `
+            <div class="address-card mb-2 p-3 ${i === 0 ? 'active' : ''}"
+                 data-index="${i}"
+                 data-address-id="${addr.id}"
+                 data-pincode="${addr.pincode || ''}"
+                 onclick="selectAddress(${i})">
+              <strong>${addr.name || ''}${badge}</strong><br>
+              <span class="small">${addr.address || ''}${addr.city ? ', ' + addr.city : ''}${addr.state ? ', ' + addr.state : ''} - ${addr.pincode || ''}</span><br>
+              <small class="text-muted">📞 ${addr.mobile || ''}</small>
+            </div>`;
+        }).join('');
+
+        // Auto-select first address and validate its pincode
+        selectedAddress = customerAddresses[0];
+        if (selectedAddress?.pincode) validatePincodeDelivery(selectedAddress.pincode);
+      }
+
+      function selectAddress(index) {
+        selectedAddress = customerAddresses[index];
+        document.querySelectorAll('.address-card').forEach((el, i) => el.classList.toggle('active', i === index));
+        if (selectedAddress?.pincode) validatePincodeDelivery(selectedAddress.pincode);
+      }
+
+      // ── Pincode Delivery Validation ───────────────────────────────────
+      // Track whether current home-delivery pincode is serviceable
+      let cartPincodeValid = false;
+
+      function togglePlaceOrderBtn(show) {
+        const btn = document.getElementById('place-order-btn');
+        const notice = document.getElementById('delivery-unavailable-notice');
+        if (!btn) return;
+        if (show) {
+          btn.style.display = 'block';
+          if (notice) notice.style.display = 'none';
+        } else {
+          btn.style.display = 'none';
+          if (notice) notice.style.display = 'block';
+        }
+      }
+
+      function onNewAddressPincodeBlur(input) {
+        const pincode = input.value.trim();
+        if (pincode.length === 6) validatePincodeDelivery(pincode);
+      }
+
+      function validatePincodeDelivery(pincode) {
+        const msgEl = document.getElementById('pincode-validation-msg');
+        if (!pincode || !/^\d{6}$/.test(pincode)) {
+          cartPincodeValid = false;
+          togglePlaceOrderBtn(false);
           return;
         }
 
-        let addressesHtml = '';
-        customerAddresses.forEach((address, index) => {
-          const isSelected = selectedAddress?.id === address.id || (index === 0 && !selectedAddress);
-          if (index === 0 && !selectedAddress) selectedAddress = address;
+        if (msgEl) { msgEl.textContent = 'Checking pincode…'; msgEl.className = 'text-muted small mt-1'; }
 
-          addressesHtml += `
-            <div class="address-card mb-3 p-3 border rounded ${isSelected ? 'border-primary bg-light' : ''}">
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="selected_address" value="${address.id}"
-                       ${isSelected ? 'checked' : ''} onchange="selectAddress(${address.id})">
-                <label class="form-check-label">
-                  <strong>${address.name}</strong> <span class="badge bg-secondary">${address.address_type}</span>
-                  <br>
-                  ${address.address}, ${address.city}, ${address.state} - ${address.pincode}
-                  <br>
-                  <small class="text-muted">📞 ${address.mobile}</small>
-                </label>
-              </div>
-            </div>
-          `;
-        });
-
-        addressContainer.innerHTML = addressesHtml;
+        fetch(`/customer/shop/check_delivery_pincode?pincode=${pincode}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.deliverable !== false) {
+              const charge = parseFloat(data.delivery_charge) || 0;
+              cartPincodeValid = true;
+              setDeliveryCharge(charge, pincode, data.area || pincode);
+              togglePlaceOrderBtn(true);
+              if (msgEl) {
+                msgEl.textContent = charge > 0
+                  ? `✓ Delivery available — ₹${charge.toFixed(2)} delivery charge added`
+                  : '✓ Delivery available — Free delivery';
+                msgEl.className = 'text-success small mt-1 fw-medium';
+              }
+            } else {
+              cartPincodeValid = false;
+              setDeliveryCharge(0, '', 'unavailable');
+              togglePlaceOrderBtn(false);
+              if (msgEl) {
+                msgEl.textContent = '✗ Delivery not available for pincode ' + pincode + '. Please try a different pincode or choose Collect from Shop.';
+                msgEl.className = 'text-danger small mt-1 fw-medium';
+              }
+            }
+          })
+          .catch(() => {
+            cartPincodeValid = false;
+            togglePlaceOrderBtn(false);
+            if (msgEl) { msgEl.textContent = 'Could not verify pincode. Please try again.'; msgEl.className = 'text-warning small mt-1'; }
+          });
       }
 
-      function selectAddress(addressId) {
-        selectedAddress = customerAddresses.find(addr => addr.id == addressId);
+      function setDeliveryCharge(amount, pincode, area) {
+        const freeRow   = document.getElementById('delivery-free-row');
+        const chargeRow = document.getElementById('delivery-charge-row');
+        const amountEl  = document.getElementById('delivery-charge-amount');
+        const labelEl   = document.getElementById('delivery-pincode-label');
+        const freeLabel = document.getElementById('delivery-free-label');
+
+        // Always hide both first, then show exactly one
+        if (freeRow)   freeRow.style.display   = 'none';
+        if (chargeRow) chargeRow.style.display  = 'none';
+
+        if (area === 'pickup') {
+          cartDeliveryCharge = 0;
+          if (freeRow)  { freeRow.style.display = 'flex'; if (freeLabel) freeLabel.textContent = 'Free (Pickup)'; }
+        } else if (area === 'unavailable') {
+          cartDeliveryCharge = 0;
+          // both rows stay hidden — delivery not available
+        } else if (amount > 0) {
+          cartDeliveryCharge = amount;
+          if (amountEl) amountEl.textContent = `₹${amount.toFixed(2)}`;
+          if (labelEl)  labelEl.textContent  = area || pincode || '';
+          if (chargeRow) chargeRow.style.display = 'flex';
+        } else {
+          cartDeliveryCharge = 0;
+          if (freeRow) { freeRow.style.display = 'flex'; if (freeLabel) freeLabel.textContent = 'Free Delivery'; }
+        }
+        updateFinalTotal();
+      }
+
+      function updateFinalTotal() {
+        const subtotalEl = document.getElementById('subtotal-amount');
+        const finalEl    = document.getElementById('final-total');
+        if (!subtotalEl || !finalEl) return;
+        const subtotal = parseFloat(subtotalEl.textContent.replace('₹', '')) || 0;
+        finalEl.textContent = `₹${(subtotal + cartDeliveryCharge).toFixed(2)}`;
+      }
+
+      // ── Save New Address ──────────────────────────────────────────────
+      function saveNewAddress() {
+        const name    = document.getElementById('new_name')?.value?.trim();
+        const mobile  = document.getElementById('new_mobile')?.value?.trim();
+        const type    = document.getElementById('new_address_type')?.value;
+        const pincode = document.getElementById('new_pincode')?.value?.trim();
+        const address = document.getElementById('new_address')?.value?.trim();
+        const city    = document.getElementById('new_city')?.value?.trim();
+        const state   = document.getElementById('new_state')?.value?.trim();
+        const landmark= document.getElementById('new_landmark')?.value?.trim();
+
+        if (!name || !mobile || !type || !pincode || !address || !city || !state) {
+          alert('Please fill in all required fields.'); return;
+        }
+        if (!/^\d{6}$/.test(pincode)) { alert('Please enter a valid 6-digit pincode.'); return; }
+
+        const msgEl = document.getElementById('pincode-validation-msg');
+        if (msgEl && msgEl.classList.contains('text-danger') && msgEl.textContent.includes('not available')) {
+          if (!confirm('Delivery may not be available to this pincode. Save address anyway?')) return;
+        }
+
+        fetch('/customer/addresses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
+                     'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+          body: JSON.stringify({ customer_address: { name, mobile, address_type: type, pincode, address, city, state, landmark } })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            customerAddresses.push(data.address);
+            hideAddAddressForm();
+            loadAddresses();
+            // Auto-select the newly added address
+            selectAddress(customerAddresses.length - 1);
+            if (data.address.pincode) validatePincodeDelivery(data.address.pincode);
+            // Clear form
+            ['new_name','new_mobile','new_address_type','new_pincode','new_address','new_city','new_state','new_landmark'].forEach(id => {
+              const el = document.getElementById(id); if (el) el.value = '';
+            });
+          } else {
+            alert(data.error || 'Failed to save address. Please try again.');
+          }
+        })
+        .catch(() => alert('Network error. Please try again.'));
+      }
+
+      function selectPaymentOption(value) {
+        document.querySelectorAll('.payment-option').forEach(el => el.classList.remove('active'));
+        const card = document.getElementById('payment-card-' + value);
+        if (card) card.classList.add('active');
+        const radio = document.getElementById(value);
+        if (radio) radio.checked = true;
       }
 
       function showAddAddressForm() {
@@ -1546,7 +1782,7 @@
 
         summaryContainer.innerHTML = itemsHtml;
         document.getElementById('subtotal-amount').textContent = `₹${(total || 0).toFixed(2)}`;
-        document.getElementById('final-total').textContent = `₹${(total || 0).toFixed(2)}`;
+        updateFinalTotal();
       }
 
       function placeOrder() {
@@ -1571,60 +1807,62 @@
           `;
         }
 
-        if (!selectedAddress) {
-          alert('Please select a delivery address');
-          // Restore button state
+        const restoreBtn = () => {
           if (placeOrderBtn) {
             placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
             placeOrderBtn.disabled = false;
           }
-          return;
+        };
+
+        // Validate delivery method chosen
+        if (!cartDeliveryMethod) {
+          alert('Please select a delivery option (Collect from Shop or Deliver to My Location)');
+          restoreBtn(); return;
+        }
+
+        if (cartDeliveryMethod === 'shop' && !cartShopAddress) {
+          alert('Please select a pickup shop location');
+          restoreBtn(); return;
+        }
+
+        if (cartDeliveryMethod === 'home' && !selectedAddress) {
+          alert('Please select a delivery address');
+          restoreBtn(); return;
+        }
+
+        if (cartDeliveryMethod === 'home' && !cartPincodeValid) {
+          alert('Delivery is not available for the selected pincode. Please choose a different address or collect from shop.');
+          restoreBtn(); return;
         }
 
         const cart = JSON.parse(localStorage.getItem('customerCart') || '[]');
         if (cart.length === 0) {
           alert('Your cart is empty');
-          // Restore button state
-          if (placeOrderBtn) {
-            placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
-            placeOrderBtn.disabled = false;
-          }
-          return;
+          restoreBtn(); return;
         }
-
-        // Check for delivery store selection if delivery only at shop is enabled
-        <% if SystemSetting.delivery_only_at_shop_enabled? %>
-        const selectedDeliveryStore = document.querySelector('input[name="delivery_store"]:checked');
-        if (!selectedDeliveryStore) {
-          alert('Please select a pickup location');
-          // Restore button state
-          if (placeOrderBtn) {
-            placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
-            placeOrderBtn.disabled = false;
-          }
-          return;
-        }
-        <% end %>
 
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
-        // Create order data for backend
-        const orderData = {
-          customer_name: selectedAddress.name,
-          customer_phone: selectedAddress.mobile,
+        let orderData = {
           customer_email: '<%= current_customer&.email %>',
-          delivery_address: `${selectedAddress.address}, ${selectedAddress.city}, ${selectedAddress.state} - ${selectedAddress.pincode}`,
           payment_method: paymentMethod,
           payment_status: paymentMethod === 'cod' ? 'unpaid' : 'paid',
-          cart_data: cart
+          cart_data: cart,
+          delivery_charge: cartDeliveryCharge
         };
 
-        // Add delivery store if selected
-        <% if SystemSetting.delivery_only_at_shop_enabled? %>
-        if (selectedDeliveryStore) {
-          orderData.delivery_store = selectedDeliveryStore.value;
+        if (cartDeliveryMethod === 'shop') {
+          orderData.customer_name  = '<%= current_customer&.display_name %>';
+          orderData.customer_phone = '<%= current_customer&.mobile %>';
+          orderData.delivery_address = 'Collect from Shop: ' + cartShopAddress;
+          orderData.delivery_store   = cartShopAddress;
+          orderData.selected_shop_address = cartShopAddress;
+        } else {
+          orderData.customer_name  = selectedAddress.name;
+          orderData.customer_phone = selectedAddress.mobile;
+          orderData.delivery_address = [selectedAddress.address, selectedAddress.city, selectedAddress.state, selectedAddress.pincode].filter(Boolean).join(', ');
+          orderData.customer_address_id = selectedAddress.id;
         }
-        <% end %>
 
         // Continue with existing loading (kept for compatibility)
         placeOrderBtn.disabled = true;

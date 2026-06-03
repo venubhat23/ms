@@ -73,24 +73,28 @@
               <span class="text-primary fw-medium"><%= @booking.invoice_number %></span>
             </div>
           <% end %>
-          <% if @booking.delivery_address.present? %>
-            <div class="col-12">
-              <strong class="text-muted d-block">Delivery Address</strong>
-              <%= simple_format(@booking.delivery_address) %>
-            </div>
-          <% end %>
           <% if @booking.delivery_store.present? %>
             <div class="col-12">
-              <div class="alert alert-info d-flex align-items-start">
+              <div class="alert alert-info d-flex align-items-start mb-0">
                 <div class="me-2">
                   <i class="bi bi-shop fs-5 text-primary"></i>
                 </div>
                 <div>
-                  <strong class="text-primary d-block">Pickup Location</strong>
+                  <strong class="text-primary d-block">Collect from Shop</strong>
                   <small class="text-muted mb-1 d-block">Please collect your order from the following location:</small>
                   <div class="fw-medium">
                     <%= simple_format(@booking.delivery_store) %>
                   </div>
+                </div>
+              </div>
+            </div>
+          <% elsif @booking.delivery_address.present? %>
+            <div class="col-12">
+              <div class="d-flex align-items-start">
+                <i class="bi bi-house-fill text-success me-2 mt-1"></i>
+                <div>
+                  <strong class="text-muted d-block">Delivery to My Address</strong>
+                  <div class="mt-1"><%= simple_format(@booking.delivery_address) %></div>
                 </div>
               </div>
             </div>

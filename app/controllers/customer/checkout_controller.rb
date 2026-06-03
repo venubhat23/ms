@@ -145,9 +145,17 @@ class Customer::CheckoutController < Customer::BaseController
           booked_by: 'customer'
         }
 
-        # Add delivery store if provided (for delivery only at shop feature)
         if params[:delivery_store].present?
           booking_attributes[:delivery_store] = params[:delivery_store]
+        end
+        if params[:selected_shop_address].present?
+          booking_attributes[:selected_shop_address] = params[:selected_shop_address]
+        end
+        if params[:customer_address_id].present?
+          addr = current_customer.customer_addresses.find_by(id: params[:customer_address_id])
+          if addr
+            booking_attributes[:delivery_address] = [addr.address, addr.city, addr.state, addr.pincode].compact.join(', ')
+          end
         end
 
         @booking = Booking.new(booking_attributes)

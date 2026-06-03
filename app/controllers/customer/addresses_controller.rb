@@ -15,18 +15,33 @@ class Customer::AddressesController < Customer::BaseController
   def create
     @address = current_customer.customer_addresses.build(address_params)
 
-    # If this is set as default, make others non-default
     if @address.is_default?
       current_customer.customer_addresses.update_all(is_default: false)
     elsif current_customer.customer_addresses.empty?
-      # First address should be default
       @address.is_default = true
     end
 
     if @address.save
-      redirect_to customer_addresses_path, notice: 'Address added successfully!'
+      respond_to do |format|
+        format.json {
+          render json: {
+            success: true,
+            address: {
+              id: @address.id, name: @address.name, mobile: @address.mobile,
+              address_type: @address.address_type, address: @address.address,
+              landmark: @address.landmark, city: @address.city,
+              state: @address.state, pincode: @address.pincode,
+              is_default: @address.is_default
+            }
+          }
+        }
+        format.html { redirect_to customer_addresses_path, notice: 'Address added successfully!' }
+      end
     else
-      render :new
+      respond_to do |format|
+        format.json { render json: { success: false, error: @address.errors.full_messages.join(', ') }, status: :unprocessable_entity }
+        format.html { render :new }
+      end
     end
   end
 

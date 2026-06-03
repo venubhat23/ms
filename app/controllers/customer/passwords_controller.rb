@@ -95,6 +95,9 @@ class Customer::PasswordsController < Customer::BaseController
       if @customer.save
         @customer.clear_password_reset_token!
 
+        # Sync the associated User record so mobile login (Devise path) works with the new password
+        sync_user_password(@customer.email, password)
+
         begin
           CustomerMailer.password_changed_notification(@customer).deliver_now
         rescue => e
@@ -118,5 +121,15 @@ class Customer::PasswordsController < Customer::BaseController
 
   def password_params
     params.permit(:password, :password_confirmation, :token)
+  end
+
+  def sync_user_password(email, new_password)
+    user = User.find_by('LOWER(email) = ?', email.downcase)
+    return unless user
+    user.password = new_password
+    user.save(validate: false)
+    Rails.logger.info "Synced User password for #{email} after customer reset"
+  rescue => e
+    Rails.logger.error "Failed to sync User password for #{email}: #{e.message}"
   end
 end

@@ -18,36 +18,42 @@
     color: var(--green-dark);
     font-weight: 600;
     margin-bottom: 8px;
+    font-size: 0.9rem;
   }
 
   .password-requirements {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--muted);
     margin-top: 5px;
+  }
+
+  /* Prevent iOS auto-zoom on focus — must be >= 16px */
+  .form-control {
+    font-size: 16px !important;
   }
 
   .btn-reset {
     background: linear-gradient(135deg, var(--green) 0%, var(--green-mid) 100%);
     border: none;
     border-radius: 12px;
-    padding: 14px 24px;
+    padding: 16px 24px;
     font-weight: 700;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     transition: all 0.4s ease;
     width: 100%;
     color: white;
-    position: relative;
-    overflow: hidden;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .btn-reset:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(93, 130, 51, 0.3);
+  .btn-reset:hover,
+  .btn-reset:active {
     background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
     color: var(--dark);
+    box-shadow: 0 8px 25px rgba(93, 130, 51, 0.3);
   }
 
   .icon-container {
@@ -60,6 +66,7 @@
     justify-content: center;
     margin: 0 auto 20px;
     animation: pulse 2s infinite;
+    flex-shrink: 0;
   }
 
   .success-container {
@@ -77,11 +84,12 @@
     justify-content: center;
     margin: 0 auto 20px;
     animation: successPop 0.5s ease-out;
+    flex-shrink: 0;
   }
 
   .success-title {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 700;
     color: #1e7e34;
     margin-bottom: 12px;
@@ -95,24 +103,103 @@
   }
 
   .btn-login-now {
-    display: inline-block;
+    display: block;
     background: linear-gradient(135deg, var(--green) 0%, var(--green-mid) 100%);
     color: white;
     text-decoration: none;
-    padding: 12px 32px;
+    padding: 16px 32px;
     border-radius: 12px;
     font-weight: 700;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     transition: all 0.3s ease;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
-  .btn-login-now:hover {
+  .btn-login-now:hover,
+  .btn-login-now:active {
     background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
     color: var(--dark);
-    transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(93, 130, 51, 0.3);
+    text-decoration: none;
+  }
+
+  /* Keep container top-aligned on mobile so keyboard doesn't push content off screen */
+  @media (max-width: 600px) {
+    .main-container {
+      align-items: flex-start !important;
+      padding-top: 24px !important;
+      padding-bottom: 32px !important;
+      min-height: 100dvh !important;
+    }
+
+    .login-card {
+      padding: 24px 20px !important;
+      margin: 0 !important;
+      border-radius: 16px !important;
+    }
+
+    .login-logo img {
+      width: 60px !important;
+      height: 60px !important;
+    }
+
+    .brand-name {
+      font-size: 1.25rem;
+    }
+
+    .icon-container {
+      width: 56px;
+      height: 56px;
+    }
+
+    .icon-container i {
+      font-size: 1.4rem !important;
+    }
+
+    .welcome-title {
+      font-size: 1.4rem !important;
+    }
+
+    .welcome-subtitle {
+      font-size: 0.85rem;
+    }
+
+    .welcome-section {
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .input-group-text {
+      padding: 10px 14px !important;
+    }
+
+    .success-icon {
+      width: 64px;
+      height: 64px;
+    }
+
+    .success-icon i {
+      font-size: 1.6rem !important;
+    }
+
+    .success-title {
+      font-size: 1.35rem;
+    }
+
+    .success-message {
+      font-size: 0.9rem;
+    }
+
+    .auth-links {
+      margin-top: 16px;
+    }
   }
 
   @keyframes pulse {

@@ -345,6 +345,18 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
 
     if customer.save
       customer.clear_password_reset_token!
+
+      # Sync the associated User record so Devise-based mobile login also accepts the new password
+      begin
+        user = User.find_by('LOWER(email) = ?', customer.email.downcase)
+        if user
+          user.password = password
+          user.save(validate: false)
+        end
+      rescue => e
+        Rails.logger.error "Failed to sync User password for #{customer.email}: #{e.message}"
+      end
+
       begin
         CustomerMailer.password_changed_notification(customer).deliver_now
       rescue => e

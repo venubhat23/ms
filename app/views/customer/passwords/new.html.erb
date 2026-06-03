@@ -218,6 +218,17 @@
   transform: translateY(0);
 }
 
+/* Better touch behavior */
+.submit-btn {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.sign-in-link {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 .footer-links {
   text-align: center;
   padding-top: 24px;
@@ -243,31 +254,66 @@
   text-decoration: underline;
 }
 
-/* Responsive Design */
-@media (max-width: 480px) {
+/* Mobile — prevent keyboard from pushing card off screen */
+@media (max-width: 600px) {
   .forgot-password-container {
-    padding: 16px;
+    align-items: flex-start;
+    padding: 20px 16px 32px;
+    min-height: 100dvh; /* dynamic viewport height on modern browsers */
   }
 
   .forgot-password-card {
-    padding: 32px 24px;
+    padding: 28px 20px 24px;
+    border-radius: 18px;
+    max-width: 100%;
+  }
+
+  .logo-section {
+    margin-bottom: 20px;
+  }
+
+  .logo-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 0;
+  }
+
+  .logo-icon i {
+    font-size: 24px;
+  }
+
+  .header-section {
+    margin-bottom: 20px;
   }
 
   .main-title {
-    font-size: 24px;
+    font-size: 22px;
+    margin-bottom: 8px;
   }
 
   .subtitle {
     font-size: 13px;
   }
 
-  .logo-icon {
-    width: 70px;
-    height: 70px;
+  .reset-form {
+    margin-bottom: 20px;
   }
 
-  .logo-icon i {
-    font-size: 28px;
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-input {
+    padding: 14px 16px;
+  }
+
+  .submit-btn {
+    padding: 15px 20px;
+    font-size: 13px;
+  }
+
+  .footer-links {
+    padding-top: 16px;
   }
 }
 </style>

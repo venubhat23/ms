@@ -36,7 +36,9 @@ class Customer::PasswordsController < Customer::BaseController
   end
 
   def edit
-    # Reset password form (comes from email link)
+    # Coming back here after a successful reset — show success state, skip token check
+    return if flash[:reset_success]
+
     @token = params[:token]
     @customer = Customer.find_by_password_reset_token(@token)
 

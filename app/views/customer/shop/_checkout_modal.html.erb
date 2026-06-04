@@ -237,7 +237,7 @@
 
           <!-- Online Payment Option -->
           <div class="payment-option selected" id="payment-option-cashfree" data-method="cashfree">
-            <input type="radio" name="payment_method" id="payment_cashfree" value="cashfree" checked>
+            <input type="radio" name="modal_payment_method" id="payment_cashfree" value="cashfree" checked>
             <label for="payment_cashfree" class="mb-0">
               <i class="bi bi-credit-card me-2"></i>
               <strong>Pay Online</strong>
@@ -253,7 +253,7 @@
 
           <!-- Cash on Delivery Option -->
           <div class="payment-option" id="payment-option-cod" data-method="cod">
-            <input type="radio" name="payment_method" id="payment_cod" value="cod">
+            <input type="radio" name="modal_payment_method" id="payment_cod" value="cod">
             <label for="payment_cod" class="mb-0">
               <i class="bi bi-cash me-2"></i>
               <strong>Cash on Delivery</strong>
@@ -396,7 +396,7 @@ const PaymentSystem = {
     });
 
     // Also handle radio button changes
-    const radioButtons = document.querySelectorAll('input[name="payment_method"]');
+    const radioButtons = document.querySelectorAll('input[name="modal_payment_method"]');
     radioButtons.forEach(radio => {
       radio.addEventListener('change', function() {
         if (this.checked) {
@@ -416,7 +416,7 @@ const PaymentSystem = {
       window.selectedPaymentMethod = method;
 
       // Update radio buttons
-      const radioButtons = document.querySelectorAll('input[name="payment_method"]');
+      const radioButtons = document.querySelectorAll('input[name="modal_payment_method"]');
       radioButtons.forEach(radio => {
         radio.checked = radio.value === method;
       });
@@ -734,7 +734,7 @@ function selectPaymentMethod(method) {
 
     // Fallback for old system
     // Update radio buttons
-    document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+    document.querySelectorAll('input[name="modal_payment_method"]').forEach(radio => {
       radio.checked = radio.value === method;
     });
 
@@ -1156,14 +1156,14 @@ async function processPayment() {
 
   try {
     // Get the currently selected payment method from radio buttons
-    const selectedRadio = document.querySelector('input[name="payment_method"]:checked');
+    const selectedRadio = document.querySelector('input[name="modal_payment_method"]:checked');
     const currentMethod = selectedRadio ? selectedRadio.value : 'cashfree';
 
     console.log('🎯 Selected payment method from radio:', currentMethod);
     console.log('🎯 PaymentSystem.selectedMethod:', PaymentSystem.selectedMethod);
     console.log('🎯 selectedPaymentMethod variable:', selectedPaymentMethod);
     console.log('🎯 Radio button found:', selectedRadio ? 'YES' : 'NO');
-    console.log('🎯 All payment method radios:', document.querySelectorAll('input[name="payment_method"]'));
+    console.log('🎯 All payment method radios:', document.querySelectorAll('input[name="modal_payment_method"]'));
 
     // Use radio button value, fall back to PaymentSystem.selectedMethod, then selectedPaymentMethod
     const finalMethod = (selectedRadio ? selectedRadio.value : null) || PaymentSystem.selectedMethod || selectedPaymentMethod || 'cod';
@@ -1936,54 +1936,15 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// Override any global functions that might conflict
-window.placeOrder = function() {
-  console.log('⚠️ Global placeOrder() called but redirecting to Cashfree processPayment()');
-  if (document.getElementById('payNowBtn')) {
-    processPayment();
-  } else {
-    console.error('PayNow button not found');
-  }
-};
-
 // Override showCheckoutView to use our modal instead
 window.showCheckoutView = function() {
-  console.log('⚠️ showCheckoutView() called but redirecting to Cashfree showCheckout()');
   showCheckout();
 };
 
 // Override proceedToCheckout to use our modal
 window.proceedToCheckout = function() {
-  console.log('⚠️ proceedToCheckout() called but redirecting to Cashfree showCheckout()');
   showCheckout();
 };
-
-// Override any button clicks that might trigger the old checkout
-document.addEventListener('click', function(e) {
-  const target = e.target;
-
-  // Check if it's a button that contains "place order" text
-  if (target.tagName === 'BUTTON' && target.textContent.toLowerCase().includes('place order')) {
-    // Check if it's not our Cashfree button
-    if (target.id !== 'payNowBtn') {
-      console.log('🚨 Intercepted place order button click - redirecting to Cashfree');
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Check if modal is already open
-      const modalElement = document.getElementById('checkoutModal');
-      if (modalElement && modalElement.style.display !== 'none') {
-        // Modal is open, just trigger payment
-        processPayment();
-      } else {
-        // Modal not open, show it first
-        showCheckout();
-      }
-
-      return false;
-    }
-  }
-}, true); // Use capture phase to intercept early
 
 // Global error handler for uncaught promise rejections
 window.addEventListener('unhandledrejection', function(event) {

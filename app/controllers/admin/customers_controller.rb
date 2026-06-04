@@ -734,47 +734,25 @@ class Admin::CustomersController < Admin::ApplicationController
   def generate_password
     begin
       ActiveRecord::Base.transaction do
-        # Generate password
-        generated_password = "Welcome@123"
+        generated_password = Customer.generate_random_password
 
-        # Store password in customer record
-        @customer.update!(auto_generated_password: generated_password)
+        # Update customer password — sets password_digest via has_secure_password
+        # so authenticate() works with the new password regardless of prior state
+        @customer.password              = generated_password
+        @customer.password_confirmation = generated_password
+        @customer.auto_generated_password = generated_password
+        @customer.save!
 
-        # Find or create User account
+        # Sync to User (Devise) record if one exists, so both auth paths work
         user = User.find_by(email: @customer.email, user_type: 'customer')
-
         if user
-          # Update existing user password
           user.update!(
             password: generated_password,
             password_confirmation: generated_password
           )
-          message = "Password generated and updated for existing user account."
+          message = "New password generated and updated."
         else
-          # Create new User account
-          if @customer.email.present?
-            User.create!(
-              first_name: @customer.first_name,
-              last_name: @customer.last_name,
-              middle_name: @customer.middle_name,
-              email: @customer.email,
-              mobile: @customer.mobile,
-              password: generated_password,
-              password_confirmation: generated_password,
-              user_type: 'customer',
-              address: @customer.address,
-              city: 'Unknown',
-              state: 'Unknown',
-              pincode: '000000',
-              country: 'India',
-              status: true,
-              is_active: true,
-              is_verified: false
-            )
-            message = "User account created with generated password."
-          else
-            message = "Cannot create user account: email is required."
-          end
+          message = "New password generated."
         end
 
         respond_to do |format|

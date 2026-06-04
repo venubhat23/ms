@@ -2000,28 +2000,37 @@
       function placeOrder() {
         const placeOrderBtn = document.getElementById('place-order-btn');
 
-        // Save original content once
+        // Save original content once (before we touch innerHTML)
         if (placeOrderBtn && !placeOrderBtn.originalContent) {
           placeOrderBtn.originalContent = placeOrderBtn.innerHTML;
         }
 
-        // Immediately show button loading state on click
+        // ── IMMEDIATE feedback on click ──────────────────────────────────
+        const paymentMethod = document.querySelector('#checkout-view input[name="payment_method"]:checked')?.value || 'cod';
+        const isOnline = paymentMethod === 'upi';
+
         if (placeOrderBtn) {
           placeOrderBtn.disabled = true;
+          placeOrderBtn.style.transition = 'all 0.2s';
+          placeOrderBtn.style.transform  = 'scale(0.97)';
           placeOrderBtn.innerHTML = `
-            <span style="display:inline-flex;align-items:center;gap:8px;">
-              <span style="width:16px;height:16px;border:2.5px solid rgba(255,255,255,0.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:btnSpin 0.7s linear infinite;"></span>
-              Processing...
+            <span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+              <span style="width:18px;height:18px;border:2.5px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;display:inline-block;animation:btnSpin 0.65s linear infinite;flex-shrink:0;"></span>
+              <span>${isOnline ? 'Opening Payment…' : 'Placing Order…'}</span>
             </span>
             <style>@keyframes btnSpin{to{transform:rotate(360deg)}}</style>
           `;
         }
 
+        // Show full overlay loader immediately
+        showPlaceOrderLoader(paymentMethod);
+
         const restoreBtn = () => {
           hidePlaceOrderLoader();
           if (placeOrderBtn) {
-            placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
-            placeOrderBtn.disabled = false;
+            placeOrderBtn.innerHTML  = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
+            placeOrderBtn.disabled   = false;
+            placeOrderBtn.style.transform = '';
           }
         };
 
@@ -2052,8 +2061,7 @@
           restoreBtn(); return;
         }
 
-        // Scope to #checkout-view to avoid matching the Cashfree modal's radio buttons on the same page
-        const paymentMethod = document.querySelector('#checkout-view input[name="payment_method"]:checked')?.value || 'cod';
+        // paymentMethod already read at top of placeOrder (scoped to #checkout-view)
 
         // Re-check free delivery: user may have added items after seeing the nudge
         if (cartDeliveryMethod === 'home' && window.cartFreeDeliveryData) {

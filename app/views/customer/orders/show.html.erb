@@ -73,8 +73,9 @@
               <span class="text-primary fw-medium"><%= @booking.invoice_number %></span>
             </div>
           <% end %>
-          <% if @booking.delivery_store.present? %>
-            <div class="col-12">
+          <div class="col-12">
+            <strong class="text-muted d-block mb-2">Delivery Option</strong>
+            <% if @booking.delivery_store.present? %>
               <div class="alert alert-info d-flex align-items-start mb-0">
                 <div class="me-2">
                   <i class="bi bi-shop fs-5 text-primary"></i>
@@ -87,18 +88,18 @@
                   </div>
                 </div>
               </div>
-            </div>
-          <% elsif @booking.delivery_address.present? %>
-            <div class="col-12">
-              <div class="d-flex align-items-start">
+            <% elsif @booking.delivery_address.present? %>
+              <div class="d-flex align-items-start p-3 bg-light rounded">
                 <i class="bi bi-house-fill text-success me-2 mt-1"></i>
                 <div>
-                  <strong class="text-muted d-block">Delivery to My Address</strong>
-                  <div class="mt-1"><%= simple_format(@booking.delivery_address) %></div>
+                  <strong class="d-block">Home Delivery</strong>
+                  <div class="mt-1 text-muted"><%= simple_format(@booking.delivery_address) %></div>
                 </div>
               </div>
-            </div>
-          <% end %>
+            <% else %>
+              <span class="text-muted">Not specified</span>
+            <% end %>
+          </div>
         </div>
       </div>
     </div>
@@ -229,6 +230,18 @@
           </div>
         <% end %>
 
+        <% if @booking.shipping_charges.to_f > 0 %>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Delivery Charge:</span>
+            <span class="fw-medium">₹<%= number_with_delimiter(@booking.shipping_charges.to_f) %></span>
+          </div>
+        <% else %>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Delivery Charge:</span>
+            <span class="fw-medium text-success">Free</span>
+          </div>
+        <% end %>
+
         <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
           <%
             # Calculate the actual total tax rate from all booking items
@@ -266,6 +279,27 @@
             <span class="fw-bold fs-5 text-primary">₹<%= number_with_delimiter(@booking.total_amount&.to_f || 0) %></span>
           </div>
         <% end %>
+
+        <!-- Delivery Address / Shop Address -->
+        <div class="border-top pt-3 mt-1">
+          <% if @booking.delivery_store.present? %>
+            <div class="d-flex align-items-start">
+              <i class="bi bi-shop text-primary me-2 mt-1"></i>
+              <div>
+                <small class="text-muted fw-semibold d-block">Collect from Shop</small>
+                <small class="text-dark"><%= @booking.delivery_store %></small>
+              </div>
+            </div>
+          <% elsif @booking.delivery_address.present? %>
+            <div class="d-flex align-items-start">
+              <i class="bi bi-geo-alt-fill text-success me-2 mt-1"></i>
+              <div>
+                <small class="text-muted fw-semibold d-block">Delivery Address</small>
+                <small class="text-dark"><%= @booking.delivery_address %></small>
+              </div>
+            </div>
+          <% end %>
+        </div>
 
         <!-- View Invoice Button for Paid Orders -->
         <% if @booking.payment_status == 'paid' %>

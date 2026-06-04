@@ -186,6 +186,14 @@
               </span>
             </div>
           <% end %>
+          <% if @booking.booked_by == 'customer' %>
+            <div class="col-md-6">
+              <strong class="text-muted d-block">Order Source</strong>
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                <i class="bi bi-globe me-1"></i>Customer Website
+              </span>
+            </div>
+          <% end %>
         </div>
       </div>
     </div>
@@ -222,7 +230,29 @@
               <a href="tel:<%= @booking.customer_phone %>"><%= @booking.customer_phone %></a>
             </div>
           <% end %>
-          <% if @booking.delivery_address.present? %>
+          <% if @booking.booked_by == 'customer' && (@booking.delivery_store.present? || @booking.delivery_address.present?) %>
+            <div class="col-12">
+              <strong class="text-muted d-block mb-2">Delivery Option</strong>
+              <% if @booking.delivery_store.present? %>
+                <div class="alert alert-info d-flex align-items-start mb-0 py-2">
+                  <i class="bi bi-shop fs-5 text-primary me-2 mt-1"></i>
+                  <div>
+                    <strong class="text-primary d-block">Collect from Shop</strong>
+                    <small class="text-muted mb-1 d-block">Customer will collect from:</small>
+                    <div class="fw-medium"><%= simple_format(@booking.delivery_store) %></div>
+                  </div>
+                </div>
+              <% elsif @booking.delivery_address.present? %>
+                <div class="d-flex align-items-start p-3 bg-light rounded">
+                  <i class="bi bi-house-fill text-success me-2 mt-1"></i>
+                  <div>
+                    <strong class="d-block">Home Delivery</strong>
+                    <div class="mt-1 text-muted"><%= simple_format(@booking.delivery_address) %></div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% elsif @booking.delivery_address.present? %>
             <div class="col-12">
               <strong class="text-muted d-block">Delivery Address</strong>
               <%= simple_format(@booking.delivery_address) %>
@@ -368,6 +398,28 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <span class="fw-bold fs-5">Total:</span>
             <span class="fw-bold fs-5 text-primary">₹<%= number_with_delimiter((gst[:base] + gst[:tax] + delivery_charge).round(2)) %></span>
+          </div>
+        <% end %>
+
+        <% if @booking.booked_by == 'customer' && (@booking.delivery_store.present? || @booking.delivery_address.present?) %>
+          <div class="border-top pt-3 mt-1 mb-3">
+            <% if @booking.delivery_store.present? %>
+              <div class="d-flex align-items-start">
+                <i class="bi bi-shop text-primary me-2 mt-1"></i>
+                <div>
+                  <small class="text-muted fw-semibold d-block">Collect from Shop</small>
+                  <small class="text-dark"><%= @booking.delivery_store %></small>
+                </div>
+              </div>
+            <% elsif @booking.delivery_address.present? %>
+              <div class="d-flex align-items-start">
+                <i class="bi bi-geo-alt-fill text-success me-2 mt-1"></i>
+                <div>
+                  <small class="text-muted fw-semibold d-block">Delivery Address</small>
+                  <small class="text-dark"><%= @booking.delivery_address %></small>
+                </div>
+              </div>
+            <% end %>
           </div>
         <% end %>
 

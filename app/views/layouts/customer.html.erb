@@ -1919,29 +1919,56 @@
         updateFinalTotal();
       }
 
+      function showPlaceOrderLoader(paymentMethod) {
+        // Remove any existing loader
+        const existing = document.getElementById('place-order-overlay');
+        if (existing) existing.remove();
+
+        const isOnline = paymentMethod === 'upi';
+        const overlay = document.createElement('div');
+        overlay.id = 'place-order-overlay';
+        overlay.innerHTML = `
+          <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;">
+            <div style="background:#fff;border-radius:20px;max-width:320px;width:100%;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.35);animation:loaderSlideUp 0.3s ease-out;">
+              <div style="background:linear-gradient(135deg,${isOnline ? '#6366f1 0%,#8b5cf6 100%' : '#10b981 0%,#059669 100%'});padding:32px 24px;text-align:center;color:#fff;">
+                <div style="font-size:3.5rem;margin-bottom:10px;">${isOnline ? '💳' : '📦'}</div>
+                <h5 style="margin:0 0 6px;font-weight:700;">${isOnline ? 'Opening Payment Gateway' : 'Placing Your Order'}</h5>
+                <p style="margin:0;opacity:0.85;font-size:0.85rem;">${isOnline ? 'Redirecting to secure payment...' : 'Please wait a moment...'}</p>
+              </div>
+              <div style="padding:24px;text-align:center;">
+                <div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px;">
+                  <div class="loader-dot" style="width:12px;height:12px;border-radius:50%;background:${isOnline ? '#6366f1' : '#10b981'};animation:dotBounce 1.2s infinite ease-in-out;"></div>
+                  <div class="loader-dot" style="width:12px;height:12px;border-radius:50%;background:${isOnline ? '#6366f1' : '#10b981'};animation:dotBounce 1.2s infinite ease-in-out 0.2s;"></div>
+                  <div class="loader-dot" style="width:12px;height:12px;border-radius:50%;background:${isOnline ? '#6366f1' : '#10b981'};animation:dotBounce 1.2s infinite ease-in-out 0.4s;"></div>
+                </div>
+                <p style="color:#6b7280;font-size:0.8rem;margin:0;">Do not close or refresh this page</p>
+              </div>
+            </div>
+          </div>
+          <style>
+            @keyframes loaderSlideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+            @keyframes dotBounce { 0%,80%,100% { transform:scale(0.6); opacity:0.4; } 40% { transform:scale(1); opacity:1; } }
+          </style>
+        `;
+        document.body.appendChild(overlay);
+      }
+
+      function hidePlaceOrderLoader() {
+        const overlay = document.getElementById('place-order-overlay');
+        if (overlay) overlay.remove();
+      }
+
       function placeOrder() {
         // Get the place order button immediately
         const placeOrderBtn = document.querySelector('.checkout-footer button');
 
-        // Store original content and show immediate attractive loader
+        // Store original content
         if (placeOrderBtn && !placeOrderBtn.originalContent) {
           placeOrderBtn.originalContent = placeOrderBtn.innerHTML;
         }
 
-        // Show immediate attractive loader
-        if (placeOrderBtn) {
-          placeOrderBtn.disabled = true;
-          placeOrderBtn.innerHTML = `
-            <div class="d-flex align-items-center justify-content-center">
-              <div class="spinner-border spinner-border-sm me-2" role="status" style="width: 1rem; height: 1rem;">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-              <span>Placing Order...</span>
-            </div>
-          `;
-        }
-
         const restoreBtn = () => {
+          hidePlaceOrderLoader();
           if (placeOrderBtn) {
             placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
             placeOrderBtn.disabled = false;
@@ -1975,7 +2002,8 @@
           restoreBtn(); return;
         }
 
-        const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+        // Scope to #checkout-view to avoid matching the Cashfree modal's radio buttons on the same page
+        const paymentMethod = document.querySelector('#checkout-view input[name="payment_method"]:checked')?.value || 'cod';
 
         // Re-check free delivery: user may have added items after seeing the nudge
         if (cartDeliveryMethod === 'home' && window.cartFreeDeliveryData) {
@@ -2011,9 +2039,9 @@
           orderData.customer_address_id = selectedAddress.id;
         }
 
-        // Continue with existing loading (kept for compatibility)
-        placeOrderBtn.disabled = true;
-        placeOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Placing Order...';
+        // Disable button and show attractive full-screen loader
+        if (placeOrderBtn) placeOrderBtn.disabled = true;
+        showPlaceOrderLoader(paymentMethod);
 
         // Make API call to place order
         fetch('/customer/checkout/cart_order', {
@@ -2053,24 +2081,16 @@
                 });
               } catch (e) {
                 console.error('Cashfree checkout error:', e);
-                // Restore button so user can retry
-                placeOrderBtn.disabled = false;
-                placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
+                restoreBtn();
                 alert('Failed to open payment gateway. Please try again.');
               }
               return;
             }
 
-            // COD order — clear cart and show success
+            // COD order — clear cart and redirect
+            hidePlaceOrderLoader();
             localStorage.removeItem('customerCart');
             updateCartBadge();
-
-            document.getElementById('cart-view').style.display = 'none';
-            document.getElementById('checkout-view').style.display = 'none';
-            document.getElementById('success-view').style.display = 'none';
-
-            const totalAmount = parseFloat(data.total_amount || 0).toFixed(2);
-            alert(`🎉 Order Placed Successfully!\\n\\nOrder Number: ${data.booking_number}\\nTotal Amount: ₹${totalAmount}\\nPayment: ${paymentMethod.toUpperCase()}\\n\\nRedirecting to your order details...`);
 
             window.location.href = `/customer/orders/${data.booking_id}`;
             return;
@@ -2080,14 +2100,9 @@
         })
         .catch(error => {
           console.error('Error placing order:', error);
-
-          // Only show error if we haven't already redirected
           if (!document.hidden) {
+            restoreBtn();
             alert('Failed to place order. Please try again.');
-
-            // Reset button on error only
-            placeOrderBtn.disabled = false;
-            placeOrderBtn.innerHTML = placeOrderBtn.originalContent || '<i class="fas fa-check me-2"></i>Place Order';
           }
         });
       }

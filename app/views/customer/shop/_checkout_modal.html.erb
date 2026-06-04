@@ -385,9 +385,9 @@ const PaymentSystem = {
   },
 
   setupPaymentHandlers: function() {
-    // Setup click handlers for payment options
+    // Setup click handlers for payment options (scoped to payment step only, not delivery options)
     document.addEventListener('click', function(e) {
-      const paymentOption = e.target.closest('.payment-option');
+      const paymentOption = e.target.closest('#step-payment .payment-option');
       if (paymentOption && paymentOption.dataset.method) {
         e.preventDefault();
         e.stopPropagation();
@@ -1158,8 +1158,8 @@ async function processPayment() {
     console.log('🎯 Radio button found:', selectedRadio ? 'YES' : 'NO');
     console.log('🎯 All payment method radios:', document.querySelectorAll('input[name="payment_method"]'));
 
-    // Force to use the selected radio button value or default to cashfree
-    const finalMethod = selectedRadio ? selectedRadio.value : 'cashfree';
+    // Use radio button value, fall back to PaymentSystem.selectedMethod, then selectedPaymentMethod
+    const finalMethod = (selectedRadio ? selectedRadio.value : null) || PaymentSystem.selectedMethod || selectedPaymentMethod || 'cod';
     console.log('🎯 FINAL METHOD TO USE:', finalMethod);
 
     // Handle both cashfree and upi as online payment methods

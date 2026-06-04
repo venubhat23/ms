@@ -576,11 +576,11 @@
                               <span>Subtotal:</span>
                               <span id="subtotal-amount">₹0</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2" id="delivery-free-row" style="display:none;">
+                            <div class="d-none justify-content-between mb-2" id="delivery-free-row">
                               <span>Delivery:</span>
                               <span class="text-success" id="delivery-free-label">Free (Pickup)</span>
                             </div>
-                            <div class="d-flex justify-content-between mb-2" id="delivery-charge-row" style="display:none;">
+                            <div class="d-none justify-content-between mb-2" id="delivery-charge-row">
                               <span>Delivery (<span id="delivery-pincode-label"></span>):</span>
                               <span id="delivery-charge-amount" class="text-danger fw-medium">₹0</span>
                             </div>
@@ -1415,6 +1415,11 @@
         document.getElementById('option-home').classList.remove('active');
         document.getElementById('shop-panel').style.display = 'none';
         document.getElementById('home-panel').style.display = 'none';
+        // Reset delivery display rows so stale state from previous session is cleared
+        const freeRow   = document.getElementById('delivery-free-row');
+        const chargeRow = document.getElementById('delivery-charge-row');
+        if (freeRow)   { freeRow.classList.add('d-none'); freeRow.classList.remove('d-flex'); }
+        if (chargeRow) { chargeRow.classList.add('d-none'); chargeRow.classList.remove('d-flex'); }
         togglePlaceOrderBtn(false);
         loadCheckoutSummary();
       }
@@ -1703,13 +1708,13 @@
         const labelEl   = document.getElementById('delivery-pincode-label');
         const freeLabel = document.getElementById('delivery-free-label');
 
-        // Always hide both first, then show exactly one
-        if (freeRow)   freeRow.style.display   = 'none';
-        if (chargeRow) chargeRow.style.display  = 'none';
+        // Always hide both first using d-none (!important) to override Bootstrap's d-flex (!important)
+        if (freeRow)   { freeRow.classList.add('d-none'); freeRow.classList.remove('d-flex'); }
+        if (chargeRow) { chargeRow.classList.add('d-none'); chargeRow.classList.remove('d-flex'); }
 
         if (area === 'pickup') {
           cartDeliveryCharge = 0;
-          if (freeRow)  { freeRow.style.display = 'flex'; if (freeLabel) freeLabel.textContent = 'Free (Pickup)'; }
+          if (freeRow)  { freeRow.classList.remove('d-none'); freeRow.classList.add('d-flex'); if (freeLabel) freeLabel.textContent = 'Free (Pickup)'; }
         } else if (area === 'unavailable') {
           cartDeliveryCharge = 0;
           // both rows stay hidden — delivery not available
@@ -1717,10 +1722,10 @@
           cartDeliveryCharge = amount;
           if (amountEl) amountEl.textContent = `₹${amount.toFixed(2)}`;
           if (labelEl)  labelEl.textContent  = area || pincode || '';
-          if (chargeRow) chargeRow.style.display = 'flex';
+          if (chargeRow) { chargeRow.classList.remove('d-none'); chargeRow.classList.add('d-flex'); }
         } else {
           cartDeliveryCharge = 0;
-          if (freeRow) { freeRow.style.display = 'flex'; if (freeLabel) freeLabel.textContent = 'Free Delivery'; }
+          if (freeRow) { freeRow.classList.remove('d-none'); freeRow.classList.add('d-flex'); if (freeLabel) freeLabel.textContent = 'Free Delivery'; }
         }
         updateFinalTotal();
       }

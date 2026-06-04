@@ -230,29 +230,7 @@
               <a href="tel:<%= @booking.customer_phone %>"><%= @booking.customer_phone %></a>
             </div>
           <% end %>
-          <% if @booking.booked_by == 'customer' && (@booking.delivery_store.present? || @booking.delivery_address.present?) %>
-            <div class="col-12">
-              <strong class="text-muted d-block mb-2">Delivery Option</strong>
-              <% if @booking.delivery_store.present? %>
-                <div class="alert alert-info d-flex align-items-start mb-0 py-2">
-                  <i class="bi bi-shop fs-5 text-primary me-2 mt-1"></i>
-                  <div>
-                    <strong class="text-primary d-block">Collect from Shop</strong>
-                    <small class="text-muted mb-1 d-block">Customer will collect from:</small>
-                    <div class="fw-medium"><%= simple_format(@booking.delivery_store) %></div>
-                  </div>
-                </div>
-              <% elsif @booking.delivery_address.present? %>
-                <div class="d-flex align-items-start p-3 bg-light rounded">
-                  <i class="bi bi-house-fill text-success me-2 mt-1"></i>
-                  <div>
-                    <strong class="d-block">Home Delivery</strong>
-                    <div class="mt-1 text-muted"><%= simple_format(@booking.delivery_address) %></div>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          <% elsif @booking.delivery_address.present? %>
+          <% if @booking.delivery_address.present? && @booking.booked_by != 'customer' %>
             <div class="col-12">
               <strong class="text-muted d-block">Delivery Address</strong>
               <%= simple_format(@booking.delivery_address) %>
@@ -261,6 +239,68 @@
         </div>
       </div>
     </div>
+
+    <!-- Delivery Option (Customer Website Orders Only) -->
+    <% if @booking.booked_by == 'customer' %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
+          <h5 class="mb-0">
+            <i class="bi bi-truck me-2 text-primary"></i>Checkout — Delivery Option
+          </h5>
+          <% if @booking.delivery_store.present? %>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+              <i class="bi bi-shop me-1"></i>Collect from Shop
+            </span>
+          <% elsif @booking.delivery_address.present? %>
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+              <i class="bi bi-house-door me-1"></i>Deliver to My Location
+            </span>
+          <% end %>
+        </div>
+        <div class="card-body">
+          <% if @booking.delivery_store.present? %>
+            <div class="d-flex align-items-start p-3 border border-primary border-opacity-25 rounded bg-primary bg-opacity-10">
+              <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width:42px;height:42px;">
+                <i class="bi bi-shop-window text-white fs-5"></i>
+              </div>
+              <div>
+                <strong class="d-block mb-1">Collect from Shop</strong>
+                <div class="text-muted">
+                  <i class="bi bi-geo-alt me-1"></i><%= @booking.delivery_store %>
+                </div>
+              </div>
+            </div>
+          <% elsif @booking.delivery_address.present? %>
+            <div class="d-flex align-items-start p-3 border border-success border-opacity-25 rounded bg-success bg-opacity-10">
+              <div class="rounded-circle bg-success d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width:42px;height:42px;">
+                <i class="bi bi-house-fill text-white fs-5"></i>
+              </div>
+              <div>
+                <strong class="d-block mb-1">Deliver to My Location</strong>
+                <div class="text-muted">
+                  <i class="bi bi-geo-alt me-1"></i><%= @booking.delivery_address %>
+                </div>
+                <% if @booking.shipping_charges.to_f > 0 %>
+                  <div class="mt-1">
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                      <i class="bi bi-currency-rupee"></i>Delivery charge: ₹<%= number_with_delimiter(@booking.shipping_charges.to_f) %>
+                    </span>
+                  </div>
+                <% else %>
+                  <div class="mt-1">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                      <i class="bi bi-check-circle me-1"></i>Free Delivery
+                    </span>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% else %>
+            <p class="text-muted mb-0">Delivery option not recorded for this order.</p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
 
     <!-- Booking Items -->
     <div class="card border-0 shadow-sm mb-4">

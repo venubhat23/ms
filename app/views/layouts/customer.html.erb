@@ -1623,6 +1623,9 @@
       }
 
       function validatePincodeDelivery(pincode) {
+        // Guard: only run when home delivery is actually selected
+        if (cartDeliveryMethod !== 'home') return;
+
         const msgEl = document.getElementById('pincode-validation-msg');
         if (!pincode || !/^\d{6}$/.test(pincode)) {
           cartPincodeValid = false;
@@ -1635,6 +1638,8 @@
         fetch(`/customer/shop/check_delivery_pincode?pincode=${pincode}`)
           .then(r => r.json())
           .then(data => {
+            // Delivery method may have changed while fetch was in-flight — abort if so
+            if (cartDeliveryMethod !== 'home') return;
             if (data.deliverable !== false) {
               const charge       = parseFloat(data.delivery_charge) || 0;
               const freeAllowed  = data.free_delivery_allowed === true;
@@ -1684,6 +1689,7 @@
             }
           })
           .catch(() => {
+            if (cartDeliveryMethod !== 'home') return;
             cartPincodeValid = false;
             togglePlaceOrderBtn(false);
             if (msgEl) { msgEl.textContent = 'Could not verify pincode. Please try again.'; msgEl.className = 'text-warning small mt-1'; }
@@ -1888,6 +1894,23 @@
 
         summaryContainer.innerHTML = itemsHtml;
         document.getElementById('subtotal-amount').textContent = `₹${(total || 0).toFixed(2)}`;
+
+        // Re-check free delivery threshold whenever cart total changes
+        if (cartDeliveryMethod === 'home' && window.cartFreeDeliveryData) {
+          const { freeAllowed, minAmount, pincode, area, charge } = window.cartFreeDeliveryData;
+          if (freeAllowed && minAmount > 0) {
+            const msgEl = document.getElementById('pincode-validation-msg');
+            if (total >= minAmount) {
+              setDeliveryCharge(0, pincode, area);
+              if (msgEl) { msgEl.textContent = `✓ Free delivery applied! (order ₹${total.toFixed(0)} ≥ ₹${minAmount.toFixed(0)})`; msgEl.className = 'text-success small mt-1 fw-medium'; }
+            } else {
+              setDeliveryCharge(charge, pincode, area);
+              const needed = (minAmount - total).toFixed(0);
+              if (msgEl) { msgEl.textContent = `Add ₹${needed} more for free delivery (min ₹${minAmount.toFixed(0)})`; msgEl.className = 'text-warning small mt-1 fw-medium'; }
+            }
+          }
+        }
+
         updateFinalTotal();
       }
 

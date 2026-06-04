@@ -95,6 +95,8 @@ class Customer::ShopController < Customer::BaseController
         deliverable: true,
         delivery_charge: charge_record.charge_amount.to_f,
         area: charge_record.area,
+        free_delivery_allowed: charge_record.free_delivery_allowed?,
+        min_order_for_free_delivery: charge_record.min_order_for_free_delivery.to_f,
         message: charge_record.charge_amount.to_f > 0 ?
           "Delivery charge: ₹#{charge_record.charge_amount}" :
           'Free delivery available'
@@ -104,6 +106,8 @@ class Customer::ShopController < Customer::BaseController
         success: true,
         deliverable: false,
         delivery_charge: 0,
+        free_delivery_allowed: false,
+        min_order_for_free_delivery: 0,
         message: 'Delivery not available to this pincode'
       }
     end

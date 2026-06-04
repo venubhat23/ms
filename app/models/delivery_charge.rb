@@ -15,8 +15,19 @@ class DeliveryCharge < ApplicationRecord
     charge&.charge_amount || 0.0
   end
 
+  # Returns the effective charge for a given order amount,
+  # applying free delivery if allowed and threshold is met.
+  def effective_charge_for(order_amount)
+    return charge_amount.to_f unless free_delivery_allowed?
+    order_amount.to_f >= min_order_for_free_delivery.to_f ? 0.0 : charge_amount.to_f
+  end
+
   def formatted_charge
     "₹#{charge_amount}"
+  end
+
+  def free_delivery_threshold
+    "₹#{min_order_for_free_delivery}"
   end
 
   def status_text

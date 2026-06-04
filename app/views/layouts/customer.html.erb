@@ -762,6 +762,11 @@
         to { transform: translateX(0); }
       }
 
+      @keyframes nudgeSlideUp {
+        from { transform: translateY(40px); opacity: 0; }
+        to   { transform: translateY(0);   opacity: 1; }
+      }
+
       /* Cart View Styles */
       .cart-header, .checkout-header {
         display: flex;
@@ -1401,10 +1406,11 @@
         document.getElementById('success-view').style.display = 'none';
         currentView = 'checkout';
         // Reset delivery method selection
-        cartDeliveryMethod = '';
-        cartShopAddress    = '';
-        cartDeliveryCharge = 0;
-        cartPincodeValid   = false;
+        cartDeliveryMethod       = '';
+        cartShopAddress          = '';
+        cartDeliveryCharge       = 0;
+        cartPincodeValid         = false;
+        window.cartFreeDeliveryData = null;
         document.getElementById('option-shop').classList.remove('active');
         document.getElementById('option-home').classList.remove('active');
         document.getElementById('shop-panel').style.display = 'none';
@@ -1630,18 +1636,45 @@
           .then(r => r.json())
           .then(data => {
             if (data.deliverable !== false) {
-              const charge = parseFloat(data.delivery_charge) || 0;
+              const charge       = parseFloat(data.delivery_charge) || 0;
+              const freeAllowed  = data.free_delivery_allowed === true;
+              const minAmount    = parseFloat(data.min_order_for_free_delivery) || 0;
+              const area         = data.area || pincode;
+              const subtotal     = parseFloat(document.getElementById('subtotal-amount')?.textContent?.replace('₹','')) || 0;
+
+              // Store for re-check at order placement
+              window.cartFreeDeliveryData = { freeAllowed, minAmount, pincode, area, charge };
+
               cartPincodeValid = true;
-              setDeliveryCharge(charge, pincode, data.area || pincode);
               togglePlaceOrderBtn(true);
-              if (msgEl) {
-                msgEl.textContent = charge > 0
-                  ? `✓ Delivery available — ₹${charge.toFixed(2)} delivery charge added`
-                  : '✓ Delivery available — Free delivery';
-                msgEl.className = 'text-success small mt-1 fw-medium';
+
+              if (freeAllowed && minAmount > 0 && subtotal >= minAmount) {
+                // Already qualifies — apply free delivery
+                setDeliveryCharge(0, pincode, area);
+                if (msgEl) { msgEl.textContent = `✓ Free delivery applied! (order ₹${subtotal.toFixed(0)} ≥ ₹${minAmount.toFixed(0)})`; msgEl.className = 'text-success small mt-1 fw-medium'; }
+              } else if (freeAllowed && minAmount > 0 && subtotal < minAmount) {
+                // Eligible pincode but below threshold — apply charge and show nudge
+                setDeliveryCharge(charge, pincode, area);
+                if (msgEl) {
+                  msgEl.textContent = charge > 0
+                    ? `✓ Delivery ₹${charge.toFixed(0)} — add ₹${(minAmount - subtotal).toFixed(0)} more for FREE delivery!`
+                    : '✓ Delivery available';
+                  msgEl.className = 'text-warning small mt-1 fw-medium';
+                }
+                showFreeDeliveryNudge(minAmount, subtotal, (minAmount - subtotal).toFixed(2), area, charge);
+              } else {
+                // No free delivery for this pincode
+                setDeliveryCharge(charge, pincode, area);
+                if (msgEl) {
+                  msgEl.textContent = charge > 0
+                    ? `✓ Delivery available — ₹${charge.toFixed(2)} delivery charge added`
+                    : '✓ Delivery available — Free delivery';
+                  msgEl.className = 'text-success small mt-1 fw-medium';
+                }
               }
             } else {
               cartPincodeValid = false;
+              window.cartFreeDeliveryData = null;
               setDeliveryCharge(0, '', 'unavailable');
               togglePlaceOrderBtn(false);
               if (msgEl) {
@@ -1692,6 +1725,79 @@
         if (!subtotalEl || !finalEl) return;
         const subtotal = parseFloat(subtotalEl.textContent.replace('₹', '')) || 0;
         finalEl.textContent = `₹${(subtotal + cartDeliveryCharge).toFixed(2)}`;
+      }
+
+      // ── Free Delivery Nudge Modal ─────────────────────────────────────
+      function showFreeDeliveryNudge(minAmount, currentAmount, needed, area, deliveryCharge) {
+        const existing = document.getElementById('freeDeliveryNudgeModal');
+        if (existing) existing.remove();
+
+        const progress = Math.min((currentAmount / minAmount) * 100, 100).toFixed(1);
+
+        const modal = document.createElement('div');
+        modal.id = 'freeDeliveryNudgeModal';
+        modal.innerHTML = `
+          <div style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;">
+            <div style="background:#fff;border-radius:20px;max-width:380px;width:100%;overflow:hidden;box-shadow:0 25px 80px rgba(0,0,0,0.35);animation:nudgeSlideUp 0.35s ease-out;">
+
+              <!-- Header -->
+              <div style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:28px 24px 20px;text-align:center;color:#fff;position:relative;">
+                <div style="font-size:3rem;margin-bottom:6px;">🚚</div>
+                <h4 style="margin:0;font-weight:800;font-size:1.2rem;letter-spacing:0.3px;">Free Delivery Available!</h4>
+                <p style="margin:6px 0 0;opacity:0.88;font-size:0.85rem;">${area} Zone</p>
+              </div>
+
+              <!-- Body -->
+              <div style="padding:22px 20px;">
+                <p style="color:#374151;margin:0 0 14px;text-align:center;font-size:0.95rem;">
+                  Orders above <strong style="color:#10b981;font-size:1.1rem;">₹${parseFloat(minAmount).toFixed(0)}</strong> get <strong>free delivery</strong> for this pincode.
+                </p>
+
+                <!-- Nudge amount box -->
+                <div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #fcd34d;border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;">
+                  <p style="margin:0 0 4px;color:#78350f;font-size:0.85rem;font-weight:600;">You need just</p>
+                  <p style="margin:0;color:#d97706;font-size:1.8rem;font-weight:800;">₹${parseFloat(needed).toFixed(0)} more</p>
+                  <p style="margin:4px 0 0;color:#92400e;font-size:0.8rem;">to save <strong>₹${parseFloat(deliveryCharge).toFixed(0)}</strong> on delivery!</p>
+                </div>
+
+                <!-- Progress bar -->
+                <div style="margin-bottom:6px;display:flex;justify-content:space-between;font-size:0.75rem;color:#6b7280;">
+                  <span>₹0</span><span style="color:#10b981;font-weight:600;">₹${parseFloat(minAmount).toFixed(0)} free</span>
+                </div>
+                <div style="background:#e5e7eb;border-radius:999px;height:12px;overflow:hidden;margin-bottom:6px;">
+                  <div style="background:linear-gradient(90deg,#10b981,#059669);height:100%;width:${progress}%;border-radius:999px;transition:width 0.6s ease;"></div>
+                </div>
+                <p style="color:#9ca3af;font-size:0.75rem;text-align:center;margin:0 0 20px;">
+                  ₹${parseFloat(currentAmount).toFixed(0)} of ₹${parseFloat(minAmount).toFixed(0)} — ₹${parseFloat(needed).toFixed(0)} away from free delivery
+                </p>
+
+                <!-- Buttons -->
+                <button onclick="goBackToShopForFreeDelivery()"
+                  style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;padding:14px;font-weight:700;font-size:0.95rem;cursor:pointer;margin-bottom:10px;transition:opacity 0.2s;"
+                  onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                  🛍️ Add More Items &amp; Get Free Delivery
+                </button>
+                <button onclick="closeFreeDeliveryNudge()"
+                  style="width:100%;background:#fff;color:#6b7280;border:2px solid #e5e7eb;border-radius:12px;padding:12px;font-weight:600;font-size:0.875rem;cursor:pointer;transition:border-color 0.2s;"
+                  onmouseover="this.style.borderColor='#d1d5db'" onmouseout="this.style.borderColor='#e5e7eb'">
+                  Continue with ₹${parseFloat(deliveryCharge).toFixed(0)} delivery charge
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+
+      function closeFreeDeliveryNudge() {
+        const modal = document.getElementById('freeDeliveryNudgeModal');
+        if (modal) modal.remove();
+      }
+
+      function goBackToShopForFreeDelivery() {
+        closeFreeDeliveryNudge();
+        closeCartModal();
+        window.location.href = '/customer/shop';
       }
 
       // ── Save New Address ──────────────────────────────────────────────
@@ -1842,6 +1948,19 @@
         }
 
         const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+
+        // Re-check free delivery: user may have added items after seeing the nudge
+        if (cartDeliveryMethod === 'home' && window.cartFreeDeliveryData) {
+          const { freeAllowed, minAmount, pincode, area, charge } = window.cartFreeDeliveryData;
+          const currentSubtotal = parseFloat(document.getElementById('subtotal-amount')?.textContent?.replace('₹','')) || 0;
+          if (freeAllowed && minAmount > 0 && currentSubtotal >= minAmount) {
+            cartDeliveryCharge = 0;
+            setDeliveryCharge(0, pincode, area);
+          } else if (freeAllowed && minAmount > 0 && currentSubtotal < minAmount) {
+            cartDeliveryCharge = charge;
+            setDeliveryCharge(charge, pincode, area);
+          }
+        }
 
         let orderData = {
           customer_email: '<%= current_customer&.email %>',

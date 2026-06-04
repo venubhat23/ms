@@ -52,12 +52,39 @@
                     required: true, placeholder: "30.00", id: "delivery_charge_charge_amount" %>
             </div>
 
-<div class="d-flex gap-2">
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <%= f.check_box :free_delivery_allowed, class: "form-check-input", role: "switch",
+                      id: "delivery_charge_free_delivery_allowed",
+                      onchange: "toggleMinOrderField(this)" %>
+                <label class="form-check-label fw-semibold" for="delivery_charge_free_delivery_allowed">
+                  Free Delivery Allowed?
+                </label>
+                <div class="form-text">Enable to offer free delivery when order meets minimum amount.</div>
+              </div>
+            </div>
+
+            <div class="mb-4" id="min-order-field" style="display:none;">
+              <label for="delivery_charge_min_order_for_free_delivery" class="form-label fw-semibold">
+                Minimum Order Amount for Free Delivery (₹)
+              </label>
+              <%= f.number_field :min_order_for_free_delivery, class: "form-control", min: 0, step: 1,
+                    placeholder: "e.g., 500", id: "delivery_charge_min_order_for_free_delivery" %>
+              <div class="form-text">Orders at or above this amount get free delivery for this pincode.</div>
+            </div>
+
+            <div class="d-flex gap-2">
               <%= f.submit "Add Delivery Charge", class: "btn btn-primary px-4" %>
               <%= link_to "Cancel", admin_delivery_settings_path, class: "btn btn-outline-secondary" %>
             </div>
 
           <% end %>
+
+          <script>
+            function toggleMinOrderField(checkbox) {
+              document.getElementById('min-order-field').style.display = checkbox.checked ? 'block' : 'none';
+            }
+          </script>
 
         </div>
       </div>

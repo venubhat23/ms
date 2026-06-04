@@ -89,6 +89,7 @@ class Admin::DeliverySettingsController < ApplicationController
   end
 
   def delivery_charge_params
-    params.require(:delivery_charge).permit(:pincode, :area, :charge_amount, :is_active)
+    params.require(:delivery_charge).permit(:pincode, :area, :charge_amount, :is_active,
+                                            :free_delivery_allowed, :min_order_for_free_delivery)
   end
 end

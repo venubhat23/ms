@@ -63,6 +63,8 @@
                   <th>Pincode</th>
                   <th>Area</th>
                   <th>Charge Amount</th>
+                  <th>Free Delivery Allowed?</th>
+                  <th>Min. Order for Free Delivery</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -73,6 +75,20 @@
                     <td><strong><%= delivery_charge.pincode %></strong></td>
                     <td><%= delivery_charge.area || 'Not specified' %></td>
                     <td class="text-success"><strong><%= delivery_charge.formatted_charge %></strong></td>
+                    <td class="text-center">
+                      <% if delivery_charge.free_delivery_allowed? %>
+                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Yes</span>
+                      <% else %>
+                        <span class="badge bg-secondary"><i class="fas fa-times me-1"></i>No</span>
+                      <% end %>
+                    </td>
+                    <td>
+                      <% if delivery_charge.free_delivery_allowed? %>
+                        <span class="text-success fw-medium">₹<%= delivery_charge.min_order_for_free_delivery %></span>
+                      <% else %>
+                        <span class="text-muted">—</span>
+                      <% end %>
+                    </td>
                     <td>
                       <% if delivery_charge.is_active? %>
                         <span class="badge bg-success">Active</span>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_18_210001) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_04_004804) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -387,6 +387,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_18_210001) do
     t.boolean "is_active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "free_delivery_allowed", default: false, null: false
+    t.decimal "min_order_for_free_delivery", precision: 10, scale: 2, default: "0.0"
     t.index ["is_active"], name: "index_delivery_charges_on_is_active"
     t.index ["pincode"], name: "index_delivery_charges_on_pincode", unique: true
   end

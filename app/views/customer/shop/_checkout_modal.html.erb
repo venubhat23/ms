@@ -295,7 +295,7 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelBtn">
           <i class="bi bi-x-circle me-2"></i>Cancel
         </button>
-        <button type="button" class="btn btn-pay-now" id="payNowBtn" onclick="event.preventDefault(); event.stopPropagation(); processPayment(); return false;">
+        <button type="button" class="btn btn-pay-now" id="payNowBtn">
           <i class="bi bi-credit-card me-2"></i>
           <span id="payBtnText">Pay Now</span>
         </button>
@@ -1014,12 +1014,19 @@ function restoreButtonState(button, originalContent) {
   button.style.background = '';
   button.style.cursor = '';
   button.classList.remove('disabled');
-  button.onclick = processPayment; // Restore original click handler
 }
 
 
+let _paymentInProgress = false;
+
 async function processPayment() {
-  console.log('🚀🚀🚀 CASHFREE PAYMENT PROCESS STARTED 🚀🚀🚀');
+  if (_paymentInProgress) {
+    console.log('⚠️ Payment already in progress, ignoring duplicate call');
+    return;
+  }
+  _paymentInProgress = true;
+
+  console.log('🚀🚀🚀 PAYMENT PROCESS STARTED 🚀🚀🚀');
 
   const payBtn = document.getElementById('payNowBtn');
 
@@ -1175,6 +1182,8 @@ async function processPayment() {
     }
   } catch (error) {
     console.error('❌ Payment processing error:', error);
+
+    _paymentInProgress = false;
 
     // Restore button state
     payBtn.disabled = false;
@@ -1908,18 +1917,22 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // Ensure our payment button has the correct handler
+  // Bind the pay button (single handler, no inline onclick on the element)
   const payNowBtn = document.getElementById('payNowBtn');
   if (payNowBtn) {
-    // Remove any existing event listeners and add our specific one
     payNowBtn.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      e.stopImmediatePropagation();
-      console.log('🎯 PayNow button clicked - using Cashfree integration');
       processPayment();
-      return false;
-    }, true); // Use capture phase to ensure it runs first
+    });
+  }
+
+  // Reset payment guard when the modal is dismissed so the user can retry
+  const checkoutModal = document.getElementById('checkoutModal');
+  if (checkoutModal) {
+    checkoutModal.addEventListener('hidden.bs.modal', function() {
+      _paymentInProgress = false;
+    });
   }
 });
 

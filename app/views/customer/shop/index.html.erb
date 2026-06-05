@@ -1118,6 +1118,17 @@ function addToCart(productId, productName, finalPrice, maxStock, basePrice, gstR
   const button = document.getElementById(`shop-add-btn-${productId}`) || document.querySelector(`button[onclick*="addToCart(${productId}"]`);
   const cartKey = variantId ? `${productId}_v${variantId}` : String(productId);
 
+  // Disable button immediately if stock is 0 (handles stale page data)
+  if (maxStock <= 0) {
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="bi bi-x-circle me-2"></i>Out of Stock';
+      button.className = 'btn btn-danger w-100';
+      button.onclick = null;
+    }
+    return;
+  }
+
   if (quantity <= 0) {
     alert('Please enter a valid quantity');
     return;

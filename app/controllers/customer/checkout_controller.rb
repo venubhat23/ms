@@ -129,6 +129,11 @@ class Customer::CheckoutController < Customer::BaseController
         return
       end
 
+      # Capture rollback reason — ActiveRecord::Rollback is swallowed inside
+      # the transaction block and never reaches the outer rescue, so we track
+      # the error in a local variable and render after the transaction.
+      booking_error = nil
+
       # Create booking from frontend cart data
       ActiveRecord::Base.transaction do
         # Create booking attributes (similar to admin bookings controller)
@@ -179,8 +184,9 @@ class Customer::CheckoutController < Customer::BaseController
             total_amount += (price * quantity)
             Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
           rescue ActiveRecord::RecordNotFound => e
-            Rails.logger.error "Product not found: #{item[:id] || item['id']}"
-            raise ActiveRecord::Rollback, "Product not found: #{item[:id] || item['id']}"
+            booking_error = "Product not found: #{item[:id] || item['id']}"
+            Rails.logger.error booking_error
+            raise ActiveRecord::Rollback
           end
         end
 
@@ -277,13 +283,17 @@ class Customer::CheckoutController < Customer::BaseController
             end
           end
         else
-          Rails.logger.error "Booking creation failed: #{@booking.errors.full_messages.join(', ')}"
-          raise ActiveRecord::Rollback, @booking.errors.full_messages.join(', ')
+          booking_error = @booking.errors.full_messages.join(', ')
+          Rails.logger.error "Booking creation failed: #{booking_error}"
+          raise ActiveRecord::Rollback
         end
       end
 
-    rescue ActiveRecord::Rollback => e
-      render json: { success: false, error: e.message || 'Failed to create order' }, status: 422
+      # Render error if the transaction rolled back without rendering anything
+      unless performed?
+        render json: { success: false, error: booking_error || 'Failed to create order' }, status: 422
+      end
+
     rescue => e
       Rails.logger.error "Unexpected error in cart_order: #{e.message}\n#{e.backtrace.join('\n')}"
       render json: { success: false, error: 'An unexpected error occurred' }, status: 500

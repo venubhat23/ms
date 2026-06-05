@@ -2160,7 +2160,8 @@
           console.error('Error placing order:', error);
           if (!document.hidden) {
             restoreBtn();
-            alert('Failed to place order. Please try again.');
+            const msg = error?.message || 'Failed to place order. Please try again.';
+            alert(msg.includes('units available') ? `Some items in your cart are out of stock: ${msg}` : msg);
           }
         });
       }

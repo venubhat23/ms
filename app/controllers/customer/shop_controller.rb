@@ -6,9 +6,10 @@ class Customer::ShopController < Customer::BaseController
     # Get categories for filters
     @categories = Category.where(status: true).order(:display_order, :name)
 
-    # Simple query without complex SQL to avoid syntax errors
     @products = Product.active
-                      .includes(:category, :stock_batches, :product_reviews, :product_variants)
+                      .includes(:category, :stock_batches, :product_variants,
+                                image_attachment: :blob,
+                                additional_images_attachments: :blob)
                       .by_stock_availability
 
     # Apply search filter if present
@@ -23,6 +24,9 @@ class Customer::ShopController < Customer::BaseController
     if params[:category_id].present? && params[:category_id] != ''
       @products = @products.where(category_id: params[:category_id])
     end
+
+    # Materialize into Array — view's .size / .any? / .each are all in-memory, no extra queries
+    @products = @products.to_a
 
     # Get customer info if logged in
     @customer_addresses = current_customer&.customer_addresses || []
@@ -80,6 +84,20 @@ class Customer::ShopController < Customer::BaseController
       flash[:error] = 'Order not found.'
       redirect_to customer_shop_path and return
     end
+  end
+
+  def stock_data
+    products = Product.active.includes(:stock_batches, :product_variants)
+    data = products.map do |p|
+      stock = p.cached_total_batch_stock
+      {
+        id: p.id,
+        stock: stock,
+        in_stock: stock > 0,
+        variants: p.product_variants.map { |v| { id: v.id, stock: v.available_stock.to_f } }
+      }
+    end
+    render json: { success: true, products: data }
   end
 
   def check_delivery_pincode

@@ -584,7 +584,7 @@
     <div class="d-flex gap-2">
       <div class="badge bg-primary-subtle text-primary px-2 py-1">
         <i class="bi bi-box-seam me-1"></i>
-        <%= @products&.count || 0 %> Products
+        <%= @products&.size || 0 %> Products
       </div>
       <div class="badge bg-info-subtle text-info px-2 py-1">
         <i class="bi bi-tags me-1"></i>
@@ -724,7 +724,8 @@
                   <div class="mb-3">
                     <%
                       if product.has_multiple_quantities? && product.product_variants.any?
-                        shop_default_v = product.default_variant || product.product_variants.ordered.first
+                        sorted_variants = product.product_variants.sort_by { |v| [(v.display_order || 999), v.weight.to_f] }
+                        shop_default_v = product.default_variant || sorted_variants.first
                         selling_price = shop_default_v.effective_price
                       else
                         shop_default_v = nil
@@ -751,7 +752,7 @@
                     <% if product.has_multiple_quantities? && product.product_variants.any? %>
                       <!-- Variant pills -->
                       <div class="d-flex flex-wrap gap-1 mb-2" id="shop-variant-pills-<%= product.id %>">
-                        <% product.product_variants.ordered.each do |v| %>
+                        <% sorted_variants.each do |v| %>
                           <button type="button"
                                   class="btn btn-xs px-2 py-1 shop-variant-pill <%= v.id == shop_default_v.id ? 'btn-primary' : 'btn-outline-secondary' %>"
                                   style="font-size:0.75rem; line-height:1.2;"
@@ -1498,6 +1499,57 @@ function updateCartBadge() {
     detail: { totalItems: totalItems }
   }));
 }
+</script>
+
+<script>
+(function() {
+  const POLL_INTERVAL = 30000;
+  const STOCK_URL = '<%= customer_stock_data_shop_path %>';
+  let knownStock = {};
+
+  // Seed initial stock from rendered data attributes
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.product-grid-item[data-product-id]').forEach(function(el) {
+      knownStock[el.dataset.productId] = parseFloat(el.dataset.stock || '0');
+    });
+    setInterval(pollStock, POLL_INTERVAL);
+  });
+
+  function pollStock() {
+    fetch(STOCK_URL, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) return;
+        var statusChanged = false;
+        data.products.forEach(function(p) {
+          var pid = String(p.id);
+          var prev = knownStock[pid];
+          if (prev === undefined) return; // product not on this page
+          var wasIn = prev > 0;
+          var isIn  = p.in_stock;
+          knownStock[pid] = p.stock;
+
+          // Update max-stock badge and qty input max if still in stock
+          var maxBadge = document.getElementById('shop-max-stock-' + pid);
+          if (maxBadge) maxBadge.textContent = 'Max: ' + Math.round(p.stock);
+
+          var qtyInput = document.getElementById('qty-' + pid);
+          if (qtyInput) {
+            qtyInput.max = p.stock;
+            if (parseFloat(qtyInput.value) > p.stock) qtyInput.value = Math.max(1, Math.floor(p.stock));
+          }
+
+          // Update card data-stock for client-side filters
+          var card = document.querySelector('.product-grid-item[data-product-id="' + pid + '"]');
+          if (card) card.dataset.stock = p.stock;
+
+          if (wasIn !== isIn) statusChanged = true;
+        });
+        if (statusChanged) location.reload();
+      })
+      .catch(function() {});
+  }
+})();
 </script>
 
 <!-- Include the checkout modal -->

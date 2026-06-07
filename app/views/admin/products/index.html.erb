@@ -80,26 +80,16 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // Search functionality
   const searchInput = document.getElementById('searchInput');
-  const tableRows = document.querySelectorAll('tbody tr');
-
+  let searchTimer;
   searchInput?.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-
-    tableRows.forEach(row => {
-      const productName = row.cells[0]?.textContent.toLowerCase() || '';
-      const category = row.cells[1]?.textContent.toLowerCase() || '';
-      const sku = row.cells[0]?.textContent.toLowerCase() || '';
-
-      if (productName.includes(searchTerm) ||
-          category.includes(searchTerm) ||
-          sku.includes(searchTerm)) {
-        row.style.display = '';
-      } else {
-        row.style.display = 'none';
-      }
-    });
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('search', searchInput.value);
+      url.searchParams.delete('page');
+      window.location.href = url.toString();
+    }, 400);
   });
 });
 </script>
@@ -112,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <h5 class="mb-0">Product Catalog</h5>
       <div class="d-flex gap-2">
         <div class="position-relative">
-          <input type="text" class="form-control" placeholder="Search products..." id="searchInput">
+          <input type="text" class="form-control" placeholder="Search products..." id="searchInput" value="<%= params[:search] %>">
           <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3"></i>
         </div>
       </div>

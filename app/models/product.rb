@@ -164,7 +164,11 @@ class Product < ApplicationRecord
   end
 
   def default_variant
-    product_variants.default_first.first
+    if product_variants.loaded?
+      product_variants.sort_by { |v| [v.is_default ? 0 : 1, v.weight.to_f] }.first
+    else
+      product_variants.default_first.first
+    end
   end
 
   def display_price

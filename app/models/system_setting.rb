@@ -114,7 +114,7 @@ class SystemSetting < ApplicationRecord
       s.description = 'Business configuration settings'
     end
 
-    setting.update!(
+    update_attrs = {
       business_name: params[:business_name],
       address: params[:address],
       mobile: params[:mobile],
@@ -127,7 +127,9 @@ class SystemSetting < ApplicationRecord
       ifsc_code: params[:ifsc_code],
       upi_id: params[:upi_id],
       terms_and_conditions: params[:terms_and_conditions]
-    )
+    }
+    update_attrs[:invoice_template] = params[:invoice_template] if column_names.include?('invoice_template') && params[:invoice_template].present?
+    setting.update!(update_attrs)
 
     setting
   end

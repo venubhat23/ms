@@ -1,0 +1,173 @@
+<style>
+  .inv-saffron { font-family: Arial, sans-serif; font-size: 11px; background: #fff; }
+  .inv-saffron .hdr { background: linear-gradient(135deg, #b5451b 0%, #e07b39 50%, #f5a623 100%); color: #fff; padding: 22px 26px; position: relative; overflow: hidden; }
+  .inv-saffron .hdr::after { content:''; position:absolute; top:-40px; right:-40px; width:160px; height:160px; background:rgba(255,255,255,0.08); border-radius:50%; }
+  .inv-saffron .hdr-co { font-size: 24px; font-weight: bold; }
+  .inv-saffron .hdr-addr { font-size: 10px; opacity: 0.88; margin-top: 3px; }
+  .inv-saffron .hdr-badge { background: rgba(0,0,0,0.25); padding: 8px 14px; border-radius: 6px; text-align: right; }
+  .inv-saffron .hdr-badge .inv-type { font-size: 10px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+  .inv-saffron .hdr-badge .inv-num { font-size: 18px; font-weight: bold; }
+  .inv-saffron .orange-bar { height: 4px; background: linear-gradient(90deg, #b5451b, #f5a623, #b5451b); }
+  .inv-saffron .meta-row { display: flex; justify-content: space-around; background: #fff8f0; padding: 10px 20px; border-bottom: 1px solid #f5d5a0; }
+  .inv-saffron .meta-item { text-align: center; }
+  .inv-saffron .meta-item .m-lbl { font-size: 9px; font-weight: bold; color: #b5451b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .inv-saffron .meta-item .m-val { font-size: 13px; font-weight: 600; color: #333; }
+  .inv-saffron .body { padding: 18px 26px; }
+  .inv-saffron .addr-cards { display: flex; gap: 14px; margin-bottom: 16px; }
+  .inv-saffron .addr-card { flex: 1; border-left: 4px solid #e07b39; padding: 10px 12px; background: #fff8f0; border-radius: 0 6px 6px 0; }
+  .inv-saffron .addr-card-title { font-size: 10px; font-weight: bold; color: #b5451b; text-transform: uppercase; margin-bottom: 5px; }
+  .inv-saffron .addr-name { font-size: 13px; font-weight: bold; color: #222; }
+  .inv-saffron .items-table { width: 100%; border-collapse: collapse; }
+  .inv-saffron .items-table thead { background: linear-gradient(90deg, #b5451b, #e07b39); color: #fff; }
+  .inv-saffron .items-table th { padding: 9px 8px; font-size: 11px; font-weight: bold; text-align: left; }
+  .inv-saffron .items-table td { padding: 8px 8px; border-bottom: 1px solid #ffe8cc; font-size: 11px; }
+  .inv-saffron .items-table tbody tr:nth-child(even) { background: #fff8f0; }
+  .inv-saffron .totals-section { display: flex; justify-content: flex-end; margin-top: 14px; }
+  .inv-saffron .totals-box { width: 260px; border: 1px solid #f5d5a0; border-radius: 8px; overflow: hidden; }
+  .inv-saffron .t-row { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 11px; border-bottom: 1px solid #ffe8cc; }
+  .inv-saffron .t-row.grand { background: linear-gradient(90deg, #b5451b, #e07b39); color: #fff; font-weight: bold; font-size: 15px; }
+  .inv-saffron .bottom-grid { display: flex; gap: 14px; margin-top: 16px; }
+  .inv-saffron .bank-card { flex: 2; border: 1px solid #f5d5a0; border-radius: 8px; padding: 12px; background: #fff8f0; font-size: 10px; }
+  .inv-saffron .bank-card h4 { font-size: 12px; font-weight: bold; color: #b5451b; margin-bottom: 6px; border-bottom: 1px solid #f5d5a0; padding-bottom: 4px; }
+  .inv-saffron .b-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dotted #ffe8cc; }
+  .inv-saffron .qr-card { flex: 1; border: 1px solid #f5d5a0; border-radius: 8px; padding: 12px; text-align: center; background: #fff8f0; }
+  .inv-saffron .sig-card { flex: 1; border: 1px solid #f5d5a0; border-radius: 8px; padding: 12px; text-align: center; background: #fff8f0; }
+  .inv-saffron .footer-bar { background: linear-gradient(90deg, #b5451b, #e07b39); color: #fff; text-align: center; padding: 8px; font-size: 10px; margin-top: 16px; }
+</style>
+
+<div class="inv-saffron">
+  <%
+    upi_id_s = business_settings.upi_id || '9972808044@ybl'
+    upi_str_s = "upi://pay?pa=#{upi_id_s}&pn=#{CGI.escape(business_settings.business_name || 'Marali Santhe')}&am=#{final_total.round(2)}&cu=INR&tn=#{CGI.escape("Invoice #{booking.invoice_number || booking.booking_number}")}"
+  %>
+
+  <!-- Header -->
+  <div class="hdr">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <td style="vertical-align:middle;width:70px;">
+          <img src="/logo.jpeg" style="width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,0.6);" alt="Logo"/>
+        </td>
+        <td style="padding-left:14px;vertical-align:top;">
+          <div class="hdr-co"><%= business_settings.business_name || 'Marali Santhe' %></div>
+          <div class="hdr-addr"><%= business_settings.address %></div>
+          <div class="hdr-addr">GSTIN: <%= business_settings.gstin %> &nbsp;|&nbsp; PAN: <%= business_settings.pan_number %></div>
+        </td>
+        <td style="vertical-align:middle;">
+          <div class="hdr-badge">
+            <div class="inv-type"><%= has_gst ? 'Tax Invoice' : 'Bill of Supply' %></div>
+            <div class="inv-num">#<%= booking.invoice_number || booking.booking_number %></div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div class="orange-bar"></div>
+
+  <!-- Meta row -->
+  <div class="meta-row">
+    <div class="meta-item"><div class="m-lbl">Invoice Date</div><div class="m-val"><%= Date.current.strftime('%d %b %Y') %></div></div>
+    <div class="meta-item"><div class="m-lbl">Due Date</div><div class="m-val"><%= (Date.current + 30.days).strftime('%d %b %Y') %></div></div>
+    <div class="meta-item"><div class="m-lbl">Status</div><div class="m-val" style="color:<%= booking.payment_status_paid? ? '#155724' : '#b5451b' %>;"><%= booking.payment_status_paid? ? '✓ PAID' : '⏳ PENDING' %></div></div>
+    <div class="meta-item"><div class="m-lbl">Total Amount</div><div class="m-val">₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></div></div>
+  </div>
+
+  <div class="body">
+    <!-- Addresses -->
+    <div class="addr-cards">
+      <div class="addr-card">
+        <div class="addr-card-title">Bill To</div>
+        <div class="addr-name"><%= booking.customer_name || booking.customer&.display_name %></div>
+        <div style="color:#555;font-size:11px;line-height:1.5;"><%= booking.delivery_address || booking.customer&.address %></div>
+        <% if (booking.customer_phone || booking.customer&.mobile).present? %>
+          <div style="color:#e07b39;font-size:11px;margin-top:3px;"><%= booking.customer_phone || booking.customer&.mobile %></div>
+        <% end %>
+      </div>
+      <div class="addr-card">
+        <div class="addr-card-title">Ship To</div>
+        <div class="addr-name"><%= booking.customer_name || booking.customer&.display_name %></div>
+        <div style="color:#555;font-size:11px;line-height:1.5;"><%= booking.delivery_address || booking.customer&.address %></div>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="text-align:center;width:4%;">#</th>
+          <th>Item Description</th>
+          <th style="text-align:center;">HSN</th>
+          <th style="text-align:center;">Qty</th>
+          <th style="text-align:right;">Rate</th>
+          <th style="text-align:right;">Tax</th>
+          <th style="text-align:right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% booking_items.each_with_index do |item, i| %>
+          <% it = gst_item_totals(item) %>
+          <tr>
+            <td style="text-align:center;color:#b5451b;font-weight:bold;"><%= i + 1 %></td>
+            <td><strong><%= item.product&.name || 'Product' %></strong></td>
+            <td style="text-align:center;color:#888;font-size:10px;"><%= item.product&.hsn_code || '-' %></td>
+            <td style="text-align:center;"><%= item.quantity %> <%= item.product&.unit_type || 'PCS' %></td>
+            <td style="text-align:right;">₹<%= number_with_delimiter(sprintf('%.2f', item.price || 0), delimiter: ',') %></td>
+            <td style="text-align:right;color:#e07b39;">₹<%= number_with_delimiter(it[:tax].round(2), delimiter: ',') %> <span style="font-size:9px;color:#aaa;">(<%= it[:gst_rate].to_i == it[:gst_rate] ? it[:gst_rate].to_i : it[:gst_rate] %>%)</span></td>
+            <td style="text-align:right;font-weight:bold;">₹<%= number_with_delimiter((it[:base]+it[:tax]).round(2), delimiter: ',') %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals-section">
+      <div class="totals-box">
+        <div class="t-row"><span>Taxable Amount</span><span>₹ <%= number_with_delimiter(taxable_amount.round(2), delimiter: ',') %></span></div>
+        <% rate_groups = gst_rate_groups(booking_items)
+           all_rates = (rate_groups[:cgst].keys + rate_groups[:sgst].keys).uniq.sort
+           all_rates.each do |rate| %>
+          <% if rate_groups[:cgst][rate].to_f > 0 %>
+            <div class="t-row"><span>CGST @<%= rate.to_i == rate ? rate.to_i : rate %>%</span><span>₹ <%= number_with_delimiter(rate_groups[:cgst][rate].round(2), delimiter: ',') %></span></div>
+          <% end %>
+          <% if rate_groups[:sgst][rate].to_f > 0 %>
+            <div class="t-row"><span>SGST @<%= rate.to_i == rate ? rate.to_i : rate %>%</span><span>₹ <%= number_with_delimiter(rate_groups[:sgst][rate].round(2), delimiter: ',') %></span></div>
+          <% end %>
+        <% end %>
+        <div class="t-row grand"><span>TOTAL</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
+        <div style="padding:6px 12px;font-size:10px;color:#666;font-style:italic;"><%= amount_in_words(final_total) %> Rupees Only</div>
+      </div>
+    </div>
+
+    <!-- Bottom grid -->
+    <div class="bottom-grid">
+      <div class="bank-card">
+        <h4>Bank Details</h4>
+        <div class="b-row"><span>Account Holder</span><strong><%= business_settings.account_holder_name %></strong></div>
+        <div class="b-row"><span>Bank</span><strong><%= business_settings.bank_name %></strong></div>
+        <div class="b-row"><span>A/c No.</span><strong><%= business_settings.account_number %></strong></div>
+        <div class="b-row"><span>IFSC</span><strong><%= business_settings.ifsc_code %></strong></div>
+      </div>
+      <div class="qr-card">
+        <div style="font-size:10px;font-weight:bold;color:#b5451b;margin-bottom:6px;">Scan &amp; Pay</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=<%= CGI.escape(upi_str_s) %>" alt="QR" style="width:75px;height:75px;border:2px solid #e07b39;border-radius:6px;"/>
+        <div style="font-size:9px;color:#888;margin-top:4px;"><%= upi_id_s %></div>
+      </div>
+      <div class="sig-card">
+        <div style="font-size:10px;font-weight:bold;color:#b5451b;margin-bottom:4px;">Authorised Signatory</div>
+        <div style="height:50px;border:1px solid #f5d5a0;border-radius:4px;margin:4px 0;background:#fffaf5;"></div>
+        <div style="font-size:11px;font-weight:bold;color:#b5451b;"><%= business_settings.business_name %></div>
+      </div>
+    </div>
+
+    <% if business_settings.terms_and_conditions.present? %>
+      <div style="margin-top:12px;background:#fff8f0;border-radius:6px;padding:10px 14px;font-size:10px;border-left:3px solid #e07b39;">
+        <strong style="color:#b5451b;">Terms &amp; Conditions</strong>
+        <ol style="padding-left:16px;margin:4px 0 0;line-height:1.5;">
+          <% business_settings.formatted_terms_and_conditions.each do |t| %><li><%= t %></li><% end %>
+        </ol>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="footer-bar">This is a Computer Generated Invoice &nbsp;|&nbsp; <%= business_settings.business_name %></div>
+</div>

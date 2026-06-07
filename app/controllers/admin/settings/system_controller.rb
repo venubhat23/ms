@@ -26,6 +26,11 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
 
     # Get business settings
     @business_setting = SystemSetting.business_settings
+    @invoice_template = begin
+      SystemSetting.column_names.include?('invoice_template') ? (@business_setting.invoice_template.presence || 'classic') : 'classic'
+    rescue
+      'classic'
+    end
 
     # Get collect from store settings
     @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?

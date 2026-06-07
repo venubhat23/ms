@@ -1,0 +1,170 @@
+<style>
+  .inv-corp { font-family: 'Georgia', serif; font-size: 11px; background: #fff; }
+  .inv-corp .hdr { background: #002147; color: #fff; padding: 0; }
+  .inv-corp .hdr-top { padding: 20px 28px; border-bottom: 3px solid #c8a951; display: flex; justify-content: space-between; align-items: center; }
+  .inv-corp .hdr-co { font-size: 24px; font-weight: bold; letter-spacing: 1px; font-family: Georgia, serif; }
+  .inv-corp .hdr-tagline { font-size: 11px; opacity: 0.75; margin-top: 3px; font-style: italic; }
+  .inv-corp .hdr-inv { text-align: right; }
+  .inv-corp .hdr-inv .inv-label { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 2px; }
+  .inv-corp .hdr-inv .inv-num { font-size: 22px; font-weight: bold; color: #c8a951; }
+  .inv-corp .gold-bar { height: 3px; background: linear-gradient(90deg, #c8a951, #f0d080, #c8a951); }
+  .inv-corp .meta-band { background: #f5f0e8; padding: 10px 28px; display: flex; gap: 30px; font-size: 11px; border-bottom: 1px solid #d4c4a0; }
+  .inv-corp .meta-band .m-item { display: flex; gap: 6px; }
+  .inv-corp .meta-band .m-label { font-weight: bold; color: #666; }
+  .inv-corp .body { padding: 20px 28px; }
+  .inv-corp .addr-row { display: flex; gap: 20px; margin-bottom: 18px; }
+  .inv-corp .addr-box { flex: 1; border: 1px solid #d4c4a0; padding: 12px; background: #fdfbf7; }
+  .inv-corp .addr-box-title { font-size: 10px; font-weight: bold; color: #002147; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #d4c4a0; padding-bottom: 5px; margin-bottom: 8px; }
+  .inv-corp .addr-name { font-size: 13px; font-weight: bold; margin-bottom: 3px; }
+  .inv-corp .items-table { width: 100%; border-collapse: collapse; }
+  .inv-corp .items-table thead { background: #002147; color: #fff; }
+  .inv-corp .items-table th { padding: 9px 8px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border: none; }
+  .inv-corp .items-table td { padding: 8px 8px; border-bottom: 1px solid #e8e0d0; font-size: 11px; }
+  .inv-corp .items-table tbody tr:nth-child(even) { background: #fdfbf7; }
+  .inv-corp .subtotal-row { background: #f5f0e8 !important; font-weight: bold; border-top: 2px solid #002147; border-bottom: 2px solid #002147; }
+  .inv-corp .totals-area { display: flex; justify-content: space-between; margin-top: 16px; }
+  .inv-corp .terms-box { flex: 1; font-size: 10px; padding-right: 20px; }
+  .inv-corp .totals-box { width: 240px; border: 1px solid #d4c4a0; }
+  .inv-corp .totals-box .t-row { display: flex; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid #e8e0d0; font-size: 11px; }
+  .inv-corp .totals-box .grand { background: #002147; color: #fff; font-weight: bold; font-size: 14px; }
+  .inv-corp .totals-box .gold { background: #c8a951; color: #002147; font-size: 10px; font-style: italic; padding: 6px 10px; }
+  .inv-corp .bottom-row { display: flex; gap: 16px; margin-top: 16px; }
+  .inv-corp .bank-box { flex: 2; border: 1px solid #d4c4a0; padding: 12px; background: #fdfbf7; font-size: 10px; }
+  .inv-corp .bank-box h4 { font-size: 11px; font-weight: bold; color: #002147; margin-bottom: 6px; border-bottom: 1px solid #d4c4a0; padding-bottom: 4px; }
+  .inv-corp .b-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dotted #e8e0d0; }
+  .inv-corp .sig-box { flex: 1; border: 1px solid #d4c4a0; padding: 12px; text-align: center; background: #fdfbf7; }
+  .inv-corp .hdr-addr { font-size: 10px; opacity: 0.8; padding: 6px 28px; border-bottom: 1px solid rgba(200,169,81,0.3); }
+</style>
+
+<div class="inv-corp">
+  <%
+    upi_id_c = business_settings.upi_id || '9972808044@ybl'
+    upi_str_c = "upi://pay?pa=#{upi_id_c}&pn=#{CGI.escape(business_settings.business_name || 'Marali Santhe')}&am=#{final_total.round(2)}&cu=INR&tn=#{CGI.escape("Invoice #{booking.invoice_number || booking.booking_number}")}"
+  %>
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-top">
+      <div>
+        <img src="/logo.jpeg" style="width:55px;height:55px;border-radius:50%;border:2px solid #c8a951;float:left;margin-right:14px;" alt="Logo"/>
+        <div class="hdr-co"><%= business_settings.business_name || 'Marali Santhe' %></div>
+        <div class="hdr-tagline">Quality &bull; Trust &bull; Excellence</div>
+      </div>
+      <div class="hdr-inv">
+        <div class="inv-label"><%= has_gst ? 'Tax Invoice' : 'Bill of Supply' %></div>
+        <div class="inv-num">#<%= booking.invoice_number || booking.booking_number %></div>
+      </div>
+    </div>
+    <div class="hdr-addr"><%= business_settings.address %> | GSTIN: <%= business_settings.gstin %> | PAN: <%= business_settings.pan_number %> | <%= business_settings.mobile %></div>
+  </div>
+
+  <div class="gold-bar"></div>
+
+  <div class="meta-band">
+    <div class="m-item"><span class="m-label">Invoice Date:</span><span><%= Date.current.strftime('%d %B %Y') %></span></div>
+    <div class="m-item"><span class="m-label">Due Date:</span><span><%= (Date.current + 30.days).strftime('%d %B %Y') %></span></div>
+    <div class="m-item"><span class="m-label">Payment Status:</span><span style="font-weight:bold;color:<%= booking.payment_status_paid? ? '#155724' : '#721c24' %>;"><%= booking.payment_status_paid? ? 'PAID' : 'PENDING' %></span></div>
+  </div>
+
+  <div class="body">
+    <!-- Addresses -->
+    <div class="addr-row">
+      <div class="addr-box">
+        <div class="addr-box-title">Bill To</div>
+        <div class="addr-name"><%= booking.customer_name || booking.customer&.display_name %></div>
+        <div style="color:#555;line-height:1.5;"><%= booking.delivery_address || booking.customer&.address %></div>
+        <% if (booking.customer_phone || booking.customer&.mobile).present? %>
+          <div style="margin-top:4px;"><strong>Mobile:</strong> <%= booking.customer_phone || booking.customer&.mobile %></div>
+        <% end %>
+      </div>
+      <div class="addr-box">
+        <div class="addr-box-title">Ship To</div>
+        <div class="addr-name"><%= booking.customer_name || booking.customer&.display_name %></div>
+        <div style="color:#555;line-height:1.5;"><%= booking.delivery_address || booking.customer&.address %></div>
+      </div>
+    </div>
+
+    <!-- Items -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="text-align:center;width:4%;">S.No</th>
+          <th>Description</th>
+          <th style="text-align:center;">HSN/SAC</th>
+          <th style="text-align:center;">Qty</th>
+          <th style="text-align:right;">Unit Rate</th>
+          <th style="text-align:right;">Tax</th>
+          <th style="text-align:right;">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% booking_items.each_with_index do |item, i| %>
+          <% it = gst_item_totals(item) %>
+          <tr>
+            <td style="text-align:center;color:#888;"><%= i + 1 %></td>
+            <td><strong><%= item.product&.name || 'Product' %></strong></td>
+            <td style="text-align:center;color:#666;font-size:10px;"><%= item.product&.hsn_code || '-' %></td>
+            <td style="text-align:center;"><%= item.quantity %> <%= item.product&.unit_type || 'PCS' %></td>
+            <td style="text-align:right;">₹ <%= number_with_delimiter(sprintf('%.2f', item.price || 0), delimiter: ',') %></td>
+            <td style="text-align:right;">₹ <%= number_with_delimiter(it[:tax].round(2), delimiter: ',') %><br/><span style="font-size:9px;color:#888;">(<%= it[:gst_rate].to_i == it[:gst_rate] ? it[:gst_rate].to_i : it[:gst_rate] %>%)</span></td>
+            <td style="text-align:right;font-weight:bold;">₹ <%= number_with_delimiter((it[:base]+it[:tax]).round(2), delimiter: ',') %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals-area">
+      <div class="terms-box">
+        <% if business_settings.terms_and_conditions.present? %>
+          <strong style="font-size:11px;color:#002147;">Terms &amp; Conditions</strong>
+          <ol style="padding-left:14px;margin:5px 0;line-height:1.6;">
+            <% business_settings.formatted_terms_and_conditions.each do |t| %><li><%= t %></li><% end %>
+          </ol>
+        <% end %>
+        <div style="margin-top:8px;font-size:10px;color:#666;font-style:italic;"><%= amount_in_words(final_total) %> Rupees Only</div>
+      </div>
+      <div class="totals-box">
+        <div class="t-row"><span>Taxable Amount</span><span>₹ <%= number_with_delimiter(taxable_amount.round(2), delimiter: ',') %></span></div>
+        <% rate_groups = gst_rate_groups(booking_items)
+           all_rates = (rate_groups[:cgst].keys + rate_groups[:sgst].keys).uniq.sort
+           all_rates.each do |rate| %>
+          <% if rate_groups[:cgst][rate].to_f > 0 %>
+            <div class="t-row"><span>CGST @<%= rate.to_i == rate ? rate.to_i : rate %>%</span><span>₹ <%= number_with_delimiter(rate_groups[:cgst][rate].round(2), delimiter: ',') %></span></div>
+          <% end %>
+          <% if rate_groups[:sgst][rate].to_f > 0 %>
+            <div class="t-row"><span>SGST @<%= rate.to_i == rate ? rate.to_i : rate %>%</span><span>₹ <%= number_with_delimiter(rate_groups[:sgst][rate].round(2), delimiter: ',') %></span></div>
+          <% end %>
+        <% end %>
+        <div class="t-row grand"><span>TOTAL</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
+        <div class="gold">Amount Received: ₹ <%= booking.payment_status_paid? ? number_with_delimiter(final_total.round(2), delimiter: ',') : '0.00' %></div>
+      </div>
+    </div>
+
+    <!-- Bottom -->
+    <div class="bottom-row">
+      <div class="bank-box">
+        <h4>Bank Details</h4>
+        <div class="b-row"><span>Account Holder</span><strong><%= business_settings.account_holder_name %></strong></div>
+        <div class="b-row"><span>Bank Name</span><strong><%= business_settings.bank_name %></strong></div>
+        <div class="b-row"><span>Account No.</span><strong><%= business_settings.account_number %></strong></div>
+        <div class="b-row"><span>IFSC Code</span><strong><%= business_settings.ifsc_code %></strong></div>
+      </div>
+      <div class="sig-box" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;">
+        <div style="font-size:10px;font-weight:bold;color:#002147;margin-bottom:4px;">Scan &amp; Pay (UPI)</div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=<%= CGI.escape(upi_str_c) %>" alt="QR" style="width:70px;height:70px;border:2px solid #c8a951;border-radius:4px;"/>
+        <div style="font-size:9px;color:#666;margin-top:3px;"><%= upi_id_c %></div>
+      </div>
+      <div class="sig-box" style="flex:1;">
+        <div style="font-size:10px;font-weight:bold;color:#002147;margin-bottom:4px;">Authorised Signatory</div>
+        <div style="height:50px;border:1px solid #d4c4a0;border-radius:3px;margin-bottom:8px;background:#fafaf7;"></div>
+        <div style="font-size:11px;font-weight:bold;color:#002147;"><%= business_settings.business_name %></div>
+        <div style="font-size:9px;color:#888;margin-top:2px;">This is a Computer Generated Invoice</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#002147;color:#c8a951;text-align:center;padding:8px;font-size:10px;letter-spacing:1px;">
+    <%= business_settings.business_name %> &nbsp;&bull;&nbsp; <%= business_settings.email %> &nbsp;&bull;&nbsp; <%= business_settings.mobile %>
+  </div>
+</div>

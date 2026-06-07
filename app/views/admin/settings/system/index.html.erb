@@ -32,6 +32,12 @@
       <i class="bi bi-shop me-2"></i>Store Settings
     </button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="invoice-template-tab" data-bs-toggle="pill" data-bs-target="#invoice-template"
+            type="button" role="tab" aria-controls="invoice-template" aria-selected="false">
+      <i class="bi bi-file-earmark-text me-2"></i>Invoice Template
+    </button>
+  </li>
 </ul>
 
 <!-- Statistics Cards -->
@@ -815,7 +821,222 @@
 
   </div> <!-- End of Store Settings Tab -->
 
+  <!-- Invoice Template Tab -->
+  <div class="tab-pane fade" id="invoice-template" role="tabpanel" aria-labelledby="invoice-template-tab">
+    <%= form_with url: admin_settings_system_path, method: :patch, local: true do |form| %>
+      <%= hidden_field_tag :business_settings_update, "true" %>
+      <%# Pass through existing business settings unchanged %>
+      <%= hidden_field_tag :business_name, @business_setting.business_name %>
+      <%= hidden_field_tag :address, @business_setting.address %>
+      <%= hidden_field_tag :mobile, @business_setting.mobile %>
+      <%= hidden_field_tag :email, @business_setting.email %>
+      <%= hidden_field_tag :gstin, @business_setting.gstin %>
+      <%= hidden_field_tag :pan_number, @business_setting.pan_number %>
+      <%= hidden_field_tag :account_holder_name, @business_setting.account_holder_name %>
+      <%= hidden_field_tag :bank_name, @business_setting.bank_name %>
+      <%= hidden_field_tag :account_number, @business_setting.account_number %>
+      <%= hidden_field_tag :ifsc_code, @business_setting.ifsc_code %>
+      <%= hidden_field_tag :upi_id, @business_setting.upi_id %>
+      <%= hidden_field_tag :terms_and_conditions, @business_setting.terms_and_conditions %>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header">
+          <h4><i class="bi bi-file-earmark-text me-2"></i>Invoice Template</h4>
+          <p class="text-muted mb-0 small">Choose the look and feel of your invoices. Changes apply immediately to all new invoices.</p>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+
+            <!-- Classic -->
+            <div class="col-md-4">
+              <label class="template-card <%= @business_setting.invoice_template.blank? || @business_setting.invoice_template == 'classic' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+                <input type="radio" name="invoice_template" value="classic" style="display:none;"
+                  <%= @business_setting.invoice_template.blank? || @business_setting.invoice_template == 'classic' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @business_setting.invoice_template.blank? || @business_setting.invoice_template == 'classic' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:#5a4ec9;border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-3">
+                    <div style="background:#e7e7e7;height:16px;border-radius:3px;margin-bottom:8px;"></div>
+                    <div style="display:flex;gap:6px;margin-bottom:6px;">
+                      <div style="flex:1;background:#f3f2fd;height:40px;border-radius:3px;border-left:3px solid #5a4ec9;"></div>
+                      <div style="flex:1;background:#f3f2fd;height:40px;border-radius:3px;border-left:3px solid #5a4ec9;"></div>
+                    </div>
+                    <div style="background:#f8f9fa;height:50px;border-radius:3px;border-top:3px solid #5a4ec9;border-bottom:3px solid #5a4ec9;"></div>
+                    <div style="margin-top:6px;background:#f3f2fd;height:10px;border-radius:3px;width:60%;"></div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#5a4ec9;"><i class="bi bi-palette me-1"></i>Classic Purple</strong>
+                    <div class="small text-muted">Default template. Clean purple accent with GST tax summary.</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Tally -->
+            <div class="col-md-4">
+              <label class="template-card <%= @business_setting.invoice_template == 'tally' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+                <input type="radio" name="invoice_template" value="tally" style="display:none;"
+                  <%= @business_setting.invoice_template == 'tally' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @business_setting.invoice_template == 'tally' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:#000;border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-3">
+                    <div style="border:1px solid #000;padding:4px;margin-bottom:5px;">
+                      <div style="background:#f5f5f5;height:14px;border-radius:2px;"></div>
+                    </div>
+                    <div style="border:1px solid #000;height:50px;margin-bottom:5px;background:#fafafa;"></div>
+                    <div style="border:1px solid #000;height:16px;background:#f0f0f0;"></div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#333;"><i class="bi bi-table me-1"></i>Tally Style</strong>
+                    <div class="small text-muted">Traditional Indian proforma invoice. Formal GST format with HSN summary.</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Modern -->
+            <div class="col-md-4">
+              <label class="template-card <%= @business_setting.invoice_template == 'modern' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+                <input type="radio" name="invoice_template" value="modern" style="display:none;"
+                  <%= @business_setting.invoice_template == 'modern' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @business_setting.invoice_template == 'modern' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:linear-gradient(90deg,#0f4c35,#1a7a55);border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-3">
+                    <div style="background:linear-gradient(135deg,#0f4c35,#1a7a55);height:34px;border-radius:4px;margin-bottom:6px;"></div>
+                    <div style="background:#f0faf5;height:14px;border-radius:3px;margin-bottom:5px;border-bottom:2px solid #1a7a55;"></div>
+                    <div style="display:flex;gap:5px;margin-bottom:5px;">
+                      <div style="flex:1;border:1px solid #e2e8f0;height:30px;border-radius:5px;"></div>
+                      <div style="flex:1;border:1px solid #e2e8f0;height:30px;border-radius:5px;"></div>
+                    </div>
+                    <div style="background:#0f4c35;height:14px;border-radius:3px;"></div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#0f4c35;"><i class="bi bi-stars me-1"></i>Modern Green</strong>
+                    <div class="small text-muted">Clean card-based layout with emerald green gradient header.</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Corporate -->
+            <div class="col-md-4">
+              <label class="template-card <%= @business_setting.invoice_template == 'corporate' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+                <input type="radio" name="invoice_template" value="corporate" style="display:none;"
+                  <%= @business_setting.invoice_template == 'corporate' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @business_setting.invoice_template == 'corporate' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:#002147;border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-3">
+                    <div style="background:#002147;height:34px;border-radius:4px;margin-bottom:3px;"></div>
+                    <div style="height:3px;background:linear-gradient(90deg,#c8a951,#f0d080,#c8a951);margin-bottom:5px;"></div>
+                    <div style="background:#f5f0e8;height:12px;border-radius:3px;margin-bottom:5px;border:1px solid #d4c4a0;"></div>
+                    <div style="display:flex;gap:5px;margin-bottom:5px;">
+                      <div style="flex:1;border:1px solid #d4c4a0;height:28px;border-radius:3px;background:#fdfbf7;"></div>
+                      <div style="flex:1;border:1px solid #d4c4a0;height:28px;border-radius:3px;background:#fdfbf7;"></div>
+                    </div>
+                    <div style="background:#002147;height:14px;border-radius:3px;"></div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#002147;"><i class="bi bi-briefcase me-1"></i>Corporate Navy</strong>
+                    <div class="small text-muted">Formal navy & gold. Elegant business style for professional clients.</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Saffron -->
+            <div class="col-md-4">
+              <label class="template-card <%= @business_setting.invoice_template == 'saffron' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+                <input type="radio" name="invoice_template" value="saffron" style="display:none;"
+                  <%= @business_setting.invoice_template == 'saffron' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @business_setting.invoice_template == 'saffron' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:linear-gradient(90deg,#b5451b,#f5a623);border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-3">
+                    <div style="background:linear-gradient(135deg,#b5451b,#e07b39,#f5a623);height:34px;border-radius:4px;margin-bottom:6px;"></div>
+                    <div style="background:#fff8f0;height:14px;border-radius:3px;margin-bottom:5px;border-bottom:1px solid #f5d5a0;"></div>
+                    <div style="display:flex;gap:5px;margin-bottom:5px;">
+                      <div style="flex:1;border-left:4px solid #e07b39;height:28px;border-radius:0 4px 4px 0;background:#fff8f0;"></div>
+                      <div style="flex:1;border-left:4px solid #e07b39;height:28px;border-radius:0 4px 4px 0;background:#fff8f0;"></div>
+                    </div>
+                    <div style="background:linear-gradient(90deg,#b5451b,#e07b39);height:14px;border-radius:3px;"></div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#b5451b;"><i class="bi bi-sun me-1"></i>Saffron Warm</strong>
+                    <div class="small text-muted">Warm Indian saffron & orange. Vibrant and festive feel.</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            <!-- Minimal -->
+            <div class="col-md-4">
+              <label class="template-card <%= @business_setting.invoice_template == 'minimal' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+                <input type="radio" name="invoice_template" value="minimal" style="display:none;"
+                  <%= @business_setting.invoice_template == 'minimal' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @business_setting.invoice_template == 'minimal' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:#1a1a1a;border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-3">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                      <div>
+                        <div style="background:#1a1a1a;height:12px;width:90px;border-radius:2px;margin-bottom:4px;"></div>
+                        <div style="background:#e5e5e5;height:8px;width:120px;border-radius:2px;"></div>
+                      </div>
+                      <div style="text-align:right;">
+                        <div style="background:#e5e5e5;height:8px;width:50px;border-radius:2px;margin-bottom:4px;"></div>
+                        <div style="background:#1a1a1a;height:14px;width:70px;border-radius:2px;"></div>
+                      </div>
+                    </div>
+                    <div style="border-top:2px solid #1a1a1a;padding-top:6px;">
+                      <div style="background:#e5e5e5;height:8px;border-radius:2px;margin-bottom:4px;"></div>
+                      <div style="background:#e5e5e5;height:8px;border-radius:2px;width:80%;"></div>
+                    </div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#1a1a1a;"><i class="bi bi-layout-text-window me-1"></i>Minimal B&W</strong>
+                    <div class="small text-muted">Clean black & white typography. Distraction-free, print-friendly.</div>
+                  </div>
+                </div>
+              </label>
+            </div>
+
+          </div><!-- /.row -->
+
+          <div class="mt-4 d-flex gap-2 align-items-center">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-circle me-1"></i>Save Template
+            </button>
+            <% booking_id = Booking.first&.id %>
+            <% if booking_id %>
+              <a href="<%= admin_booking_invoice_path(booking_id) %>" target="_blank" class="btn btn-outline-secondary">
+                <i class="bi bi-eye me-1"></i>Preview Invoice
+              </a>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div> <!-- End of Invoice Template Tab -->
+
 </div> <!-- End of Tab Content -->
+
+<style>
+  .template-card input[type="radio"]:checked + .card,
+  .template-card.selected .card { border-color: #0d6efd !important; box-shadow: 0 0 0 3px rgba(13,110,253,0.15); }
+  .template-card:hover .card { border-color: #adb5bd !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+</style>
+
+<script>
+  document.querySelectorAll('.template-card').forEach(function(label) {
+    label.addEventListener('click', function() {
+      document.querySelectorAll('.template-card').forEach(function(l) {
+        l.classList.remove('selected');
+        l.querySelector('.card').classList.remove('border-primary');
+        l.querySelector('.card').classList.add('border-light');
+      });
+      this.classList.add('selected');
+      this.querySelector('.card').classList.add('border-primary');
+      this.querySelector('.card').classList.remove('border-light');
+    });
+  });
+</script>
 
 <script>
 // Bootstrap form validation

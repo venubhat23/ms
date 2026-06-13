@@ -3,17 +3,18 @@ class Admin::BookingsController < Admin::ApplicationController
   before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :manage_stage, :update_stage]
 
   def index
-    # Start with base query for statistics (before filtering)
-    @all_bookings = if current_user.franchise?
-                     # Franchise users see only their own bookings
-                     Booking.where(user_id: current_user.id).includes(:customer, :user, :booking_items, :store, :booking_invoices)
-                   else
-                     # Admin sees all bookings
-                     Booking.includes(:customer, :user, :booking_items, :store, :franchise, :booking_invoices)
-                   end
+    # Base scope (no includes — used for lightweight stat counting only)
+    base_scope = current_user.franchise? ? Booking.where(user_id: current_user.id) : Booking.all
 
-    # Apply filters
-    @bookings = @all_bookings.recent
+    # Single GROUP BY replaces 6 separate COUNT queries fired in the view
+    @status_counts = base_scope.group(:status).count
+
+    # Paginated listing with eager-loaded associations
+    # user: :franchise avoids N+1 when booking.user.franchise.name is rendered
+    listing_includes = [:customer, { user: :franchise }, :booking_items, :store, :booking_invoices]
+    listing_includes << :franchise unless current_user.franchise?
+
+    @bookings = base_scope.recent.includes(*listing_includes)
 
     if params[:search].present?
       @bookings = @bookings.where(
@@ -42,16 +43,9 @@ class Admin::BookingsController < Admin::ApplicationController
       @bookings = @bookings.where(booked_by: params[:booked_by])
     end
 
-    # Get pagination settings from system settings
     @per_page = SystemSetting.default_pagination_per_page
-
-    # Paginate the filtered results
     @bookings = @bookings.page(params[:page]).per(@per_page)
 
-    # Use all_bookings for statistics cards to show complete picture
-    @bookings_for_stats = @all_bookings
-
-    # Load customers for filter dropdown
     @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
                         .order(:first_name, :last_name)
   end
@@ -60,15 +54,10 @@ class Admin::BookingsController < Admin::ApplicationController
     @booking = Booking.new
     @booking.booking_items.build
 
-    # Only count central/main inventory (store_id IS NULL) so transferred stock is not double-counted
+    # stock_batches removed from includes — stock is already aggregated via the JOIN below
+    # additional_images_attachments removed — not needed for single-card thumbnails
     @products = Product.active
-                       .includes(
-                         :category,
-                         :stock_batches,
-                         :product_variants,
-                         image_attachment: :blob,
-                         additional_images_attachments: :blob
-                       )
+                       .includes(:category, :product_variants, image_attachment: :blob)
                        .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0 AND stock_batches.store_id IS NULL")
                        .select(
                          "products.*,
@@ -81,6 +70,8 @@ class Admin::BookingsController < Admin::ApplicationController
 
     @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
                         .order(:first_name, :last_name)
+    @categories = Category.where(status: true).order(:display_order, :name)
+    @stores = Store.active.order(:name)
   end
 
   def create
@@ -118,9 +109,10 @@ class Admin::BookingsController < Admin::ApplicationController
 
     # Validate stock availability before saving
     unless validate_stock_availability(@booking)
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+      @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
       @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-      @stores = Store.where(status: true)
+      @categories = Category.where(status: true).order(:display_order, :name)
+      @stores = Store.active.order(:name)
       render :new, status: :unprocessable_entity
       return
     end
@@ -169,9 +161,10 @@ class Admin::BookingsController < Admin::ApplicationController
       Rails.logger.error "Booking creation failed: #{@booking.errors.full_messages.join(', ')}"
       Rails.logger.error "Booking items errors: #{@booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"
 
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+      @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
       @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-      @stores = Store.where(status: true)
+      @categories = Category.where(status: true).order(:display_order, :name)
+      @stores = Store.active.order(:name)
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
     end
@@ -446,24 +439,24 @@ class Admin::BookingsController < Admin::ApplicationController
 
   # Real-time data endpoint
   def realtime_data
-    # Get fresh data for statistics
-    all_bookings = Booking.includes(:customer, :user, :booking_items)
+    # Single GROUP BY replaces 9 separate COUNT queries
+    counts = Booking.group(:status).count
 
     stats = {
-      draft: all_bookings.draft.count,
-      pending: all_bookings.ordered_and_delivery_pending.count,
-      processing: all_bookings.where(status: [:confirmed, :processing, :packed]).count,
-      shipped: all_bookings.where(status: [:shipped, :out_for_delivery]).count,
-      delivered: all_bookings.where(status: [:delivered, :completed]).count,
-      issues: all_bookings.where(status: [:cancelled, :returned]).count,
-      total: all_bookings.count,
-      today_bookings: all_bookings.where(created_at: Date.current.all_day).count,
-      total_revenue: all_bookings.where(status: [:completed, :delivered]).sum(:total_amount),
+      draft: counts['draft'] || 0,
+      pending: counts['ordered_and_delivery_pending'] || 0,
+      processing: (counts['confirmed'] || 0) + (counts['processing'] || 0) + (counts['packed'] || 0),
+      shipped: (counts['shipped'] || 0) + (counts['out_for_delivery'] || 0),
+      delivered: (counts['delivered'] || 0) + (counts['completed'] || 0),
+      issues: (counts['cancelled'] || 0) + (counts['returned'] || 0),
+      total: counts.values.sum,
+      today_bookings: Booking.where(created_at: Date.current.all_day).count,
+      total_revenue: Booking.where(status: %w[completed delivered]).sum(:total_amount),
       last_updated: Time.current.strftime('%I:%M:%S %p')
     }
 
-    # Get recent bookings (last 5)
-    recent_bookings = all_bookings.recent.limit(5).includes(:customer, :booking_items).map do |booking|
+    # Get recent bookings (last 5) — .size uses preloaded association, avoids N+1
+    recent_bookings = Booking.recent.limit(5).includes(:customer, :booking_items).map do |booking|
       {
         id: booking.id,
         booking_number: booking.booking_number,
@@ -473,7 +466,7 @@ class Admin::BookingsController < Admin::ApplicationController
         status_icon: booking.status_icon,
         total_amount: booking.total_amount,
         created_at: booking.created_at.strftime('%d %b %Y %I:%M %p'),
-        items_count: booking.booking_items.count
+        items_count: booking.booking_items.size
       }
     end
 
@@ -491,8 +484,15 @@ class Admin::BookingsController < Admin::ApplicationController
 
   # AJAX endpoints
   def search_products
+    stock_sq = StockBatch.where(status: 'active')
+                         .select("product_id, SUM(quantity_remaining) AS total_stock")
+                         .group(:product_id)
+
     @products = Product.active
-                       .where("name ILIKE ? OR sku ILIKE ?", "%#{params[:q]}%", "%#{params[:q]}%")
+                       .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
+                       .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
+                       .includes(image_attachment: :blob)
+                       .where("products.name ILIKE ? OR products.sku ILIKE ?", "%#{params[:q]}%", "%#{params[:q]}%")
                        .limit(10)
 
     render json: @products.map { |p|

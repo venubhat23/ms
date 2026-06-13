@@ -217,17 +217,72 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
   def preview_invoice_template
     allowed = %w[classic tally modern corporate saffron minimal proforma]
     @preview_template = allowed.include?(params[:template]) ? params[:template] : 'classic'
-
-    @booking = Booking.includes(booking_items: :product).order(created_at: :desc).first
-    if @booking.nil?
-      render plain: '<div style="padding:60px;text-align:center;font-family:Arial;font-size:14px;color:#666;">No bookings found. Create at least one booking to preview invoice templates.</div>', layout: false
-      return
-    end
-    @booking_items = @booking.booking_items.includes(:product)
+    @booking       = build_dummy_booking
+    @booking_items = build_dummy_booking_items
     render template: 'admin/bookings/invoice', layout: 'invoice'
   end
 
   private
+
+  def build_dummy_booking
+    dummy_customer = OpenStruct.new(
+      display_name: 'Rahul Kumar',
+      address:      "45, 2nd Cross, Indiranagar\nBengaluru, Karnataka - 560038",
+      mobile:       '9876543210',
+      gstin:        '29ABCDE1234F1Z5'
+    )
+
+    booking = OpenStruct.new(
+      invoice_number:  'INV-2025-0001',
+      booking_number:  'BK-2025-0001',
+      customer_name:   'Rahul Kumar',
+      customer:        dummy_customer,
+      delivery_address: "45, 2nd Cross, Indiranagar\nBengaluru, Karnataka - 560038",
+      customer_phone:  '9876543210',
+      shipping_charges: 0
+    )
+    booking.define_singleton_method(:payment_status_paid?) { false }
+    booking
+  end
+
+  def build_dummy_booking_items
+    product1 = OpenStruct.new(
+      name:             'Organic Tomatoes (Grade A)',
+      hsn_code:         '07020000',
+      unit_type:        'KG',
+      gst_enabled:      true,
+      gst_percentage:   5.0,
+      cgst_percentage:  nil,
+      sgst_percentage:  nil,
+      igst_percentage:  nil
+    )
+    product2 = OpenStruct.new(
+      name:             'Fresh Coconut Oil 1L',
+      hsn_code:         '15131100',
+      unit_type:        'PCS',
+      gst_enabled:      true,
+      gst_percentage:   18.0,
+      cgst_percentage:  nil,
+      sgst_percentage:  nil,
+      igst_percentage:  nil
+    )
+    product3 = OpenStruct.new(
+      name:             'Turmeric Powder 500g',
+      hsn_code:         '09103010',
+      unit_type:        'PCS',
+      gst_enabled:      true,
+      gst_percentage:   5.0,
+      cgst_percentage:  nil,
+      sgst_percentage:  nil,
+      igst_percentage:  nil
+    )
+
+    [
+      OpenStruct.new(quantity: 10, price: 63.0,  product: product1),
+      OpenStruct.new(quantity: 3,  price: 354.0, product: product2),
+      OpenStruct.new(quantity: 5,  price: 105.0, product: product3)
+    ]
+  end
 
   def system_setting_params
     params.require(:system_setting).permit(

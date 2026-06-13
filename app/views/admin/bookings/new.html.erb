@@ -91,7 +91,7 @@
       <div class="col-md-3">
         <select class="form-select form-select-sm" id="categoryFilter">
           <option value="">All Categories</option>
-          <% Category.where(status: true).each do |category| %>
+          <% @categories.each do |category| %>
             <option value="<%= category.id %>"><%= category.name %></option>
           <% end %>
         </select>
@@ -121,8 +121,11 @@
               <div class="card h-100 border-0 shadow-sm hover-lift">
                 <%# Product Image %>
                 <div class="position-relative">
-                  <% if product.images_attached? && product.images.any? %>
-                    <%= image_tag product.images.first, class: "card-img-top", style: "height: 200px; object-fit: cover;" %>
+                  <% _img_url = product.r2_image_url.presence || product.image_url.presence %>
+                  <% if _img_url %>
+                    <img src="<%= _img_url %>" class="card-img-top" style="height: 200px; object-fit: cover;" alt="<%= product.name %>" loading="lazy">
+                  <% elsif product.image.attached? %>
+                    <%= image_tag product.image, class: "card-img-top", style: "height: 200px; object-fit: cover;", loading: "lazy" %>
                   <% else %>
                     <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
                       <i class="bi bi-box-seam fs-1 text-muted"></i>
@@ -387,7 +390,7 @@
                 <div class="col-md-4">
                   <label class="form-label">Store (Optional)</label>
                   <%= f.select :store_id,
-                      options_for_select([['Select Store (Optional)', '']] + Store.active.map { |s| [s.display_name, s.id] }),
+                      options_for_select([['Select Store (Optional)', '']] + @stores.map { |s| [s.display_name, s.id] }),
                       {},
                       { class: 'form-select', id: 'store_select', onchange: 'handleStoreSelection(this)' } %>
                   <div class="form-text">

@@ -844,7 +844,7 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-header">
           <h4><i class="bi bi-file-earmark-text me-2"></i>Invoice Template</h4>
-          <p class="text-muted mb-0 small">Click a template to select it, then click <strong>Preview</strong> to see a sample invoice, or <strong>Save Template</strong> to apply.</p>
+          <p class="text-muted mb-0 small">Click any template to preview it with sample data. Click <strong>Save Template</strong> to apply your selection.</p>
         </div>
         <div class="card-body">
           <div class="row g-3">
@@ -871,9 +871,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('classic')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
             <!-- Tally -->
@@ -896,9 +893,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('tally')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
             <!-- Modern -->
@@ -923,9 +917,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('modern')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
             <!-- Corporate -->
@@ -951,9 +942,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('corporate')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
             <!-- Saffron -->
@@ -978,9 +966,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('saffron')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
             <!-- Minimal -->
@@ -1012,9 +997,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('minimal')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
             <!-- Proforma -->
@@ -1056,9 +1038,6 @@
                   </div>
                 </div>
               </label>
-              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('proforma')">
-                <i class="bi bi-eye me-1"></i>Preview
-              </button>
             </div>
 
           </div><!-- /.row -->
@@ -1112,6 +1091,7 @@
 <script>
   document.querySelectorAll('.template-card').forEach(function(label) {
     label.addEventListener('click', function() {
+      // Update visual selection
       document.querySelectorAll('.template-card').forEach(function(l) {
         l.classList.remove('selected');
         l.querySelector('.card').classList.remove('border-primary');
@@ -1120,6 +1100,10 @@
       this.classList.add('selected');
       this.querySelector('.card').classList.add('border-primary');
       this.querySelector('.card').classList.remove('border-light');
+
+      // Open preview modal for this template
+      var radio = this.querySelector('input[type="radio"]');
+      if (radio) { openTemplatePreview(radio.value); }
     });
   });
 </script>

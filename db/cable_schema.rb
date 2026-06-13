@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_04_004804) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_06_100001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1228,6 +1228,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_04_004804) do
     t.boolean "low_stock_alert_enabled", default: false
     t.integer "low_stock_alert_threshold", default: 10
     t.string "low_stock_alert_email"
+    t.string "invoice_template", default: "classic"
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 

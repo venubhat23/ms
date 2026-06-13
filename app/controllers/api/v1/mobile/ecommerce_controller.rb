@@ -1442,18 +1442,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
       booking.subtotal = total_amount
       booking.total_amount = total_amount
+      booking.shipping_charges = delivery_charge_amount if delivery_charge_amount > 0
       booking.save!
       booking.calculate_totals
       booking.save!
-
-      # Apply delivery charge directly after calculate_totals so it isn't stripped by the callback.
-      # update_columns bypasses before_validation, keeping this change isolated to mobile/customer orders.
-      if delivery_charge_amount > 0
-        booking.update_columns(
-          shipping_charges: delivery_charge_amount,
-          total_amount: booking.total_amount + delivery_charge_amount
-        )
-      end
 
       # Save location data to customer if provided
       latitude = booking_params[:latitude]

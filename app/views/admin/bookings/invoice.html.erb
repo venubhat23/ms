@@ -8,15 +8,20 @@
   total_igst      = gst_summary[:igst]
   total_tax       = gst_summary[:tax]
   subtotal_amount = gst_summary[:base] + gst_summary[:tax]
-  final_total     = subtotal_amount
+  delivery_charge = @booking.shipping_charges.to_f
+  final_total     = subtotal_amount + delivery_charge
 
   business_settings = SystemSetting.business_settings
-  template_name = begin
-    SystemSetting.column_names.include?('invoice_template') ? (business_settings.invoice_template.presence || 'classic') : 'classic'
-  rescue => _e
-    'classic'
+  template_name = if defined?(@preview_template) && @preview_template.present?
+    @preview_template
+  else
+    begin
+      SystemSetting.column_names.include?('invoice_template') ? (business_settings.invoice_template.presence || 'classic') : 'classic'
+    rescue => _e
+      'classic'
+    end
   end
-  allowed_templates = %w[classic tally modern corporate saffron minimal]
+  allowed_templates = %w[classic tally modern corporate saffron minimal proforma]
   template_name = 'classic' unless allowed_templates.include?(template_name)
 %>
 
@@ -32,4 +37,5 @@
     total_igst: total_igst,
     total_tax: total_tax,
     final_total: final_total,
+    delivery_charge: delivery_charge,
     gst_summary: gst_summary %>

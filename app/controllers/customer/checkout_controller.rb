@@ -204,19 +204,16 @@ class Customer::CheckoutController < Customer::BaseController
           @booking.status = 'draft'
         end
 
+        # Set shipping charges on the object BEFORE calculate_totals so it's
+        # included in total_amount from the start and persists through any
+        # subsequent update! calls (update_columns wouldn't update the in-memory object).
+        delivery_charge = params[:delivery_charge].to_f
+        @booking.shipping_charges = delivery_charge if delivery_charge > 0
+
         if @booking.save
-          # Calculate detailed totals including tax (like admin controller)
+          # Recalculate totals with shipping_charges already set on the object
           @booking.calculate_totals
           @booking.save!
-
-          # Apply delivery charge from pincode — isolated to customer portal only
-          delivery_charge = params[:delivery_charge].to_f
-          if delivery_charge > 0
-            @booking.update_columns(
-              shipping_charges: delivery_charge,
-              total_amount: @booking.total_amount + delivery_charge
-            )
-          end
 
           Rails.logger.info "Booking created successfully: #{@booking.booking_number}"
           Rails.logger.info "Total amount: ₹#{@booking.total_amount}"

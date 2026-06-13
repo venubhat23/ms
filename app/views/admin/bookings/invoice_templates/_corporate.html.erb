@@ -136,6 +136,9 @@
             <div class="t-row"><span>SGST @<%= rate.to_i == rate ? rate.to_i : rate %>%</span><span>₹ <%= number_with_delimiter(rate_groups[:sgst][rate].round(2), delimiter: ',') %></span></div>
           <% end %>
         <% end %>
+        <% if delivery_charge.to_f > 0 %>
+          <div class="t-row"><span>Delivery Charge</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', delivery_charge), delimiter: ',') %></span></div>
+        <% end %>
         <div class="t-row grand"><span>TOTAL</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
         <div class="gold">Amount Received: ₹ <%= booking.payment_status_paid? ? number_with_delimiter(final_total.round(2), delimiter: ',') : '0.00' %></div>
       </div>

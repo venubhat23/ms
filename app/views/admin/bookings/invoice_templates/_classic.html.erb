@@ -172,13 +172,16 @@
               <div class="tax-line"><span class="tl-lbl">SGST @<%= rate.to_i == rate ? rate.to_i : rate %>%</span><span class="tl-amt">₹ <%= number_with_delimiter(rate_groups[:sgst][rate].round(2), delimiter: ',') %></span></div>
             <% end %>
           <% end %>
+          <% if delivery_charge.to_f > 0 %>
+            <div class="tax-line"><span class="tl-lbl">Delivery Charge</span><span class="tl-amt">₹ <%= number_with_delimiter(delivery_charge.round(2), delimiter: ',') %></span></div>
+          <% end %>
           <div class="tax-total">
-            <div class="tax-line"><span class="tl-lbl">TOTAL AMOUNT</span><span class="tl-amt">₹ <%= number_with_delimiter(subtotal_amount.round(2), delimiter: ',') %></span></div>
+            <div class="tax-line"><span class="tl-lbl">TOTAL AMOUNT</span><span class="tl-amt">₹ <%= number_with_delimiter(final_total.round(2), delimiter: ',') %></span></div>
             <div class="tax-line" style="font-weight:normal;font-size:10px;"><span class="tl-lbl">Received Amount</span><span class="tl-amt">₹ <%= booking.payment_status_paid? ? number_with_delimiter(final_total.round(2), delimiter: ',') : '0' %></span></div>
           </div>
           <div class="amount-words">
             <strong>Total Amount (in words)</strong><br/>
-            <%= amount_in_words(subtotal_amount) %> Rupees Only
+            <%= amount_in_words(final_total) %> Rupees Only
           </div>
         </div>
       </td>

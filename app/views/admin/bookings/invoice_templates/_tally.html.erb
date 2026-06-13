@@ -135,6 +135,12 @@
           <% end %>
         </td>
       </tr>
+      <% if delivery_charge.to_f > 0 %>
+      <tr>
+        <td colspan="6" style="border:1px solid #000;padding:5px 8px;text-align:right;font-style:italic;">Delivery Charge</td>
+        <td style="border:1px solid #000;padding:5px 8px;text-align:right;">₹ <%= number_with_delimiter(sprintf('%.3f', delivery_charge), delimiter: ',') %></td>
+      </tr>
+      <% end %>
       <!-- Total row -->
       <tr style="background:#f9f9f9;">
         <td colspan="3" style="border:1px solid #000;padding:6px 8px;font-weight:bold;text-align:right;">Total</td>

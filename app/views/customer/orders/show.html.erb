@@ -297,7 +297,7 @@
         </div>
 
         <% if @booking.discount_amount.present? && @booking.discount_amount.to_f > 0 %>
-          <% original_total = (@booking.subtotal || @booking.calculated_subtotal).to_f + (@booking.tax_amount || @booking.calculated_tax_amount).to_f %>
+          <% original_total = (@booking.subtotal || @booking.calculated_subtotal).to_f + (@booking.tax_amount || @booking.calculated_tax_amount).to_f + @booking.shipping_charges.to_f %>
           <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="text-muted">Original Total:</span>
             <span class="fw-medium text-muted"><s>₹<%= number_with_delimiter(original_total) %></s></span>
@@ -307,9 +307,10 @@
             <span class="fw-bold fs-5 text-success">₹<%= number_with_delimiter(original_total - @booking.discount_amount.to_f) %></span>
           </div>
         <% else %>
+          <% displayed_total = (@booking.subtotal || @booking.calculated_subtotal).to_f + (@booking.tax_amount || @booking.calculated_tax_amount).to_f + @booking.shipping_charges.to_f %>
           <div class="d-flex justify-content-between align-items-center mb-3">
             <span class="fw-bold fs-5">Total:</span>
-            <span class="fw-bold fs-5 text-primary">₹<%= number_with_delimiter(@booking.total_amount&.to_f || 0) %></span>
+            <span class="fw-bold fs-5 text-primary">₹<%= number_with_delimiter(displayed_total) %></span>
           </div>
         <% end %>
 

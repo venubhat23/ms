@@ -784,6 +784,7 @@ Rails.application.routes.draw do
       get :system, to: 'system#index'
       patch :system, to: 'system#update'
       put :system, to: 'system#update'
+      get :preview_invoice_template, to: 'system#preview_invoice_template'
     end
   end
 

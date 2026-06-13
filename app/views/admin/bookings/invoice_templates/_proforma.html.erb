@@ -1,0 +1,302 @@
+<style>
+  .inv-pf { font-family: Arial, sans-serif; font-size: 11px; border: 1px solid #000; background: #fff; }
+  .inv-pf table { border-collapse: collapse; }
+  .inv-pf .cell { border: 1px solid #000; padding: 4px 7px; vertical-align: top; }
+  .inv-pf .title { text-align: center; font-size: 15px; font-weight: bold; padding: 7px 4px; border-bottom: 1px solid #000; letter-spacing: 1px; }
+  .inv-pf .co-name { font-size: 13px; font-weight: bold; margin-bottom: 3px; }
+  .inv-pf .meta-label { font-size: 10px; color: #333; }
+  .inv-pf .meta-value { font-size: 12px; font-weight: bold; }
+  .inv-pf .th { background: #f0f0f0; font-weight: bold; font-size: 10px; text-align: center; border: 1px solid #000; padding: 5px 3px; }
+  .inv-pf .td { border: 1px solid #000; padding: 5px 4px; vertical-align: top; font-size: 11px; }
+  .inv-pf .hsn-th { background: #f0f0f0; font-weight: bold; font-size: 10px; text-align: center; border: 1px solid #000; padding: 4px 5px; }
+  .inv-pf .hsn-td { border: 1px solid #000; padding: 4px 6px; font-size: 10px; text-align: right; }
+  .inv-pf .footer-bar { text-align: center; font-size: 10px; color: #555; padding: 5px; border-top: 1px solid #ccc; }
+</style>
+
+<div class="inv-pf">
+  <%
+    upi_pf = business_settings.upi_id.presence || ''
+    upi_str_pf = upi_pf.present? ? "upi://pay?pa=#{upi_pf}&pn=#{CGI.escape(business_settings.business_name || 'Marali Santhe')}&am=#{final_total.round(2)}&cu=INR&tn=#{CGI.escape("Invoice #{booking.invoice_number || booking.booking_number}")}" : ''
+    rate_groups_pf = gst_rate_groups(booking_items)
+    all_rates_pf   = (rate_groups_pf[:cgst].keys + rate_groups_pf[:sgst].keys).uniq.sort
+  %>
+
+  <!-- Title -->
+  <div class="title">PROFORMA INVOICE</div>
+
+  <!-- Company | Invoice meta grid -->
+  <table style="width:100%;">
+    <tr>
+      <!-- Left: company info -->
+      <td style="width:52%;border-right:1px solid #000;padding:8px 10px;vertical-align:top;">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
+          <img src="/logo.jpeg" style="width:48px;height:48px;border-radius:3px;border:1px solid #ddd;" alt="Logo"/>
+          <div>
+            <div class="co-name"><%= business_settings.business_name || 'Marali Santhe' %></div>
+            <div style="font-size:10px;line-height:1.5;color:#333;white-space:pre-line;"><%= business_settings.address %></div>
+          </div>
+        </div>
+        <div style="font-size:10px;line-height:1.7;margin-top:4px;">
+          <strong>GSTIN/UIN:</strong> <%= business_settings.gstin %><br/>
+          <strong>PAN:</strong> <%= business_settings.pan_number %><br/>
+          <strong>State:</strong> Karnataka, Code: 29<br/>
+          <strong>E-Mail:</strong> <%= business_settings.email %><br/>
+          <strong>Mobile:</strong> <%= business_settings.mobile %>
+        </div>
+      </td>
+      <!-- Right: two-column metadata grid -->
+      <td style="width:48%;padding:0;vertical-align:top;">
+        <table style="width:100%;">
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:5px 8px;font-size:11px;width:50%;">
+              <div class="meta-label">Invoice No.</div>
+              <div class="meta-value"><%= booking.invoice_number || booking.booking_number %></div>
+            </td>
+            <td style="border-bottom:1px solid #000;padding:5px 8px;font-size:11px;">
+              <div class="meta-label">Dated</div>
+              <div class="meta-value"><%= Date.current.strftime('%d-%b-%y') %></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:4px 8px;" class="meta-label">Delivery Note</td>
+            <td style="border-bottom:1px solid #000;padding:4px 8px;" class="meta-label">Mode/Terms of Payment</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:4px 8px;" class="meta-label">Reference No. &amp; Date.</td>
+            <td style="border-bottom:1px solid #000;padding:4px 8px;" class="meta-label">Other References</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:4px 8px;" class="meta-label">Buyer's Order No.</td>
+            <td style="border-bottom:1px solid #000;padding:4px 8px;" class="meta-label">Dated</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:4px 8px;" class="meta-label">Dispatch Doc No.</td>
+            <td style="border-bottom:1px solid #000;padding:4px 8px;" class="meta-label">Delivery Note Date</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:4px 8px;" class="meta-label">Dispatched through &nbsp;<strong>Road</strong></td>
+            <td style="border-bottom:1px solid #000;padding:4px 8px;" class="meta-label">Destination</td>
+          </tr>
+          <tr>
+            <td style="border-bottom:1px solid #000;border-right:1px solid #000;padding:4px 8px;" class="meta-label">Vessel/Flight No.</td>
+            <td style="border-bottom:1px solid #000;padding:4px 8px;" class="meta-label">Place of receipt by shipper:</td>
+          </tr>
+          <tr>
+            <td style="border-right:1px solid #000;padding:4px 8px;" class="meta-label">City/Port of Loading</td>
+            <td style="padding:4px 8px;" class="meta-label">City/Port of Discharge</td>
+          </tr>
+        </table>
+        <!-- Terms of Delivery -->
+        <div style="border-top:1px solid #000;padding:4px 8px;" class="meta-label">Terms of Delivery</div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Consignee | Buyer -->
+  <table style="width:100%;border-top:1px solid #000;">
+    <tr>
+      <td style="width:50%;border-right:1px solid #000;padding:7px 10px;vertical-align:top;font-size:11px;">
+        <div style="color:#555;font-size:10px;margin-bottom:2px;">Consignee (Ship to)</div>
+        <div style="font-weight:bold;font-size:12px;margin-bottom:2px;"><%= booking.customer_name || booking.customer&.display_name %></div>
+        <div style="line-height:1.5;"><%= booking.delivery_address || booking.customer&.address %></div>
+        <% if (booking.customer_phone || booking.customer&.mobile).present? %>
+          <div>Mob:<%= booking.customer_phone || booking.customer&.mobile %></div>
+        <% end %>
+        <% if booking.customer&.gstin.present? %>
+          <div><strong>GSTIN/UIN:</strong> <%= booking.customer.gstin %></div>
+          <div><strong>State Name:</strong> Karnataka, Code: 29</div>
+        <% end %>
+      </td>
+      <td style="width:50%;padding:7px 10px;vertical-align:top;font-size:11px;">
+        <div style="color:#555;font-size:10px;margin-bottom:2px;">Buyer (Bill to)</div>
+        <div style="font-weight:bold;font-size:12px;margin-bottom:2px;"><%= booking.customer_name || booking.customer&.display_name %></div>
+        <div style="line-height:1.5;"><%= booking.delivery_address || booking.customer&.address %></div>
+        <% if (booking.customer_phone || booking.customer&.mobile).present? %>
+          <div>Mob:<%= booking.customer_phone || booking.customer&.mobile %></div>
+        <% end %>
+        <% if booking.customer&.gstin.present? %>
+          <div><strong>GSTIN/UIN:</strong> <%= booking.customer.gstin %></div>
+          <div><strong>State Name:</strong> Karnataka, Code: 29</div>
+        <% end %>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Items Table -->
+  <table style="width:100%;border-top:1px solid #000;">
+    <thead>
+      <tr>
+        <th class="th" style="width:9%;">Sl No. &amp; Kind<br/>No. of Pkgs.</th>
+        <th class="th">Description of Goods</th>
+        <th class="th" style="width:9%;">HSN/SAC</th>
+        <th class="th" style="width:9%;">Quantity</th>
+        <th class="th" style="width:10%;">Rate</th>
+        <th class="th" style="width:6%;">Per</th>
+        <th class="th" style="width:12%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% booking_items.each_with_index do |item, i| %>
+        <% it = gst_item_totals(item) %>
+        <tr>
+          <td class="td" style="text-align:center;"><%= i + 1 %></td>
+          <td class="td"><strong><%= item.product&.name || 'Product' %></strong></td>
+          <td class="td" style="text-align:center;"><%= item.product&.hsn_code || '-' %></td>
+          <td class="td" style="text-align:center;font-weight:bold;"><%= item.quantity %> <%= item.product&.unit_type || 'PCS' %></td>
+          <td class="td" style="text-align:right;"><%= sprintf('%.3f', item.price || 0) %></td>
+          <td class="td" style="text-align:center;"><%= item.product&.unit_type || 'PCS' %></td>
+          <td class="td" style="text-align:right;"><%= sprintf('%.3f', it[:base]) %></td>
+        </tr>
+      <% end %>
+
+      <!-- Spacer rows to fill page (3 empty rows) -->
+      <% [1,2,3].each do %>
+        <tr style="height:22px;">
+          <td class="td"></td><td class="td"></td><td class="td"></td>
+          <td class="td"></td><td class="td"></td><td class="td"></td>
+          <td class="td"></td>
+        </tr>
+      <% end %>
+
+      <!-- Tax subtotals -->
+      <tr>
+        <td colspan="5" style="border:1px solid #000;padding:5px 8px;text-align:right;font-style:italic;font-weight:bold;font-size:11px;">
+          <% all_rates_pf.each do |rate| %>
+            <% if rate_groups_pf[:cgst][rate].to_f > 0 %>
+              Output CGST @ <%= rate.to_i == rate ? rate.to_i : rate %>%<br/>
+            <% end %>
+            <% if rate_groups_pf[:sgst][rate].to_f > 0 %>
+              Output SGST @ <%= rate.to_i == rate ? rate.to_i : rate %>%<br/>
+            <% end %>
+          <% end %>
+        </td>
+        <td style="border:1px solid #000;text-align:right;font-style:italic;font-weight:bold;padding:5px 4px;">
+          <% all_rates_pf.each do |rate| %>
+            <% if rate_groups_pf[:cgst][rate].to_f > 0 %><%= rate.to_i == rate ? rate.to_i : rate %>%<br/><% end %>
+            <% if rate_groups_pf[:sgst][rate].to_f > 0 %><%= rate.to_i == rate ? rate.to_i : rate %>%<br/><% end %>
+          <% end %>
+        </td>
+        <td style="border:1px solid #000;padding:5px 8px;text-align:right;font-weight:bold;">
+          <% all_rates_pf.each do |rate| %>
+            <% if rate_groups_pf[:cgst][rate].to_f > 0 %><%= sprintf('%.3f', rate_groups_pf[:cgst][rate]) %><br/><% end %>
+            <% if rate_groups_pf[:sgst][rate].to_f > 0 %><%= sprintf('%.3f', rate_groups_pf[:sgst][rate]) %><br/><% end %>
+          <% end %>
+        </td>
+      </tr>
+
+      <% if delivery_charge.to_f > 0 %>
+      <tr>
+        <td colspan="5" style="border:1px solid #000;padding:5px 8px;text-align:right;font-style:italic;font-size:11px;">Delivery Charge</td>
+        <td colspan="2" style="border:1px solid #000;padding:5px 8px;text-align:right;">&#8377; <%= number_with_delimiter(sprintf('%.3f', delivery_charge), delimiter: ',') %></td>
+      </tr>
+      <% end %>
+      <!-- Grand Total row -->
+      <tr style="background:#f8f8f8;">
+        <td colspan="3" style="border:1px solid #000;padding:6px 8px;text-align:right;font-weight:bold;font-size:12px;">Total</td>
+        <td style="border:1px solid #000;padding:6px 4px;text-align:center;font-weight:bold;font-size:12px;">
+          <%= booking_items.sum(&:quantity) %> <%= booking_items.first&.product&.unit_type || 'PCS' %>
+        </td>
+        <td colspan="2" style="border:1px solid #000;"></td>
+        <td style="border:1px solid #000;padding:6px 8px;text-align:right;font-weight:bold;font-size:13px;">&#8377; <%= number_with_delimiter(sprintf('%.3f', final_total), delimiter: ',') %></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Amount in words -->
+  <div style="padding:6px 10px;border-top:1px solid #000;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-size:10px;color:#555;">Amount Chargeable (in words)</div>
+      <strong>INR <%= amount_in_words(final_total) %> Only</strong>
+    </div>
+    <div style="font-style:italic;font-size:10px;color:#777;">E. &amp; O.E</div>
+  </div>
+
+  <!-- HSN Tax Summary Table -->
+  <table style="width:100%;border-top:1px solid #000;border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th class="hsn-th" colspan="2" rowspan="2">HSN/SAC</th>
+        <th class="hsn-th" rowspan="2">Taxable<br/>Value</th>
+        <th class="hsn-th" colspan="2">CGST</th>
+        <th class="hsn-th" colspan="2">SGST/UTGST</th>
+        <th class="hsn-th" rowspan="2">Total<br/>Tax Amount</th>
+      </tr>
+      <tr>
+        <th class="hsn-th">Rate</th>
+        <th class="hsn-th">Amount</th>
+        <th class="hsn-th">Rate</th>
+        <th class="hsn-th">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% booking_items.group_by { |item| item.product&.hsn_code }.each do |hsn, items| %>
+        <%
+          hsn_base = items.sum { |i| gst_item_totals(i)[:base] }
+          hsn_cgst = items.sum { |i| gst_item_totals(i)[:cgst] }
+          hsn_sgst = items.sum { |i| gst_item_totals(i)[:sgst] }
+          half_rate = items.first&.product&.gst_percentage.to_f / 2
+          rate_display = half_rate.to_i == half_rate ? "#{half_rate.to_i}%" : "#{half_rate}%"
+        %>
+        <tr>
+          <td colspan="2" class="hsn-td" style="text-align:left;"><%= hsn || '-' %></td>
+          <td class="hsn-td"><%= sprintf('%.3f', hsn_base) %></td>
+          <td class="hsn-td" style="text-align:center;"><%= rate_display %></td>
+          <td class="hsn-td"><%= sprintf('%.3f', hsn_cgst) %></td>
+          <td class="hsn-td" style="text-align:center;"><%= rate_display %></td>
+          <td class="hsn-td"><%= sprintf('%.3f', hsn_sgst) %></td>
+          <td class="hsn-td"><%= sprintf('%.3f', hsn_cgst + hsn_sgst) %></td>
+        </tr>
+      <% end %>
+      <tr style="font-weight:bold;background:#f5f5f5;">
+        <td colspan="2" class="hsn-td" style="text-align:left;">Total</td>
+        <td class="hsn-td"><%= sprintf('%.3f', taxable_amount) %></td>
+        <td class="hsn-td"></td>
+        <td class="hsn-td"><%= sprintf('%.3f', total_cgst) %></td>
+        <td class="hsn-td"></td>
+        <td class="hsn-td"><%= sprintf('%.3f', total_sgst) %></td>
+        <td class="hsn-td"><%= sprintf('%.3f', total_cgst + total_sgst) %></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Tax amount in words -->
+  <div style="padding:5px 10px;border-top:1px solid #000;font-size:10px;">
+    <strong>Tax Amount (in words):</strong>&nbsp; INR <%= amount_in_words(total_cgst + total_sgst) %> Only
+  </div>
+
+  <!-- Footer: PAN + Declaration + Seal | QR + Bank | For company + Signatory -->
+  <table style="width:100%;border-top:1px solid #000;border-collapse:collapse;">
+    <tr>
+      <td style="width:34%;border-right:1px solid #000;padding:8px 10px;vertical-align:top;font-size:10px;">
+        <div><strong>Company's PAN:</strong> &nbsp;<%= business_settings.pan_number %></div>
+        <div style="margin-top:8px;font-weight:bold;">Declaration</div>
+        <div style="margin-top:3px;color:#444;line-height:1.5;">
+          We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+        </div>
+        <div style="margin-top:10px;font-weight:bold;">Customer's Seal and Signature</div>
+        <div style="height:44px;border:1px solid #ccc;border-radius:3px;margin-top:5px;background:#fafafa;"></div>
+      </td>
+      <td style="width:33%;border-right:1px solid #000;padding:8px 10px;vertical-align:top;font-size:10px;">
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <% if upi_str_pf.present? %>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=<%= CGI.escape(upi_str_pf) %>" alt="QR" style="width:72px;height:72px;border:1px solid #ccc;flex-shrink:0;"/>
+          <% end %>
+          <div style="line-height:1.7;">
+            <div style="font-weight:bold;margin-bottom:4px;">Company's Bank Details</div>
+            <div><strong>A/c Holder's Name :</strong> <%= business_settings.account_holder_name %></div>
+            <div><strong>Bank Name :</strong> <%= business_settings.bank_name %></div>
+            <div><strong>A/c No. :</strong> <%= business_settings.account_number %></div>
+            <div><strong>Branch &amp; IFS Code :</strong> <%= business_settings.ifsc_code %></div>
+          </div>
+        </div>
+      </td>
+      <td style="width:33%;padding:8px 10px;vertical-align:top;text-align:right;font-size:10px;">
+        <div style="font-size:11px;">for <strong><%= business_settings.business_name || 'Marali Santhe' %></strong></div>
+        <div style="height:55px;"></div>
+        <div style="font-weight:bold;">Authorised Signatory</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="footer-bar">This is a Computer Generated Invoice</div>
+</div>

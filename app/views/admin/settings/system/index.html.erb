@@ -844,14 +844,14 @@
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-header">
           <h4><i class="bi bi-file-earmark-text me-2"></i>Invoice Template</h4>
-          <p class="text-muted mb-0 small">Choose the look and feel of your invoices. Changes apply immediately to all new invoices.</p>
+          <p class="text-muted mb-0 small">Click a template to select it, then click <strong>Preview</strong> to see a sample invoice, or <strong>Save Template</strong> to apply.</p>
         </div>
         <div class="card-body">
           <div class="row g-3">
 
             <!-- Classic -->
-            <div class="col-md-4">
-              <label class="template-card <%= @invoice_template.blank? || @invoice_template == 'classic' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template.blank? || @invoice_template == 'classic' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
                 <input type="radio" name="invoice_template" value="classic" style="display:none;"
                   <%= @invoice_template.blank? || @invoice_template == 'classic' ? 'checked' : '' %>>
                 <div class="card h-100 border-2 <%= @invoice_template.blank? || @invoice_template == 'classic' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
@@ -871,11 +871,14 @@
                   </div>
                 </div>
               </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('classic')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
             </div>
 
             <!-- Tally -->
-            <div class="col-md-4">
-              <label class="template-card <%= @invoice_template == 'tally' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template == 'tally' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
                 <input type="radio" name="invoice_template" value="tally" style="display:none;"
                   <%= @invoice_template == 'tally' ? 'checked' : '' %>>
                 <div class="card h-100 border-2 <%= @invoice_template == 'tally' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
@@ -893,11 +896,14 @@
                   </div>
                 </div>
               </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('tally')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
             </div>
 
             <!-- Modern -->
-            <div class="col-md-4">
-              <label class="template-card <%= @invoice_template == 'modern' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template == 'modern' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
                 <input type="radio" name="invoice_template" value="modern" style="display:none;"
                   <%= @invoice_template == 'modern' ? 'checked' : '' %>>
                 <div class="card h-100 border-2 <%= @invoice_template == 'modern' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
@@ -917,11 +923,14 @@
                   </div>
                 </div>
               </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('modern')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
             </div>
 
             <!-- Corporate -->
-            <div class="col-md-4">
-              <label class="template-card <%= @invoice_template == 'corporate' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template == 'corporate' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
                 <input type="radio" name="invoice_template" value="corporate" style="display:none;"
                   <%= @invoice_template == 'corporate' ? 'checked' : '' %>>
                 <div class="card h-100 border-2 <%= @invoice_template == 'corporate' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
@@ -942,11 +951,14 @@
                   </div>
                 </div>
               </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('corporate')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
             </div>
 
             <!-- Saffron -->
-            <div class="col-md-4">
-              <label class="template-card <%= @invoice_template == 'saffron' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template == 'saffron' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
                 <input type="radio" name="invoice_template" value="saffron" style="display:none;"
                   <%= @invoice_template == 'saffron' ? 'checked' : '' %>>
                 <div class="card h-100 border-2 <%= @invoice_template == 'saffron' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
@@ -966,11 +978,14 @@
                   </div>
                 </div>
               </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('saffron')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
             </div>
 
             <!-- Minimal -->
-            <div class="col-md-4">
-              <label class="template-card <%= @invoice_template == 'minimal' ? 'selected' : '' %>" style="cursor:pointer;display:block;">
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template == 'minimal' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
                 <input type="radio" name="invoice_template" value="minimal" style="display:none;"
                   <%= @invoice_template == 'minimal' ? 'checked' : '' %>>
                 <div class="card h-100 border-2 <%= @invoice_template == 'minimal' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
@@ -997,6 +1012,53 @@
                   </div>
                 </div>
               </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('minimal')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
+            </div>
+
+            <!-- Proforma -->
+            <div class="col-md-4 d-flex flex-column">
+              <label class="template-card <%= @invoice_template == 'proforma' ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
+                <input type="radio" name="invoice_template" value="proforma" style="display:none;"
+                  <%= @invoice_template == 'proforma' ? 'checked' : '' %>>
+                <div class="card h-100 border-2 <%= @invoice_template == 'proforma' ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                  <div style="height:8px;background:#2c2c2c;border-radius:4px 4px 0 0;"></div>
+                  <div class="card-body p-2">
+                    <!-- Proforma thumbnail: bordered table style -->
+                    <div style="border:1px solid #888;font-size:7px;padding:3px;background:#fff;">
+                      <div style="text-align:center;font-weight:bold;border-bottom:1px solid #888;padding-bottom:2px;margin-bottom:3px;font-size:8px;">PROFORMA INVOICE</div>
+                      <div style="display:flex;gap:2px;margin-bottom:3px;">
+                        <div style="flex:1.2;border:1px solid #aaa;padding:2px;background:#f9f9f9;">
+                          <div style="background:#555;height:7px;border-radius:1px;width:70%;margin-bottom:2px;"></div>
+                          <div style="background:#ddd;height:4px;border-radius:1px;width:90%;margin-bottom:1px;"></div>
+                          <div style="background:#ddd;height:4px;border-radius:1px;width:80%;"></div>
+                        </div>
+                        <div style="flex:1;border:1px solid #aaa;">
+                          <div style="border-bottom:1px solid #aaa;padding:1px 2px;background:#f0f0f0;height:8px;"></div>
+                          <div style="border-bottom:1px solid #aaa;padding:1px 2px;height:6px;"></div>
+                          <div style="border-bottom:1px solid #aaa;padding:1px 2px;height:6px;"></div>
+                          <div style="padding:1px 2px;height:6px;"></div>
+                        </div>
+                      </div>
+                      <div style="display:flex;gap:2px;margin-bottom:3px;">
+                        <div style="flex:1;border:1px solid #aaa;padding:2px;height:18px;"></div>
+                        <div style="flex:1;border:1px solid #aaa;padding:2px;height:18px;"></div>
+                      </div>
+                      <div style="border:1px solid #aaa;background:#f0f0f0;height:7px;margin-bottom:2px;"></div>
+                      <div style="border:1px solid #aaa;height:22px;margin-bottom:2px;"></div>
+                      <div style="border:1px solid #aaa;background:#f5f5f5;height:10px;"></div>
+                    </div>
+                  </div>
+                  <div class="card-footer bg-transparent">
+                    <strong style="color:#2c2c2c;"><i class="bi bi-file-ruled me-1"></i>Proforma Invoice</strong>
+                    <div class="small text-muted">Traditional Tally-style proforma with full shipping grid, HSN summary & declaration.</div>
+                  </div>
+                </div>
+              </label>
+              <button type="button" class="btn btn-sm btn-outline-secondary mt-1" onclick="openTemplatePreview('proforma')">
+                <i class="bi bi-eye me-1"></i>Preview
+              </button>
             </div>
 
           </div><!-- /.row -->
@@ -1005,16 +1067,38 @@
             <button type="submit" class="btn btn-primary">
               <i class="bi bi-check-circle me-1"></i>Save Template
             </button>
-            <% booking_id = Booking.first&.id %>
-            <% if booking_id %>
-              <a href="<%= admin_booking_invoice_path(booking_id) %>" target="_blank" class="btn btn-outline-secondary">
-                <i class="bi bi-eye me-1"></i>Preview Invoice
-              </a>
-            <% end %>
           </div>
         </div>
       </div>
     <% end %>
+
+  <!-- Invoice Template Preview Modal -->
+  <div class="modal fade" id="invoiceTemplatePreviewModal" tabindex="-1" aria-labelledby="invoiceTemplatePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header py-2">
+          <h5 class="modal-title" id="invoiceTemplatePreviewModalLabel">
+            <i class="bi bi-file-earmark-text me-2"></i>Invoice Preview
+          </h5>
+          <div class="ms-3">
+            <span id="previewTemplateBadge" class="badge bg-primary"></span>
+          </div>
+          <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0" style="min-height:75vh;">
+          <div id="previewLoadingSpinner" class="d-flex justify-content-center align-items-center" style="height:75vh;">
+            <div class="text-center text-muted">
+              <div class="spinner-border mb-3" role="status"></div>
+              <div>Loading preview...</div>
+            </div>
+          </div>
+          <iframe id="invoicePreviewFrame" src="" style="width:100%;height:80vh;border:none;display:none;"
+                  onload="document.getElementById('previewLoadingSpinner').style.display='none'; this.style.display='block';"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
   </div> <!-- End of Invoice Template Tab -->
 
 </div> <!-- End of Tab Content -->
@@ -1135,5 +1219,32 @@ function toggleShopAddresses(checkbox) {
       addressesSection.style.display = 'none';
     }
   }
+}
+
+// Invoice Template Preview
+const templateLabels = {
+  classic:   'Classic Purple',
+  tally:     'Tally Style',
+  modern:    'Modern Green',
+  corporate: 'Corporate Navy',
+  saffron:   'Saffron Warm',
+  minimal:   'Minimal B&W',
+  proforma:  'Proforma Invoice'
+};
+
+function openTemplatePreview(templateName) {
+  const frame = document.getElementById('invoicePreviewFrame');
+  const spinner = document.getElementById('previewLoadingSpinner');
+  const badge = document.getElementById('previewTemplateBadge');
+
+  frame.style.display = 'none';
+  frame.src = '';
+  spinner.style.display = 'flex';
+  badge.textContent = templateLabels[templateName] || templateName;
+
+  const modal = new bootstrap.Modal(document.getElementById('invoiceTemplatePreviewModal'));
+  modal.show();
+
+  frame.src = '<%= admin_settings_preview_invoice_template_path %>?template=' + templateName;
 }
 </script>

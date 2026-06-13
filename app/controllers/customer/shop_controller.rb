@@ -3,32 +3,34 @@ class Customer::ShopController < Customer::BaseController
     @booking = Booking.new
     @booking.booking_items.build
 
-    # Get categories for filters
     @categories = Category.where(status: true).order(:display_order, :name)
 
-    @products = Product.active
-                      .includes(:category, :stock_batches, :product_variants,
-                                image_attachment: :blob,
-                                additional_images_attachments: :blob)
-                      .by_stock_availability
+    # Compute stock as a SQL aggregate — avoids loading every stock_batch row into Ruby
+    stock_sq = StockBatch.where(status: 'active')
+                         .select("product_id, SUM(quantity_remaining) AS total_stock")
+                         .group(:product_id)
 
-    # Apply search filter if present
+    scope = Product.active
+                   .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
+                   .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
+                   .includes(:category, :product_variants, image_attachment: :blob)
+                   .order(Arel.sql(
+                     "CASE WHEN COALESCE(sq.total_stock, 0) > 0 THEN 0 ELSE 1 END ASC," \
+                     " products.display_order ASC NULLS LAST, products.name ASC"
+                   ))
+
     if params[:search].present?
       search_term = "%#{params[:search]}%"
-      @products = @products.joins(:category)
-                          .where("products.name ILIKE ? OR products.sku ILIKE ? OR categories.name ILIKE ?",
-                                 search_term, search_term, search_term)
+      scope = scope.joins(:category)
+                   .where("products.name ILIKE ? OR products.sku ILIKE ? OR categories.name ILIKE ?",
+                          search_term, search_term, search_term)
     end
 
-    # Apply category filter
     if params[:category_id].present? && params[:category_id] != ''
-      @products = @products.where(category_id: params[:category_id])
+      scope = scope.where(category_id: params[:category_id])
     end
 
-    # Materialize into Array — view's .size / .any? / .each are all in-memory, no extra queries
-    @products = @products.to_a
-
-    # Get customer info if logged in
+    @products = scope.to_a
     @customer_addresses = current_customer&.customer_addresses || []
   end
 

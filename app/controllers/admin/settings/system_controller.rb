@@ -121,7 +121,8 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
           account_number: params[:account_number],
           ifsc_code: params[:ifsc_code],
           upi_id: params[:upi_id],
-          terms_and_conditions: params[:terms_and_conditions]
+          terms_and_conditions: params[:terms_and_conditions],
+          invoice_template: params[:invoice_template]
         }
 
         @business_setting = SystemSetting.update_business_settings(business_params)
@@ -211,6 +212,19 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     else
       redirect_to admin_settings_system_path, alert: 'Please enter valid values to update.'
     end
+  end
+
+  def preview_invoice_template
+    allowed = %w[classic tally modern corporate saffron minimal proforma]
+    @preview_template = allowed.include?(params[:template]) ? params[:template] : 'classic'
+
+    @booking = Booking.includes(booking_items: :product).order(created_at: :desc).first
+    if @booking.nil?
+      render plain: '<div style="padding:60px;text-align:center;font-family:Arial;font-size:14px;color:#666;">No bookings found. Create at least one booking to preview invoice templates.</div>', layout: false
+      return
+    end
+    @booking_items = @booking.booking_items.includes(:product)
+    render template: 'admin/bookings/invoice', layout: 'invoice'
   end
 
   private

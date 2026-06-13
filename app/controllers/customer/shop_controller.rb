@@ -89,9 +89,17 @@ class Customer::ShopController < Customer::BaseController
   end
 
   def stock_data
-    products = Product.active.includes(:stock_batches, :product_variants)
+    stock_sq = StockBatch.where(status: 'active')
+                         .select("product_id, SUM(quantity_remaining) AS total_stock")
+                         .group(:product_id)
+
+    products = Product.active
+                      .select("products.id, products.has_multiple_quantities, COALESCE(sq.total_stock, 0) AS cached_stock")
+                      .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
+                      .includes(:product_variants)
+
     data = products.map do |p|
-      stock = p.cached_total_batch_stock
+      stock = p.cached_stock.to_f
       {
         id: p.id,
         stock: stock,

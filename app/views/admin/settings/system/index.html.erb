@@ -1051,36 +1051,40 @@
       </div>
     <% end %>
 
-  <!-- Invoice Template Preview Modal -->
-  <div class="modal fade" id="invoiceTemplatePreviewModal" tabindex="-1" aria-labelledby="invoiceTemplatePreviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header py-2">
-          <h5 class="modal-title" id="invoiceTemplatePreviewModalLabel">
-            <i class="bi bi-file-earmark-text me-2"></i>Invoice Preview
-          </h5>
-          <div class="ms-3">
-            <span id="previewTemplateBadge" class="badge bg-primary"></span>
-          </div>
-          <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div> <!-- End of Invoice Template Tab -->
+
+</div> <!-- End of Tab Content -->
+
+<!-- Invoice Template Preview Modal — placed outside tab-content to avoid stacking context issues -->
+<div class="modal fade" id="invoiceTemplatePreviewModal" tabindex="-1" aria-labelledby="invoiceTemplatePreviewModalLabel" aria-hidden="true"
+     style="z-index:9999;">
+  <div class="modal-dialog modal-xl" style="max-height:90vh;">
+    <div class="modal-content" style="background:#fff;">
+      <div class="modal-header py-2" style="background:#fff;border-bottom:1px solid #dee2e6;">
+        <h5 class="modal-title" id="invoiceTemplatePreviewModalLabel">
+          <i class="bi bi-file-earmark-text me-2"></i>Invoice Preview
+        </h5>
+        <div class="ms-3">
+          <span id="previewTemplateBadge" class="badge bg-primary"></span>
         </div>
-        <div class="modal-body p-0" style="min-height:75vh;">
-          <div id="previewLoadingSpinner" class="d-flex justify-content-center align-items-center" style="height:75vh;">
-            <div class="text-center text-muted">
-              <div class="spinner-border mb-3" role="status"></div>
-              <div>Loading preview...</div>
-            </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="background:#f5f7fa;min-height:75vh;overflow-y:auto;padding:20px;">
+        <div id="previewLoadingSpinner" class="d-flex justify-content-center align-items-center" style="height:60vh;">
+          <div class="text-center text-muted">
+            <div class="spinner-border mb-3" role="status"><span class="visually-hidden">Loading...</span></div>
+            <div>Loading preview...</div>
           </div>
-          <iframe id="invoicePreviewFrame" src="" style="width:100%;height:80vh;border:none;display:none;"
-                  onload="document.getElementById('previewLoadingSpinner').style.display='none'; this.style.display='block';"></iframe>
+        </div>
+        <div id="invoicePreviewContent" style="display:none;background:#fff;border-radius:8px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:850px;margin:0 auto;"></div>
+        <div id="previewErrorMsg" class="text-center text-danger" style="display:none;padding:40px;">
+          <i class="bi bi-exclamation-triangle fs-2 d-block mb-3"></i>
+          Failed to load preview. <a href="#" id="previewRetryLink">Retry</a>
         </div>
       </div>
     </div>
   </div>
-
-  </div> <!-- End of Invoice Template Tab -->
-
-</div> <!-- End of Tab Content -->
+</div>
 
 <style>
   .template-card input[type="radio"]:checked + .card,
@@ -1216,19 +1220,54 @@ const templateLabels = {
   proforma:  'Proforma Invoice'
 };
 
+let _previewCurrentTemplate = null;
+
 function openTemplatePreview(templateName) {
-  const frame = document.getElementById('invoicePreviewFrame');
-  const spinner = document.getElementById('previewLoadingSpinner');
-  const badge = document.getElementById('previewTemplateBadge');
+  const spinner   = document.getElementById('previewLoadingSpinner');
+  const content   = document.getElementById('invoicePreviewContent');
+  const errorMsg  = document.getElementById('previewErrorMsg');
+  const badge     = document.getElementById('previewTemplateBadge');
 
-  frame.style.display = 'none';
-  frame.src = '';
-  spinner.style.display = 'flex';
-  badge.textContent = templateLabels[templateName] || templateName;
+  // Reset state
+  spinner.style.display  = 'flex';
+  content.style.display  = 'none';
+  content.innerHTML      = '';
+  errorMsg.style.display = 'none';
+  badge.textContent      = templateLabels[templateName] || templateName;
+  _previewCurrentTemplate = templateName;
 
-  const modal = new bootstrap.Modal(document.getElementById('invoiceTemplatePreviewModal'));
+  // Show modal
+  const modalEl = document.getElementById('invoiceTemplatePreviewModal');
+  const modal   = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
 
-  frame.src = '<%= admin_settings_preview_invoice_template_path %>?template=' + templateName;
+  // Fetch rendered template HTML inline (no outer layout, no iframe)
+  const url = '<%= admin_settings_preview_invoice_template_path %>?template=' + encodeURIComponent(templateName) + '&inline=1';
+  fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'text/html' } })
+    .then(function(response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.text();
+    })
+    .then(function(html) {
+      if (_previewCurrentTemplate !== templateName) return; // stale response
+      content.innerHTML     = html;
+      spinner.style.display = 'none';
+      content.style.display = 'block';
+    })
+    .catch(function() {
+      spinner.style.display  = 'none';
+      errorMsg.style.display = 'block';
+    });
 }
+
+// Retry link
+document.addEventListener('DOMContentLoaded', function() {
+  var retryLink = document.getElementById('previewRetryLink');
+  if (retryLink) {
+    retryLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (_previewCurrentTemplate) openTemplatePreview(_previewCurrentTemplate);
+    });
+  }
+});
 </script>

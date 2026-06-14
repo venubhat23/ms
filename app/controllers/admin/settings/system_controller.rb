@@ -219,7 +219,12 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     @preview_template = allowed.include?(params[:template]) ? params[:template] : 'classic'
     @booking       = build_dummy_booking
     @booking_items = build_dummy_booking_items
-    render template: 'admin/bookings/invoice', layout: 'invoice'
+    if params[:inline].present?
+      response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+      render template: 'admin/bookings/invoice', layout: false
+    else
+      render template: 'admin/bookings/invoice', layout: 'invoice'
+    end
   end
 
   private

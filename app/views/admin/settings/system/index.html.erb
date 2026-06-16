@@ -1236,9 +1236,12 @@ function openTemplatePreview(templateName) {
   badge.textContent      = templateLabels[templateName] || templateName;
   _previewCurrentTemplate = templateName;
 
-  // Show modal
+  // Move modal to <body> to escape .main-content fixed stacking context
   const modalEl = document.getElementById('invoiceTemplatePreviewModal');
-  const modal   = bootstrap.Modal.getOrCreateInstance(modalEl);
+  if (modalEl.parentElement !== document.body) {
+    document.body.appendChild(modalEl);
+  }
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
 
   // Fetch rendered template HTML inline (no outer layout, no iframe)

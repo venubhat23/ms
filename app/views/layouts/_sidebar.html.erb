@@ -983,6 +983,20 @@
           <% end %>
         </li>
         <% end %>
+        <!-- Profit & Loss Report -->
+        <% if current_user.has_sidebar_permission?('reports') %>
+        <li class="nav-item">
+          <%= link_to admin_reports_profit_loss_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/reports/profit_loss')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-green">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
+            </div>
+            <span class="nav-text">Profit & Loss</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+        <% end %>
       </ul>
     </div>
     <% end %>

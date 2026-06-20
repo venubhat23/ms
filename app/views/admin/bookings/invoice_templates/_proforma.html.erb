@@ -102,8 +102,8 @@
         <% if (booking.customer_phone || booking.customer&.mobile).present? %>
           <div>Mob:<%= booking.customer_phone || booking.customer&.mobile %></div>
         <% end %>
-        <% if booking.customer&.gstin.present? %>
-          <div><strong>GSTIN/UIN:</strong> <%= booking.customer.gstin %></div>
+        <% if booking.customer&.gst_no.present? %>
+          <div><strong>GSTIN/UIN:</strong> <%= booking.customer.gst_no %></div>
           <div><strong>State Name:</strong> Karnataka, Code: 29</div>
         <% end %>
       </td>
@@ -114,8 +114,8 @@
         <% if (booking.customer_phone || booking.customer&.mobile).present? %>
           <div>Mob:<%= booking.customer_phone || booking.customer&.mobile %></div>
         <% end %>
-        <% if booking.customer&.gstin.present? %>
-          <div><strong>GSTIN/UIN:</strong> <%= booking.customer.gstin %></div>
+        <% if booking.customer&.gst_no.present? %>
+          <div><strong>GSTIN/UIN:</strong> <%= booking.customer.gst_no %></div>
           <div><strong>State Name:</strong> Karnataka, Code: 29</div>
         <% end %>
       </td>

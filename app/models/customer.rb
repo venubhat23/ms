@@ -55,6 +55,14 @@ has_many :pending_amounts, dependent: :destroy
     password.present?
   end
 
+  def gstin
+    gst_no
+  end
+
+  def effective_gstin
+    gst_no.presence
+  end
+
   def authenticate(password)
     if respond_to?(:password_digest) && password_digest.present?
       # Use bcrypt if password_digest column exists

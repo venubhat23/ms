@@ -654,6 +654,16 @@ class DashboardController < ApplicationController
 
     # Customer location data for ecommerce
     @customer_location = calculate_customer_locations
+
+    # Top customers by revenue (real aggregated data)
+    @top_customers_data = calculate_top_customers_data
+
+    # Extended sales trends for period toggle buttons
+    @sales_trend_30d = calculate_sales_trend_nd(30)
+    @sales_trend_90d = calculate_sales_trend_nd_weekly(90)
+
+    # Top products by revenue for chart
+    @top_products_revenue = calculate_top_products_revenue
   end
 
   private
@@ -781,19 +791,57 @@ class DashboardController < ApplicationController
   end
 
   def calculate_customer_locations
-    # Get top customer locations by state/city
     begin
       customer_locations = Customer.where.not(state: [nil, ''])
                                   .group(:state)
                                   .count
                                   .sort_by { |state, count| -count }
                                   .first(10)
-
-      # Return hash with state as key and count as value
       Hash[customer_locations]
     rescue
-      # Return empty hash if there's any error or no data
       {}
     end
+  end
+
+  def calculate_top_customers_data
+    Customer.joins(:bookings)
+            .select('customers.*, COUNT(bookings.id) as booking_count, SUM(bookings.total_amount) as total_spent')
+            .group('customers.id')
+            .order('total_spent DESC')
+            .limit(5)
+  rescue
+    []
+  end
+
+  def calculate_sales_trend_nd(days)
+    trend = {}
+    days.times do |i|
+      date = Date.current - i.days
+      daily_sales = Booking.where(created_at: date.beginning_of_day..date.end_of_day).sum(:total_amount) || 0
+      trend[date.strftime('%d %b')] = daily_sales
+    end
+    trend.to_a.reverse.to_h
+  end
+
+  def calculate_sales_trend_nd_weekly(days)
+    trend = {}
+    weeks = (days / 7.0).ceil
+    weeks.times do |i|
+      week_end = Date.current - (i * 7).days
+      week_start = week_end - 6.days
+      weekly_sales = Booking.where(created_at: week_start.beginning_of_day..week_end.end_of_day).sum(:total_amount) || 0
+      trend[week_start.strftime('%d %b')] = weekly_sales
+    end
+    trend.to_a.reverse.to_h
+  end
+
+  def calculate_top_products_revenue
+    BookingItem.joins(:product, :booking)
+               .group('products.name')
+               .order(Arel.sql('SUM(booking_items.quantity * booking_items.price) DESC'))
+               .limit(8)
+               .sum(Arel.sql('booking_items.quantity * booking_items.price'))
+  rescue
+    {}
   end
 end

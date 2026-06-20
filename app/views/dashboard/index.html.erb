@@ -189,11 +189,11 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent border-0">
         <div class="d-flex justify-content-between align-items-center">
-          <h5 class="mb-0">Sales Revenue Trend (Last 7 Days)</h5>
-          <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-primary">7D</button>
-            <button class="btn btn-sm btn-outline-secondary">1M</button>
-            <button class="btn btn-sm btn-outline-secondary">3M</button>
+          <h5 class="mb-0" id="salesChartTitle">Sales Revenue Trend <span class="badge bg-primary-subtle text-primary fs-6 ms-1">7D</span></h5>
+          <div class="d-flex gap-1" id="salesPeriodBtns">
+            <button class="btn btn-sm btn-primary" onclick="switchSalesPeriod('7d', this)">7D</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="switchSalesPeriod('30d', this)">30D</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="switchSalesPeriod('90d', this)">90D</button>
           </div>
         </div>
       </div>
@@ -253,15 +253,15 @@
 
 <!-- Additional Analytics -->
 <div class="row mb-4">
-  <!-- Customer Location Distribution -->
+  <!-- Top Products by Revenue -->
   <div class="col-md-4">
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent border-0">
-        <h5 class="mb-0">Customer Geographic Distribution</h5>
+        <h5 class="mb-0">Top Products by Revenue</h5>
       </div>
       <div class="card-body">
         <div style="height: 280px;">
-          <canvas id="locationChart"></canvas>
+          <canvas id="topProductsChart"></canvas>
         </div>
       </div>
     </div>
@@ -485,11 +485,7 @@
               </tr>
             </thead>
             <tbody>
-              <% begin
-                   top_customers = Customer.order(created_at: :desc).limit(5) rescue []
-                 rescue
-                   top_customers = []
-                 end
+              <% top_customers = @top_customers_data.presence || []
                  if top_customers.any?
                    top_customers.each_with_index do |customer, index| %>
                 <tr>
@@ -505,10 +501,10 @@
                     </div>
                   </td>
                   <td class="align-middle">
-                    <h6 class="mb-0"><%= rand(1..10) %></h6>
+                    <h6 class="mb-0"><%= customer.booking_count %></h6>
                   </td>
                   <td class="align-middle">
-                    <h6 class="mb-0">₹<%= number_with_delimiter([15000, 23000, 8000, 45000, 12000][index]) %></h6>
+                    <h6 class="mb-0 text-success fw-bold">₹<%= number_with_delimiter(customer.total_spent.to_i) %></h6>
                   </td>
                 </tr>
               <% end
@@ -692,20 +688,22 @@ Chart.defaults.font.size = 12;
 Chart.defaults.color = '#64748b';
 
 // Real-time data from Ruby backend
-const salesTrendData = <%= (@sales_trend || {}).to_json.html_safe %>;
+const salesTrendData7d  = <%= (@sales_trend || {}).to_json.html_safe %>;
+const salesTrendData30d = <%= (@sales_trend_30d || {}).to_json.html_safe %>;
+const salesTrendData90d = <%= (@sales_trend_90d || {}).to_json.html_safe %>;
 const orderStatusData = {
   'Pending': <%= @pending_bookings || 0 %>,
-  'Processing': <%= (@total_bookings - @pending_bookings - @completed_bookings - @cancelled_bookings) || 0 %>,
+  'Processing': <%= [(@total_bookings.to_i - @pending_bookings.to_i - @completed_bookings.to_i - @cancelled_bookings.to_i), 0].max %>,
   'Shipped': <%= @shipped_orders || 0 %>,
   'Completed': <%= @completed_bookings || 0 %>,
   'Cancelled': <%= @cancelled_bookings || 0 %>
 };
 const categoryPerformanceData = <%= (@category_performance || {}).to_json.html_safe %>;
 const monthlyRevenueData = <%= (@monthly_revenue_trend || {}).to_json.html_safe %>;
-const locationData = <%= (@customer_location || { 'Karnataka' => 45, 'Maharashtra' => 32, 'Tamil Nadu' => 28, 'Delhi' => 25, 'Gujarat' => 18 }).to_json.html_safe %>;
+const topProductsData = <%= (@top_products_revenue || {}).to_json.html_safe %>;
 const paymentMethodData = <%= (@payment_method_distribution || { 'Cash' => 25, 'UPI' => 45, 'Card' => 20, 'Online' => 10 }).to_json.html_safe %>;
 const inventoryStatusData = {
-  'In Stock': <%= (@total_products || 0) - (@out_of_stock_products || 0) - (@low_stock_products || 0) %>,
+  'In Stock': <%= [(@total_products.to_i - @out_of_stock_products.to_i - @low_stock_products.to_i), 0].max %>,
   'Low Stock': <%= @low_stock_products || 0 %>,
   'Out of Stock': <%= @out_of_stock_products || 0 %>
 };
@@ -733,39 +731,64 @@ const chartOptions = {
   }
 };
 
-// 1. Sales Revenue Trend (Area Chart)
+// 1. Sales Revenue Trend (Gradient Area Chart with period toggle)
 const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
-new Chart(salesCtx, {
+
+function buildSalesGradient(ctx) {
+  const gradient = ctx.createLinearGradient(0, 0, 0, 320);
+  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.35)');
+  gradient.addColorStop(0.6, 'rgba(59, 130, 246, 0.08)');
+  gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+  return gradient;
+}
+
+const salesChart = new Chart(salesCtx, {
   type: 'line',
   data: {
-    labels: Object.keys(salesTrendData),
+    labels: Object.keys(salesTrendData7d),
     datasets: [{
-      label: 'Sales Revenue',
-      data: Object.values(salesTrendData),
+      label: 'Revenue',
+      data: Object.values(salesTrendData7d),
       borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-      borderWidth: 3,
+      backgroundColor: buildSalesGradient(salesCtx),
+      borderWidth: 2.5,
       fill: true,
-      tension: 0.4,
+      tension: 0.45,
       pointBackgroundColor: '#3b82f6',
       pointBorderColor: '#fff',
       pointBorderWidth: 2,
-      pointRadius: 0,
-      pointHoverRadius: 6
+      pointRadius: 4,
+      pointHoverRadius: 7,
+      pointHoverBackgroundColor: '#fff',
+      pointHoverBorderColor: '#3b82f6',
+      pointHoverBorderWidth: 2.5
     }]
   },
   options: {
     ...chartOptions,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...chartOptions.plugins.tooltip,
+        callbacks: {
+          label: function(ctx) {
+            const v = ctx.raw;
+            if (v >= 1000000) return '₹' + (v/1000000).toFixed(2) + 'M';
+            if (v >= 1000) return '₹' + (v/1000).toFixed(1) + 'K';
+            return '₹' + v;
+          }
+        }
+      }
+    },
     scales: {
       x: {
         grid: { display: false },
         border: { display: false },
-        ticks: { color: '#9ca3af' }
+        ticks: { color: '#9ca3af', maxRotation: 0 }
       },
       y: {
         border: { display: false },
-        grid: { color: 'rgba(156, 163, 175, 0.1)' },
+        grid: { color: 'rgba(156, 163, 175, 0.08)' },
         ticks: {
           color: '#9ca3af',
           callback: function(value) {
@@ -775,11 +798,52 @@ new Chart(salesCtx, {
           }
         }
       }
-    }
+    },
+    animation: { duration: 600, easing: 'easeInOutQuart' }
   }
 });
 
-// 2. Order Status Distribution (Doughnut Chart)
+function switchSalesPeriod(period, btn) {
+  const periodMap = { '7d': salesTrendData7d, '30d': salesTrendData30d, '90d': salesTrendData90d };
+  const labelMap  = { '7d': '7D', '30d': '30D', '90d': '90D' };
+  const data = periodMap[period];
+  salesChart.data.labels   = Object.keys(data);
+  salesChart.data.datasets[0].data = Object.values(data);
+  salesChart.data.datasets[0].backgroundColor = buildSalesGradient(salesCtx);
+  salesChart.update();
+  document.querySelectorAll('#salesPeriodBtns button').forEach(b => {
+    b.className = 'btn btn-sm btn-outline-secondary';
+  });
+  btn.className = 'btn btn-sm btn-primary';
+  document.querySelector('#salesChartTitle .badge').textContent = labelMap[period];
+}
+
+// Center-label plugin for doughnut charts
+const centerLabelPlugin = {
+  id: 'centerLabel',
+  afterDraw(chart) {
+    if (chart.config.options.plugins.centerLabel) {
+      const { ctx, chartArea: { width, height, top } } = chart;
+      const cfg = chart.config.options.plugins.centerLabel;
+      const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+      const cx = width / 2 + (chart.chartArea ? chart.chartArea.left : 0);
+      const cy = top + height / 2;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1f2937';
+      ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+      ctx.fillText(total, cx, cy - 8);
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+      ctx.fillText(cfg.label || 'Total', cx, cy + 14);
+      ctx.restore();
+    }
+  }
+};
+Chart.register(centerLabelPlugin);
+
+// 2. Order Status Distribution (Doughnut Chart with center total)
 const orderCtx = document.getElementById('orderStatusChart').getContext('2d');
 new Chart(orderCtx, {
   type: 'doughnut',
@@ -788,28 +852,32 @@ new Chart(orderCtx, {
     datasets: [{
       data: Object.values(orderStatusData),
       backgroundColor: ['#f59e0b', '#3b82f6', '#06b6d4', '#10b981', '#ef4444'],
-      borderWidth: 0,
-      cutout: '70%'
+      borderWidth: 3,
+      borderColor: '#fff',
+      cutout: '72%',
+      hoverOffset: 6
     }]
   },
   options: {
     ...chartOptions,
     plugins: {
       ...chartOptions.plugins,
-      legend: { position: 'bottom', ...chartOptions.plugins.legend }
+      legend: { position: 'bottom', ...chartOptions.plugins.legend },
+      centerLabel: { label: 'Orders' }
     }
   }
 });
 
-// 3. Category Performance (Bar Chart)
+// 3. Category Performance (Horizontal Bar Chart with color palette)
 const categoryCtx = document.getElementById('categoryPerformanceChart').getContext('2d');
+const catColors = ['#6366f1','#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899','#8b5cf6'];
 new Chart(categoryCtx, {
   type: 'bar',
   data: {
     labels: Object.keys(categoryPerformanceData),
     datasets: [{
       data: Object.values(categoryPerformanceData),
-      backgroundColor: '#3b82f6',
+      backgroundColor: catColors.slice(0, Object.keys(categoryPerformanceData).length),
       borderRadius: 6,
       borderSkipped: false
     }]
@@ -817,12 +885,26 @@ new Chart(categoryCtx, {
   options: {
     indexAxis: 'y',
     ...chartOptions,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...chartOptions.plugins.tooltip,
+        callbacks: {
+          label: function(ctx) {
+            const v = ctx.raw;
+            if (v >= 1000000) return '₹' + (v/1000000).toFixed(2) + 'M';
+            if (v >= 1000) return '₹' + (v/1000).toFixed(1) + 'K';
+            return '₹' + v;
+          }
+        }
+      }
+    },
     scales: {
       x: {
         beginAtZero: true,
-        grid: { color: 'rgba(156, 163, 175, 0.1)' },
+        grid: { color: 'rgba(156, 163, 175, 0.08)' },
         ticks: {
+          color: '#9ca3af',
           callback: function(value) {
             if (value >= 1000000) return '₹' + (value/1000000).toFixed(1) + 'M';
             if (value >= 1000) return '₹' + (value/1000).toFixed(0) + 'K';
@@ -830,34 +912,56 @@ new Chart(categoryCtx, {
           }
         }
       },
-      y: { grid: { display: false } }
+      y: { grid: { display: false }, ticks: { color: '#374151' } }
     }
   }
 });
 
-// 4. Monthly Revenue Breakdown (Bar Chart)
+// 4. Monthly Revenue Breakdown (Gradient Bar Chart)
 const monthlyCtx = document.getElementById('monthlyRevenueChart').getContext('2d');
-new Chart(monthlyCtx, {
+function buildMonthlyGradient(ctx) {
+  const g = ctx.createLinearGradient(0, 0, 0, 260);
+  g.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+  g.addColorStop(1, 'rgba(16, 185, 129, 0.35)');
+  return g;
+}
+const monthlyChart = new Chart(monthlyCtx, {
   type: 'bar',
   data: {
     labels: Object.keys(monthlyRevenueData),
     datasets: [{
       label: 'Revenue',
       data: Object.values(monthlyRevenueData),
-      backgroundColor: '#10b981',
-      borderRadius: 6,
+      backgroundColor: buildMonthlyGradient(monthlyCtx),
+      borderColor: '#10b981',
+      borderWidth: 1,
+      borderRadius: 7,
       borderSkipped: false
     }]
   },
   options: {
     ...chartOptions,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...chartOptions.plugins.tooltip,
+        callbacks: {
+          label: function(ctx) {
+            const v = ctx.raw;
+            if (v >= 1000000) return '₹' + (v/1000000).toFixed(2) + 'M';
+            if (v >= 1000) return '₹' + (v/1000).toFixed(1) + 'K';
+            return '₹' + v;
+          }
+        }
+      }
+    },
     scales: {
-      x: { grid: { display: false } },
+      x: { grid: { display: false }, ticks: { color: '#9ca3af' } },
       y: {
         beginAtZero: true,
-        grid: { color: 'rgba(156, 163, 175, 0.1)' },
+        grid: { color: 'rgba(156, 163, 175, 0.08)' },
         ticks: {
+          color: '#9ca3af',
           callback: function(value) {
             if (value >= 1000000) return '₹' + (value/1000000).toFixed(1) + 'M';
             if (value >= 1000) return '₹' + (value/1000).toFixed(0) + 'K';
@@ -865,55 +969,86 @@ new Chart(monthlyCtx, {
           }
         }
       }
-    }
+    },
+    animation: { duration: 800, easing: 'easeOutBounce' }
   }
 });
 
-// 5. Customer Location Distribution (Bar Chart)
-const locationCtx = document.getElementById('locationChart').getContext('2d');
-new Chart(locationCtx, {
+// 5. Top Products by Revenue (Horizontal Bar Chart)
+const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+const topProductsColors = ['#3b82f6','#10b981','#f59e0b','#ec4899','#8b5cf6','#06b6d4','#ef4444','#f97316'];
+new Chart(topProductsCtx, {
   type: 'bar',
   data: {
-    labels: Object.keys(locationData),
+    labels: Object.keys(topProductsData).map(l => l.length > 18 ? l.slice(0,16) + '…' : l),
     datasets: [{
-      data: Object.values(locationData),
-      backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
-      borderRadius: 6,
+      data: Object.values(topProductsData),
+      backgroundColor: topProductsColors.slice(0, Object.keys(topProductsData).length),
+      borderRadius: 5,
       borderSkipped: false
     }]
   },
   options: {
+    indexAxis: 'y',
     ...chartOptions,
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        ...chartOptions.plugins.tooltip,
+        callbacks: {
+          label: function(ctx) {
+            const v = ctx.raw;
+            if (v >= 1000000) return '₹' + (v/1000000).toFixed(2) + 'M';
+            if (v >= 1000) return '₹' + (v/1000).toFixed(1) + 'K';
+            return '₹' + v;
+          }
+        }
+      }
+    },
     scales: {
-      x: { grid: { display: false } },
-      y: { beginAtZero: true, grid: { color: 'rgba(156, 163, 175, 0.1)' } }
+      x: {
+        beginAtZero: true,
+        grid: { color: 'rgba(156, 163, 175, 0.08)' },
+        ticks: {
+          color: '#9ca3af',
+          callback: function(value) {
+            if (value >= 1000) return '₹' + (value/1000).toFixed(0) + 'K';
+            return '₹' + value;
+          }
+        }
+      },
+      y: { grid: { display: false }, ticks: { color: '#374151', font: { size: 11 } } }
     }
   }
 });
 
-// 6. Payment Methods (Pie Chart)
+// 6. Payment Methods (Doughnut with center label)
 const paymentCtx = document.getElementById('paymentMethodChart').getContext('2d');
+const paymentTotal = Object.values(paymentMethodData).reduce((a, b) => a + b, 0);
 new Chart(paymentCtx, {
-  type: 'pie',
+  type: 'doughnut',
   data: {
     labels: Object.keys(paymentMethodData),
     datasets: [{
       data: Object.values(paymentMethodData),
       backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#ec4899'],
-      borderWidth: 0
+      borderWidth: 3,
+      borderColor: '#fff',
+      cutout: '65%',
+      hoverOffset: 6
     }]
   },
   options: {
     ...chartOptions,
     plugins: {
       ...chartOptions.plugins,
-      legend: { position: 'bottom', ...chartOptions.plugins.legend }
+      legend: { position: 'bottom', ...chartOptions.plugins.legend },
+      centerLabel: { label: 'Bookings' }
     }
   }
 });
 
-// 7. Inventory Status (Doughnut Chart)
+// 7. Inventory Status (Doughnut Chart with center total)
 const inventoryCtx = document.getElementById('inventoryStatusChart').getContext('2d');
 new Chart(inventoryCtx, {
   type: 'doughnut',
@@ -922,15 +1057,18 @@ new Chart(inventoryCtx, {
     datasets: [{
       data: Object.values(inventoryStatusData),
       backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-      borderWidth: 0,
-      cutout: '70%'
+      borderWidth: 3,
+      borderColor: '#fff',
+      cutout: '72%',
+      hoverOffset: 6
     }]
   },
   options: {
     ...chartOptions,
     plugins: {
       ...chartOptions.plugins,
-      legend: { position: 'bottom', ...chartOptions.plugins.legend }
+      legend: { position: 'bottom', ...chartOptions.plugins.legend },
+      centerLabel: { label: 'Products' }
     }
   }
 });

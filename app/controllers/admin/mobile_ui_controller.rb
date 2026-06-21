@@ -36,6 +36,10 @@ class Admin::MobileUiController < ActionController::Base
     @bookings = Booking.includes(:customer, :booking_items, :booking_invoices)
                        .order(created_at: :desc)
 
+    if params[:tab] == 'today'
+      @bookings = @bookings.where(created_at: Time.current.beginning_of_day..Time.current.end_of_day)
+    end
+
     if params[:search].present?
       q = "%#{params[:search]}%"
       @bookings = @bookings.where(
@@ -50,6 +54,24 @@ class Admin::MobileUiController < ActionController::Base
 
     @total = @bookings.count
     @bookings = @bookings.page(params[:page]).per(15)
+  end
+
+  def dashboard
+    today_start = Time.current.beginning_of_day
+    today_end   = Time.current.end_of_day
+    today_scope = Booking.where(created_at: today_start..today_end)
+
+    @today_count         = today_scope.count
+    @today_paid_revenue  = today_scope.where(payment_status: 'paid').sum(:total_amount).to_f
+    @today_unpaid_amount = today_scope.where.not(payment_status: 'paid').sum(:total_amount).to_f
+    @today_unpaid_count  = today_scope.where.not(payment_status: 'paid').count
+
+    @pending_count  = Booking.where(status: 'ordered_and_delivery_pending').count
+    @pending_amount = Booking.where(status: 'ordered_and_delivery_pending').sum(:total_amount).to_f
+
+    @recent_bookings = Booking.includes(:customer, :booking_items)
+                              .order(created_at: :desc)
+                              .limit(5)
   end
 
   def new_booking
@@ -75,16 +97,18 @@ class Admin::MobileUiController < ActionController::Base
       @booking.payment_status = payment_status_param == 'paid' ? :paid : :unpaid
       @booking.save!
 
+      invoice_notice = ""
       if @booking.payment_status_paid?
-        begin
-          @booking.create_booking_invoice_record
-        rescue => e
-          Rails.logger.warn "Mobile UI: Invoice auto-gen failed for booking #{@booking.id}: #{e.message}"
+        invoice = @booking.generate_quick_invoice!
+        if invoice
+          invoice_notice = " Invoice ##{invoice.invoice_number} generated."
+        else
+          Rails.logger.warn "Mobile UI: Invoice generation returned nil for booking #{@booking.id}"
         end
       end
 
       redirect_to admin_mobile_ui_bookings_path,
-                  notice: "Booking ##{@booking.booking_number} created successfully!"
+                  notice: "Booking ##{@booking.booking_number} created successfully!#{invoice_notice}"
     else
       @products = load_mobile_products
       @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)

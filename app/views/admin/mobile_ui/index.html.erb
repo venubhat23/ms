@@ -162,7 +162,7 @@
 
 <%# Search & Filters %>
 <div class="search-bar">
-  <%= form_with url: admin_mobile_ui_bookings_path, method: :get, local: true do |f| %>
+  <%= form_with url: admin_mobile_ui_bookings_path, method: :get, local: true, data: { no_loader: '' } do |f| %>
     <div class="search-wrap mb-2">
       <i class="bi bi-search"></i>
       <%= f.text_field :search, value: params[:search], class: 'search-input',
@@ -170,6 +170,7 @@
           id: 'mobileSearch' %>
     </div>
     <%= f.hidden_field :status, value: params[:status], id: 'statusHidden' %>
+    <%= f.hidden_field :tab, value: params[:tab], id: 'tabHidden' %>
     <div class="filter-pills">
       <% statuses = [
            ['All', ''],
@@ -197,10 +198,25 @@
 </div>
 
 <%# Summary bar %>
-<div class="summary-bar d-flex justify-content-between align-items-center">
-  <span><i class="bi bi-receipt me-1"></i><strong><%= @total %></strong> bookings</span>
-  <span style="font-size:0.75rem; opacity:0.8;"><%= Date.current.strftime('%d %b %Y') %></span>
-</div>
+<% if params[:tab] == 'today' %>
+  <% today_paid   = @bookings.except(:limit, :offset).where(payment_status: 'paid').sum(:total_amount).to_f rescue 0 %>
+  <% today_unpaid = @bookings.except(:limit, :offset).where.not(payment_status: 'paid').sum(:total_amount).to_f rescue 0 %>
+  <div class="summary-bar">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span><i class="bi bi-calendar-day me-1"></i><strong>Today</strong> — <%= Date.current.strftime('%d %b %Y') %></span>
+      <span style="font-size:0.75rem;opacity:0.8;"><%= @total %> booking<%= @total == 1 ? '' : 's' %></span>
+    </div>
+    <div class="d-flex gap-3" style="font-size:0.78rem;">
+      <span><i class="bi bi-check-circle me-1"></i>Paid ₹<%= number_with_delimiter(today_paid.round(0)) %></span>
+      <span><i class="bi bi-exclamation-circle me-1"></i>Outstanding ₹<%= number_with_delimiter(today_unpaid.round(0)) %></span>
+    </div>
+  </div>
+<% else %>
+  <div class="summary-bar d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-receipt me-1"></i><strong><%= @total %></strong> bookings</span>
+    <span style="font-size:0.75rem; opacity:0.8;"><%= Date.current.strftime('%d %b %Y') %></span>
+  </div>
+<% end %>
 
 <%# Bookings list %>
 <% if @bookings.any? %>
@@ -328,6 +344,7 @@
 <script>
 function setStatus(val) {
   document.getElementById('statusHidden').value = val;
+  document.getElementById('tabHidden').value = '';
   document.getElementById('mobileSearch').closest('form').submit();
 }
 

@@ -800,6 +800,9 @@ Rails.application.routes.draw do
     get  'mobile-ui/new-customer',     to: 'mobile_ui#new_customer',    as: 'mobile_ui_new_customer'
     post 'mobile-ui/create-customer',  to: 'mobile_ui#create_customer', as: 'mobile_ui_create_customer'
     get  'mobile-ui/dashboard',        to: 'mobile_ui#dashboard',       as: 'mobile_ui_dashboard'
+
+    # Pricing overview
+    get 'pricing', to: 'pricing#index', as: :pricing
   end
 
   # Mobile API routes

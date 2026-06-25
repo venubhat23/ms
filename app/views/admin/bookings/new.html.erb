@@ -175,7 +175,7 @@
                   <div class="mb-3">
                     <%
                       if product.has_multiple_quantities? && product.product_variants.any?
-                        default_v = product.default_variant || product.product_variants.ordered.first
+                        default_v = product.default_variant || product.product_variants.sort_by { |v| [v.display_order.to_i, v.weight.to_f] }.first
                         variant_price = default_v.effective_price
                         selling_price = variant_price
                       else
@@ -204,7 +204,7 @@
                       <select class="form-select form-select-sm mb-2"
                               id="variant-select-<%= product.id %>"
                               onchange="bookingUpdateVariant(this, <%= product.id %>)">
-                        <% product.product_variants.default_first.each do |v| %>
+                        <% product.product_variants.sort_by { |v| [v.is_default ? 0 : 1, v.weight.to_f] }.each do |v| %>
                           <option value="<%= v.id %>"
                                   data-price="<%= v.effective_price %>"
                                   data-stock="<%= v.available_stock %>"
@@ -1056,6 +1056,10 @@ function showCheckoutView() {
   }
 
   currentView = 'checkout';
+
+  // Collapse the floating cart so it doesn't overlap ORDER SUMMARY
+  minimizeCart();
+
   document.getElementById('productsView').style.display = 'none';
   document.getElementById('checkoutView').style.display = 'block';
 

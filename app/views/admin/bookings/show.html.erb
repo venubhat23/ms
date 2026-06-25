@@ -25,6 +25,41 @@
     <% end %>
 
 
+    <%# WhatsApp share buttons %>
+    <%
+      wa_phone = (@booking.customer_phone || @booking.customer&.mobile).to_s.gsub(/\D/, '').sub(/^0+/, '').sub(/^91/, '')
+      wa_phone = "91#{wa_phone}" if wa_phone.length == 10
+      wa_cname  = @booking.customer_name || @booking.customer&.display_name || 'Customer'
+      wa_amount = number_with_delimiter(@booking.total_amount.to_f)
+      wa_bdate  = (@booking.booking_date || @booking.created_at)&.strftime('%d %b %Y')
+      wa_bi     = @booking.booking_invoices.first
+      wa_inv_link_line = wa_bi&.share_token.present? ? "\n📋 View Invoice: #{request.base_url}/invoice/#{wa_bi.share_token}" : ""
+      wa_pdf_line      = wa_bi&.share_token.present? ? "\n📄 Download PDF: #{request.base_url}/invoice/#{wa_bi.share_token}/download" : ""
+      wa_thank_msg = "Dear #{wa_cname},\n\nThank you for your booking with Marali Santhe! 🛒\n\nBooking #: #{@booking.booking_number}\nDate: #{wa_bdate}\nAmount: ₹#{wa_amount}#{wa_inv_link_line}#{wa_pdf_line}\n\nWe appreciate your trust in us!\n\n🙏 Marali Santhe Team"
+    %>
+    <% if wa_phone.length >= 10 %>
+      <a href="https://wa.me/<%= wa_phone %>?text=<%= ERB::Util.url_encode(wa_thank_msg) %>"
+         target="_blank"
+         class="btn btn-success"
+         title="Send Thank You on WhatsApp">
+        <i class="bi bi-whatsapp me-1"></i>Thanks
+      </a>
+      <% if wa_bi&.share_token.present? %>
+        <%
+          wa_inv_url     = "#{request.base_url}/invoice/#{wa_bi.share_token}"
+          wa_inv_pdf_url = "#{request.base_url}/invoice/#{wa_bi.share_token}/download"
+          wa_inv_msg     = "Dear #{wa_cname},\n\nHere is your invoice from Marali Santhe 🛒\n\nBooking #: #{@booking.booking_number}\nDate: #{wa_bdate}\nAmount: ₹#{wa_amount}\n\n📋 View Invoice: #{wa_inv_url}\n📄 Download PDF: #{wa_inv_pdf_url}\n\nThank you!\n🙏 Marali Santhe Team"
+        %>
+        <a href="https://wa.me/<%= wa_phone %>?text=<%= ERB::Util.url_encode(wa_inv_msg) %>"
+           target="_blank"
+           class="btn btn-success"
+           style="background:#7b1fa2;border-color:#7b1fa2;"
+           title="Share Invoice via WhatsApp (anyone can view)">
+          <i class="bi bi-whatsapp me-1"></i>Invoice
+        </a>
+      <% end %>
+    <% end %>
+
     <div class="dropdown">
       <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
         <i class="bi bi-three-dots"></i>

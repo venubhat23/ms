@@ -444,6 +444,19 @@
           </li>
         <% end %>
 
+        <!-- Pricing -->
+        <li class="nav-item">
+          <%= link_to admin_pricing_path, class: "nav-link-modern #{'active' if request.path == '/admin/pricing'}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                <i class="bi bi-tags-fill"></i>
+              </div>
+            </div>
+            <span class="nav-text">Pricing</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+
 
 
 

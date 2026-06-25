@@ -307,7 +307,7 @@ class Booking < ApplicationRecord
   end
 
   def payment_method_display
-    raw_value = self.class.connection.select_value("SELECT payment_method FROM bookings WHERE id = #{id}")
+    raw_value = read_attribute(:payment_method)
     return 'Cash on Delivery' if raw_value.blank?
 
     case raw_value.to_s
@@ -324,14 +324,12 @@ class Booking < ApplicationRecord
   end
 
   def payment_method_label
-    raw_value = self.class.connection.select_value("SELECT payment_method FROM bookings WHERE id = #{id}").to_s
-    # Online payment methods: card=1, upi=2, bank_transfer=3, online=4, cashfree=6, cloudflare=7
+    raw_value = read_attribute(:payment_method).to_s
     %w[card 1 upi 2 bank_transfer 3 online 4 cashfree 6 cloudflare 7].include?(raw_value) ? 'Online Payment' : 'Cash on Delivery'
   end
 
   def payment_status_display
-    # Get the raw value directly from database using SQL to bypass any Rails caching issues
-    raw_value = self.class.connection.select_value("SELECT payment_status FROM bookings WHERE id = #{id}")
+    raw_value = read_attribute(:payment_status)
     return 'Unpaid' if raw_value.blank?
 
     case raw_value.to_s

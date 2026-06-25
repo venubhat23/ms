@@ -43,8 +43,15 @@ class Admin::BookingsController < Admin::ApplicationController
       @bookings = @bookings.where(booked_by: params[:booked_by])
     end
 
-    @per_page = SystemSetting.default_pagination_per_page
+    @per_page = Rails.cache.fetch('system_setting/default_pagination_per_page', expires_in: 5.minutes) do
+      SystemSetting.default_pagination_per_page
+    end
     @bookings = @bookings.page(params[:page]).per(@per_page)
+
+    # Pre-populate memoized @associated_invoice on each loaded booking to nil so
+    # has_invoice? / invoice_link_path / display_invoice_number never fire a
+    # per-booking LIKE query; the index only needs booking_invoices (eager-loaded above).
+    @bookings.each { |b| b.instance_variable_set(:@associated_invoice, nil) }
 
     @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
                         .order(:first_name, :last_name)
@@ -54,16 +61,12 @@ class Admin::BookingsController < Admin::ApplicationController
     @booking = Booking.new
     @booking.booking_items.build
 
-    # stock_batches removed from includes — stock is already aggregated via the JOIN below
-    # additional_images_attachments removed — not needed for single-card thumbnails
     @products = Product.active
                        .includes(:category, :product_variants, image_attachment: :blob)
                        .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0 AND stock_batches.store_id IS NULL")
                        .select(
                          "products.*,
-                          COALESCE(SUM(stock_batches.quantity_remaining), 0) as cached_stock,
-                          MIN(stock_batches.batch_date) as first_batch_date,
-                          (SELECT quantity_purchased FROM stock_batches sb2 WHERE sb2.product_id = products.id AND sb2.store_id IS NULL ORDER BY sb2.batch_date ASC, sb2.created_at ASC LIMIT 1) as initial_stock_value"
+                          COALESCE(SUM(stock_batches.quantity_remaining), 0) as cached_stock"
                        )
                        .group("products.id")
                        .order(Arel.sql("CASE WHEN COALESCE(SUM(stock_batches.quantity_remaining), 0) > 0 THEN 0 ELSE 1 END ASC, products.name ASC"))
@@ -773,14 +776,22 @@ class Admin::BookingsController < Admin::ApplicationController
   def validate_stock_availability(booking, is_update: false)
     stock_errors = []
 
-    booking.booking_items.reject(&:marked_for_destruction?).each do |item|
-      next unless item.product_id.present? && item.quantity.present? && item.quantity > 0
+    active_items = booking.booking_items.reject(&:marked_for_destruction?)
+                          .select { |i| i.product_id.present? && i.quantity.present? && i.quantity > 0 }
 
-      product = Product.find(item.product_id)
+    product_ids  = active_items.map(&:product_id).uniq
+    variant_ids  = active_items.map(&:product_variant_id).compact.uniq
+
+    products_by_id = Product.where(id: product_ids).index_by(&:id)
+    variants_by_id = variant_ids.any? ? ProductVariant.where(id: variant_ids).index_by(&:id) : {}
+
+    active_items.each do |item|
+      product = products_by_id[item.product_id]
+      next unless product
 
       # Admin bookings sell from central inventory only (store_id IS NULL)
       if product.has_multiple_quantities? && item.product_variant_id.present?
-        variant = ProductVariant.find_by(id: item.product_variant_id)
+        variant = variants_by_id[item.product_variant_id]
         available_stock = variant ? variant.available_stock.to_f : 0.0
       else
         available_stock = StockBatch.available_for_product(product.id, store_id: nil).sum(:quantity_remaining).to_f

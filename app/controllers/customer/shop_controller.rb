@@ -3,34 +3,23 @@ class Customer::ShopController < Customer::BaseController
     @booking = Booking.new
     @booking.booking_items.build
 
-    @categories = Category.where(status: true).order(:display_order, :name)
-
-    # Compute stock as a SQL aggregate — avoids loading every stock_batch row into Ruby
-    stock_sq = StockBatch.where(status: 'active')
-                         .select("product_id, SUM(quantity_remaining) AS total_stock")
-                         .group(:product_id)
-
-    scope = Product.active
-                   .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
-                   .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
-                   .includes(:category, :product_variants, image_attachment: :blob)
-                   .order(Arel.sql(
-                     "CASE WHEN COALESCE(sq.total_stock, 0) > 0 THEN 0 ELSE 1 END ASC," \
-                     " products.display_order ASC NULLS LAST, products.name ASC"
-                   ))
-
-    if params[:search].present?
-      search_term = "%#{params[:search]}%"
-      scope = scope.joins(:category)
-                   .where("products.name ILIKE ? OR products.sku ILIKE ? OR categories.name ILIKE ?",
-                          search_term, search_term, search_term)
+    # Cache categories — they rarely change
+    @categories = Rails.cache.fetch('shop:categories', expires_in: 10.minutes) do
+      Category.where(status: true).order(:display_order, :name).to_a
     end
 
-    if params[:category_id].present? && params[:category_id] != ''
-      scope = scope.where(category_id: params[:category_id])
+    if params[:search].blank? && params[:category_id].blank?
+      # Cache the full unfiltered product list (stock refreshes every 3 min via stock_data AJAX)
+      @products = Rails.cache.fetch('shop:products:all', expires_in: 3.minutes) do
+        build_shop_product_scope.to_a
+      end
+    else
+      @products = build_shop_product_scope(
+        search: params[:search],
+        category_id: params[:category_id]
+      ).to_a
     end
 
-    @products = scope.to_a
     @customer_addresses = current_customer&.customer_addresses || []
   end
 
@@ -224,52 +213,48 @@ class Customer::ShopController < Customer::BaseController
     @booking.payment_status = 'unpaid' # Default to unpaid, can be updated based on payment method
 
     begin
-      # Process booking items from cart data
       if params[:booking_items].present?
-        ActiveRecord::Base.transaction do
-          params[:booking_items].each do |index, item_data|
-            quantity = item_data[:quantity].to_f
-            next if quantity <= 0
+        # Collect valid items first
+        valid_items = params[:booking_items].values.select { |i| i[:quantity].to_f > 0 }
 
-            product = Product.find(item_data[:product_id])
+        if valid_items.any?
+          # Pre-load ALL products in ONE query (was N separate Product.find calls)
+          product_ids = valid_items.map { |i| i[:product_id].to_i }.uniq
+          products_by_id = Product.where(id: product_ids).index_by(&:id)
 
-            # Check stock availability
-            available_stock = product.stock_batches.where(status: 'active').sum(:quantity_remaining) || 0
-            if quantity > available_stock
-              flash[:error] = "Insufficient stock for #{product.name}. Only #{available_stock} available."
-              redirect_to customer_shop_path and return
+          # Pre-load ALL stock in ONE query (was N separate stock_batches queries)
+          stock_by_product = StockBatch.where(status: 'active', product_id: product_ids)
+                                       .group(:product_id)
+                                       .sum(:quantity_remaining)
+
+          ActiveRecord::Base.transaction do
+            valid_items.each do |item_data|
+              quantity = item_data[:quantity].to_f
+              product  = products_by_id[item_data[:product_id].to_i]
+
+              unless product
+                flash[:error] = "Product not found."
+                redirect_to customer_shop_path and return
+              end
+
+              available_stock = stock_by_product[product.id] || 0
+              if quantity > available_stock
+                flash[:error] = "Insufficient stock for #{product.name}. Only #{available_stock.to_i} available."
+                redirect_to customer_shop_path and return
+              end
+
+              # Pass product object (not product_id) so calculate_totals has association in memory
+              @booking.booking_items.build(product: product, quantity: quantity, price: item_data[:price].to_f)
             end
 
-            # Create booking item
-            booking_item = @booking.booking_items.build(
-              product_id: item_data[:product_id],
-              quantity: quantity,
-              price: item_data[:price].to_f
-            )
-          end
-
-          # Save booking if items exist
-          if @booking.booking_items.any?
+            # Single save — before_validation :calculate_totals runs automatically
             @booking.save!
 
-            # Calculate totals after saving
-            @booking.calculate_totals
-            @booking.save!
-
-            # Handle payment method specific logic
-            if @booking.payment_method == 'cash'
-              @booking.update(payment_status: 'unpaid')
-              success_message = "Order placed successfully! Payment will be collected on delivery."
-            else
-              success_message = "Order placed successfully! Booking number: #{@booking.booking_number}"
-            end
-
-            # Successful order creation - redirect to success page with booking ID
             redirect_to customer_shop_success_path(booking_id: @booking.booking_number)
-          else
-            flash[:error] = 'Please add items to your cart before placing the order.'
-            redirect_to customer_shop_path
           end
+        else
+          flash[:error] = 'Please add items to your cart before placing the order.'
+          redirect_to customer_shop_path
         end
       else
         flash[:error] = 'No items found in your cart. Please add items before placing an order.'
@@ -277,20 +262,42 @@ class Customer::ShopController < Customer::BaseController
       end
 
     rescue ActiveRecord::RecordInvalid => e
-      # Handle validation errors
       flash[:error] = "Order could not be placed: #{e.record.errors.full_messages.join(', ')}"
       redirect_to customer_shop_path
 
     rescue StandardError => e
-      # Handle any other errors
-      Rails.logger.error "Checkout Error: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
+      Rails.logger.error "Checkout Error: #{e.message}\n#{e.backtrace.join("\n")}"
       flash[:error] = 'An error occurred while processing your order. Please try again.'
       redirect_to customer_shop_path
     end
   end
 
   private
+
+  def build_shop_product_scope(search: nil, category_id: nil)
+    stock_sq = StockBatch.where(status: 'active')
+                         .select("product_id, SUM(quantity_remaining) AS total_stock")
+                         .group(:product_id)
+
+    scope = Product.active
+                   .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
+                   .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
+                   .includes(:category, :product_variants, image_attachment: :blob)
+                   .order(Arel.sql(
+                     "CASE WHEN COALESCE(sq.total_stock, 0) > 0 THEN 0 ELSE 1 END ASC," \
+                     " products.display_order ASC NULLS LAST, products.name ASC"
+                   ))
+
+    if search.present?
+      term = "%#{search}%"
+      scope = scope.joins(:category)
+                   .where("products.name ILIKE ? OR products.sku ILIKE ? OR categories.name ILIKE ?",
+                          term, term, term)
+    end
+
+    scope = scope.where(category_id: category_id) if category_id.present? && category_id != ''
+    scope
+  end
 
   def booking_params
     params.require(:booking).permit(

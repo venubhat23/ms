@@ -2,17 +2,14 @@ class Franchise::BookingsController < Franchise::BaseController
   before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :manage_stage, :update_stage]
 
   def index
-    # Franchise-created bookings
-    franchise_bookings = Booking.where(franchise_id: current_franchise.id)
-    # Online orders placed by customers through the shop
-    online_orders = Booking.where(booked_by: 'customer')
+    # All bookings belonging to this franchise
+    @all_bookings = Booking.where(franchise_id: current_franchise.id)
+                           .includes(:customer, :user, :booking_items, :store)
 
-    # Combined base query for statistics
-    @all_bookings = Booking.where(
-      franchise_id: current_franchise.id
-    ).or(
-      Booking.where(booked_by: 'customer')
-    ).includes(:customer, :user, :booking_items, :store)
+    # Franchise-created bookings
+    franchise_bookings = @all_bookings.where(booked_by: 'franchise')
+    # Online orders placed by customers and assigned to this franchise
+    online_orders = @all_bookings.where(booked_by: 'customer')
 
     # Source filter: 'franchise' = only franchise-created, 'online' = only customer orders, default = all
     @source_filter = params[:source].presence || 'all'
@@ -83,6 +80,8 @@ class Franchise::BookingsController < Franchise::BaseController
 
     @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
                         .order(:first_name, :last_name)
+    @categories = Category.where(status: true).order(:name).to_a
+    @stores = Store.active.order(:name).to_a
   end
 
   def create
@@ -116,26 +115,16 @@ class Franchise::BookingsController < Franchise::BaseController
     unless validate_stock_availability(@booking)
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
       @customers = Customer.all.order(:first_name, :last_name)
-      @stores = Store.where(status: true)
+      @categories = Category.where(status: true).order(:name).to_a
+      @stores = Store.active.order(:name).to_a
       render :new, status: :unprocessable_entity
       return
     end
 
+    # Set payment_status before save so before_validation picks it up — single save
+    @booking.payment_status = @payment_status_from_form == 'paid' ? :paid : :unpaid
+
     if @booking.save
-      # Calculate totals after saving
-      @booking.calculate_totals
-
-      # Set payment status after initial save (to avoid enum conflicts)
-      if @payment_status_from_form == 'paid'
-        @booking.payment_status = :paid
-      else
-        @booking.payment_status = :unpaid
-      end
-
-      # Save again to persist the calculated totals and payment status
-      @booking.save!
-
-      # Log the calculated totals for debugging
       Rails.logger.info "Booking totals - Subtotal: #{@booking.subtotal}, Tax: #{@booking.tax_amount}, Discount: #{@booking.discount_amount}, Total: #{@booking.total_amount}"
       Rails.logger.info "Final payment status after save: #{@booking.payment_status}"
 
@@ -167,7 +156,8 @@ class Franchise::BookingsController < Franchise::BaseController
 
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
       @customers = Customer.all.order(:first_name, :last_name)
-      @stores = Store.where(status: true)
+      @categories = Category.where(status: true).order(:name).to_a
+      @stores = Store.active.order(:name).to_a
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
     end
@@ -354,9 +344,7 @@ class Franchise::BookingsController < Franchise::BaseController
   private
 
   def set_booking
-    @booking = Booking.where(franchise_id: current_franchise.id)
-                     .or(Booking.where(booked_by: 'customer'))
-                     .find(params[:id])
+    @booking = Booking.where(franchise_id: current_franchise.id).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to franchise_bookings_path, alert: 'Booking not found'
   end
@@ -373,20 +361,37 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   def validate_stock_availability(booking, is_update: false)
-    booking.booking_items.each do |item|
-      next if item.marked_for_destruction?
+    items = booking.booking_items.reject(&:marked_for_destruction?)
+    return true if items.empty?
 
-      product = Product.find(item.product_id)
-      available_stock = product.available_stock
+    product_ids = items.map(&:product_id).compact.uniq
 
-      # For updates, add back the current item's quantity to available stock
-      if is_update && item.persisted?
-        original_item = booking.booking_items.find(item.id)
-        available_stock += original_item.quantity if original_item
+    # Batch-load products (was: Product.find per item — N queries)
+    products_by_id = Product.where(id: product_ids).index_by(&:id)
+
+    # Batch-load active batch stock per product (was: stock_batches query per product)
+    batch_stock = StockBatch.where(status: 'active', product_id: product_ids)
+                            .group(:product_id).sum(:quantity_remaining)
+
+    # Batch-load variant stock for products with multiple quantities
+    variant_stock = ProductVariant.where(product_id: product_ids)
+                                  .group(:product_id).sum(:available_stock)
+
+    items.each do |item|
+      product = products_by_id[item.product_id]
+      next unless product
+
+      available_stock = if product.has_multiple_quantities?
+        variant_stock[product.id].to_f
+      else
+        batch_stock[product.id].to_f
       end
 
+      # For updates, add back the original quantity so we don't double-count
+      available_stock += item.quantity_was.to_f if is_update && item.persisted?
+
       if item.quantity > available_stock
-        @booking.errors.add(:base, "Insufficient stock for #{product.name}. Available: #{available_stock}, Requested: #{item.quantity}")
+        @booking.errors.add(:base, "Insufficient stock for #{product.name}. Available: #{available_stock.to_i}, Requested: #{item.quantity}")
         return false
       end
     end

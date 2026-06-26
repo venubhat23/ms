@@ -358,41 +358,6 @@
                 </td>
               </tr>
 
-              <style>
-                .modal {
-                  z-index: 10000 !important;
-                }
-                .modal-backdrop {
-                  z-index: 9999 !important;
-                }
-              </style>
-
-              <!-- Mark as Registered Modal -->
-              <% if referral.status == 'pending' %>
-                <div class="modal fade" id="markRegisteredModal<%= referral.id %>" tabindex="-1" style="z-index: 10000;">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title">Mark as Registered</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                      </div>
-                      <%= form_with url: mark_registered_admin_referral_path(referral), method: :patch, local: true do |form| %>
-                        <div class="modal-body">
-                          <p>Select the customer account for <strong><%= referral.referred_name %></strong>:</p>
-                          <%= form.select :customer_id,
-                              options_from_collection_for_select(Customer.order(:first_name, :last_name), :id, :display_name),
-                              { prompt: "Select Customer" }, { class: "form-select", required: true } %>
-                        </div>
-                        <div class="modal-footer">
-                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                          <%= form.submit "Mark as Registered", class: "btn btn-success" %>
-                        </div>
-                      <% end %>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-
             <% end %>
           </tbody>
         </table>
@@ -415,3 +380,31 @@
     <% end %>
   </div>
 </div>
+
+<!-- Mark as Registered Modals (outside table to avoid z-index/overflow clipping) -->
+<% @referrals.each do |referral| %>
+  <% if referral.status == 'pending' %>
+    <div class="modal fade" id="markRegisteredModal<%= referral.id %>" tabindex="-1" aria-labelledby="markRegisteredLabel<%= referral.id %>" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="markRegisteredLabel<%= referral.id %>">Mark as Registered</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <%= form_with url: mark_registered_admin_referral_path(referral), method: :patch, local: true do |form| %>
+            <div class="modal-body">
+              <p>Select the customer account for <strong><%= referral.referred_name %></strong>:</p>
+              <%= form.select :customer_id,
+                  options_from_collection_for_select(Customer.order(:first_name, :last_name), :id, :display_name),
+                  { prompt: "Select Customer" }, { class: "form-select", required: true } %>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <%= form.submit "Mark as Registered", class: "btn btn-success" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>

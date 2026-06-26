@@ -2,14 +2,22 @@ class Customer::OrdersController < Customer::BaseController
   before_action :set_booking, only: [:show, :invoice]
 
   def index
-    # Get current customer
     customer = current_customer
 
-    # Start with customer's bookings only - same as admin but filtered by customer
-    @all_bookings = customer.bookings.includes(:customer, :user, :booking_items, :franchise)
-    @bookings = @all_bookings.recent
+    # Single GROUP BY replaces 7 separate count queries fired from the view
+    status_counts = customer.bookings.group(:status).count
+    @total_order_count    = status_counts.values.sum
+    @stat_pending         = status_counts['ordered_and_delivery_pending'] || 0
+    @stat_processing      = (status_counts['confirmed'] || 0) + (status_counts['processing'] || 0) + (status_counts['packed'] || 0)
+    @stat_shipped         = (status_counts['shipped'] || 0) + (status_counts['out_for_delivery'] || 0)
+    @stat_completed       = status_counts['completed'] || 0
+    @stat_issues          = (status_counts['cancelled'] || 0) + (status_counts['returned'] || 0)
 
-    # Apply filters (same as admin but for customer's bookings only)
+    # Paginated list — includes :booking_items for view; :user/:franchise only if needed
+    @bookings = customer.bookings
+                        .includes(:booking_items)
+                        .recent
+
     if params[:search].present?
       @bookings = @bookings.where(
         "booking_number LIKE ? OR customer_name LIKE ? OR customer_email LIKE ? OR customer_phone LIKE ?",
@@ -17,22 +25,14 @@ class Customer::OrdersController < Customer::BaseController
       )
     end
 
-    if params[:status].present? && params[:status].strip != ''
-      @bookings = @bookings.where(status: params[:status])
-    end
+    @bookings = @bookings.where(status: params[:status]) if params[:status].present? && params[:status].strip != ''
 
     if params[:date_from].present? && params[:date_to].present?
       @bookings = @bookings.where(created_at: params[:date_from]..params[:date_to])
     end
 
-    # Get pagination settings from system settings
     @per_page = SystemSetting.default_pagination_per_page || 20
-
-    # Paginate the filtered results
     @bookings = @bookings.page(params[:page]).per(@per_page)
-
-    # Use all_bookings for statistics cards to show customer's complete picture
-    @bookings_for_stats = @all_bookings
   end
 
   def show

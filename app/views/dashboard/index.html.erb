@@ -420,11 +420,7 @@
               </tr>
             </thead>
             <tbody>
-              <% begin
-                   recent_bookings = Booking.order(created_at: :desc).limit(5) rescue []
-                 rescue
-                   recent_bookings = []
-                 end
+              <% recent_bookings = @recent_bookings || []
                  if recent_bookings.any?
                    recent_bookings.each do |booking| %>
                 <tr>
@@ -549,7 +545,7 @@
             </tr>
           </thead>
           <tbody>
-            <% Product.where('stock <= 5 AND stock > 0').limit(5).each do |product| %>
+            <% (@low_stock_items || []).each do |product| %>
               <tr>
                 <td class="align-middle">
                   <div>

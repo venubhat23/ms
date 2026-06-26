@@ -164,93 +164,71 @@ class Customer::CheckoutController < Customer::BaseController
         end
 
         @booking = Booking.new(booking_attributes)
+        @booking.payment_status = :unpaid
 
-        # Calculate totals before saving (like admin controller)
-        total_amount = 0
-
-        # Build booking items from cart data
-        cart_items.each do |item|
-          begin
-            product = Product.find(item[:id] || item['id'])
-            quantity = (item[:quantity] || item['quantity']).to_f
-            price = (item[:price] || item['price']).to_f
-
-            @booking.booking_items.build(
-              product: product,
-              quantity: quantity,
-              price: price
-            )
-
-            total_amount += (price * quantity)
-            Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
-          rescue ActiveRecord::RecordNotFound => e
-            booking_error = "Product not found: #{item[:id] || item['id']}"
-            Rails.logger.error booking_error
-            raise ActiveRecord::Rollback
-          end
-        end
-
-        # Set totals
-        @booking.subtotal = total_amount
-        @booking.total_amount = total_amount
-
-        # Set initial status based on payment method
-        if params[:payment_method] == 'cod'
-          @booking.payment_status = :unpaid
-          @booking.status = 'confirmed' # COD orders are confirmed immediately
-        else
-          # For online payments, start as draft until payment is completed
-          @booking.payment_status = :unpaid
-          @booking.status = 'draft'
-        end
-
-        # Set shipping charges on the object BEFORE calculate_totals so it's
-        # included in total_amount from the start and persists through any
-        # subsequent update! calls (update_columns wouldn't update the in-memory object).
+        # Set shipping charges before save so before_validation:calculate_totals picks it up
         delivery_charge = params[:delivery_charge].to_f
         @booking.shipping_charges = delivery_charge if delivery_charge > 0
 
-        if @booking.save
-          # Recalculate totals with shipping_charges already set on the object
-          @booking.calculate_totals
-          @booking.save!
+        # For online payments, hold as draft until payment completes
+        @booking.status = 'draft' if params[:payment_method] != 'cod'
 
+        # Pre-load all products in ONE query (was N separate Product.find calls)
+        product_ids = cart_items.map { |i| (i[:id] || i['id']).to_i }
+        products_by_id = Product.where(id: product_ids).index_by(&:id)
+
+        # Build booking items — pass product object so calculate_totals has associations in memory
+        cart_items.each do |item|
+          product_id = (item[:id] || item['id']).to_i
+          product = products_by_id[product_id]
+          unless product
+            booking_error = "Product not found: #{product_id}"
+            Rails.logger.error booking_error
+            raise ActiveRecord::Rollback
+          end
+
+          quantity = (item[:quantity] || item['quantity']).to_f
+          price    = (item[:price]    || item['price']).to_f
+
+          @booking.booking_items.build(product: product, quantity: quantity, price: price)
+          Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
+        end
+
+        # Single save — before_validation :calculate_totals fires automatically
+        if @booking.save
           Rails.logger.info "Booking created successfully: #{@booking.booking_number}"
           Rails.logger.info "Total amount: ₹#{@booking.total_amount}"
           Rails.logger.info "Payment method: #{params[:payment_method]}"
 
-          # Handle different payment methods
           if params[:payment_method] == 'cod'
-            # COD Order - Complete immediately
-            @booking.update!(status: 'confirmed')
-
+            # COD — status is already 'confirmed', no extra update needed
             render json: {
               success: true,
               message: 'Order placed successfully! Pay on delivery.',
               booking_number: @booking.booking_number,
               booking_id: @booking.id,
-              total_amount: @booking.reload.total_amount,
+              total_amount: @booking.total_amount,
               payment_method: 'cod',
               redirect_url: customer_orders_path
             }
           else
-            # Online Payment - Integrate with Cashfree
+            # Online Payment — Cashfree
             Rails.logger.info "🚀 Initiating Cashfree payment for booking #{@booking.id}"
 
-            # Generate Cashfree order ID
             cashfree_order_id = Booking.generate_cashfree_order_id
-            @booking.update!(cashfree_order_id: cashfree_order_id)
 
-            # Mark payment as initiated
-            @booking.mark_payment_initiated!('cashfree')
+            # Combine cashfree_order_id + mark_payment_initiated into ONE update
+            @booking.update!(
+              cashfree_order_id: cashfree_order_id,
+              payment_gateway: 'cashfree',
+              payment_initiated_at: Time.current,
+              payment_status: 'unpaid'
+            )
 
-            # Create Cashfree order
             response = CashfreeService.create_order(@booking)
 
             if response[:success]
               order_data = response[:data]
-
-              # Store payment session ID
               @booking.update!(payment_session_id: order_data['payment_session_id'])
 
               Rails.logger.info "✅ Cashfree order created: #{order_data['order_id']}"
@@ -267,9 +245,7 @@ class Customer::CheckoutController < Customer::BaseController
                 redirect_to_payment: true
               }
             else
-              # Cashfree order creation failed
               @booking.mark_payment_failed!(response[:message])
-
               Rails.logger.error "❌ Cashfree order creation failed: #{response[:message]}"
 
               render json: {
@@ -367,36 +343,29 @@ class Customer::CheckoutController < Customer::BaseController
     end
 
     booking = Booking.new(booking_attributes)
+    booking.payment_status = :unpaid  # set before save so before_validation picks it up
 
-    # Build booking items (like admin controller)
+    # Pre-load all cart products in ONE query instead of N separate finds
+    product_ids = @cart[:items].map { |i| i['product_id'].to_i }.uniq
+    products_by_id = Product.where(id: product_ids).index_by(&:id)
+
+    # Build booking items — pass product object so calculate_totals has associations in memory
     @cart[:items].each do |item|
-      begin
-        product = Product.find(item['product_id'])
-        quantity = item['quantity'].to_f
-        price = product.selling_price.to_f
-
-        booking.booking_items.build(
-          product: product,
-          quantity: quantity,
-          price: price
-        )
-
-        Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
-      rescue ActiveRecord::RecordNotFound => e
+      product = products_by_id[item['product_id'].to_i]
+      unless product
         Rails.logger.error "Product not found: #{item['product_id']}"
         return nil
       end
+
+      quantity = item['quantity'].to_f
+      price    = product.selling_price.to_f
+
+      booking.booking_items.build(product: product, quantity: quantity, price: price)
+      Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
     end
 
-    # Validate and save
-    if booking.save
-      # Calculate totals like admin controller
-      booking.calculate_totals
-
-      # Set payment status
-      booking.payment_status = :unpaid
-      booking.save!
-
+    # Single save — before_validation :calculate_totals fires automatically
+    if booking.save!
       # Force payment_method to DB directly — bypasses integer-enum/string-column Rails quirk
       booking.update_column(:payment_method, payment_method_key)
 
@@ -404,11 +373,10 @@ class Customer::CheckoutController < Customer::BaseController
       Rails.logger.info "Booking totals - Subtotal: #{booking.subtotal}, Tax: #{booking.tax_amount}, Total: #{booking.total_amount}"
 
       booking
-    else
-      Rails.logger.error "Booking creation failed: #{booking.errors.full_messages.join(', ')}"
-      Rails.logger.error "Booking items errors: #{booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"
-      nil
     end
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "Booking creation failed: #{e.message}"
+    nil
   end
 
 

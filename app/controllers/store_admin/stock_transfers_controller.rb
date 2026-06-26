@@ -1,7 +1,7 @@
 class StoreAdmin::StockTransfersController < StoreAdmin::ApplicationController
   def index
     @transfers = StockTransfer.for_store(@current_store.id)
-                              .includes(:product, :from_store, :to_store, :requested_by)
+                              .includes(:product, :product_variant, :from_store, :to_store, :requested_by)
                               .order(created_at: :desc)
   end
 

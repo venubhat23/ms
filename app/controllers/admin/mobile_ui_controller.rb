@@ -83,7 +83,7 @@ class Admin::MobileUiController < ActionController::Base
 
   def create_booking
     @booking = Booking.new(mobile_booking_params)
-    @booking.booked_by = 'admin'
+    @booking.booked_by = 'mobile_ui_admin'
     @booking.booking_date = Time.current unless @booking.booking_date.present?
     @booking.status ||= 'completed'
 

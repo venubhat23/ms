@@ -123,6 +123,11 @@
   color: #495057;
   border: 1px solid rgba(108,117,125,0.3);
 }
+.source-mobile-admin {
+  background-color: rgba(32,201,151,0.12);
+  color: #0d7a5a;
+  border: 1px solid rgba(32,201,151,0.35);
+}
 </style>
 
 
@@ -360,7 +365,8 @@
           <tbody>
             <% @bookings.each do |booking| %>
               <% next_statuses = booking.next_possible_statuses %>
-              <% first_invoice = booking.booking_invoices.first %>
+              <% first_invoice = booking.booking_invoices.first
+                 booking_inv_share_token = first_invoice&.share_token.presence || booking.associated_invoice&.share_token.presence %>
               <tr class="<%= 'franchise-booking' if booking.user&.franchise? %>">
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
@@ -391,6 +397,10 @@
                            when 'mobile_api' %>
                           <span class="badge source-badge source-mobile">
                             <i class="bi bi-phone me-1"></i>Mobile App
+                          </span>
+                        <% when 'mobile_ui_admin' %>
+                          <span class="badge source-badge source-mobile-admin">
+                            <i class="bi bi-phone-laptop me-1"></i>Mobile UI Admin
                           </span>
                         <% when 'customer' %>
                           <span class="badge source-badge source-customer">
@@ -474,10 +484,10 @@
 
                   <!-- Invoice Status -->
                   <div class="mb-2">
-                    <% if first_invoice.present? %>
-                      <%= link_to "/admin/booking_invoices/#{first_invoice.id}", class: "badge bg-success-subtle text-success text-decoration-none", target: "_blank", title: "View Invoice ##{first_invoice.invoice_number}" do %>
+                    <% if booking.has_invoice? %>
+                      <%= link_to booking.invoice_link_path, class: "badge bg-success-subtle text-success text-decoration-none", target: "_blank", title: "View Invoice ##{booking.display_invoice_number}" do %>
                         <i class="bi bi-receipt me-1"></i>
-                        <%= first_invoice.invoice_number || booking.invoice_number %>
+                        <%= booking.display_invoice_number %>
                       <% end %>
                     <% else %>
                       <span class="badge bg-secondary-subtle text-secondary">
@@ -604,8 +614,8 @@
                         wa_cname  = booking.customer&.display_name || booking.customer_name.presence || 'Customer'
                         wa_amount = number_with_delimiter(booking.total_amount || 0)
                         wa_date   = (booking.booking_date.presence || booking.created_at)&.strftime('%d %b %Y')
-                        wa_inv_link = first_invoice&.share_token.present? ? "\n📋 View Invoice: #{request.base_url}/invoice/#{first_invoice.share_token}" : ""
-                        wa_pdf_line = first_invoice&.share_token.present? ? "\n📄 Download PDF: #{request.base_url}/invoice/#{first_invoice.share_token}/download" : ""
+                        wa_inv_link = booking_inv_share_token.present? ? "\n📋 View Invoice: #{request.base_url}/invoice/#{booking_inv_share_token}" : ""
+                        wa_pdf_line = booking_inv_share_token.present? ? "\n📄 Download PDF: #{request.base_url}/invoice/#{booking_inv_share_token}/download" : ""
                         wa_msg = "Dear #{wa_cname},\n\nThank you for your booking with Marali Santhe! 🛒\n\nBooking #: #{booking.booking_number}\nDate: #{wa_date}\nAmount: ₹#{wa_amount}#{wa_inv_link}#{wa_pdf_line}\n\nWe appreciate your trust in us!\n\n🙏 Marali Santhe Team"
                       %>
                       <% if wa_phone_full.present? %>
@@ -616,13 +626,13 @@
                           <i class="bi bi-whatsapp"></i>
                         </a>
                       <% end %>
-                      <% if first_invoice.present? %>
-                        <%= link_to "/admin/booking_invoices/#{first_invoice.id}", class: "action-icon invoice", title: "View Invoice", target: "_blank" do %>
+                      <% if booking.has_invoice? %>
+                        <%= link_to booking.invoice_link_path, class: "action-icon invoice", title: "View Invoice", target: "_blank" do %>
                           <i class="bi bi-receipt"></i>
                         <% end %>
-                        <% if first_invoice.share_token.present? %>
-                          <% wa_inv_url     = public_invoice_url(token: first_invoice.share_token) %>
-                          <% wa_inv_pdf_url = "#{request.base_url}/invoice/#{first_invoice.share_token}/download" %>
+                        <% if booking_inv_share_token.present? %>
+                          <% wa_inv_url     = public_invoice_url(token: booking_inv_share_token) %>
+                          <% wa_inv_pdf_url = "#{request.base_url}/invoice/#{booking_inv_share_token}/download" %>
                           <% wa_inv_text    = "Dear #{wa_cname},\n\nHere is your invoice from Marali Santhe 🛒\n\nBooking #: #{booking.booking_number}\nAmount: ₹#{wa_amount}\n\n📋 View Invoice: #{wa_inv_url}\n📄 Download PDF: #{wa_inv_pdf_url}\n\nThank you!\n🙏 Marali Santhe Team" %>
                           <a href="https://wa.me/<%= wa_phone_full.present? ? wa_phone_full : '' %>?text=<%= ERB::Util.url_encode(wa_inv_text) %>"
                              class="action-icon whatsapp"

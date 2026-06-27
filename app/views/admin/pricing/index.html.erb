@@ -360,10 +360,23 @@
   }
 
   @media print {
-    body > *:not(.pricing-page-wrapper) { display: none !important; }
-    nav, aside, header, footer, .sidebar, [class*="sidebar"],
-    [class*="navbar"], [class*="topbar"], [id*="sidebar"],
-    [id*="navbar"], .print-btn { display: none !important; }
+    header.header,
+    .modern-sidebar,
+    nav, aside, .sidebar,
+    [class*="sidebar"], [class*="navbar"], [class*="topbar"],
+    [id*="sidebar"], [id*="navbar"],
+    #toast-notification,
+    .print-btn { display: none !important; }
+
+    body { background: white !important; }
+
+    main.main-content {
+      margin-left: 0 !important;
+      padding-top: 0 !important;
+      width: 100% !important;
+    }
+
+    .container-fluid { padding: 0 !important; }
 
     .pricing-page {
       background: white !important;

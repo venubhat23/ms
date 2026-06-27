@@ -681,7 +681,7 @@ class DashboardController < ApplicationController
     # Single query for last-month count + sum
     last_stats    = Booking.where(created_at: last_month_start..last_month_end)
                            .select('COUNT(*) AS order_count, COALESCE(SUM(total_amount), 0) AS revenue')
-                           .first
+                           .take
     last_orders   = last_stats.order_count.to_i
     last_revenue  = last_stats.revenue.to_f
     last_customers = Customer.where(created_at: last_month_start..last_month_end).count

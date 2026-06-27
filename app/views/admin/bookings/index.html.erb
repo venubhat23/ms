@@ -312,6 +312,24 @@
             </div>
           </div>
 
+          <!-- Source Filter -->
+          <div class="col">
+            <label class="form-label text-muted mb-1 small fw-semibold">
+              <i class="bi bi-phone me-1"></i>Source
+            </label>
+            <%= form.select :booked_by,
+                options_for_select([
+                  ['All Sources', ''],
+                  ['Mobile App', 'mobile_api'],
+                  ['Mobile UI Admin', 'mobile_ui_admin'],
+                  ['Customer Website', 'customer'],
+                  ['Franchise', 'franchise'],
+                  ['Store / Admin', 'admin']
+                ], params[:booked_by]),
+                {},
+                { class: "form-select form-select-sm shadow-sm", onchange: "this.form.submit();" } %>
+          </div>
+
           <!-- B2B Filter -->
           <div class="col-auto">
             <label class="form-label text-muted mb-1 small fw-semibold d-block">
@@ -331,14 +349,14 @@
           <div class="col-auto">
             <div class="filter-actions d-flex gap-2 align-items-center">
               <%= form.submit "Apply", class: "btn btn-primary btn-sm px-3 shadow-sm d-none" %>
-              <% if params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? %>
+              <% if params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? %>
                 <%= link_to admin_bookings_path, class: "btn btn-outline-secondary btn-sm px-3 shadow-sm", title: "Clear all filters" do %>
                   <i class="bi bi-arrow-clockwise me-1"></i>Reset
                 <% end %>
               <% end %>
               <div class="filter-status small text-muted align-self-center text-nowrap">
                 <%= pluralize(@bookings.respond_to?(:total_count) ? @bookings.total_count : @bookings.count, 'result') %>
-                <% if params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? %>
+                <% if params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? %>
                   <span class="text-primary">(filtered)</span>
                 <% end %>
               </div>

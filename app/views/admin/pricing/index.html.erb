@@ -338,15 +338,101 @@
     .pricing-table thead th:nth-child(4) { display: none; }
     .pricing-table tbody td:nth-child(4) { display: none; }
   }
+
+  .print-btn {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 10px;
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.2s;
+    text-decoration: none;
+  }
+  .print-btn:hover {
+    background: rgba(255,255,255,0.25);
+    color: white;
+  }
+
+  @media print {
+    body > *:not(.pricing-page-wrapper) { display: none !important; }
+    nav, aside, header, footer, .sidebar, [class*="sidebar"],
+    [class*="navbar"], [class*="topbar"], [id*="sidebar"],
+    [id*="navbar"], .print-btn { display: none !important; }
+
+    .pricing-page {
+      background: white !important;
+      padding: 0 !important;
+      min-height: unset !important;
+    }
+
+    .pricing-header {
+      background: #1e293b !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      border-radius: 10px !important;
+      margin-bottom: 16px !important;
+      padding: 18px 20px !important;
+    }
+
+    .summary-cards {
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 8px !important;
+      margin-bottom: 16px !important;
+    }
+
+    .summary-card {
+      box-shadow: none !important;
+      border: 1px solid #e2e8f0 !important;
+      padding: 12px !important;
+    }
+
+    .pricing-table-wrap {
+      box-shadow: none !important;
+      border: 1px solid #e2e8f0 !important;
+      break-inside: avoid;
+    }
+
+    .category-section { break-inside: avoid; margin-bottom: 16px !important; }
+
+    .pricing-table thead {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .pricing-table tbody tr.in-stock-row {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .stock-badge {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    @page { margin: 15mm; size: A4 landscape; }
+  }
 </style>
 
 <% content_for :title, "Pricing Overview" %>
 
 <div class="pricing-page">
   <%# Header %>
-  <div class="pricing-header">
-    <h1><i class="bi bi-tags-fill me-2"></i>Pricing Overview</h1>
-    <p>Category-wise selling price, cost price &amp; stock availability</p>
+  <div class="pricing-header" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="position:relative; z-index:1;">
+      <h1><i class="bi bi-tags-fill me-2"></i>Pricing Overview</h1>
+      <p>Category-wise selling price, cost price &amp; stock availability</p>
+    </div>
+    <div style="position:relative; z-index:1; display:flex; gap:10px; align-items:center; flex-shrink:0;">
+      <button onclick="window.print()" class="print-btn">
+        <i class="bi bi-printer-fill"></i> Print / Download PDF
+      </button>
+    </div>
   </div>
 
   <%# Summary Cards %>

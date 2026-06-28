@@ -43,6 +43,12 @@ class Admin::BookingsController < Admin::ApplicationController
       @bookings = @bookings.where(booked_by: params[:booked_by])
     end
 
+    if params[:category_id].present? && params[:category_id].strip != ''
+      @bookings = @bookings.joins(booking_items: :product).where(products: { category_id: params[:category_id] }).distinct
+    end
+
+    @categories = Category.where(status: true).order(:display_order, :name)
+
     @per_page = Rails.cache.fetch('system_setting/default_pagination_per_page', expires_in: 5.minutes) do
       SystemSetting.default_pagination_per_page
     end

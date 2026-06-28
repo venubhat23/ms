@@ -251,25 +251,23 @@
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-transparent border-0 pb-0">
     <!-- Enhanced Filters Bar -->
-    <div class="filters-container bg-light rounded-3 p-3 mb-3">
+    <div class="filters-container bg-light rounded-3 px-3 py-2 mb-3">
       <%= form_with url: admin_bookings_path, method: :get, local: true, class: "filter-form" do |form| %>
-        <div class="row g-2 align-items-end flex-nowrap">
-          <!-- Customer Filter -->
-          <div class="col">
+        <div class="d-flex align-items-end gap-2 flex-nowrap">
+
+          <!-- Customer -->
+          <div style="min-width:150px; flex:1.5;">
             <label class="form-label text-muted mb-1 small fw-semibold">
               <i class="bi bi-person me-1"></i>Customer
             </label>
             <%= form.select :customer_id,
                 options_from_collection_for_select(@customers, :id, :display_name, params[:customer_id]),
                 { prompt: 'All Customers' },
-                {
-                  class: "form-select form-select-sm customer-select shadow-sm",
-                  data: { placeholder: "Select Customer...", allow_clear: true }
-                } %>
+                { class: "form-select form-select-sm customer-select", data: { placeholder: "Select Customer...", allow_clear: true } } %>
           </div>
 
-          <!-- Status Filter -->
-          <div class="col">
+          <!-- Status -->
+          <div style="min-width:120px; flex:1;">
             <label class="form-label text-muted mb-1 small fw-semibold">
               <i class="bi bi-flag me-1"></i>Status
             </label>
@@ -289,21 +287,21 @@
                   ['Returned', 'returned']
                 ], params[:status]),
                 {},
-                { class: "form-select form-select-sm shadow-sm", onchange: "this.form.submit();" } %>
+                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
           </div>
 
-          <!-- Search Input -->
-          <div class="col">
+          <!-- Search -->
+          <div style="min-width:160px; flex:1.5;">
             <label class="form-label text-muted mb-1 small fw-semibold">
               <i class="bi bi-search me-1"></i>Search
             </label>
             <div class="position-relative">
               <%= form.text_field :search,
                   value: params[:search],
-                  class: "form-control form-control-sm shadow-sm search-input",
+                  class: "form-control form-control-sm search-input",
                   placeholder: "Booking #, customer, phone...",
                   id: "searchInput" %>
-              <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y me-1 p-1"
+              <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y me-1 p-0"
                       onclick="document.getElementById('searchInput').value=''; this.form.submit();"
                       title="Clear search"
                       style="<%= params[:search].present? ? '' : 'display: none;' %>">
@@ -312,8 +310,8 @@
             </div>
           </div>
 
-          <!-- Source Filter -->
-          <div class="col">
+          <!-- Source -->
+          <div style="min-width:110px; flex:1;">
             <label class="form-label text-muted mb-1 small fw-semibold">
               <i class="bi bi-phone me-1"></i>Source
             </label>
@@ -327,41 +325,50 @@
                   ['Store / Admin', 'admin']
                 ], params[:booked_by]),
                 {},
-                { class: "form-select form-select-sm shadow-sm", onchange: "this.form.submit();" } %>
+                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
           </div>
 
-          <!-- B2B Filter -->
-          <div class="col-auto">
+          <!-- Category -->
+          <div style="min-width:110px; flex:1;">
+            <label class="form-label text-muted mb-1 small fw-semibold">
+              <i class="bi bi-grid me-1"></i>Category
+            </label>
+            <%= form.select :category_id,
+                options_from_collection_for_select(@categories, :id, :name, params[:category_id]),
+                { prompt: 'All Categories' },
+                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+          </div>
+
+          <!-- B2B Toggle -->
+          <div class="flex-shrink-0" style="padding-bottom:2px;">
             <label class="form-label text-muted mb-1 small fw-semibold d-block">
               <i class="bi bi-building me-1"></i>B2B
             </label>
-            <div class="form-check form-switch mt-1 pt-1">
+            <div class="form-check form-switch mb-0" style="padding-top:4px;">
               <%= form.check_box :b2b, checked: params[:b2b] == '1',
                   class: 'form-check-input',
                   id: 'b2bFilterToggle',
                   role: 'switch',
                   onchange: 'this.form.submit();' %>
-              <label class="form-check-label small" for="b2bFilterToggle">B2B only</label>
+              <label class="form-check-label small text-nowrap" for="b2bFilterToggle">B2B only</label>
             </div>
           </div>
 
-          <!-- Filter Actions -->
-          <div class="col-auto">
-            <div class="filter-actions d-flex gap-2 align-items-center">
-              <%= form.submit "Apply", class: "btn btn-primary btn-sm px-3 shadow-sm d-none" %>
-              <% if params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? %>
-                <%= link_to admin_bookings_path, class: "btn btn-outline-secondary btn-sm px-3 shadow-sm", title: "Clear all filters" do %>
-                  <i class="bi bi-arrow-clockwise me-1"></i>Reset
-                <% end %>
+          <!-- Actions + result count -->
+          <div class="flex-shrink-0 d-flex gap-2 align-items-end" style="padding-bottom:2px;">
+            <%= form.submit "Apply", class: "btn btn-primary btn-sm px-3 d-none" %>
+            <% active_filters = params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? || params[:category_id].present? %>
+            <% if active_filters %>
+              <%= link_to admin_bookings_path, class: "btn btn-outline-secondary btn-sm px-2", title: "Clear all filters" do %>
+                <i class="bi bi-arrow-clockwise"></i>
               <% end %>
-              <div class="filter-status small text-muted align-self-center text-nowrap">
-                <%= pluralize(@bookings.respond_to?(:total_count) ? @bookings.total_count : @bookings.count, 'result') %>
-                <% if params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? %>
-                  <span class="text-primary">(filtered)</span>
-                <% end %>
-              </div>
-            </div>
+            <% end %>
+            <span class="small text-muted text-nowrap align-self-center">
+              <%= pluralize(@bookings.respond_to?(:total_count) ? @bookings.total_count : @bookings.count, 'result') %>
+              <%= content_tag(:span, '(filtered)', class: 'text-primary') if active_filters %>
+            </span>
           </div>
+
         </div>
       <% end %>
     </div>

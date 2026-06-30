@@ -1,0 +1,173 @@
+<%- content_for :title, "#{@customer.full_name} — #{@current_store.name}" %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-bold mb-1"><i class="bi bi-person me-2" style="color:#1C7C54;"></i><%= @customer.full_name %></h5>
+    <small class="text-muted">Customer since <%= @customer.created_at.strftime('%d %b %Y') %></small>
+  </div>
+  <div class="d-flex gap-2">
+    <%= link_to new_store_admin_booking_path, class: "btn btn-sm fw-semibold", style: "background:linear-gradient(135deg,#1C7C54,#10b981);color:white;border-radius:8px;" do %>
+      <i class="bi bi-cart-plus me-1"></i>New Booking
+    <% end %>
+    <%= link_to store_admin_customers_path, class: "btn btn-outline-secondary btn-sm" do %>
+      <i class="bi bi-arrow-left me-1"></i>Back
+    <% end %>
+  </div>
+</div>
+
+<div class="row g-4">
+  <%# Left — customer info %>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm mb-3" style="border-radius:14px;">
+      <div class="card-body p-4 text-center">
+        <div class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold text-white mb-3"
+             style="width:72px;height:72px;font-size:1.6rem;background:linear-gradient(135deg,#1C7C54,#10b981);">
+          <%= @customer.first_name[0].upcase %><%= @customer.last_name&.first&.upcase %>
+        </div>
+        <h5 class="fw-bold mb-1"><%= @customer.full_name %></h5>
+        <% if @customer.company_name.present? %>
+          <small class="text-muted"><%= @customer.company_name %></small>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white fw-semibold px-4 py-3" style="border-radius:14px 14px 0 0;">
+        <i class="bi bi-info-circle me-2 text-muted"></i>Contact Details
+      </div>
+      <div class="card-body px-4 py-3" style="font-size:0.88rem;">
+        <div class="d-flex gap-3 mb-3">
+          <div style="width:20px;color:#1C7C54;"><i class="bi bi-telephone-fill"></i></div>
+          <div>
+            <div class="text-muted small">Mobile</div>
+            <a href="tel:<%= @customer.mobile %>" class="fw-semibold text-decoration-none text-dark"><%= @customer.mobile %></a>
+          </div>
+        </div>
+
+        <% if @customer.whatsapp_number.present? %>
+          <div class="d-flex gap-3 mb-3">
+            <div style="width:20px;color:#25D366;"><i class="bi bi-whatsapp"></i></div>
+            <div>
+              <div class="text-muted small">WhatsApp</div>
+              <a href="https://wa.me/91<%= @customer.whatsapp_number %>" target="_blank" class="fw-semibold text-decoration-none text-dark"><%= @customer.whatsapp_number %></a>
+            </div>
+          </div>
+        <% end %>
+
+        <% if @customer.email.present? %>
+          <div class="d-flex gap-3 mb-3">
+            <div style="width:20px;color:#6366f1;"><i class="bi bi-envelope-fill"></i></div>
+            <div>
+              <div class="text-muted small">Email</div>
+              <a href="mailto:<%= @customer.email %>" class="fw-semibold text-decoration-none text-dark"><%= @customer.email %></a>
+            </div>
+          </div>
+        <% end %>
+
+        <% if @customer.gender.present? %>
+          <div class="d-flex gap-3 mb-3">
+            <div style="width:20px;" class="text-muted"><i class="bi bi-person"></i></div>
+            <div>
+              <div class="text-muted small">Gender</div>
+              <div class="fw-semibold"><%= @customer.gender %></div>
+            </div>
+          </div>
+        <% end %>
+
+        <% if @customer.address.present? %>
+          <div class="d-flex gap-3 mb-3">
+            <div style="width:20px;" class="text-muted"><i class="bi bi-geo-alt-fill"></i></div>
+            <div>
+              <div class="text-muted small">Address</div>
+              <div class="fw-semibold"><%= @customer.address %></div>
+            </div>
+          </div>
+        <% end %>
+
+        <% if @customer.notes.present? %>
+          <div class="d-flex gap-3">
+            <div style="width:20px;" class="text-muted"><i class="bi bi-sticky"></i></div>
+            <div>
+              <div class="text-muted small">Notes</div>
+              <div><%= @customer.notes %></div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# Right — stats + bookings %>
+  <div class="col-lg-8">
+    <%# Stats row %>
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6">
+        <div class="card border-0 shadow-sm p-3 text-center" style="border-radius:12px;border-left:4px solid #1C7C54 !important;">
+          <div class="fs-3 fw-bold" style="color:#1C7C54;"><%= @store_booking_count %></div>
+          <div class="text-muted small">Bookings at this store</div>
+        </div>
+      </div>
+      <div class="col-sm-6">
+        <div class="card border-0 shadow-sm p-3 text-center" style="border-radius:12px;border-left:4px solid #8b5cf6 !important;">
+          <div class="fs-3 fw-bold" style="color:#8b5cf6;">₹<%= number_with_delimiter(@store_total_spent.to_i) %></div>
+          <div class="text-muted small">Total spent at this store</div>
+        </div>
+      </div>
+    </div>
+
+    <%# Recent bookings %>
+    <div class="card border-0 shadow-sm" style="border-radius:14px;">
+      <div class="card-header bg-white px-4 py-3 d-flex justify-content-between align-items-center" style="border-radius:14px 14px 0 0;">
+        <span class="fw-semibold"><i class="bi bi-bag-check me-2 text-muted"></i>Recent Bookings at <%= @current_store.name %></span>
+        <% if @store_booking_count > 10 %>
+          <small class="text-muted">Showing latest 10 of <%= @store_booking_count %></small>
+        <% end %>
+      </div>
+      <div class="card-body p-0">
+        <% if @store_bookings.any? %>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size:0.85rem;">
+              <thead style="background:#f8fafc;">
+                <tr>
+                  <th class="px-4 py-2 fw-semibold text-muted border-0">Booking #</th>
+                  <th class="px-3 py-2 fw-semibold text-muted border-0">Date</th>
+                  <th class="px-3 py-2 fw-semibold text-muted border-0">Amount</th>
+                  <th class="px-3 py-2 fw-semibold text-muted border-0">Status</th>
+                  <th class="px-3 py-2 border-0"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @store_bookings.each do |b| %>
+                  <tr>
+                    <td class="px-4 py-2 fw-semibold"><%= b.booking_number %></td>
+                    <td class="px-3 py-2 text-muted"><%= b.created_at.strftime('%d %b %Y') %></td>
+                    <td class="px-3 py-2 fw-semibold">₹<%= number_with_delimiter(b.total_amount.to_i) %></td>
+                    <td class="px-3 py-2">
+                      <% badge = case b.status
+                           when 'completed', 'delivered' then 'bg-success'
+                           when 'cancelled' then 'bg-danger'
+                           when 'pending' then 'bg-warning text-dark'
+                           else 'bg-secondary'
+                         end %>
+                      <span class="badge <%= badge %>"><%= b.status&.humanize %></span>
+                    </td>
+                    <td class="px-3 py-2 text-end">
+                      <%= link_to store_admin_booking_path(b), class: "btn btn-xs btn-outline-secondary", style: "font-size:0.75rem;padding:2px 8px;" do %>
+                        View
+                      <% end %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="text-center py-4 text-muted">
+            <i class="bi bi-bag fs-2 d-block mb-2" style="opacity:0.3;"></i>
+            <small>No bookings yet at this store</small>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

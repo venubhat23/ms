@@ -172,6 +172,12 @@
       <span class="nav-text">Expenses</span>
     <% end %>
 
+    <%= link_to store_admin_customers_path,
+        class: "nav-link-modern #{'active' if controller_name == 'customers'}" do %>
+      <div class="icon-bg"><i class="bi bi-people"></i></div>
+      <span class="nav-text">Customers</span>
+    <% end %>
+
     <% if current_user.can_manage_inventory? %>
       <div class="nav-section-title">
         <i class="fas fa-boxes me-2"></i>Inventory

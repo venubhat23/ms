@@ -8,6 +8,8 @@
 .sa-cart-remove:hover { color:#dc3545; }
 </style>
 
+<script>const SA_PRODUCTS = <%= raw json_escape(@products_json) %>;</script>
+
 <%# Header %>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
@@ -41,9 +43,6 @@
       <div class="col-md-3">
         <select class="form-select form-select-sm" id="saCategoryFilter" onchange="saFilterProducts()">
           <option value="">All Categories</option>
-          <% @store_products.map(&:category).compact.uniq.each do |cat| %>
-            <option value="<%= cat.id %>"><%= cat.name %></option>
-          <% end %>
         </select>
       </div>
       <div class="col-md-4">
@@ -63,165 +62,11 @@
 <div id="saProductsView">
   <div class="card border-0 shadow-sm">
     <div class="card-body pt-3">
-      <% if @store_products.any? %>
-        <div class="row g-3" id="saProductGrid">
-          <% @store_products.each do |product| %>
-            <% store_stock = @current_store.available_stock_for(product.id).to_f %>
-            <%
-              if product.has_multiple_quantities? && product.product_variants.any?
-                default_v = product.product_variants.order(:display_order, :weight).first
-                display_price = default_v.selling_price.to_f
-              else
-                display_price = product.price.to_f
-              end
-
-              if product.gst_enabled && product.gst_percentage.present? && product.gst_percentage > 0
-                gst_rate = product.gst_percentage.to_f
-                gst_amount = (display_price * gst_rate / 100.0)
-                base_price = display_price - gst_amount
-              else
-                gst_rate = 0
-                gst_amount = 0
-                base_price = display_price
-              end
-
-              rounded_price  = display_price.round
-              rounded_base   = base_price % 1 == 0 ? base_price.to_i : base_price.round(2)
-              rounded_gst    = gst_amount % 1 == 0 ? gst_amount.to_i : gst_amount.round(2)
-
-              low_stock_threshold = 5
-            %>
-            <div class="col-md-4 col-lg-3 sa-product-item"
-                 data-product-id="<%= product.id %>"
-                 data-category="<%= product.category_id %>"
-                 data-stock="<%= store_stock %>"
-                 data-name="<%= product.name.downcase %>"
-                 data-sku="<%= product.sku.downcase %>">
-              <div class="card h-100 border-0 shadow-sm sa-hover-lift">
-
-                <%# Product placeholder image area %>
-                <div class="position-relative">
-                  <% if product.images_attached? && product.images.any? %>
-                    <%= image_tag product.images.first, class: "card-img-top", style: "height:180px; object-fit:cover;" %>
-                  <% else %>
-                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:180px;">
-                      <i class="bi bi-box-seam fs-1 text-muted"></i>
-                    </div>
-                  <% end %>
-
-                  <%# Stock Badge %>
-                  <% if store_stock <= 0 %>
-                    <span class="position-absolute top-0 end-0 badge bg-danger m-2">
-                      <i class="bi bi-x-circle me-1"></i>Out of Stock
-                    </span>
-                  <% elsif store_stock <= low_stock_threshold %>
-                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">
-                      <i class="bi bi-exclamation-triangle me-1"></i>Low Stock (<%= store_stock.to_i %> left)
-                    </span>
-                  <% else %>
-                    <span class="position-absolute top-0 end-0 badge bg-success m-2">
-                      <i class="bi bi-check-circle me-1"></i><%= store_stock.to_i %> in stock
-                    </span>
-                  <% end %>
-                </div>
-
-                <%# Card body %>
-                <div class="card-body d-flex flex-column p-3">
-                  <div class="d-flex justify-content-between align-items-start mb-1">
-                    <small class="text-muted"><%= product.category&.name || 'No Category' %></small>
-                    <small class="text-muted">SKU: <%= product.sku %></small>
-                  </div>
-
-                  <h6 class="card-title fw-bold mb-2" style="min-height:40px; font-size:0.9rem;"><%= product.name %></h6>
-
-                  <%# Price %>
-                  <div class="mb-3">
-                    <% if product.has_multiple_quantities? && product.product_variants.any? %>
-                      <select class="form-select form-select-sm mb-1"
-                              id="sa-variant-<%= product.id %>"
-                              onchange="saVariantChange(this, <%= product.id %>)">
-                        <% product.product_variants.order(:display_order, :weight).each do |v| %>
-                          <option value="<%= v.id %>"
-                                  data-price="<%= v.selling_price.to_f %>"
-                                  data-stock="<%= @current_store.available_stock_for(product.id).to_f %>"
-                                  <%= 'selected' if v == default_v %>>
-                            <%= v.label.presence || "#{v.weight} #{v.unit}" %> — ₹<%= v.selling_price.to_i %>
-                          </option>
-                        <% end %>
-                      </select>
-                      <span class="fw-bold text-primary" id="sa-price-<%= product.id %>">₹<%= rounded_price %></span>
-                    <% else %>
-                      <span class="fw-bold text-primary">₹<%= rounded_price %></span>
-                      <% if gst_rate > 0 %>
-                        <small class="text-muted d-block" style="font-size:0.72rem;">
-                          Base: ₹<%= rounded_base %> + GST: ₹<%= rounded_gst %> (<%= gst_rate.to_i %>%) = ₹<%= rounded_price %>
-                        </small>
-                      <% end %>
-                    <% end %>
-                  </div>
-
-                  <%# Quantity + Add to Cart %>
-                  <div class="mt-auto" id="sa-action-<%= product.id %>">
-                    <% if store_stock > 0 %>
-                      <div class="mb-2">
-                        <label class="form-label fw-bold small mb-1">
-                          Quantity
-                          <span class="badge bg-info-subtle text-info ms-1" id="sa-maxstock-<%= product.id %>">Max: <%= store_stock.to_i %></span>
-                        </label>
-                        <div class="input-group input-group-sm">
-                          <button class="btn btn-outline-primary" type="button"
-                                  onclick="saDecQty(<%= product.id %>)"
-                                  style="width:40px; border-radius:6px 0 0 6px;">
-                            <i class="bi bi-dash fw-bold"></i>
-                          </button>
-                          <input type="number" id="sa-qty-<%= product.id %>"
-                                 value="1" min="0.01" step="0.01" max="<%= store_stock %>"
-                                 class="form-control text-center fw-bold"
-                                 onchange="saValidateQty(<%= product.id %>, <%= store_stock %>)">
-                          <button class="btn btn-outline-primary" type="button"
-                                  onclick="saIncQty(<%= product.id %>, <%= store_stock %>)"
-                                  style="width:40px; border-radius:0 6px 6px 0;">
-                            <i class="bi bi-plus fw-bold"></i>
-                          </button>
-                        </div>
-                        <% if store_stock <= low_stock_threshold %>
-                          <small class="text-warning d-block mt-1">
-                            <i class="bi bi-exclamation-triangle-fill"></i> Low Stock! Only <%= store_stock.to_i %> left
-                          </small>
-                        <% end %>
-                      </div>
-
-                      <button class="btn btn-primary w-100"
-                              id="sa-addbtn-<%= product.id %>"
-                              onclick="saAddToCart(<%= product.id %>, '<%= j(product.name) %>', <%= rounded_price %>, <%= store_stock %>, <%= rounded_base %>, <%= gst_rate %>, <%= product.has_multiple_quantities? %>)"
-                              data-base-price="<%= rounded_base %>"
-                              data-gst-rate="<%= gst_rate %>"
-                              data-final-price="<%= rounded_price %>">
-                        <i class="bi bi-cart-plus me-2"></i>Add to Cart
-                      </button>
-                    <% else %>
-                      <button class="btn btn-danger w-100" disabled>
-                        <i class="bi bi-x-circle me-2"></i>SOLD OUT
-                      </button>
-                      <small class="text-muted d-block text-center mt-1">Not in store stock</small>
-                    <% end %>
-                  </div>
-                </div>
-              </div>
-            </div>
-          <% end %>
-        </div>
-
-        <div id="saNoResults" class="text-center py-5 d-none">
-          <i class="bi bi-search fs-1 text-muted mb-2"></i>
-          <p class="text-muted">No products match your search.</p>
-        </div>
-      <% else %>
-        <div class="text-center py-5">
-          <i class="bi bi-box-seam fs-1 text-muted mb-3"></i>
-          <h5 class="text-muted">No Products in This Store</h5>
-        </div>
-      <% end %>
+      <div class="row g-3" id="saProductGrid"></div>
+      <div id="saNoResults" class="text-center py-5 d-none">
+        <i class="bi bi-search fs-1 text-muted mb-2"></i>
+        <p class="text-muted">No products match your search.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -236,7 +81,6 @@
     <% end %>
 
     <div class="row g-4">
-      <%# Left: Cart items + Totals %>
       <div class="col-lg-7">
         <div class="card border-0 shadow-sm mb-3" style="border-radius:14px;">
           <div class="card-header bg-white py-3 px-4">
@@ -271,7 +115,6 @@
         </div>
       </div>
 
-      <%# Right: Order Details %>
       <div class="col-lg-5">
         <div class="card border-0 shadow-sm" style="border-radius:14px;">
           <div class="card-header bg-white py-3 px-4">
@@ -283,21 +126,18 @@
               <%= f.collection_select :customer_id, (@customers || []), :id, :full_name,
                   { include_blank: "Walk-in Customer" }, { class: "form-select form-select-sm" } %>
             </div>
-
             <div class="mb-3">
               <label class="form-label fw-semibold small">Payment Method</label>
               <%= f.select :payment_method,
                   options_for_select([['Cash', 'cash'], ['UPI', 'upi'], ['Card', 'card']], 'cash'),
                   {}, { class: "form-select form-select-sm" } %>
             </div>
-
             <div class="mb-3">
               <label class="form-label fw-semibold small">Payment Status</label>
               <%= f.select :payment_status,
                   options_for_select([['Paid', 'paid'], ['Unpaid', 'unpaid']], 'paid'),
                   {}, { class: "form-select form-select-sm" } %>
             </div>
-
             <div class="mb-3">
               <label class="form-label fw-semibold small">Discount (₹)</label>
               <div class="input-group input-group-sm">
@@ -306,12 +146,10 @@
                     id: "saDiscountInput", oninput: "saUpdateTotal()" %>
               </div>
             </div>
-
             <div class="mb-3">
               <label class="form-label fw-semibold small">Notes</label>
               <%= f.text_area :notes, class: "form-control form-control-sm", rows: 2, placeholder: "Optional notes..." %>
             </div>
-
             <div class="d-grid gap-2 mt-4">
               <button type="submit" class="btn fw-semibold" id="saSubmitBtn"
                   style="background:linear-gradient(135deg,#1C7C54,#10b981);color:white;border-radius:10px;">
@@ -326,27 +164,104 @@
 </div>
 
 <script>
+const SA_MAP = Object.fromEntries(SA_PRODUCTS.map(p => [p.id, p]));
 let saCart = [];
 let saItemIdx = 0;
 let saStockMode = 'all';
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function saRenderCard(p) {
+  const stock = p.stock, si = Math.floor(stock), LOW = 5;
+  const img = p.image_url
+    ? `<img src="${esc(p.image_url)}" class="card-img-top" loading="lazy" style="height:180px;object-fit:cover;" alt="${esc(p.name)}">`
+    : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:180px;"><i class="bi bi-box-seam fs-1 text-muted"></i></div>`;
+  const badge = stock <= 0
+    ? `<span class="position-absolute top-0 end-0 badge bg-danger m-2"><i class="bi bi-x-circle me-1"></i>Out of Stock</span>`
+    : stock <= LOW
+    ? `<span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2"><i class="bi bi-exclamation-triangle me-1"></i>Low Stock (${si} left)</span>`
+    : `<span class="position-absolute top-0 end-0 badge bg-success m-2"><i class="bi bi-check-circle me-1"></i>${si} in stock</span>`;
+
+  let priceHtml;
+  if (p.has_variants && p.variants.length) {
+    const opts = p.variants.map(v => `<option value="${v.id}" data-price="${v.price}" data-stock="${v.stock}">${esc(v.label)} — ₹${v.price}</option>`).join('');
+    priceHtml = `<select class="form-select form-select-sm mb-1" id="sa-variant-${p.id}" onchange="saVariantChange(this,${p.id})">${opts}</select>
+                 <span class="fw-bold text-primary" id="sa-price-${p.id}">₹${p.price}</span>`;
+  } else {
+    const gstNote = p.gst_rate > 0
+      ? `<small class="text-muted d-block" style="font-size:0.72rem;">Base: ₹${p.base_price} + GST: ₹${Math.round(p.price-p.base_price)} (${Math.round(p.gst_rate)}%) = ₹${p.price}</small>`
+      : '';
+    priceHtml = `<span class="fw-bold text-primary">₹${p.price}</span>${gstNote}`;
+  }
+
+  let actionHtml;
+  if (stock > 0) {
+    const lowNote = stock <= LOW ? `<small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle-fill"></i> Low Stock! Only ${si} left</small>` : '';
+    actionHtml = `<div class="mb-2">
+      <label class="form-label fw-bold small mb-1">Quantity <span class="badge bg-info-subtle text-info ms-1" id="sa-maxstock-${p.id}">Max: ${si}</span></label>
+      <div class="input-group input-group-sm">
+        <button class="btn btn-outline-primary" type="button" onclick="saDecQty(${p.id})" style="width:40px;border-radius:6px 0 0 6px;"><i class="bi bi-dash fw-bold"></i></button>
+        <input type="number" id="sa-qty-${p.id}" value="1" min="0.01" step="0.01" max="${stock}" class="form-control text-center fw-bold" onchange="saValidateQty(${p.id},${stock})">
+        <button class="btn btn-outline-primary" type="button" onclick="saIncQty(${p.id},${stock})" style="width:40px;border-radius:0 6px 6px 0;"><i class="bi bi-plus fw-bold"></i></button>
+      </div>${lowNote}
+    </div>
+    <button class="btn btn-primary w-100" id="sa-addbtn-${p.id}" onclick="saAddToCart(${p.id})">
+      <i class="bi bi-cart-plus me-2"></i>Add to Cart
+    </button>`;
+  } else {
+    actionHtml = `<button class="btn btn-danger w-100" disabled><i class="bi bi-x-circle me-2"></i>SOLD OUT</button>
+                  <small class="text-muted d-block text-center mt-1">Not in store stock</small>`;
+  }
+
+  return `<div class="col-md-4 col-lg-3 sa-product-item"
+               data-product-id="${p.id}" data-category="${esc(p.category_id)}"
+               data-stock="${stock}" data-name="${esc(p.name.toLowerCase())}" data-sku="${esc(p.sku.toLowerCase())}">
+    <div class="card h-100 border-0 shadow-sm sa-hover-lift">
+      <div class="position-relative">${img}${badge}</div>
+      <div class="card-body d-flex flex-column p-3">
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <small class="text-muted">${esc(p.category_name)}</small>
+          <small class="text-muted">SKU: ${esc(p.sku)}</small>
+        </div>
+        <h6 class="card-title fw-bold mb-2" style="min-height:40px;font-size:0.9rem;">${esc(p.name)}</h6>
+        <div class="mb-3">${priceHtml}</div>
+        <div class="mt-auto" id="sa-action-${p.id}">${actionHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Init: populate categories + render grid
+(function(){
+  const cats = {};
+  SA_PRODUCTS.forEach(p => { if (p.category_id) cats[p.category_id] = p.category_name; });
+  const sel = document.getElementById('saCategoryFilter');
+  Object.entries(cats).sort((a,b) => a[1].localeCompare(b[1])).forEach(([id,name]) => {
+    const o = document.createElement('option'); o.value = id; o.textContent = name; sel.appendChild(o);
+  });
+  const grid = document.getElementById('saProductGrid');
+  if (SA_PRODUCTS.length === 0) {
+    grid.innerHTML = '<div class="col-12 text-center py-5"><i class="bi bi-box-seam fs-1 text-muted mb-3"></i><h5 class="text-muted">No Products in This Store</h5></div>';
+  } else {
+    grid.innerHTML = SA_PRODUCTS.map(saRenderCard).join('');
+  }
+})();
 
 function saShowProducts() {
   document.getElementById('saProductsView').style.display = '';
   document.getElementById('saCheckoutView').style.display = 'none';
   document.getElementById('saSearchSection').style.display = '';
-  document.getElementById('saProductsBtn').style.display = 'none !important';
   document.getElementById('saProductsBtn').classList.add('d-none');
-  document.getElementById('saCheckoutBtn').classList.remove('btn-primary');
-  document.getElementById('saCheckoutBtn').classList.add('btn-outline-primary');
+  document.getElementById('saCheckoutBtn').classList.replace('btn-primary','btn-outline-primary');
 }
-
 function saShowCheckout() {
   document.getElementById('saProductsView').style.display = 'none';
   document.getElementById('saCheckoutView').style.display = '';
   document.getElementById('saSearchSection').style.display = 'none';
   document.getElementById('saProductsBtn').classList.remove('d-none');
-  document.getElementById('saCheckoutBtn').classList.remove('btn-outline-primary');
-  document.getElementById('saCheckoutBtn').classList.add('btn-primary');
+  document.getElementById('saCheckoutBtn').classList.replace('btn-outline-primary','btn-primary');
   saRenderCart();
 }
 
@@ -355,164 +270,112 @@ function saVariantChange(select, productId) {
   const price = parseFloat(opt.dataset.price) || 0;
   const priceEl = document.getElementById('sa-price-' + productId);
   if (priceEl) priceEl.textContent = '₹' + Math.round(price);
-  const addBtn = document.getElementById('sa-addbtn-' + productId);
-  if (addBtn) {
-    addBtn.dataset.finalPrice = Math.round(price);
-    addBtn.dataset.basePrice = Math.round(price);
-    addBtn.dataset.gstRate = 0;
-  }
 }
 
-function saIncQty(id, max) {
-  const input = document.getElementById('sa-qty-' + id);
-  const val = parseFloat(input.value) || 0;
-  if (val < max) input.value = Math.min(val + 1, max);
-}
+function saIncQty(id, max) { const inp=document.getElementById('sa-qty-'+id); inp.value=Math.min(parseFloat(inp.value)||0,max-1)+1; }
+function saDecQty(id) { const inp=document.getElementById('sa-qty-'+id); const v=parseFloat(inp.value)||1; if(v>0.01)inp.value=Math.max(0.01,v-1); }
+function saValidateQty(id, max) { const inp=document.getElementById('sa-qty-'+id); const v=parseFloat(inp.value)||1; if(v>max)inp.value=max; if(v<0.01)inp.value=0.01; }
 
-function saDecQty(id) {
-  const input = document.getElementById('sa-qty-' + id);
-  const val = parseFloat(input.value) || 1;
-  if (val > 0.01) input.value = Math.max(0.01, val - 1);
-}
-
-function saValidateQty(id, max) {
-  const input = document.getElementById('sa-qty-' + id);
-  const val = parseFloat(input.value) || 1;
-  if (val > max) input.value = max;
-  if (val < 0.01) input.value = 0.01;
-}
-
-function saAddToCart(productId, name, price, stock, basePrice, gstRate, hasVariants) {
-  let finalName = name;
-  let finalPrice = price;
-  let variantId = null;
-
-  if (hasVariants) {
-    const varSelect = document.getElementById('sa-variant-' + productId);
-    if (varSelect) {
-      const opt = varSelect.options[varSelect.selectedIndex];
-      finalName = name + ' (' + opt.text.split('—')[0].trim() + ')';
-      finalPrice = parseFloat(opt.dataset.price) || price;
-      variantId = varSelect.value;
+function saAddToCart(productId) {
+  const p = SA_MAP[productId];
+  if (!p) return;
+  let name=p.name, price=p.price, variantId=null;
+  if (p.has_variants) {
+    const sel=document.getElementById('sa-variant-'+productId);
+    if (sel) {
+      const opt=sel.options[sel.selectedIndex];
+      name=p.name+' ('+opt.text.split('—')[0].trim()+')';
+      price=parseFloat(opt.dataset.price)||p.price;
+      variantId=sel.value;
     }
   }
-
-  const qty = parseFloat(document.getElementById('sa-qty-' + productId).value) || 1;
-  const existing = saCart.find(i => i.productId === productId && i.variantId === variantId);
-
-  if (existing) {
-    existing.quantity = Math.min(existing.quantity + qty, stock);
-  } else {
-    saCart.push({ index: saItemIdx++, productId, name: finalName, price: finalPrice, basePrice, gstRate, variantId, quantity: qty, stock });
-  }
-
-  // Reset qty input
-  document.getElementById('sa-qty-' + productId).value = 1;
-
-  saUpdateBadge();
-  saRenderHiddenFields();
-  saUpdateTotal();
-
-  // Flash button feedback
-  const btn = document.getElementById('sa-addbtn-' + productId);
+  const qty=parseFloat(document.getElementById('sa-qty-'+productId).value)||1;
+  const existing=saCart.find(i=>i.productId===productId&&i.variantId===variantId);
+  if (existing) { existing.quantity=Math.min(existing.quantity+qty,p.stock); }
+  else { saCart.push({index:saItemIdx++,productId,name,price:Math.round(price),basePrice:p.base_price,gstRate:p.gst_rate,variantId,quantity:qty,stock:p.stock}); }
+  document.getElementById('sa-qty-'+productId).value=1;
+  saUpdateBadge(); saRenderHiddenFields(); saUpdateTotal();
+  const btn=document.getElementById('sa-addbtn-'+productId);
   if (btn) {
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Added!';
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-success');
-    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('btn-success'); btn.classList.add('btn-primary'); }, 1200);
+    const orig=btn.innerHTML;
+    btn.innerHTML='<i class="bi bi-check-circle-fill me-2"></i>Added!';
+    btn.classList.replace('btn-primary','btn-success');
+    setTimeout(()=>{btn.innerHTML=orig;btn.classList.replace('btn-success','btn-primary');},1200);
   }
 }
 
-function saRemoveItem(idx) {
-  saCart = saCart.filter(i => i.index !== idx);
-  saRenderCart();
-  saUpdateBadge();
-  saUpdateTotal();
-  saRenderHiddenFields();
-}
-
-function saUpdateItemQty(idx, val) {
-  const item = saCart.find(i => i.index === idx);
-  if (item) item.quantity = parseFloat(val) || 1;
-  saUpdateTotal();
-  saRenderHiddenFields();
-}
+function saRemoveItem(idx) { saCart=saCart.filter(i=>i.index!==idx); saRenderCart(); saUpdateBadge(); saUpdateTotal(); saRenderHiddenFields(); }
+function saUpdateItemQty(idx, val) { const item=saCart.find(i=>i.index===idx); if(item)item.quantity=parseFloat(val)||1; saUpdateTotal(); saRenderHiddenFields(); }
 
 function saRenderCart() {
-  const container = document.getElementById('saCartItems');
-  const empty = document.getElementById('saCartEmpty');
-  if (!saCart.length) { container.innerHTML = ''; empty.style.display = 'block'; saUpdateTotal(); return; }
-  empty.style.display = 'none';
-  container.innerHTML = saCart.map(item => `
+  const container=document.getElementById('saCartItems');
+  const empty=document.getElementById('saCartEmpty');
+  if (!saCart.length) { container.innerHTML=''; empty.style.display='block'; saUpdateTotal(); return; }
+  empty.style.display='none';
+  container.innerHTML=saCart.map(item=>`
     <div class="sa-cart-item">
       <button class="sa-cart-remove" type="button" onclick="saRemoveItem(${item.index})"><i class="bi bi-x"></i></button>
       <div class="d-flex align-items-center gap-3">
         <div class="flex-grow-1">
-          <div class="fw-semibold small">${item.name}</div>
+          <div class="fw-semibold small">${esc(item.name)}</div>
           <div class="text-muted" style="font-size:0.75rem;">₹${item.price} each</div>
         </div>
         <div style="width:90px;">
           <input type="number" value="${item.quantity}" min="0.01" step="0.01" max="${item.stock}"
-                 class="form-control form-control-sm text-center"
-                 onchange="saUpdateItemQty(${item.index}, this.value)">
+                 class="form-control form-control-sm text-center" onchange="saUpdateItemQty(${item.index},this.value)">
         </div>
-        <div style="width:75px; text-align:right;" class="fw-semibold">
-          ₹${Math.round(item.price * item.quantity)}
-        </div>
+        <div style="width:75px;text-align:right;" class="fw-semibold">₹${Math.round(item.price*item.quantity)}</div>
       </div>
     </div>`).join('');
 }
 
 function saRenderHiddenFields() {
-  document.getElementById('saBookingItemsFields').innerHTML = saCart.map((item, i) => `
-    <input type="hidden" name="booking[booking_items_attributes][${i}][product_id]" value="${item.productId}">
-    <input type="hidden" name="booking[booking_items_attributes][${i}][quantity]" value="${item.quantity}">
-    <input type="hidden" name="booking[booking_items_attributes][${i}][price]" value="${item.price}">
-    ${item.variantId ? `<input type="hidden" name="booking[booking_items_attributes][${i}][product_variant_id]" value="${item.variantId}">` : ''}
-  `).join('');
+  document.getElementById('saBookingItemsFields').innerHTML=saCart.map((item,i)=>
+    `<input type="hidden" name="booking[booking_items_attributes][${i}][product_id]" value="${item.productId}">` +
+    `<input type="hidden" name="booking[booking_items_attributes][${i}][quantity]" value="${item.quantity}">` +
+    `<input type="hidden" name="booking[booking_items_attributes][${i}][price]" value="${item.price}">` +
+    (item.variantId?`<input type="hidden" name="booking[booking_items_attributes][${i}][product_variant_id]" value="${item.variantId}">`:'')
+  ).join('');
 }
 
 function saUpdateTotal() {
-  const subtotal = saCart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discount = parseFloat(document.getElementById('saDiscountInput')?.value || 0);
-  const total = Math.max(0, subtotal - discount);
-  document.getElementById('saSubtotal').textContent = '₹' + Math.round(subtotal);
-  document.getElementById('saDiscountDisplay').textContent = '- ₹' + Math.round(discount);
-  document.getElementById('saTotal').textContent = '₹' + Math.round(total);
+  const sub=saCart.reduce((s,i)=>s+i.price*i.quantity,0);
+  const disc=parseFloat(document.getElementById('saDiscountInput')?.value||0);
+  document.getElementById('saSubtotal').textContent='₹'+Math.round(sub);
+  document.getElementById('saDiscountDisplay').textContent='- ₹'+Math.round(disc);
+  document.getElementById('saTotal').textContent='₹'+Math.round(Math.max(0,sub-disc));
 }
 
 function saUpdateBadge() {
-  const badge = document.getElementById('saCartBadge');
-  const count = saCart.reduce((s, i) => s + i.quantity, 0);
-  badge.textContent = Math.round(count);
-  badge.classList.toggle('d-none', count === 0);
+  const badge=document.getElementById('saCartBadge');
+  const count=saCart.reduce((s,i)=>s+i.quantity,0);
+  badge.textContent=Math.round(count);
+  badge.classList.toggle('d-none',count===0);
 }
 
 function saFilterProducts() {
-  const q = document.getElementById('saProductSearch').value.toLowerCase();
-  const cat = document.getElementById('saCategoryFilter').value;
-  let visible = 0;
-  document.querySelectorAll('.sa-product-item').forEach(item => {
-    const matchQ = !q || item.dataset.name.includes(q) || item.dataset.sku.includes(q);
-    const matchC = !cat || item.dataset.category === cat;
-    const stock = parseFloat(item.dataset.stock) || 0;
-    const matchS = saStockMode === 'all' || (saStockMode === 'instock' && stock > 0);
-    const show = matchQ && matchC && matchS;
-    item.style.display = show ? '' : 'none';
-    if (show) visible++;
+  const q=document.getElementById('saProductSearch').value.toLowerCase();
+  const cat=document.getElementById('saCategoryFilter').value;
+  let vis=0;
+  document.querySelectorAll('.sa-product-item').forEach(item=>{
+    const stock=parseFloat(item.dataset.stock)||0;
+    const show=(!q||item.dataset.name.includes(q)||item.dataset.sku.includes(q))
+            &&(!cat||item.dataset.category===cat)
+            &&(saStockMode==='all'||(saStockMode==='instock'&&stock>0));
+    item.style.display=show?'':'none';
+    if(show)vis++;
   });
-  document.getElementById('saNoResults').classList.toggle('d-none', visible > 0);
+  document.getElementById('saNoResults').classList.toggle('d-none',vis>0);
 }
 
 function saStockFilter(mode) {
-  saStockMode = mode;
-  document.getElementById('saAllBtn').classList.toggle('active', mode === 'all');
-  document.getElementById('saInStockBtn').classList.toggle('active', mode === 'instock');
+  saStockMode=mode;
+  document.getElementById('saAllBtn').classList.toggle('active',mode==='all');
+  document.getElementById('saInStockBtn').classList.toggle('active',mode==='instock');
   saFilterProducts();
 }
 
-document.getElementById('saBookingForm')?.addEventListener('submit', function(e) {
-  if (!saCart.length) { e.preventDefault(); alert('Please add at least one product to the booking.'); }
+document.getElementById('saBookingForm')?.addEventListener('submit',function(e){
+  if(!saCart.length){e.preventDefault();alert('Please add at least one product to the booking.');}
 });
 </script>

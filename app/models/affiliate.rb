@@ -1,6 +1,7 @@
 class Affiliate < ApplicationRecord
   has_one :user, as: :authenticatable, dependent: :destroy
   has_many :referrals, dependent: :destroy
+  has_many :bookings, foreign_key: :affiliate_id
 
   validates :first_name, presence: true
   validates :last_name, presence: true

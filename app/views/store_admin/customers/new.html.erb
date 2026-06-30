@@ -1,0 +1,116 @@
+<%- content_for :title, "New Customer — #{@current_store.name}" %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h5 class="fw-bold mb-1"><i class="bi bi-person-plus me-2" style="color:#1C7C54;"></i>New Customer</h5>
+    <small class="text-muted">Add a new customer for <%= @current_store.name %></small>
+  </div>
+  <%= link_to store_admin_customers_path, class: "btn btn-outline-secondary btn-sm" do %>
+    <i class="bi bi-arrow-left me-1"></i>Back
+  <% end %>
+</div>
+
+<div class="card border-0 shadow-sm" style="max-width:620px;">
+  <div class="card-body p-4">
+    <% if @customer.errors.any? %>
+      <div class="alert alert-danger mb-4">
+        <ul class="mb-0">
+          <% @customer.errors.full_messages.each do |m| %>
+            <li><%= m %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with model: [:store_admin, @customer], local: true do |f| %>
+
+      <div class="row g-3 mb-3">
+        <div class="col-sm-5">
+          <label class="form-label fw-semibold small">First Name <span class="text-danger">*</span></label>
+          <%= f.text_field :first_name, class: "form-control form-control-sm", placeholder: "First name" %>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label fw-semibold small">Middle Name</label>
+          <%= f.text_field :middle_name, class: "form-control form-control-sm", placeholder: "Optional" %>
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label fw-semibold small">Last Name</label>
+          <%= f.text_field :last_name, class: "form-control form-control-sm", placeholder: "Last name" %>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">Mobile <span class="text-danger">*</span></label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text">+91</span>
+            <%= f.telephone_field :mobile, class: "form-control form-control-sm", placeholder: "10-digit number", maxlength: 10 %>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">WhatsApp Number</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-whatsapp text-success"></i></span>
+            <%= f.telephone_field :whatsapp_number, class: "form-control form-control-sm", placeholder: "Same as mobile or different" %>
+          </div>
+          <div class="form-check mt-1">
+            <input class="form-check-input" type="checkbox" id="sameAsMobile" onchange="toggleWhatsapp(this)">
+            <label class="form-check-label small text-muted" for="sameAsMobile">Same as mobile</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold small">Email</label>
+        <%= f.email_field :email, class: "form-control form-control-sm", placeholder: "customer@example.com" %>
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label fw-semibold small">Gender</label>
+          <%= f.select :gender,
+              options_for_select([['', ''], ['Male', 'Male'], ['Female', 'Female'], ['Other', 'Other']], @customer.gender),
+              {}, { class: "form-select form-select-sm" } %>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold small">Address</label>
+        <%= f.text_area :address, class: "form-control form-control-sm", rows: 2, placeholder: "Full address (optional)" %>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label fw-semibold small">Notes</label>
+        <%= f.text_area :notes, class: "form-control form-control-sm", rows: 2, placeholder: "Any notes about this customer…" %>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn fw-semibold px-4" style="background:linear-gradient(135deg,#1C7C54,#10b981);color:white;border-radius:8px;">
+          <i class="bi bi-check-lg me-1"></i>Create Customer
+        </button>
+        <%= link_to 'Cancel', store_admin_customers_path, class: "btn btn-outline-secondary" %>
+      </div>
+
+    <% end %>
+  </div>
+</div>
+
+<script>
+function toggleWhatsapp(cb) {
+  const mobile = document.querySelector('input[name="customer[mobile]"]');
+  const wa     = document.querySelector('input[name="customer[whatsapp_number]"]');
+  if (!wa) return;
+  if (cb.checked) {
+    wa.value = mobile.value;
+    wa.setAttribute('readonly', true);
+    mobile.addEventListener('input', syncWa);
+  } else {
+    wa.removeAttribute('readonly');
+    mobile.removeEventListener('input', syncWa);
+  }
+}
+function syncWa(e) {
+  const wa = document.querySelector('input[name="customer[whatsapp_number]"]');
+  if (wa) wa.value = e.target.value;
+}
+</script>

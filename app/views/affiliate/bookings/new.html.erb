@@ -1,0 +1,321 @@
+<% content_for :page_title, "Create Booking" %>
+
+<script>const AFF_PRODUCTS = <%= raw json_escape(@products_json) %>;</script>
+
+<style>
+.aff-hover { transition:transform 0.15s,box-shadow 0.15s; }
+.aff-hover:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.12)!important; }
+.aff-cart-item { background:#f9fafb; border-radius:10px; padding:0.75rem 1rem; margin-bottom:0.5rem; position:relative; }
+.aff-cart-remove { position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem; }
+.aff-cart-remove:hover { color:#dc3545; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-cart-plus me-2 text-primary"></i>Create Booking</h4>
+    <small class="text-muted">Select products and customer to place a booking</small>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm position-relative" id="affCheckoutBtn" onclick="affShowCheckout()">
+      <i class="bi bi-cart-check me-1"></i>Checkout
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="affCartBadge">0</span>
+    </button>
+    <%= link_to affiliate_bookings_path, class: "btn btn-outline-secondary btn-sm" do %>
+      <i class="bi bi-arrow-left me-1"></i>My Bookings
+    <% end %>
+  </div>
+</div>
+
+<%# Search/filter bar %>
+<div class="card border-0 shadow-sm mb-3" id="affSearchSection">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-5">
+        <input type="text" class="form-control form-control-sm" id="affSearch" placeholder="Search products…" oninput="affFilter()">
+      </div>
+      <div class="col-md-3">
+        <select class="form-select form-select-sm" id="affCatFilter" onchange="affFilter()">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <div class="btn-group btn-group-sm">
+          <button class="btn btn-outline-primary active" id="affAllBtn" onclick="affStockFilter('all')">All</button>
+          <button class="btn btn-outline-primary" id="affInStockBtn" onclick="affStockFilter('instock')">In Stock</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# Product grid %>
+<div id="affProductsView">
+  <div class="card border-0 shadow-sm">
+    <div class="card-body pt-3">
+      <div class="row g-3" id="affGrid"></div>
+      <div id="affNoResults" class="text-center py-5 d-none">
+        <i class="bi bi-search fs-1 text-muted mb-2 d-block"></i>
+        <p class="text-muted">No products match your search.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# Checkout view %>
+<div id="affCheckoutView" style="display:none;">
+  <%= form_tag affiliate_bookings_path, method: :post, id: "affForm" do %>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card border-0 shadow-sm mb-3" style="border-radius:14px;">
+          <div class="card-header bg-white py-3 px-4">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-cart3 me-2 text-muted"></i>Cart Items</h6>
+          </div>
+          <div class="card-body px-4 py-3">
+            <div id="affCartItems"></div>
+            <div id="affCartEmpty" class="text-center py-4 text-muted small">
+              <i class="bi bi-cart" style="font-size:2rem;opacity:0.3;"></i>
+              <p class="mt-2 mb-0">No items — go back to add products</p>
+            </div>
+            <div id="affHiddenFields"></div>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm" style="border-radius:14px;">
+          <div class="card-body px-4 py-3">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">Subtotal</span>
+              <span class="fw-semibold" id="affSubtotal">₹0</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">Discount</span>
+              <span class="text-danger" id="affDiscountDisplay">- ₹0</span>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between">
+              <span class="fw-bold">Total</span>
+              <span class="fw-bold fs-5 text-primary" id="affTotal">₹0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm" style="border-radius:14px;">
+          <div class="card-header bg-white py-3 px-4">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-person me-2 text-muted"></i>Order Details</h6>
+          </div>
+          <div class="card-body px-4 py-3">
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Customer <span class="text-danger">*</span></label>
+              <select name="customer_id" class="form-select form-select-sm" required>
+                <option value="">— Select customer —</option>
+                <% @customers.each do |c| %>
+                  <option value="<%= c.id %>"><%= c.full_name %> (<%= c.mobile %>)</option>
+                <% end %>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Payment Method</label>
+              <select name="payment_method" class="form-select form-select-sm">
+                <option value="cash">Cash</option>
+                <option value="upi">UPI</option>
+                <option value="card">Card</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Payment Status</label>
+              <select name="payment_status" class="form-select form-select-sm">
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Discount (₹)</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">₹</span>
+                <input type="number" name="discount_amount" value="0" class="form-control" step="0.01" min="0" id="affDiscountInput" oninput="affUpdateTotal()">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Notes</label>
+              <textarea name="notes" class="form-control form-control-sm" rows="2" placeholder="Optional notes…"></textarea>
+            </div>
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-primary fw-semibold" style="border-radius:10px;">
+                <i class="bi bi-check-lg me-1"></i>Place Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<script>
+const AFF_MAP = Object.fromEntries(AFF_PRODUCTS.map(p => [p.id, p]));
+let affCart = [], affIdx = 0, affStockMode = 'all';
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function affRenderCard(p) {
+  const stock=p.stock, si=Math.floor(stock);
+  const img = p.image_url
+    ? `<img src="${esc(p.image_url)}" class="card-img-top" loading="lazy" style="height:160px;object-fit:cover;" alt="${esc(p.name)}">`
+    : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:160px;"><i class="bi bi-box-seam fs-1 text-muted"></i></div>`;
+  const badge = stock<=0
+    ? `<span class="position-absolute top-0 end-0 badge bg-danger m-2">Out of Stock</span>`
+    : stock<=5
+    ? `<span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Low (${si})</span>`
+    : `<span class="position-absolute top-0 end-0 badge bg-success m-2">${si} in stock</span>`;
+  const varSel = p.has_variants && p.variants.length
+    ? `<select class="form-select form-select-sm mb-2" id="aff-variant-${p.id}"><option value="">— Select variant —</option>${p.variants.map(v=>`<option value="${v.id}" data-price="${v.price}" data-stock="${v.stock}">${esc(v.label)} — ₹${v.price}</option>`).join('')}</select>`
+    : '';
+  let actionHtml;
+  if(stock>0){
+    actionHtml=`<div class="input-group input-group-sm mb-2">
+      <button class="btn btn-outline-secondary" type="button" onclick="affDec(${p.id})" style="border-radius:6px 0 0 6px;"><i class="bi bi-dash"></i></button>
+      <input type="number" id="aff-qty-${p.id}" value="1" min="1" step="1" max="${si}" class="form-control text-center fw-bold" style="max-width:54px;">
+      <button class="btn btn-outline-secondary" type="button" onclick="affInc(${p.id},${si})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
+    </div>
+    <button class="btn btn-primary btn-sm w-100" onclick="affAdd(${p.id})"><i class="bi bi-cart-plus me-1"></i>Add to Cart</button>`;
+  } else {
+    actionHtml=`<button class="btn btn-danger btn-sm w-100" disabled>SOLD OUT</button>`;
+  }
+  return `<div class="col-md-4 col-lg-3 aff-item"
+    data-id="${p.id}" data-name="${esc(p.name.toLowerCase())}" data-sku="${esc(p.sku.toLowerCase())}"
+    data-category="${esc(p.category_id)}" data-stock="${stock}">
+    <div class="card h-100 border-0 shadow-sm aff-hover">
+      <div class="position-relative">${img}${badge}</div>
+      <div class="card-body d-flex flex-column p-3">
+        <small class="text-muted mb-1">${esc(p.category_name)}</small>
+        <h6 class="fw-bold mb-1" style="font-size:0.9rem;min-height:36px;">${esc(p.name)}</h6>
+        <small class="text-muted mb-2">SKU: ${esc(p.sku)}</small>
+        <div class="fw-bold text-primary mb-2">₹${p.price}</div>
+        ${varSel}
+        <div class="mt-auto">${actionHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+(function init(){
+  const cats={};
+  AFF_PRODUCTS.forEach(p=>{ if(p.category_id) cats[p.category_id]=p.category_name; });
+  const sel=document.getElementById('affCatFilter');
+  Object.entries(cats).sort((a,b)=>a[1].localeCompare(b[1])).forEach(([id,name])=>{ const o=document.createElement('option');o.value=id;o.textContent=name;sel.appendChild(o); });
+  const grid=document.getElementById('affGrid');
+  grid.innerHTML = AFF_PRODUCTS.length ? AFF_PRODUCTS.map(affRenderCard).join('') : '<div class="col-12 text-center py-5"><h5 class="text-muted">No products available</h5></div>';
+})();
+
+function affShowCheckout(){
+  document.getElementById('affProductsView').style.display='none';
+  document.getElementById('affSearchSection').style.display='none';
+  document.getElementById('affCheckoutView').style.display='';
+  affRenderCart();
+}
+function affShowProducts(){
+  document.getElementById('affCheckoutView').style.display='none';
+  document.getElementById('affProductsView').style.display='';
+  document.getElementById('affSearchSection').style.display='';
+}
+
+function affInc(id,max){ const i=document.getElementById('aff-qty-'+id); i.value=Math.min(parseInt(i.value||1)+1,max); }
+function affDec(id){ const i=document.getElementById('aff-qty-'+id); if(parseInt(i.value)>1) i.value=parseInt(i.value)-1; }
+
+function affAdd(id){
+  const p=AFF_MAP[id]; if(!p) return;
+  let name=p.name, price=p.price, variantId=null;
+  if(p.has_variants){
+    const sel=document.getElementById('aff-variant-'+id);
+    if(!sel||!sel.value){ alert('Please select a variant first.'); return; }
+    const opt=sel.options[sel.selectedIndex];
+    name=p.name+' ('+opt.text.split('—')[0].trim()+')';
+    price=parseFloat(opt.dataset.price)||p.price;
+    variantId=sel.value;
+  }
+  const qty=parseInt(document.getElementById('aff-qty-'+id).value)||1;
+  const key=`${id}-${variantId||''}`;
+  const ex=affCart.find(i=>i.key===key);
+  if(ex){ ex.qty=Math.min(ex.qty+qty,Math.floor(p.stock)); }
+  else { affCart.push({key,idx:affIdx++,productId:id,variantId,name,price,qty,stock:p.stock}); }
+  affUpdateBadge(); affUpdateTotal();
+  const btn=document.querySelector(`#aff-item-${id} button.btn-primary`)||document.querySelector(`[data-id="${id}"] button.btn-primary`);
+}
+
+function affRemove(idx){ affCart=affCart.filter(i=>i.idx!==idx); affRenderCart(); affUpdateBadge(); affUpdateTotal(); }
+function affQtyChange(idx,val){ const i=affCart.find(i=>i.idx===idx); if(i){i.qty=Math.max(1,parseFloat(val)||1);} affUpdateTotal(); affRenderHiddenFields(); }
+
+function affRenderCart(){
+  const items=document.getElementById('affCartItems');
+  const empty=document.getElementById('affCartEmpty');
+  if(!affCart.length){ items.innerHTML=''; empty.style.display='block'; affUpdateTotal(); return; }
+  empty.style.display='none';
+  items.innerHTML=affCart.map(item=>`
+    <div class="aff-cart-item">
+      <button class="aff-cart-remove" type="button" onclick="affRemove(${item.idx})"><i class="bi bi-x"></i></button>
+      <div class="d-flex align-items-center gap-3">
+        <div class="flex-grow-1">
+          <div class="fw-semibold small">${esc(item.name)}</div>
+          <div class="text-muted" style="font-size:0.75rem;">₹${item.price} each</div>
+        </div>
+        <div style="width:90px;">
+          <input type="number" value="${item.qty}" min="1" step="1" max="${Math.floor(item.stock)}"
+                 class="form-control form-control-sm text-center" onchange="affQtyChange(${item.idx},this.value)">
+        </div>
+        <div style="width:75px;text-align:right;" class="fw-semibold">₹${Math.round(item.price*item.qty)}</div>
+      </div>
+    </div>`).join('');
+  affRenderHiddenFields();
+}
+
+function affRenderHiddenFields(){
+  document.getElementById('affHiddenFields').innerHTML=affCart.map((item,i)=>
+    `<input type="hidden" name="booking_items_attributes[${i}][product_id]" value="${item.productId}">` +
+    `<input type="hidden" name="booking_items_attributes[${i}][quantity]" value="${item.qty}">` +
+    `<input type="hidden" name="booking_items_attributes[${i}][price]" value="${item.price}">` +
+    (item.variantId?`<input type="hidden" name="booking_items_attributes[${i}][product_variant_id]" value="${item.variantId}">`:'')
+  ).join('');
+}
+
+function affUpdateTotal(){
+  const sub=affCart.reduce((s,i)=>s+i.price*i.qty,0);
+  const disc=parseFloat(document.getElementById('affDiscountInput')?.value||0);
+  document.getElementById('affSubtotal').textContent='₹'+Math.round(sub);
+  document.getElementById('affDiscountDisplay').textContent='- ₹'+Math.round(disc);
+  document.getElementById('affTotal').textContent='₹'+Math.round(Math.max(0,sub-disc));
+}
+
+function affUpdateBadge(){
+  const badge=document.getElementById('affCartBadge');
+  const count=affCart.reduce((s,i)=>s+i.qty,0);
+  badge.textContent=Math.round(count);
+  badge.classList.toggle('d-none',count===0);
+}
+
+function affFilter(){
+  const q=document.getElementById('affSearch').value.toLowerCase();
+  const cat=document.getElementById('affCatFilter').value;
+  let vis=0;
+  document.querySelectorAll('.aff-item').forEach(item=>{
+    const show=(!q||item.dataset.name.includes(q)||item.dataset.sku.includes(q))
+            &&(!cat||item.dataset.category===cat)
+            &&(affStockMode==='all'||parseFloat(item.dataset.stock)>0);
+    item.style.display=show?'':'none';
+    if(show) vis++;
+  });
+  document.getElementById('affNoResults').classList.toggle('d-none',vis>0);
+}
+
+function affStockFilter(mode){
+  affStockMode=mode;
+  document.getElementById('affAllBtn').classList.toggle('active',mode==='all');
+  document.getElementById('affInStockBtn').classList.toggle('active',mode==='instock');
+  affFilter();
+}
+
+document.getElementById('affForm')?.addEventListener('submit',function(e){
+  if(!affCart.length){ e.preventDefault(); alert('Please add at least one product.'); return; }
+  affRenderHiddenFields();
+});
+</script>

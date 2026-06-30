@@ -31,7 +31,54 @@ class StoreAdmin::BookingsController < StoreAdmin::ApplicationController
   def new
     @booking = @current_store.bookings.build
     @customers = Customer.order(:first_name) rescue []
-    @store_products = @current_store.store_products_with_inventory.includes(:product_variants).by_stock_availability
+
+    # One query for all store stock (eliminates N+1 from available_stock_for)
+    store_stock_map = @current_store.stock_batches
+                                    .where(status: 'active')
+                                    .where('quantity_remaining > 0')
+                                    .group(:product_id)
+                                    .sum(:quantity_remaining)
+
+    products = Product.active
+                      .where(id: store_stock_map.keys)
+                      .select(
+                        "id, name, sku, category_id, has_multiple_quantities, " \
+                        "r2_image_url, image_url, price, gst_enabled, gst_percentage, " \
+                        "stock, display_order"
+                      )
+                      .includes(:category, :product_variants)
+                      .by_stock_availability
+
+    @products_json = products.map do |p|
+      store_stock = store_stock_map[p.id].to_f
+      sorted_variants = p.has_multiple_quantities ? p.product_variants.sort_by { |v| [v.display_order.to_i, v.weight.to_f] } : []
+
+      if sorted_variants.any?
+        default_v     = sorted_variants.first
+        display_price = default_v.selling_price.to_f
+        gst_rate      = 0
+        base_price    = display_price
+      else
+        display_price = p.price.to_f
+        gst_rate      = (p.gst_enabled && p.gst_percentage.to_f > 0) ? p.gst_percentage.to_f : 0
+        base_price    = gst_rate > 0 ? (display_price - display_price * gst_rate / 100.0).round(2) : display_price
+      end
+
+      {
+        id:            p.id,
+        name:          p.name,
+        sku:           p.sku.to_s,
+        category_id:   p.category_id&.to_s || '',
+        category_name: p.category&.name || 'No Category',
+        stock:         store_stock,
+        has_variants:  p.has_multiple_quantities,
+        image_url:     p.r2_image_url.presence || p.image_url.presence,
+        price:         display_price.round,
+        base_price:    base_price.round(2),
+        gst_rate:      gst_rate,
+        variants:      sorted_variants.map { |v| { id: v.id, label: v.label.to_s, price: v.selling_price.to_f.round, stock: store_stock } }
+      }
+    end.to_json
   end
 
   def search_products

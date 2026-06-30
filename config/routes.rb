@@ -21,6 +21,7 @@ Rails.application.routes.draw do
       end
     end
     resources :stock_transfers, only: [:index, :new, :create]
+    resources :customers, only: [:index, :new, :create, :show]
   end
 
   # Vendor invoice public view
@@ -1031,6 +1032,9 @@ Rails.application.routes.draw do
 
     # Referral history
     get '/referral_history', to: 'referrals#index'
+
+    # Bookings — affiliates can create bookings and view only their own
+    resources :bookings, only: [:index, :show, :new, :create]
   end
 
   # Customer Web Application routes

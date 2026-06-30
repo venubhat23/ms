@@ -152,7 +152,7 @@
       <span>Dashboard</span>
     <% end %>
 
-    <!-- Refer - Main Menu Item as Requested -->
+    <!-- Refer -->
     <%= link_to affiliate_refer_path,
         class: "nav-link-modern #{'active' if current_page?(affiliate_refer_path)}" do %>
       <i class="fas fa-user-plus"></i>
@@ -164,6 +164,23 @@
         class: "nav-link-modern #{'active' if current_page?(affiliate_referral_history_path) || (controller_name == 'referrals' && action_name == 'index')}" do %>
       <i class="fas fa-history"></i>
       <span>Referral History</span>
+    <% end %>
+  </div>
+
+  <!-- Bookings Section -->
+  <div class="sidebar-section">
+    <h6>Bookings</h6>
+
+    <%= link_to new_affiliate_booking_path,
+        class: "nav-link-modern #{'active' if controller_name == 'bookings' && action_name == 'new'}" do %>
+      <i class="bi bi-cart-plus"></i>
+      <span>Create Booking</span>
+    <% end %>
+
+    <%= link_to affiliate_bookings_path,
+        class: "nav-link-modern #{'active' if controller_name == 'bookings' && action_name == 'index'}" do %>
+      <i class="bi bi-bag-check"></i>
+      <span>My Bookings</span>
     <% end %>
   </div>
 

@@ -1,229 +1,181 @@
-<% content_for :page_title, "Affiliate Bookings" %>
+<% content_for :page_title, "My Bookings" %>
 
-<!-- Page Header -->
-<div class="row mb-4">
-  <div class="col-12">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <h2 class="fw-bold text-dark mb-1">Your Referral Bookings</h2>
-        <p class="text-muted mb-0">Track bookings from your referred customers</p>
-      </div>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-bag-check me-2 text-primary"></i>My Bookings</h4>
+    <small class="text-muted">Bookings you have created</small>
   </div>
+  <%= link_to new_affiliate_booking_path, class: "btn btn-primary btn-sm" do %>
+    <i class="bi bi-cart-plus me-1"></i>Create Booking
+  <% end %>
 </div>
 
-<!-- Statistics Cards -->
-<div class="row mb-4">
-  <div class="col-md-3 col-sm-6 mb-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-shrink-0">
-            <i class="fas fa-handshake fa-2x text-primary"></i>
-          </div>
-          <div class="ms-3">
-            <h6 class="text-muted fw-semibold mb-1">Total</h6>
-            <h4 class="fw-bold text-dark mb-0"><%= @total_count %></h4>
-          </div>
+<%# Stats cards %>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:44px;height:44px;background:#eff6ff;">
+          <i class="bi bi-bag-check text-primary fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Total</div>
+          <div class="fw-bold fs-5"><%= @total_count %></div>
         </div>
       </div>
     </div>
   </div>
-
-  <div class="col-md-3 col-sm-6 mb-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-shrink-0">
-            <i class="fas fa-clock fa-2x text-warning"></i>
-          </div>
-          <div class="ms-3">
-            <h6 class="text-muted fw-semibold mb-1">Pending</h6>
-            <h4 class="fw-bold text-dark mb-0"><%= @pending_count %></h4>
-          </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:44px;height:44px;background:#fefce8;">
+          <i class="bi bi-clock-history text-warning fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Pending</div>
+          <div class="fw-bold fs-5"><%= @pending_count %></div>
         </div>
       </div>
     </div>
   </div>
-
-  <div class="col-md-3 col-sm-6 mb-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-shrink-0">
-            <i class="fas fa-cog fa-2x text-info"></i>
-          </div>
-          <div class="ms-3">
-            <h6 class="text-muted fw-semibold mb-1">Processing</h6>
-            <h4 class="fw-bold text-dark mb-0"><%= @processing_count %></h4>
-          </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:44px;height:44px;background:#f0fdf4;">
+          <i class="bi bi-check-circle text-success fs-5"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Completed</div>
+          <div class="fw-bold fs-5"><%= @completed_count %></div>
         </div>
       </div>
     </div>
   </div>
-
-  <div class="col-md-3 col-sm-6 mb-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-shrink-0">
-            <i class="fas fa-check-circle fa-2x text-success"></i>
-          </div>
-          <div class="ms-3">
-            <h6 class="text-muted fw-semibold mb-1">Delivered</h6>
-            <h4 class="fw-bold text-dark mb-0"><%= @delivered_count %></h4>
-          </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:44px;height:44px;background:#fdf4ff;">
+          <i class="bi bi-currency-rupee text-purple fs-5" style="color:#7c3aed;"></i>
+        </div>
+        <div>
+          <div class="text-muted small">Total Value</div>
+          <div class="fw-bold fs-5">₹<%= number_with_delimiter(@total_value.to_i, delimiter: ',') %></div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Filters and Search -->
-<div class="row mb-4">
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <%= form_with url: affiliate_bookings_path, method: :get, local: true, class: "row g-3 align-items-end" do |form| %>
-          <div class="col-md-4">
-            <%= form.text_field :search, value: params[:search], placeholder: "Search by booking ID, customer name, email...", class: "form-control" %>
-          </div>
-          <div class="col-md-3">
-            <%= form.select :status, options_for_select([
-              ['All Statuses', ''],
-              ['Pending', 'pending'],
-              ['Processing', 'processing'],
-              ['Shipped', 'shipped'],
-              ['Delivered', 'delivered'],
-              ['Cancelled', 'cancelled']
-            ], params[:status]), {}, { class: "form-select" } %>
-          </div>
-          <div class="col-md-2">
-            <%= form.submit "Filter", class: "btn btn-primary" %>
-          </div>
-          <div class="col-md-3 text-end">
-            <%= link_to "Clear Filters", affiliate_bookings_path, class: "btn btn-outline-secondary" %>
-          </div>
-        <% end %>
+<%# Filter bar %>
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <%= form_with url: affiliate_bookings_path, method: :get, local: true, class: "d-flex gap-2 flex-wrap align-items-end" do |f| %>
+      <div class="flex-grow-1" style="min-width:200px;">
+        <%= f.text_field :search, value: params[:search], placeholder: "Search booking # or customer…", class: "form-control form-control-sm" %>
       </div>
-    </div>
+      <div style="min-width:140px;">
+        <%= f.select :status, options_for_select([
+          ['All Statuses', ''],
+          ['Pending', 'pending'],
+          ['Completed', 'completed'],
+          ['Cancelled', 'cancelled']
+        ], params[:status]), {}, { class: "form-select form-select-sm" } %>
+      </div>
+      <%= f.submit "Filter", class: "btn btn-primary btn-sm" %>
+      <% if params[:search].present? || params[:status].present? %>
+        <%= link_to "Clear", affiliate_bookings_path, class: "btn btn-outline-secondary btn-sm" %>
+      <% end %>
+    <% end %>
   </div>
 </div>
 
-<!-- Bookings Table -->
-<div class="row">
-  <div class="col-12">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <% if @bookings.any? %>
-          <div class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Booking ID</th>
-                  <th>Customer</th>
-                  <th>Items</th>
-                  <th>Amount</th>
-                  <th>Payment</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Commission</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <% @bookings.each do |booking| %>
-                  <tr>
-                    <td>
-                      <span class="fw-semibold text-primary">#<%= booking.booking_number %></span>
-                    </td>
-                    <td>
-                      <div>
-                        <div class="fw-semibold"><%= booking.customer&.display_name %></div>
-                        <small class="text-muted"><%= booking.customer&.email %></small>
-                        <% if booking.customer_phone.present? %>
-                          <br><small class="text-muted"><%= booking.customer_phone %></small>
-                        <% end %>
-                      </div>
-                    </td>
-                    <td>
-                      <span class="badge bg-light text-dark"><%= pluralize(booking.booking_items.count, 'item') %></span>
-                    </td>
-                    <td>
-                      <span class="fw-semibold">₹<%= number_with_delimiter(booking.total_amount&.to_f || 0, delimiter: ',') %></span>
-                    </td>
-                    <td>
-                      <% case booking.payment_status %>
-                      <% when 'paid' %>
-                        <span class="badge bg-success">Paid</span>
-                      <% when 'partially_paid' %>
-                        <span class="badge bg-warning">Partial</span>
-                      <% when 'pending' %>
-                        <span class="badge bg-danger">Pending</span>
-                      <% else %>
-                        <span class="badge bg-secondary"><%= booking.payment_status&.humanize %></span>
-                      <% end %>
-                    </td>
-                    <td>
-                      <% case booking.status %>
-                      <% when 'pending' %>
-                        <span class="badge bg-warning">Pending</span>
-                      <% when 'processing' %>
-                        <span class="badge bg-info">Processing</span>
-                      <% when 'shipped' %>
-                        <span class="badge bg-primary">Shipped</span>
-                      <% when 'delivered' %>
-                        <span class="badge bg-success">Delivered</span>
-                      <% when 'cancelled' %>
-                        <span class="badge bg-danger">Cancelled</span>
-                      <% else %>
-                        <span class="badge bg-secondary"><%= booking.status&.humanize %></span>
-                      <% end %>
-                    </td>
-                    <td>
-                      <div class="text-nowrap">
-                        <div><%= booking.created_at&.strftime("%d %b, %Y") %></div>
-                        <small class="text-muted"><%= booking.created_at&.strftime("%I:%M %p") %></small>
-                      </div>
-                    </td>
-                    <td>
-                      <% commission = (booking.total_amount&.to_f || 0) * 0.05 %>
-                      <span class="text-success fw-semibold">₹<%= number_with_delimiter(commission, delimiter: ',') %></span>
-                      <br><small class="text-muted">(5%)</small>
-                    </td>
-                    <td>
-                      <div class="btn-group btn-group-sm" role="group">
-                        <%= link_to affiliate_booking_path(booking), class: "btn btn-outline-primary btn-sm" do %>
-                          <i class="fas fa-eye"></i>
-                        <% end %>
-                      </div>
-                    </td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Pagination -->
-          <% if respond_to?(:paginate) %>
-            <div class="d-flex justify-content-center mt-4">
-              <%= paginate @bookings, theme: 'bootstrap-5' %>
-            </div>
-          <% end %>
-        <% else %>
-          <div class="text-center py-5">
-            <i class="fas fa-handshake fa-4x text-muted mb-4"></i>
-            <h4 class="text-muted mb-3">No Referral Bookings Found</h4>
-            <% if params[:search].present? || params[:status].present? %>
-              <p class="text-muted mb-3">No bookings match your current filters</p>
-              <%= link_to "Clear Filters", affiliate_bookings_path, class: "btn btn-primary" %>
-            <% else %>
-              <p class="text-muted">Bookings from your referred customers will appear here</p>
-              <small class="text-muted">Start referring customers to earn commission!</small>
+<%# Bookings table %>
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <% if @bookings.any? %>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="px-3">Booking #</th>
+              <th>Customer</th>
+              <th>Items</th>
+              <th>Amount</th>
+              <th>Payment</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @bookings.each do |booking| %>
+              <tr>
+                <td class="px-3 align-middle">
+                  <span class="fw-semibold text-primary">#<%= booking.booking_number %></span>
+                </td>
+                <td class="align-middle">
+                  <div class="fw-semibold small"><%= booking.customer&.display_name || booking.customer_name.presence || '—' %></div>
+                  <small class="text-muted"><%= booking.customer&.mobile || booking.customer_phone %></small>
+                </td>
+                <td class="align-middle">
+                  <span class="badge bg-light text-dark"><%= booking.booking_items.size %> item<%= 's' if booking.booking_items.size != 1 %></span>
+                </td>
+                <td class="align-middle fw-semibold">₹<%= number_with_delimiter(booking.total_amount&.to_f&.to_i || 0, delimiter: ',') %></td>
+                <td class="align-middle">
+                  <% case booking.payment_status&.to_s
+                     when 'paid' %>
+                    <span class="badge bg-success">Paid</span>
+                  <% when 'partially_paid' %>
+                    <span class="badge bg-warning text-dark">Partial</span>
+                  <% else %>
+                    <span class="badge bg-danger">Unpaid</span>
+                  <% end %>
+                </td>
+                <td class="align-middle">
+                  <% case booking.status&.to_s
+                     when 'pending' %>
+                    <span class="badge bg-warning text-dark">Pending</span>
+                  <% when 'completed' %>
+                    <span class="badge bg-success">Completed</span>
+                  <% when 'cancelled' %>
+                    <span class="badge bg-danger">Cancelled</span>
+                  <% else %>
+                    <span class="badge bg-secondary"><%= booking.status&.humanize %></span>
+                  <% end %>
+                </td>
+                <td class="align-middle text-nowrap">
+                  <small><%= booking.created_at&.strftime("%d %b %Y") %></small><br>
+                  <small class="text-muted"><%= booking.created_at&.strftime("%I:%M %p") %></small>
+                </td>
+                <td class="align-middle">
+                  <%= link_to affiliate_booking_path(booking), class: "btn btn-outline-primary btn-sm" do %>
+                    <i class="bi bi-eye"></i>
+                  <% end %>
+                </td>
+              </tr>
             <% end %>
-          </div>
+          </tbody>
+        </table>
+      </div>
+      <% if @bookings.respond_to?(:current_page) %>
+        <div class="d-flex justify-content-center py-3">
+          <%= paginate @bookings, theme: 'bootstrap-5' %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-5">
+        <i class="bi bi-cart" style="font-size:3rem;opacity:0.3;"></i>
+        <h5 class="text-muted mt-3">No bookings yet</h5>
+        <% if params[:search].present? || params[:status].present? %>
+          <p class="text-muted mb-3">No bookings match your filters</p>
+          <%= link_to "Clear Filters", affiliate_bookings_path, class: "btn btn-outline-secondary btn-sm" %>
+        <% else %>
+          <p class="text-muted mb-3">Create your first booking to see it here</p>
+          <%= link_to new_affiliate_booking_path, class: "btn btn-primary btn-sm" do %>
+            <i class="bi bi-cart-plus me-1"></i>Create Booking
+          <% end %>
         <% end %>
       </div>
-    </div>
+    <% end %>
   </div>
 </div>

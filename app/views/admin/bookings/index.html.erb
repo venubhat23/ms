@@ -322,9 +322,21 @@
                   ['Mobile UI Admin', 'mobile_ui_admin'],
                   ['Customer Website', 'customer'],
                   ['Franchise', 'franchise'],
+                  ['Affiliate', 'affiliate'],
                   ['Store / Admin', 'admin']
                 ], params[:booked_by]),
                 {},
+                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+          </div>
+
+          <!-- Affiliate -->
+          <div style="min-width:110px; flex:1;">
+            <label class="form-label text-muted mb-1 small fw-semibold">
+              <i class="bi bi-person-badge me-1"></i>Affiliate
+            </label>
+            <%= form.select :affiliate_id,
+                options_from_collection_for_select(@affiliates, :id, :display_name, params[:affiliate_id]),
+                { prompt: 'All Affiliates' },
                 { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
           </div>
 
@@ -357,7 +369,7 @@
           <!-- Actions + result count -->
           <div class="flex-shrink-0 d-flex gap-2 align-items-end" style="padding-bottom:2px;">
             <%= form.submit "Apply", class: "btn btn-primary btn-sm px-3 d-none" %>
-            <% active_filters = params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? || params[:category_id].present? %>
+            <% active_filters = params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? || params[:category_id].present? || params[:affiliate_id].present? %>
             <% if active_filters %>
               <%= link_to admin_bookings_path, class: "btn btn-outline-secondary btn-sm px-2", title: "Clear all filters" do %>
                 <i class="bi bi-arrow-clockwise"></i>
@@ -435,6 +447,10 @@
                           <span class="badge source-badge source-franchise">
                             <i class="bi bi-shop me-1"></i>Franchise
                           </span>
+                        <% when 'affiliate' %>
+                          <span class="badge bg-purple-subtle text-purple border" style="font-size:0.72rem;background:#f3e8ff;color:#7c3aed;border-color:#c4b5fd!important;">
+                            <i class="bi bi-person-badge me-1"></i>Affiliate
+                          </span>
                         <% else %>
                           <span class="badge source-badge source-store">
                             <i class="bi bi-person-gear me-1"></i>Store
@@ -446,6 +462,14 @@
                         <div class="mt-1">
                           <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:0.7rem;">
                             <i class="bi bi-shop-window me-1"></i><%= booking.store.name %>
+                          </span>
+                        </div>
+                      <% end %>
+                      <%# Affiliate badge — shown when booking was created by an affiliate %>
+                      <% if booking.affiliate.present? %>
+                        <div class="mt-1">
+                          <span class="badge border" style="font-size:0.7rem;background:#f3e8ff;color:#7c3aed;border-color:#c4b5fd!important;">
+                            <i class="bi bi-person-badge me-1"></i><%= booking.affiliate.display_name %>
                           </span>
                         </div>
                       <% end %>

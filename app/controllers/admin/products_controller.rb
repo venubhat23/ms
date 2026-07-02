@@ -130,6 +130,7 @@ class Admin::ProductsController < Admin::ApplicationController
       Wishlist.where(product_id: @product.id).delete_all
       SubscriptionTemplate.where(product_id: @product.id).delete_all
       CustomerFormat.where(product_id: @product.id).delete_all
+      StockTransfer.where(product_id: @product.id).delete_all
 
       @product.destroy!
     end

@@ -91,6 +91,45 @@ document.addEventListener('DOMContentLoaded', function() {
       window.location.href = url.toString();
     }, 400);
   });
+
+  // Enhanced delete functionality
+  const deleteButtons = document.querySelectorAll('.delete-product-btn');
+
+  deleteButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+
+      const productName = this.dataset.productName;
+      const url = this.href;
+
+      const confirmMessage = `Delete '${productName}'?\n\nThis will permanently delete the product and all its reviews, ratings, stock batches, and delivery rules.\n\nThis action cannot be undone.`;
+
+      if (confirm(confirmMessage)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.style.display = 'none';
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (csrfToken) {
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'authenticity_token';
+          csrfInput.value = csrfToken;
+          form.appendChild(csrfInput);
+        }
+
+        const methodInput = document.createElement('input');
+        methodInput.type = 'hidden';
+        methodInput.name = '_method';
+        methodInput.value = 'delete';
+        form.appendChild(methodInput);
+
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
+  });
 });
 </script>
 
@@ -265,10 +304,9 @@ document.addEventListener('DOMContentLoaded', function() {
                       <li><hr class="dropdown-divider"></li>
                       <li>
                         <%= link_to admin_product_path(product),
-                            class: "dropdown-item text-danger",
+                            class: "dropdown-item text-danger delete-product-btn",
                             data: {
-                              turbo_method: :delete,
-                              turbo_confirm: "Delete '#{product.name}'?\n\nThis will permanently delete the product and all its reviews, ratings, stock batches, and delivery rules.\n\nThis action cannot be undone."
+                              product_name: product.name
                             } do %>
                           <i class="bi bi-trash me-2"></i>
                           Delete Product

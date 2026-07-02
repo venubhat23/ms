@@ -112,9 +112,14 @@ class Admin::ProductsController < Admin::ApplicationController
     # Preserve historical booking/order records — clear product reference instead of deleting
     @product.booking_items.update_all(product_id: nil)
     @product.order_items.update_all(product_id: nil) if @product.respond_to?(:order_items)
+    InvoiceItem.where(product_id: @product.id).update_all(product_id: nil)
 
     @product.destroy!
     redirect_to admin_products_path, notice: "Product '#{product_name}' was deleted successfully."
+  rescue ActiveRecord::InvalidForeignKey => e
+    blocking_table = e.message[/table "(\w+)"/, 1] || 'related records'
+    redirect_to admin_products_path,
+      alert: "Could not delete '#{product_name}': it still has #{blocking_table.humanize.downcase} referencing it. Remove or reassign those first, or mark the product inactive instead of deleting it."
   rescue => e
     redirect_to admin_products_path, alert: "Could not delete product: #{e.message}"
   end

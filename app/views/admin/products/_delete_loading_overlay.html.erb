@@ -1,0 +1,204 @@
+<!-- Delete Loading Overlay (shared by products index/show delete buttons) -->
+<div id="delete-loading-overlay" class="delete-loading-overlay" style="display: none;">
+  <div class="delete-loading-container">
+    <div class="delete-loading-spinner">
+      <div class="spinner-ring"></div>
+      <div class="spinner-ring"></div>
+      <div class="spinner-ring"></div>
+      <i class="bi bi-trash delete-loading-icon"></i>
+    </div>
+    <h4 class="delete-loading-title">Deleting Product...</h4>
+    <p class="delete-loading-message">Removing the product and any related records. This won't take long.</p>
+    <div class="progress delete-loading-progress">
+      <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+.delete-loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.delete-loading-overlay.show {
+  opacity: 1;
+}
+
+.delete-loading-container {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e9ecef;
+  max-width: 400px;
+  width: 90%;
+  animation: deleteSlideUp 0.5s ease-out;
+}
+
+@keyframes deleteSlideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.delete-loading-spinner {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 1.5rem;
+}
+
+.delete-loading-spinner .spinner-ring {
+  position: absolute;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  animation: deleteSpin 2s linear infinite;
+}
+
+.delete-loading-spinner .spinner-ring:nth-child(1) {
+  border-top-color: #dc3545;
+  width: 100px;
+  height: 100px;
+}
+
+.delete-loading-spinner .spinner-ring:nth-child(2) {
+  border-top-color: #fd7e14;
+  width: 80px;
+  height: 80px;
+  top: 10px;
+  left: 10px;
+  animation-delay: -0.4s;
+}
+
+.delete-loading-spinner .spinner-ring:nth-child(3) {
+  border-top-color: #ffc107;
+  width: 60px;
+  height: 60px;
+  top: 20px;
+  left: 20px;
+  animation-delay: -0.8s;
+}
+
+@keyframes deleteSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.delete-loading-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2rem;
+  color: #dc3545;
+  animation: deletePulse 2s ease-in-out infinite;
+}
+
+@keyframes deletePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+}
+
+.delete-loading-title {
+  color: #212529;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 1.4rem;
+}
+
+.delete-loading-message {
+  color: #6c757d;
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
+}
+
+.delete-loading-progress {
+  height: 8px;
+  border-radius: 10px;
+  background: #e9ecef;
+  overflow: hidden;
+}
+
+.delete-loading-progress .progress-bar {
+  border-radius: 10px;
+  transition: width 0.3s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .delete-loading-overlay { background: rgba(33, 37, 41, 0.95); }
+  .delete-loading-container { background: #212529; border-color: #495057; }
+  .delete-loading-title { color: #f8f9fa; }
+  .delete-loading-message { color: #adb5bd; }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const overlay = document.getElementById('delete-loading-overlay');
+  const progressBar = overlay?.querySelector('.progress-bar');
+  const deleteButtons = document.querySelectorAll('.delete-product-btn');
+
+  deleteButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+
+      const productName = this.dataset.productName;
+      const url = this.href;
+
+      const confirmMessage = `Delete '${productName}'?\n\nThis will permanently delete the product and all related data (reviews, ratings, stock batches, delivery rules, wishlists, subscriptions).\n\nThis action cannot be undone.`;
+
+      if (!confirm(confirmMessage)) return;
+
+      if (overlay) {
+        overlay.style.display = 'flex';
+        setTimeout(() => overlay.classList.add('show'), 10);
+
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+          progress += Math.random() * 15;
+          if (progress > 90) {
+            progress = 90;
+            clearInterval(progressInterval);
+          }
+          if (progressBar) progressBar.style.width = progress + '%';
+        }, 200);
+      }
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = url;
+      form.style.display = 'none';
+
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+      if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'authenticity_token';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+      }
+
+      const methodInput = document.createElement('input');
+      methodInput.type = 'hidden';
+      methodInput.name = '_method';
+      methodInput.value = 'delete';
+      form.appendChild(methodInput);
+
+      document.body.appendChild(form);
+      form.submit();
+    });
+  });
+});
+</script>

@@ -109,15 +109,34 @@ class Admin::ProductsController < Admin::ApplicationController
   def destroy
     product_name = @product.name
 
-    # Preserve historical booking/order records — clear product reference instead of deleting
-    @product.booking_items.update_all(product_id: nil)
-    @product.order_items.update_all(product_id: nil) if @product.respond_to?(:order_items)
-    InvoiceItem.where(product_id: @product.id).update_all(product_id: nil)
+    ActiveRecord::Base.transaction do
+      # Preserve historical booking/order records — clear product reference instead of deleting
+      @product.booking_items.update_all(product_id: nil)
+      @product.order_items.update_all(product_id: nil) if @product.respond_to?(:order_items)
+      InvoiceItem.where(product_id: @product.id).update_all(product_id: nil)
 
-    @product.destroy!
+      # Milk delivery tasks/schedules require product_id, so they can't be nullified —
+      # unlink the historical records that point at them, then remove them with the product.
+      task_ids = MilkDeliveryTask.where(product_id: @product.id).pluck(:id)
+      InvoiceItem.where(milk_delivery_task_id: task_ids).update_all(milk_delivery_task_id: nil) if task_ids.any?
+      MilkDeliveryTask.where(id: task_ids).delete_all
+      MilkSubscription.where(product_id: @product.id).delete_all
+
+      schedule_ids = BookingSchedule.where(product_id: @product.id).pluck(:id)
+      Booking.where(booking_schedule_id: schedule_ids).update_all(booking_schedule_id: nil) if schedule_ids.any?
+      BookingSchedule.where(id: schedule_ids).delete_all
+
+      # These only ever make sense in the context of this product — remove them with it.
+      Wishlist.where(product_id: @product.id).delete_all
+      SubscriptionTemplate.where(product_id: @product.id).delete_all
+      CustomerFormat.where(product_id: @product.id).delete_all
+
+      @product.destroy!
+    end
+
     redirect_to admin_products_path, notice: "Product '#{product_name}' was deleted successfully."
   rescue ActiveRecord::InvalidForeignKey => e
-    blocking_table = e.message[/table "(\w+)"/, 1] || 'related records'
+    blocking_table = e.message[/referenced from table "(\w+)"/, 1] || e.message.scan(/table "(\w+)"/).flatten.last || 'related records'
     redirect_to admin_products_path,
       alert: "Could not delete '#{product_name}': it still has #{blocking_table.humanize.downcase} referencing it. Remove or reassign those first, or mark the product inactive instead of deleting it."
   rescue => e

@@ -36,6 +36,14 @@
           <button type="button" class="btn btn-outline-primary" id="stInStockBtn" onclick="stStockFilter('instock')">In Stock</button>
         </div>
       </div>
+      <div class="col-auto d-flex gap-2 align-items-center ms-md-auto">
+        <button type="button" class="btn btn-sm btn-outline-success" onclick="stSelectAllVisible()">
+          <i class="bi bi-check2-square me-1"></i>Select All
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="stDeselectAllVisible()">
+          <i class="bi bi-square me-1"></i>Deselect All
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -55,14 +63,21 @@
 <div id="stPanel" class="d-none position-fixed bottom-0 start-0 w-100" style="z-index:1040;box-shadow:0 -4px 20px rgba(0,0,0,0.15);max-height:50vh;overflow-y:auto;">
   <div class="bg-white border-top">
     <div class="container-fluid px-4 py-3">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
         <div class="fw-bold">
           <i class="bi bi-cart3 me-2" style="color:#1C7C54;"></i>
           Transfer Request — <span id="stItemCount">0</span> product(s) selected
         </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="stClearAll()">
-          <i class="bi bi-x me-1"></i>Clear All
-        </button>
+        <div class="d-flex align-items-center gap-2">
+          <div class="input-group input-group-sm" style="width:190px;">
+            <span class="input-group-text">Set qty</span>
+            <input type="number" class="form-control" id="stBulkQty" min="1" step="1" placeholder="e.g. 10">
+            <button type="button" class="btn btn-outline-primary" onclick="stApplyBulkQty()">Apply to All</button>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="stClearAll()">
+            <i class="bi bi-x me-1"></i>Clear All
+          </button>
+        </div>
       </div>
 
       <%= form_tag store_admin_stock_transfers_path, method: :post, id: "stForm" do %>
@@ -245,6 +260,44 @@ function stInc(key) { const i = stCart.find(i=>i.key===key); if(i&&i.qty<Math.fl
 function stDec(key) { const i = stCart.find(i=>i.key===key); if(i&&i.qty>1){i.qty--;stRender();} }
 function stRemoveByKey(key) { const i=stCart.find(i=>i.key===key); if(i)stSetCardState(i.productId,false); stCart=stCart.filter(i=>i.key!==key); stRender(); }
 function stClearAll() { stCart.forEach(i=>stSetCardState(i.productId,false)); stCart=[]; stRender(); }
+
+function stSelectAllVisible() {
+  let added = 0, skippedVariant = 0;
+  document.querySelectorAll('.st-item').forEach(el => {
+    if (el.style.display === 'none') return;
+    const id = parseInt(el.dataset.id);
+    const p = ST_MAP[id];
+    if (!p) return;
+    if (p.has_variants) { skippedVariant++; return; }
+    if (p.stock <= 0) return;
+    const key = stCartKey(id, null);
+    if (stCart.find(i => i.key === key)) return;
+    stCart.push({ key, productId: id, variantId: null, variantLabel: null, name: p.name, sku: p.sku, stock: p.stock, qty: 1 });
+    stSetCardState(id, true);
+    added++;
+  });
+  stRender();
+  if (skippedVariant > 0) {
+    alert(`Added ${added} product(s) to the request.\n${skippedVariant} product(s) need a variant — please add those manually.`);
+  }
+}
+
+function stDeselectAllVisible() {
+  document.querySelectorAll('.st-item').forEach(el => {
+    if (el.style.display === 'none') return;
+    const id = parseInt(el.dataset.id);
+    stCart = stCart.filter(i => i.productId !== id);
+    stSetCardState(id, false);
+  });
+  stRender();
+}
+
+function stApplyBulkQty() {
+  const val = parseInt(document.getElementById('stBulkQty').value, 10);
+  if (!val || val < 1) { alert('Enter a valid quantity first.'); return; }
+  stCart.forEach(item => { item.qty = Math.max(1, Math.min(val, Math.floor(item.stock))); });
+  stRender();
+}
 
 function stFilter() {
   const q = document.getElementById('stSearch').value.toLowerCase();

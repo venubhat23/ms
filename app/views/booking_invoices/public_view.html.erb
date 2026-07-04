@@ -712,7 +712,9 @@
     end
 
     total_tax = total_cgst + total_sgst + total_igst
-    final_total = @invoice.total_amount || (subtotal_amount + total_tax)
+    delivery_charge = @booking&.shipping_charges.to_f
+    discount_amount = @invoice.respond_to?(:discount_amount) ? @invoice.discount_amount.to_f : (@booking&.discount_amount.to_f || 0)
+    final_total = @invoice.total_amount || (subtotal_amount + total_tax + delivery_charge)
   %>
 
   <!-- Download Button -->
@@ -731,7 +733,7 @@
     <!-- Header -->
     <div class="invoice-header">
       <div class="logo-section">
-        <img class="logo" src="https://marketincer-assets.s3.us-east-1.amazonaws.com/WhatsApp+Image+2025-06-25+at+8.04.23+AM.jpeg" alt="Logo" />
+        <img class="logo" src="<%= @business_settings&.logo_display_url || '/logo.jpeg' %>" alt="Logo" />
       </div>
       <div class="company-section">
         <div class="company-name">
@@ -750,6 +752,9 @@
           <% end %>
           <% if @business_settings&.pan_number.present? %>
             <span class="highlight">PAN:</span> <%= @business_settings.pan_number %>
+          <% end %>
+          <% if @business_settings&.website.present? %>
+            &nbsp; <span class="highlight">Website:</span> <%= @business_settings.website %>
           <% end %>
         </div>
       </div>
@@ -935,6 +940,18 @@
           <div class="tax-line">
             <span>IGST</span>
             <span>₹<%= number_with_delimiter(total_igst.round(2), delimiter: ',') %></span>
+          </div>
+        <% end %>
+        <% if delivery_charge > 0 %>
+          <div class="tax-line">
+            <span>DELIVERY CHARGES</span>
+            <span>₹<%= number_with_delimiter(delivery_charge.round(2), delimiter: ',') %></span>
+          </div>
+        <% end %>
+        <% if discount_amount > 0 %>
+          <div class="tax-line">
+            <span>DISCOUNT</span>
+            <span>- ₹<%= number_with_delimiter(discount_amount.round(2), delimiter: ',') %></span>
           </div>
         <% end %>
         <div class="tax-total">

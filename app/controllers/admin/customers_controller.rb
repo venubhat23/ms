@@ -731,40 +731,55 @@ class Admin::CustomersController < Admin::ApplicationController
   end
 
   # POST /admin/customers/:id/generate_password
+  # Supports either an auto-generated password (default) or an admin-supplied
+  # custom password via params[:password_mode] == 'custom'.
   def generate_password
     begin
-      ActiveRecord::Base.transaction do
-        generated_password = Customer.generate_random_password
+      if params[:password_mode] == 'custom'
+        new_password = params[:custom_password].to_s
+        confirmation = params[:custom_password_confirmation].to_s
 
+        if new_password.length < 6
+          redirect_to admin_customer_path(@customer), alert: 'Password must be at least 6 characters long.' and return
+        end
+
+        if new_password != confirmation
+          redirect_to admin_customer_path(@customer), alert: 'Password and confirmation do not match.' and return
+        end
+      else
+        new_password = Customer.generate_random_password
+      end
+
+      ActiveRecord::Base.transaction do
         # Update customer password — sets password_digest via has_secure_password
         # so authenticate() works with the new password regardless of prior state
-        @customer.password              = generated_password
-        @customer.password_confirmation = generated_password
-        @customer.auto_generated_password = generated_password
+        @customer.password              = new_password
+        @customer.password_confirmation = new_password
+        @customer.auto_generated_password = new_password
         @customer.save!
 
         # Sync to User (Devise) record if one exists, so both auth paths work
         user = User.find_by(email: @customer.email, user_type: 'customer')
         if user
           user.update!(
-            password: generated_password,
-            password_confirmation: generated_password
+            password: new_password,
+            password_confirmation: new_password
           )
-          message = "New password generated and updated."
+          message = "Password reset and updated."
         else
-          message = "New password generated."
+          message = "Password reset."
         end
 
         respond_to do |format|
           format.html {
             redirect_to admin_customer_path(@customer),
-            notice: "#{message} Password: #{generated_password}"
+            notice: "#{message} Password: #{new_password}"
           }
           format.json {
             render json: {
               success: true,
               message: message,
-              password: generated_password
+              password: new_password
             }
           }
         end
@@ -773,12 +788,12 @@ class Admin::CustomersController < Admin::ApplicationController
       respond_to do |format|
         format.html {
           redirect_to admin_customer_path(@customer),
-          alert: "Failed to generate password: #{e.message}"
+          alert: "Failed to reset password: #{e.message}"
         }
         format.json {
           render json: {
             success: false,
-            message: "Failed to generate password: #{e.message}"
+            message: "Failed to reset password: #{e.message}"
           }
         }
       end
@@ -851,7 +866,7 @@ class Admin::CustomersController < Admin::ApplicationController
       :birth_date, :gender, :marital_status, :pan_no, :gst_no,
       :company_name, :occupation, :annual_income,
       :emergency_contact_name, :emergency_contact_number, :blood_group,
-      :nationality, :preferred_language, :notes, :address, :status,
+      :nationality, :preferred_language, :notes, :address, :location_link, :status,
       :personal_image, :house_image, profile_image: []
     )
   end

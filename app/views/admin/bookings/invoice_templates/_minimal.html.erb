@@ -42,9 +42,9 @@
 
   <div class="top">
     <div>
-      <img src="/logo.jpeg" style="width:50px;height:50px;border-radius:50%;margin-bottom:8px;float:left;margin-right:12px;border:1px solid #e5e5e5;" alt="Logo"/>
+      <img src="<%= business_settings.logo_display_url %>" style="width:50px;height:50px;border-radius:50%;margin-bottom:8px;float:left;margin-right:12px;border:1px solid #e5e5e5;" alt="Logo"/>
       <div class="co-name"><%= business_settings.business_name || 'Marali Santhe' %></div>
-      <div class="co-sub"><%= business_settings.address %><br/><%= business_settings.mobile %> &nbsp;|&nbsp; <%= business_settings.email %><br/>GSTIN: <%= business_settings.gstin %> &nbsp;|&nbsp; PAN: <%= business_settings.pan_number %></div>
+      <div class="co-sub"><%= business_settings.address %><br/><%= business_settings.mobile %> &nbsp;|&nbsp; <%= business_settings.email %><br/>GSTIN: <%= business_settings.gstin %> &nbsp;|&nbsp; PAN: <%= business_settings.pan_number %><% if business_settings.website.present? %> &nbsp;|&nbsp; <%= business_settings.website %><% end %></div>
     </div>
     <div class="inv-block">
       <div class="inv-type"><%= has_gst ? 'Tax Invoice' : 'Bill of Supply' %></div>
@@ -125,6 +125,9 @@
       <% end %>
       <% if delivery_charge.to_f > 0 %>
         <div class="t-row"><span>Delivery Charge</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', delivery_charge), delimiter: ',') %></span></div>
+      <% end %>
+      <% if discount_amount.to_f > 0 %>
+        <div class="t-row"><span>Discount</span><span>- ₹ <%= number_with_delimiter(sprintf('%.2f', discount_amount), delimiter: ',') %></span></div>
       <% end %>
       <div class="t-row grand"><span>Total</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
       <div class="words"><%= amount_in_words(final_total) %> Rupees Only</div>

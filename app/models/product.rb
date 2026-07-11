@@ -133,7 +133,10 @@ class Product < ApplicationRecord
       .having('COALESCE(SUM(CASE WHEN stock_batches.status = ? THEN stock_batches.quantity_remaining ELSE 0 END), 0) = 0', 'active')
   }
   scope :by_category, ->(category_id) { where(category_id: category_id) }
-  scope :search, ->(query) { where('name ILIKE ?', "%#{query}%") }
+  scope :search, ->(query) {
+    words = query.to_s.strip.split(/\s+/)
+    words.inject(all) { |relation, word| relation.where('name ILIKE :q OR sku ILIKE :q', q: "%#{word}%") }
+  }
   scope :recent, -> { order(created_at: :desc) }
   scope :by_stock_availability, -> { order(Arel.sql("CASE WHEN stock > 0 THEN 0 ELSE 1 END ASC, display_order ASC NULLS LAST, name ASC")) }
   scope :occasional, -> { where(is_occasional_product: true) }
@@ -927,6 +930,70 @@ class Product < ApplicationRecord
     current_urls = r2_additional_images_array
     current_urls << r2_url
     self.r2_additional_images = current_urls.to_json
+  end
+
+  # Unified image list across R2, Cloudinary and Active Storage, for admin
+  # image management. Each entry has a stable `id` usable with
+  # remove_gallery_image!.
+  def image_gallery
+    gallery = []
+
+    if r2_image_url.present?
+      gallery << { id: 'r2_main', role: 'main', source: 'R2', url: r2_image_url }
+    end
+    r2_additional_images_array.each_with_index do |url, index|
+      gallery << { id: "r2_additional_#{index}", role: 'additional', source: 'R2', url: url }
+    end
+
+    if image_url.present?
+      gallery << { id: 'cloudinary_main', role: 'main', source: 'Cloudinary', url: cloudinary_image_url }
+    end
+    additional_cloudinary_images.each_with_index do |_public_id, index|
+      gallery << { id: "cloudinary_additional_#{index}", role: 'additional', source: 'Cloudinary', url: cloudinary_additional_image_url(index) }
+    end
+
+    if image.attached?
+      gallery << { id: 'active_storage_main', role: 'main', source: 'Local Storage', url: Rails.application.routes.url_helpers.rails_blob_path(image, only_path: true) }
+    end
+    additional_images.each do |img|
+      gallery << { id: "active_storage_additional_#{img.id}", role: 'additional', source: 'Local Storage', url: Rails.application.routes.url_helpers.rails_blob_path(img, only_path: true) }
+    end
+
+    gallery
+  end
+
+  # Removes a single image identified by the `id` from image_gallery.
+  # Returns the removed R2 url (if any) so the caller can also purge it
+  # from R2 storage itself.
+  def remove_gallery_image!(gallery_id)
+    case gallery_id
+    when 'r2_main'
+      removed_url = r2_image_url
+      update!(r2_image_url: nil)
+      removed_url
+    when /\Ar2_additional_(\d+)\z/
+      index = Regexp.last_match(1).to_i
+      urls = r2_additional_images_array
+      removed_url = urls.delete_at(index)
+      update!(r2_additional_images: urls.to_json)
+      removed_url
+    when 'cloudinary_main'
+      update!(image_url: nil)
+      nil
+    when /\Acloudinary_additional_(\d+)\z/
+      index = Regexp.last_match(1).to_i
+      urls = additional_cloudinary_images
+      urls.delete_at(index)
+      update!(additional_images_urls: urls.to_json)
+      nil
+    when 'active_storage_main'
+      image.purge if image.attached?
+      nil
+    when /\Aactive_storage_additional_(\d+)\z/
+      blob_id = Regexp.last_match(1).to_i
+      additional_images.where(id: blob_id).first&.purge
+      nil
+    end
   end
 
   def formatted_price

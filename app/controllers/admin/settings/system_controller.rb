@@ -122,7 +122,9 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
           ifsc_code: params[:ifsc_code],
           upi_id: params[:upi_id],
           terms_and_conditions: params[:terms_and_conditions],
-          invoice_template: params[:invoice_template]
+          invoice_template: params[:invoice_template],
+          website: params[:website],
+          logo_url: params[:logo_url]
         }
 
         @business_setting = SystemSetting.update_business_settings(business_params)
@@ -211,6 +213,33 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       redirect_to admin_settings_system_path, notice: success_messages.join(' ')
     else
       redirect_to admin_settings_system_path, alert: 'Please enter valid values to update.'
+    end
+  end
+
+  # POST /admin/settings/system/upload_logo
+  def upload_logo
+    respond_to do |format|
+      if params[:logo].present?
+        begin
+          result = R2Service.upload(params[:logo], folder: 'business_logo')
+
+          if result[:error]
+            format.json { render json: { error: result[:error] }, status: :unprocessable_entity }
+          else
+            format.json { render json: {
+              key: result[:key],
+              filename: result[:filename],
+              public_url: result[:public_url],
+              size: result[:size]
+            } }
+          end
+        rescue => e
+          Rails.logger.error "Logo R2 upload exception: #{e.message}"
+          format.json { render json: { error: "Upload failed: #{e.message}" }, status: :internal_server_error }
+        end
+      else
+        format.json { render json: { error: "No logo file provided" }, status: :bad_request }
+      end
     end
   end
 
@@ -311,12 +340,20 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       standalone: true
     )
 
-    # Save to storage
-    qr_code_path = Rails.root.join('public', 'qr_codes')
-    FileUtils.mkdir_p(qr_code_path) unless Dir.exist?(qr_code_path)
+    # Upload to R2 rather than local disk — Render's filesystem is ephemeral
+    # and wipes public/qr_codes on every deploy/restart.
+    result = R2Service.upload_content(
+      svg,
+      filename: "upi_qr_#{@business_setting.id}.svg",
+      content_type: 'image/svg+xml',
+      folder: 'qr_codes'
+    )
 
-    File.write(Rails.root.join('public', 'qr_codes', "upi_qr_#{@business_setting.id}.svg"), svg)
+    if result[:error]
+      Rails.logger.error "UPI QR R2 upload failed: #{result[:error]}"
+      return
+    end
 
-    @business_setting.update(qr_code_path: "/qr_codes/upi_qr_#{@business_setting.id}.svg")
+    @business_setting.update(qr_code_path: result[:public_url])
   end
 end

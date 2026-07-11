@@ -11,11 +11,11 @@
     </p>
   </div>
   <div class="d-flex gap-2">
-    <%= link_to admin_booking_path(@booking), class: "btn btn-outline-info" do %>
+    <%= link_to admin_booking_path(@booking, list_state: @list_state), class: "btn btn-outline-info" do %>
       <i class="bi bi-eye me-1"></i>
       View Details
     <% end %>
-    <%= link_to admin_bookings_path, class: "btn btn-outline-secondary" do %>
+    <%= link_to admin_bookings_path(@list_state), class: "btn btn-outline-secondary" do %>
       <i class="bi bi-arrow-left me-1"></i>
       Back to Bookings
     <% end %>
@@ -24,6 +24,9 @@
 
 <!-- Main Form -->
 <%= form_with model: [:admin, @booking], local: true do |f| %>
+  <% (@list_state || {}).each do |key, value| %>
+    <%= hidden_field_tag "list_state[#{key}]", value %>
+  <% end %>
   <% if @booking.errors.any? %>
     <div class="alert alert-danger border-0 shadow-sm mb-4">
       <div class="d-flex align-items-center">
@@ -69,8 +72,8 @@
             </div>
 
             <div class="col-12">
-              <label class="form-label">Delivery Address <span class="text-danger">*</span></label>
-              <%= f.text_area :delivery_address, class: 'form-control', rows: 3, placeholder: 'Enter complete delivery address', required: true %>
+              <label class="form-label">Delivery Address</label>
+              <%= f.text_area :delivery_address, class: 'form-control', rows: 3, placeholder: 'Enter complete delivery address' %>
             </div>
           </div>
         </div>
@@ -93,10 +96,30 @@
                     <div class="row g-3 align-items-center">
                       <div class="col-md-5">
                         <label class="form-label small">Product</label>
-                        <%= item_form.select :product_id,
-                            options_for_select(@products.map { |p| ["#{p.name} - ₹#{p.price}", p.id] }, item.product_id),
-                            { prompt: 'Select Product' },
-                            { class: 'form-select', onchange: 'updateItemPrice(this)', data: { index: index } } %>
+                        <%= item_form.hidden_field :product_id, data: { index: index } %>
+                        <%= item_form.hidden_field :product_variant_id, data: { index: index } %>
+                        <select class="form-select" onchange="updateItemPrice(this)" data-index="<%= index %>">
+                          <option value="">Select Product</option>
+                          <% @products.each do |product| %>
+                            <% if product.product_variants.any? %>
+                              <optgroup label="<%= product.name %>">
+                                <% product.product_variants.default_first.each do |v| %>
+                                  <option value="<%= product.id %>|<%= v.id %>"
+                                          data-price="<%= v.effective_price %>"
+                                          <%= 'selected' if item.product_id == product.id && item.product_variant_id == v.id %>>
+                                    <%= product.name %> - <%= v.label %> — ₹<%= number_with_delimiter(v.effective_price) %>
+                                  </option>
+                                <% end %>
+                              </optgroup>
+                            <% else %>
+                              <option value="<%= product.id %>|"
+                                      data-price="<%= product.price %>"
+                                      <%= 'selected' if item.product_id == product.id && item.product_variant_id.nil? %>>
+                                <%= product.name %> - ₹<%= number_with_delimiter(product.price) %>
+                              </option>
+                            <% end %>
+                          <% end %>
+                        </select>
                       </div>
 
                       <div class="col-md-2">
@@ -112,7 +135,7 @@
                       <div class="col-md-2">
                         <label class="form-label small">Total</label>
                         <div class="form-control bg-light" id="item-total-<%= index %>">
-                          ₹<%= number_with_delimiter((item.quantity * item.price).to_f) %>
+                          ₹<%= number_with_delimiter(((item.quantity || 0) * (item.price || 0)).to_f) %>
                         </div>
                       </div>
 
@@ -141,12 +164,24 @@
               <div class="row g-3 align-items-center">
                 <div class="col-md-5">
                   <label class="form-label small">Product</label>
-                  <select class="form-select" name="booking[booking_items_attributes][INDEX][product_id]" onchange="updateItemPrice(this)">
+                  <input type="hidden" name="booking[booking_items_attributes][INDEX][product_id]">
+                  <input type="hidden" name="booking[booking_items_attributes][INDEX][product_variant_id]">
+                  <select class="form-select" onchange="updateItemPrice(this)">
                     <option value="">Select Product</option>
                     <% @products.each do |product| %>
-                      <option value="<%= product.id %>" data-price="<%= product.price %>">
-                        <%= product.name %> - ₹<%= number_with_delimiter(product.price) %>
-                      </option>
+                      <% if product.product_variants.any? %>
+                        <optgroup label="<%= product.name %>">
+                          <% product.product_variants.default_first.each do |v| %>
+                            <option value="<%= product.id %>|<%= v.id %>" data-price="<%= v.effective_price %>">
+                              <%= product.name %> - <%= v.label %> — ₹<%= number_with_delimiter(v.effective_price) %>
+                            </option>
+                          <% end %>
+                        </optgroup>
+                      <% else %>
+                        <option value="<%= product.id %>|" data-price="<%= product.price %>">
+                          <%= product.name %> - ₹<%= number_with_delimiter(product.price) %>
+                        </option>
+                      <% end %>
                     <% end %>
                   </select>
                 </div>
@@ -334,9 +369,17 @@
 
           <div class="col-12 mb-2">
             <div class="d-flex justify-content-between align-items-center mb-1">
-              <label class="form-label mb-0 text-muted">Discount Amount</label>
+              <label class="form-label mb-0 text-muted">Discount</label>
             </div>
-            <%= f.number_field :discount_amount, class: 'form-control form-control-sm', step: '0.01', onchange: 'calculateTotals()' %>
+            <div class="d-flex align-items-center gap-2">
+              <div class="btn-group btn-group-sm" role="group" aria-label="Discount type">
+                <button type="button" class="btn btn-outline-secondary active" id="discountTypeAmountBtn" onclick="setDiscountType('amount')">₹</button>
+                <button type="button" class="btn btn-outline-secondary" id="discountTypePercentBtn" onclick="setDiscountType('percent')">%</button>
+              </div>
+              <input type="number" id="discountInput" value="<%= @booking.discount_amount.to_f %>" min="0" max="999999" step="0.01" class="form-control form-control-sm" onchange="calculateTotals()" oninput="calculateTotals()">
+            </div>
+            <small class="text-muted d-none" id="discountAmountPreview">= ₹0.00 off</small>
+            <%= f.hidden_field :discount_amount, id: 'discountHiddenField' %>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
@@ -382,7 +425,7 @@
           <div class="d-grid gap-2">
             <%= f.submit 'Update Booking', class: 'btn btn-primary' %>
 
-            <%= link_to admin_booking_path(@booking), class: 'btn btn-outline-secondary' do %>
+            <%= link_to admin_booking_path(@booking, list_state: @list_state), class: 'btn btn-outline-secondary' do %>
               <i class="bi bi-x-lg me-1"></i>Cancel
             <% end %>
 
@@ -415,6 +458,22 @@ const productData = {
     <%= p.id %>: { price: <%= p.price.to_f %>, gstEnabled: <%= p.gst_enabled ? 'true' : 'false' %>, gstRate: <%= p.gst_percentage.to_f %> },
   <% end %>
 };
+
+let discountType = 'amount'; // 'amount' or 'percent'
+
+// Toggle discount entry between a flat rupee amount and a percentage
+function setDiscountType(type) {
+  discountType = type;
+  document.getElementById('discountTypeAmountBtn').classList.toggle('active', type === 'amount');
+  document.getElementById('discountTypePercentBtn').classList.toggle('active', type === 'percent');
+
+  const discountInput = document.getElementById('discountInput');
+  if (discountInput) {
+    discountInput.max = type === 'percent' ? 100 : 999999;
+  }
+
+  calculateTotals();
+}
 
 // Add new booking item
 function addBookingItem() {
@@ -454,15 +513,21 @@ function removeNewBookingItem(button) {
   }
 }
 
-// Update item price when product is selected
+// Update item price when product (or variant) is selected
 function updateItemPrice(select) {
-  const productId = parseInt(select.value);
-  const product = productData[productId];
+  const selectedOption = select.options[select.selectedIndex];
+  const price = selectedOption.getAttribute('data-price');
+  const [productId, variantId] = (select.value || '').split('|');
   const row = select.closest('.booking-item-row');
   const priceInput = row.querySelector('input[name*="[price]"]');
+  const productIdInput = row.querySelector('input[name*="[product_id]"]');
+  const variantIdInput = row.querySelector('input[name*="[product_variant_id]"]');
 
-  if (product && priceInput) {
-    priceInput.value = product.price;
+  if (productIdInput) productIdInput.value = productId || '';
+  if (variantIdInput) variantIdInput.value = variantId || '';
+
+  if (price && priceInput) {
+    priceInput.value = price;
     calculateItemTotal(priceInput);
   }
 }
@@ -490,14 +555,14 @@ function calculateTotals() {
   let taxAmount = 0;
 
   document.querySelectorAll('.booking-item-row:not([style*="display: none"])').forEach(row => {
-    const productSelect = row.querySelector('select[name*="[product_id]"]');
+    const productIdInput = row.querySelector('input[name*="[product_id]"]');
     const quantityInput = row.querySelector('input[name*="[quantity]"]');
     const priceInput = row.querySelector('input[name*="[price]"]');
 
     if (quantityInput && priceInput) {
       const quantity = parseFloat(quantityInput.value) || 0;
       const price = parseFloat(priceInput.value) || 0;
-      const productId = productSelect ? parseInt(productSelect.value) : null;
+      const productId = productIdInput && productIdInput.value ? parseInt(productIdInput.value) : null;
       const product = productId ? productData[productId] : null;
 
       if (product && product.gstEnabled && product.gstRate > 0) {
@@ -512,12 +577,35 @@ function calculateTotals() {
     }
   });
 
-  const discountAmount = parseFloat(document.querySelector('input[name="booking[discount_amount]"]').value) || 0;
-  const totalAmount = subtotal + taxAmount - discountAmount;
+  const discountInputEl = document.getElementById('discountInput');
+  let discountInputValue = parseFloat(discountInputEl?.value) || 0;
+  if (discountInputValue < 0) discountInputValue = 0;
+
+  const discountBase = subtotal + taxAmount;
+  let discountAmount = 0;
+  const discountPreview = document.getElementById('discountAmountPreview');
+
+  if (discountType === 'percent') {
+    if (discountInputValue > 100) {
+      discountInputValue = 100;
+      discountInputEl.value = discountInputValue;
+    }
+    discountAmount = discountBase * discountInputValue / 100;
+    if (discountPreview) {
+      discountPreview.textContent = `= ₹${discountAmount.toFixed(2)} off`;
+      discountPreview.classList.remove('d-none');
+    }
+  } else {
+    discountAmount = discountInputValue > discountBase ? discountBase : discountInputValue;
+    if (discountPreview) discountPreview.classList.add('d-none');
+  }
+
+  const totalAmount = discountBase - discountAmount;
 
   // Update hidden fields for form submission
   document.querySelector('input[name="booking[subtotal]"]').value = subtotal.toFixed(2);
   document.querySelector('input[name="booking[tax_amount]"]').value = taxAmount.toFixed(2);
+  document.getElementById('discountHiddenField').value = discountAmount.toFixed(2);
   document.querySelector('input[name="booking[total_amount]"]').value = totalAmount.toFixed(2);
 
   // Update display
@@ -565,9 +653,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set initial payment method
   const currentPaymentMethod = '<%= @booking.payment_method %>';
   selectPaymentMethod(currentPaymentMethod);
-
-  // Add change listener to discount amount
-  document.querySelector('input[name="booking[discount_amount]"]').addEventListener('input', calculateTotals);
 
   // Add listeners to existing item inputs
   document.querySelectorAll('input[name*="[quantity]"], input[name*="[price]"]').forEach(input => {

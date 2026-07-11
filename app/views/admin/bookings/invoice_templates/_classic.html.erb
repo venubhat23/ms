@@ -47,7 +47,7 @@
   <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
     <tr>
       <td style="width:120px;padding-right:12px;vertical-align:top;">
-        <img class="logo" src="/logo.jpeg" alt="Logo" />
+        <img class="logo" src="<%= business_settings.logo_display_url %>" alt="Logo" />
       </td>
       <td style="vertical-align:top;">
         <div class="co-name"><%= business_settings.business_name || 'Marali Santhe' %></div>
@@ -57,6 +57,9 @@
           <strong>GSTIN:</strong> <%= business_settings.gstin %> &nbsp;
           <strong>PAN:</strong> <%= business_settings.pan_number %><br/>
           <strong>Email:</strong> <%= business_settings.email %>
+          <% if business_settings.website.present? %>
+            &nbsp; <strong>Website:</strong> <%= business_settings.website %>
+          <% end %>
         </div>
       </td>
     </tr>
@@ -174,6 +177,9 @@
           <% end %>
           <% if delivery_charge.to_f > 0 %>
             <div class="tax-line"><span class="tl-lbl">Delivery Charge</span><span class="tl-amt">₹ <%= number_with_delimiter(delivery_charge.round(2), delimiter: ',') %></span></div>
+          <% end %>
+          <% if discount_amount.to_f > 0 %>
+            <div class="tax-line"><span class="tl-lbl">Discount</span><span class="tl-amt">- ₹ <%= number_with_delimiter(discount_amount.round(2), delimiter: ',') %></span></div>
           <% end %>
           <div class="tax-total">
             <div class="tax-line"><span class="tl-lbl">TOTAL AMOUNT</span><span class="tl-amt">₹ <%= number_with_delimiter(final_total.round(2), delimiter: ',') %></span></div>

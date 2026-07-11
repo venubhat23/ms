@@ -46,12 +46,15 @@
     <table style="width:100%;border-collapse:collapse;">
       <tr>
         <td style="vertical-align:middle;width:70px;">
-          <img src="/logo.jpeg" style="width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,0.6);" alt="Logo"/>
+          <img src="<%= business_settings.logo_display_url %>" style="width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,0.6);" alt="Logo"/>
         </td>
         <td style="padding-left:14px;vertical-align:top;">
           <div class="hdr-co"><%= business_settings.business_name || 'Marali Santhe' %></div>
           <div class="hdr-addr"><%= business_settings.address %></div>
           <div class="hdr-addr">GSTIN: <%= business_settings.gstin %> &nbsp;|&nbsp; PAN: <%= business_settings.pan_number %></div>
+          <% if business_settings.website.present? %>
+            <div class="hdr-addr">Website: <%= business_settings.website %></div>
+          <% end %>
         </td>
         <td style="vertical-align:middle;">
           <div class="hdr-badge">
@@ -135,6 +138,9 @@
         <% end %>
         <% if delivery_charge.to_f > 0 %>
           <div class="t-row"><span>Delivery Charge</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', delivery_charge), delimiter: ',') %></span></div>
+        <% end %>
+        <% if discount_amount.to_f > 0 %>
+          <div class="t-row"><span>Discount</span><span>- ₹ <%= number_with_delimiter(sprintf('%.2f', discount_amount), delimiter: ',') %></span></div>
         <% end %>
         <div class="t-row grand"><span>TOTAL</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
         <div style="padding:6px 12px;font-size:10px;color:#666;font-style:italic;"><%= amount_in_words(final_total) %> Rupees Only</div>

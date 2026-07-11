@@ -22,6 +22,13 @@ Rails.application.routes.draw do
     end
     resources :stock_transfers, only: [:index, :new, :create]
     resources :customers, only: [:index, :new, :create, :show]
+    resources :staff_members do
+      member do
+        patch :toggle_status
+      end
+    end
+    resources :staff_attendances, only: [:create, :destroy]
+    resources :staff_payments, only: [:create, :destroy]
   end
 
   # Vendor invoice public view
@@ -358,8 +365,24 @@ Rails.application.routes.draw do
         patch :approve_group
         patch :reject_group
         patch :bulk_approve
+        patch :bulk_reject
+        get :bulk_progress
+        get :show_group
       end
     end
+
+    # Staff Payout Management
+    resources :staff_members do
+      member do
+        patch :toggle_status
+      end
+    end
+    resources :staff_attendances, only: [:create, :destroy] do
+      collection do
+        post :bulk_create
+      end
+    end
+    resources :staff_payments, only: [:create, :destroy]
 
     # Customer Format Management
     resources :customer_formats do
@@ -692,6 +715,10 @@ Rails.application.routes.draw do
         patch :toggle_status
         post :bulk_action
         get :detail
+        get :manage_images
+        post :upload_main_image
+        post :upload_additional_image
+        delete :destroy_gallery_image
       end
       collection do
         get :search
@@ -789,6 +816,7 @@ Rails.application.routes.draw do
       patch :system, to: 'system#update'
       put :system, to: 'system#update'
       get :preview_invoice_template, to: 'system#preview_invoice_template'
+      post 'system/upload_logo', to: 'system#upload_logo', as: :system_upload_logo
     end
 
     # Mobile UI — lightweight mobile admin portal for phones

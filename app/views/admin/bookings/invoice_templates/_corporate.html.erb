@@ -46,7 +46,7 @@
   <div class="hdr">
     <div class="hdr-top">
       <div>
-        <img src="/logo.jpeg" style="width:55px;height:55px;border-radius:50%;border:2px solid #c8a951;float:left;margin-right:14px;" alt="Logo"/>
+        <img src="<%= business_settings.logo_display_url %>" style="width:55px;height:55px;border-radius:50%;border:2px solid #c8a951;float:left;margin-right:14px;" alt="Logo"/>
         <div class="hdr-co"><%= business_settings.business_name || 'Marali Santhe' %></div>
         <div class="hdr-tagline">Quality &bull; Trust &bull; Excellence</div>
       </div>
@@ -55,7 +55,7 @@
         <div class="inv-num">#<%= booking.invoice_number || booking.booking_number %></div>
       </div>
     </div>
-    <div class="hdr-addr"><%= business_settings.address %> | GSTIN: <%= business_settings.gstin %> | PAN: <%= business_settings.pan_number %> | <%= business_settings.mobile %></div>
+    <div class="hdr-addr"><%= business_settings.address %> | GSTIN: <%= business_settings.gstin %> | PAN: <%= business_settings.pan_number %> | <%= business_settings.mobile %><%= " | #{business_settings.website}" if business_settings.website.present? %></div>
   </div>
 
   <div class="gold-bar"></div>
@@ -138,6 +138,9 @@
         <% end %>
         <% if delivery_charge.to_f > 0 %>
           <div class="t-row"><span>Delivery Charge</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', delivery_charge), delimiter: ',') %></span></div>
+        <% end %>
+        <% if discount_amount.to_f > 0 %>
+          <div class="t-row"><span>Discount</span><span>- ₹ <%= number_with_delimiter(sprintf('%.2f', discount_amount), delimiter: ',') %></span></div>
         <% end %>
         <div class="t-row grand"><span>TOTAL</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
         <div class="gold">Amount Received: ₹ <%= booking.payment_status_paid? ? number_with_delimiter(final_total.round(2), delimiter: ',') : '0.00' %></div>

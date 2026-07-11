@@ -196,6 +196,7 @@ class Admin::BookingsController < Admin::ApplicationController
                        .select(:id, :name, :price, :gst_enabled, :gst_percentage,
                                :cgst_percentage, :sgst_percentage, :igst_percentage,
                                :unit_type, :hsn_code)
+                       .includes(:product_variants)
                        .order(:name)
   end
 
@@ -207,6 +208,7 @@ class Admin::BookingsController < Admin::ApplicationController
                          .select(:id, :name, :price, :gst_enabled, :gst_percentage,
                                  :cgst_percentage, :sgst_percentage, :igst_percentage,
                                  :unit_type, :hsn_code)
+                         .includes(:product_variants)
                          .order(:name)
       render :edit, status: :unprocessable_entity
       return
@@ -219,6 +221,7 @@ class Admin::BookingsController < Admin::ApplicationController
                          .select(:id, :name, :price, :gst_enabled, :gst_percentage,
                                  :cgst_percentage, :sgst_percentage, :igst_percentage,
                                  :unit_type, :hsn_code)
+                         .includes(:product_variants)
                          .order(:name)
       render :edit
     end

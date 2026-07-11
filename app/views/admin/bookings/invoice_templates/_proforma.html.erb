@@ -30,7 +30,7 @@
       <!-- Left: company info -->
       <td style="width:52%;border-right:1px solid #000;padding:8px 10px;vertical-align:top;">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
-          <img src="/logo.jpeg" style="width:48px;height:48px;border-radius:3px;border:1px solid #ddd;" alt="Logo"/>
+          <img src="<%= business_settings.logo_display_url %>" style="width:48px;height:48px;border-radius:3px;border:1px solid #ddd;" alt="Logo"/>
           <div>
             <div class="co-name"><%= business_settings.business_name || 'Marali Santhe' %></div>
             <div style="font-size:10px;line-height:1.5;color:#333;white-space:pre-line;"><%= business_settings.address %></div>
@@ -42,6 +42,9 @@
           <strong>State:</strong> Karnataka, Code: 29<br/>
           <strong>E-Mail:</strong> <%= business_settings.email %><br/>
           <strong>Mobile:</strong> <%= business_settings.mobile %>
+          <% if business_settings.website.present? %>
+            <br/><strong>Website:</strong> <%= business_settings.website %>
+          <% end %>
         </div>
       </td>
       <!-- Right: two-column metadata grid -->
@@ -188,6 +191,12 @@
       <tr>
         <td colspan="5" style="border:1px solid #000;padding:5px 8px;text-align:right;font-style:italic;font-size:11px;">Delivery Charge</td>
         <td colspan="2" style="border:1px solid #000;padding:5px 8px;text-align:right;">&#8377; <%= number_with_delimiter(sprintf('%.3f', delivery_charge), delimiter: ',') %></td>
+      </tr>
+      <% end %>
+      <% if discount_amount.to_f > 0 %>
+      <tr>
+        <td colspan="5" style="border:1px solid #000;padding:5px 8px;text-align:right;font-style:italic;font-size:11px;">Discount</td>
+        <td colspan="2" style="border:1px solid #000;padding:5px 8px;text-align:right;">- &#8377; <%= number_with_delimiter(sprintf('%.3f', discount_amount), delimiter: ',') %></td>
       </tr>
       <% end %>
       <!-- Grand Total row -->

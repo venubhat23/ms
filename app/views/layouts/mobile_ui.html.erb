@@ -157,9 +157,10 @@
     <%
       _tab    = params[:tab].to_s
       _action = action_name.to_s
-      _on_dashboard = _action == 'dashboard'
-      _on_today     = _action == 'index' && _tab == 'today'
-      _on_bookings  = _action == 'index' && _tab != 'today'
+      _on_dashboard  = _action == 'dashboard'
+      _on_today      = _action == 'index' && _tab == 'today'
+      _on_bookings   = _action == 'index' && _tab != 'today'
+      _on_price_list = _action == 'price_list'
     %>
     <nav class="mobile-bottom-nav">
       <%= link_to admin_mobile_ui_dashboard_path,
@@ -176,6 +177,11 @@
             class: "bn-item #{_on_today ? 'active' : ''}" do %>
         <i class="bi bi-calendar-day"></i>
         <span>Today</span>
+      <% end %>
+      <%= link_to admin_mobile_ui_price_list_path,
+            class: "bn-item #{_on_price_list ? 'active' : ''}" do %>
+        <i class="bi bi-tags"></i>
+        <span>Prices</span>
       <% end %>
       <%= link_to admin_mobile_ui_new_booking_path, class: "bn-item bn-new" do %>
         <i class="bi bi-plus-circle-fill"></i>

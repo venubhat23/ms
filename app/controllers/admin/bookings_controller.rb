@@ -13,7 +13,10 @@ class Admin::BookingsController < Admin::ApplicationController
 
     # Paginated listing with eager-loaded associations
     # user: :franchise avoids N+1 when booking.user.franchise.name is rendered
-    listing_includes = [:customer, { user: :franchise }, :booking_items, :store, :booking_invoices]
+    # booking_items is intentionally excluded: the view only calls booking.booking_items.size
+    # (item count), which reads the booking_items_count counter cache instead of
+    # preloading every item row for every booking on the page.
+    listing_includes = [:customer, { user: :franchise }, :store, :booking_invoices]
     listing_includes << :franchise unless current_user.franchise?
 
     @bookings = base_scope.recent.includes(*listing_includes)
@@ -483,8 +486,9 @@ class Admin::BookingsController < Admin::ApplicationController
       last_updated: Time.current.strftime('%I:%M:%S %p')
     }
 
-    # Get recent bookings (last 5) — .size uses preloaded association, avoids N+1
-    recent_bookings = Booking.recent.limit(5).includes(:customer, :booking_items).map do |booking|
+    # Get recent bookings (last 5) — booking_items_count counter cache avoids
+    # preloading every item row (or a per-row COUNT) just to display a number
+    recent_bookings = Booking.recent.limit(5).includes(:customer).map do |booking|
       {
         id: booking.id,
         booking_number: booking.booking_number,
@@ -494,7 +498,7 @@ class Admin::BookingsController < Admin::ApplicationController
         status_icon: booking.status_icon,
         total_amount: booking.total_amount,
         created_at: booking.created_at.strftime('%d %b %Y %I:%M %p'),
-        items_count: booking.booking_items.size
+        items_count: booking.booking_items_count
       }
     end
 

@@ -828,7 +828,12 @@ Rails.application.routes.draw do
     post 'mobile-ui/create-booking',   to: 'mobile_ui#create_booking',  as: 'mobile_ui_create_booking'
     get  'mobile-ui/new-customer',     to: 'mobile_ui#new_customer',    as: 'mobile_ui_new_customer'
     post 'mobile-ui/create-customer',  to: 'mobile_ui#create_customer', as: 'mobile_ui_create_customer'
+    get  'mobile-ui/check-mobile',     to: 'mobile_ui#check_mobile',    as: 'mobile_ui_check_mobile'
+    get  'mobile-ui/search-by-name',   to: 'mobile_ui#search_by_name',  as: 'mobile_ui_search_by_name'
     get  'mobile-ui/dashboard',        to: 'mobile_ui#dashboard',       as: 'mobile_ui_dashboard'
+    get  'mobile-ui/invoice/:id',      to: 'mobile_ui#show_invoice',    as: 'mobile_ui_show_invoice'
+    get  'mobile-ui/invoice/:id/edit', to: 'mobile_ui#edit_invoice',    as: 'mobile_ui_edit_invoice'
+    get  'mobile-ui/price-list',       to: 'mobile_ui#price_list',      as: 'mobile_ui_price_list'
 
     # Pricing overview
     get 'pricing', to: 'pricing#index', as: :pricing

@@ -167,10 +167,16 @@ class Product < ApplicationRecord
   end
 
   def default_variant
+    sorted_variants.first
+  end
+
+  # Same ordering as the default_first scope, served from a preloaded
+  # association when available to avoid a query per product in list views.
+  def sorted_variants
     if product_variants.loaded?
-      product_variants.sort_by { |v| [v.is_default ? 0 : 1, v.weight.to_f] }.first
+      product_variants.sort_by { |v| [v.is_default? ? 0 : 1, v.weight.to_f] }
     else
-      product_variants.default_first.first
+      product_variants.default_first.to_a
     end
   end
 

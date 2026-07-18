@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_04_120003) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -125,6 +125,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_120003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "product_variant_id"
+    t.index ["booking_id"], name: "index_booking_items_on_booking_id"
     t.index ["product_variant_id"], name: "index_booking_items_on_product_variant_id"
   end
 
@@ -221,21 +222,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_120003) do
     t.datetime "payment_completed_at"
     t.boolean "is_b2b", default: false, null: false
     t.bigint "affiliate_id"
+    t.integer "booking_items_count", default: 0, null: false
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_schedule_id"], name: "index_bookings_on_booking_schedule_id"
     t.index ["cashfree_order_id"], name: "index_bookings_on_cashfree_order_id"
     t.index ["cashfree_payment_id"], name: "index_bookings_on_cashfree_payment_id"
     t.index ["courier_service"], name: "index_bookings_on_courier_service"
+    t.index ["created_at"], name: "index_bookings_on_created_at"
+    t.index ["customer_id"], name: "index_bookings_on_customer_id"
     t.index ["delivery_person_id"], name: "index_bookings_on_delivery_person_id"
     t.index ["delivery_time"], name: "index_bookings_on_delivery_time"
     t.index ["expected_delivery_date"], name: "index_bookings_on_expected_delivery_date"
     t.index ["franchise_id"], name: "index_bookings_on_franchise_id"
+    t.index ["invoice_number"], name: "index_bookings_on_invoice_number"
     t.index ["payment_gateway"], name: "index_bookings_on_payment_gateway"
+    t.index ["payment_status"], name: "index_bookings_on_payment_status"
     t.index ["stage_updated_at"], name: "index_bookings_on_stage_updated_at"
     t.index ["stage_updated_by"], name: "index_bookings_on_stage_updated_by"
+    t.index ["status"], name: "index_bookings_on_status"
     t.index ["store_id"], name: "index_bookings_on_store_id"
     t.index ["tracking_number"], name: "index_bookings_on_tracking_number"
+    t.index ["user_id"], name: "index_bookings_on_user_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -533,7 +541,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_120003) do
     t.string "share_token"
     t.boolean "quick_invoice", default: false
     t.decimal "paid_amount", precision: 10, scale: 2, default: "0.0"
+    t.index ["created_at"], name: "index_invoices_on_created_at"
+    t.index ["customer_id"], name: "index_invoices_on_customer_id"
+    t.index ["invoice_date"], name: "index_invoices_on_invoice_date"
     t.index ["invoice_number"], name: "index_invoices_on_invoice_number", unique: true
+    t.index ["payment_status"], name: "index_invoices_on_payment_status"
     t.index ["share_token"], name: "index_invoices_on_share_token", unique: true
   end
 
@@ -608,6 +620,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_120003) do
     t.datetime "updated_at", null: false
     t.integer "delivery_person_id"
     t.index ["customer_id"], name: "index_milk_subscriptions_on_customer_id"
+    t.index ["delivery_person_id"], name: "index_milk_subscriptions_on_delivery_person_id"
     t.index ["product_id"], name: "index_milk_subscriptions_on_product_id"
     t.index ["start_date", "end_date"], name: "idx_milk_subscriptions_dates"
     t.index ["status"], name: "idx_milk_subscriptions_status"

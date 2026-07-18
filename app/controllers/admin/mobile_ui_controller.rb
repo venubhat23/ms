@@ -54,6 +54,7 @@ class Admin::MobileUiController < ActionController::Base
 
     @total = @bookings.count
     @bookings = @bookings.page(params[:page]).per(15)
+    preload_associated_invoices(@bookings)
   end
 
   def dashboard
@@ -119,12 +120,100 @@ class Admin::MobileUiController < ActionController::Base
     end
   end
 
+  # ── Invoice Show / Edit ────────────────────────────────────────────────────
+  # Reuses the exact admin/invoices show & edit templates (same GST/line-item
+  # logic as the desktop pages) but without the desktop admin layout, so the
+  # mobile UI never bounces users into the sidebar-wrapped admin chrome.
+  def show_invoice
+    @invoice = Invoice.find(params[:id])
+    @invoice_items = @invoice.invoice_items.includes(:product, :milk_delivery_task)
+    # admin/invoices/show is a full standalone HTML document (its own <head>/<style>),
+    # so it must render without a layout wrapper.
+    render template: 'admin/invoices/show', layout: false, locals: { mobile_ui: true }
+  end
+
+  def edit_invoice
+    @invoice = Invoice.find(params[:id])
+    @invoice_items = @invoice.invoice_items.includes(:milk_delivery_task, product: :product_variants)
+    # admin/invoices/edit is just a content fragment — it needs the mobile_ui layout
+    # to supply Bootstrap CSS/JS, or it renders as unstyled white HTML.
+    render template: 'admin/invoices/edit', locals: { mobile_ui: true }
+  end
+
+  # ── Price List ────────────────────────────────────────────────────────────
+  def price_list
+    products = Product.joins(:category)
+                      .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id
+                              AND stock_batches.status = 'active'
+                              AND stock_batches.quantity_remaining > 0
+                              AND stock_batches.store_id IS NULL")
+                      .select("products.*, COALESCE(SUM(stock_batches.quantity_remaining), 0) AS cached_stock,
+                               categories.name AS cat_name")
+                      .group("products.id, categories.id, categories.name")
+                      .order("categories.name ASC, products.name ASC")
+
+    if params[:category_id].present?
+      products = products.where(products: { category_id: params[:category_id] })
+    end
+
+    if params[:search].present?
+      q = "%#{params[:search]}%"
+      products = products.where("products.name ILIKE ? OR products.sku ILIKE ?", q, q)
+    end
+
+    products = products.includes(:product_variants)
+
+    @categories = Category.order(:name)
+    # Group by category_id so products sharing a category are correctly grouped
+    @products_by_category = products.group_by { |p| [p.category_id, p.cat_name] }
+  end
+
   def new_customer
     @customer = Customer.new
     @back_url = params[:back_url].presence || admin_mobile_ui_bookings_path
   end
 
+  def check_mobile
+    mobile = normalize_mobile_for_lookup(params[:mobile])
+    customer = mobile.present? ? Customer.find_by(mobile: mobile) : nil
+
+    if customer
+      render json: {
+        exists: true,
+        customer: { id: customer.id, name: customer.display_name, mobile: customer.mobile, email: customer.email }
+      }
+    else
+      render json: { exists: false }
+    end
+  end
+
+  def search_by_name
+    query = params[:name].to_s.strip
+
+    if query.length >= 2
+      customers = Customer.where(
+        "first_name ILIKE :q OR last_name ILIKE :q OR CONCAT(first_name, ' ', last_name) ILIKE :q",
+        q: "%#{query}%"
+      ).limit(5)
+
+      render json: {
+        customers: customers.map { |c| { id: c.id, name: c.display_name, mobile: c.mobile, email: c.email } }
+      }
+    else
+      render json: { customers: [] }
+    end
+  end
+
   def create_customer
+    # Safety net: if a customer with this mobile already exists, proceed with
+    # them instead of hitting the mobile uniqueness validation and failing.
+    existing_customer = Customer.find_by(mobile: normalize_mobile_for_lookup(params[:customer][:mobile]))
+    if existing_customer
+      redirect_to admin_mobile_ui_new_booking_path(customer_id: existing_customer.id),
+                  notice: "A customer with this phone number already exists (#{existing_customer.display_name}). Proceeding with the existing customer."
+      return
+    end
+
     @customer = Customer.new
     @customer.first_name = params[:customer][:first_name].to_s.strip
     @customer.mobile     = params[:customer][:mobile].to_s.strip
@@ -145,6 +234,32 @@ class Admin::MobileUiController < ActionController::Base
   end
 
   private
+
+  # Batch-preload associated_invoice for bookings with no BookingInvoice,
+  # replacing up to N individual LIKE queries (one per booking) with a single query.
+  def preload_associated_invoices(bookings)
+    bookings_without_bi = bookings.select { |b| b.booking_invoices.empty? }
+    return if bookings_without_bi.empty?
+
+    numbers = bookings_without_bi.map(&:booking_number)
+    like_clauses = numbers.map { "invoice_items.description LIKE ?" }.join(" OR ")
+    matched = InvoiceItem.joins(:invoice)
+                         .eager_load(:invoice)
+                         .where(like_clauses, *numbers.map { |n| "%#{n}%" })
+
+    inv_by_number = {}
+    matched.each do |item|
+      numbers.each { |bn| inv_by_number[bn] ||= item.invoice if item.description.include?(bn) }
+    end
+
+    bookings_without_bi.each do |b|
+      b.instance_variable_set(:@associated_invoice, inv_by_number[b.booking_number])
+    end
+  end
+
+  def normalize_mobile_for_lookup(mobile)
+    Customer.new.send(:normalize_indian_mobile, mobile.to_s)
+  end
 
   def authenticate_mobile!
     redirect_to admin_mobile_ui_login_path unless session[:mobile_ui_auth]

@@ -487,7 +487,7 @@ class Booking < ApplicationRecord
 
     begin
       # Generate invoice if not already generated
-      generate_invoice_number unless invoice_number.present?
+      generate_quick_invoice! unless invoice_number.present? && Invoice.exists?(invoice_number: invoice_number)
 
       # Ensure any associated invoice has a share token for public access
       if associated_invoice && !associated_invoice.share_token.present?
@@ -502,18 +502,6 @@ class Booking < ApplicationRecord
     end
   end
 
-  def generate_invoice_number
-    return if invoice_number.present?
-
-    self.invoice_number = "INV#{Date.current.strftime('%Y%m%d')}#{SecureRandom.hex(3).upcase}"
-    self.invoice_generated = true
-
-    # Save the booking first
-    if save
-      # BookingInvoice creation disabled - invoices will be generated via consolidated system
-      # create_booking_invoice_record
-    end
-  end
 
   private
 

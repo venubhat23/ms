@@ -246,7 +246,7 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   def generate_invoice
-    @booking.generate_invoice_number
+    @booking.generate_quick_invoice! unless @booking.invoice_number.present? && Invoice.exists?(invoice_number: @booking.invoice_number)
     redirect_to invoice_franchise_booking_path(@booking)
   end
 

@@ -14,16 +14,16 @@ development:
   primary:
     <<: *default
     pool: 15
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
   cable:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
   queue:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
   cache:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
 
 test:
   primary:
@@ -42,14 +42,13 @@ test:
 production:
   primary:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
   cable:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
   queue:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
   cache:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
-    
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>

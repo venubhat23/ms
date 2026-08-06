@@ -40,16 +40,27 @@ class PaymentController < Customer::BaseController
           status: 'draft'
         )
 
-        # Create booking items
+        # Create booking items — batch-load products and stock in one query
+        # each (was a Product.find + stock query per cart item), mirroring
+        # Customer::ShopController#create_booking.
+        product_ids = cart_items.map { |i| i[:product_id] }.uniq
+        products_by_id = Product.where(id: product_ids).index_by(&:id)
+        stock_by_product = StockBatch.where(status: 'active', product_id: product_ids)
+                                     .group(:product_id)
+                                     .sum(:quantity_remaining)
+
         total_amount = 0
         cart_items.each do |item_data|
-          product = Product.find(item_data[:product_id])
+          product = products_by_id[item_data[:product_id].to_i]
+          raise "Product not found." unless product
+
           quantity = item_data[:quantity].to_f
           price = item_data[:price].to_f
 
           # Validate stock
-          if product.total_batch_stock < quantity
-            raise "Insufficient stock for #{product.name}. Only #{product.total_batch_stock} available."
+          available_stock = stock_by_product[product.id] || 0
+          if available_stock < quantity
+            raise "Insufficient stock for #{product.name}. Only #{available_stock} available."
           end
 
           # Create booking item

@@ -3,6 +3,72 @@ class SystemSetting < ApplicationRecord
   validates :value, presence: true
   validates :setting_type, presence: true
 
+  # Public storefront (HomeController#index) theme options — each maps to a
+  # static HTML file under public/websites/. `swatch` drives the small
+  # CSS-drawn thumbnail on the picker cards in admin/settings/system.
+  WEBSITE_THEMES = {
+    'classic-organic' => {
+      name: 'Organic Classic',
+      description: 'Forest green & gold, warm farm photography — the original.',
+      file: 'marali-santhe.html',
+      swatch: %w[#2e7d32 #c9a535 #faf7f2]
+    },
+    'modern-minimal' => {
+      name: 'Modern Minimal',
+      description: 'Black, white & sage — clean, editorial, lots of whitespace.',
+      file: 'websites/modern-minimal.html',
+      swatch: %w[#111111 #6b7a5e #ffffff]
+    },
+    'vibrant-market' => {
+      name: 'Vibrant Market',
+      description: 'Bold orange & red, playful rounded type, farmers-market energy.',
+      file: 'websites/vibrant-market.html',
+      swatch: %w[#ff6a3d #e63946 #ffc233]
+    },
+    'luxury-gourmet' => {
+      name: 'Luxury Gourmet',
+      description: 'Near-black with gold-foil accents — premium gourmet feel.',
+      file: 'websites/luxury-gourmet.html',
+      swatch: %w[#0a0a0a #c9a24b #f3ecd9]
+    },
+    'fresh-wellness' => {
+      name: 'Fresh Wellness',
+      description: 'Soft pastel green & peach, fully rounded — spa/wellness mood.',
+      file: 'websites/fresh-wellness.html',
+      swatch: %w[#8fae82 #f3ab7c #fdf9f2]
+    },
+    'rustic-farmhouse' => {
+      name: 'Rustic Farmhouse',
+      description: 'Warm wood & terracotta, kraft-paper texture — barn-market feel.',
+      file: 'websites/rustic-farmhouse.html',
+      swatch: %w[#6b4a34 #c1652f #e8dcc4]
+    },
+    'tropical-fresh' => {
+      name: 'Tropical Fresh',
+      description: 'Teal, lime & coral with organic blob shapes — resort/juice-bar vibe.',
+      file: 'websites/tropical-fresh.html',
+      swatch: %w[#0d9488 #a3e635 #ff7a5c]
+    },
+    'monochrome-editorial' => {
+      name: 'Monochrome Editorial',
+      description: 'Black & white high-fashion magazine style with a single red accent.',
+      file: 'websites/monochrome-editorial.html',
+      swatch: %w[#0a0a0a #ffffff #e10600]
+    },
+    'retro-vintage' => {
+      name: 'Retro Vintage',
+      description: "70s mustard, rust & cream with groovy badges and hand-drawn accents.",
+      file: 'websites/retro-vintage.html',
+      swatch: %w[#d99a2b #b8502f #f7ecd8]
+    },
+    'neo-tech' => {
+      name: 'Neo Tech',
+      description: 'Dark navy with electric blue & neon glow — futuristic smart-grocery feel.',
+      file: 'websites/neo-tech.html',
+      swatch: %w[#070b14 #3b82f6 #39ff88]
+    }
+  }.freeze
+
   # Business details validations
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
   validates :upi_id, format: { with: /\A[a-zA-Z0-9.\-_]+@[a-zA-Z0-9.\-_]+\z/, message: "must be a valid UPI ID" }, allow_blank: true
@@ -52,6 +118,22 @@ class SystemSetting < ApplicationRecord
       per_page.to_s,
       description: 'Default number of records per page for all index pages',
       setting_type: 'integer'
+    )
+  end
+
+  # Get the selected public storefront theme key
+  def self.website_theme
+    value = get_value('website_theme')
+    WEBSITE_THEMES.key?(value) ? value : 'classic-organic'
+  end
+
+  # Set the selected public storefront theme
+  def self.set_website_theme(theme_key)
+    set_value(
+      'website_theme',
+      theme_key.to_s,
+      description: 'Selected theme for the public storefront homepage',
+      setting_type: 'string'
     )
   end
 

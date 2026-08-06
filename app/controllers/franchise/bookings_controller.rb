@@ -4,7 +4,7 @@ class Franchise::BookingsController < Franchise::BaseController
   def index
     # All bookings belonging to this franchise
     @all_bookings = Booking.where(franchise_id: current_franchise.id)
-                           .includes(:customer, :user, :booking_items, :store)
+                           .includes(:customer, :user, :booking_items, :store, :booking_invoices)
 
     # Franchise-created bookings
     franchise_bookings = @all_bookings.where(booked_by: 'franchise')
@@ -45,6 +45,11 @@ class Franchise::BookingsController < Franchise::BaseController
 
     @per_page = SystemSetting.default_pagination_per_page
     @bookings = @bookings.page(params[:page]).per(@per_page)
+
+    # booking_invoices is eager-loaded above; memoize @associated_invoice to nil so
+    # has_invoice?/invoice_link_path/display_invoice_number never fire a per-row
+    # unindexed LIKE query against invoice_items (mirrors Admin::BookingsController#index).
+    @bookings.each { |b| b.instance_variable_set(:@associated_invoice, nil) }
 
     @bookings_for_stats = @all_bookings
 
@@ -344,7 +349,9 @@ class Franchise::BookingsController < Franchise::BaseController
   private
 
   def set_booking
-    @booking = Booking.where(franchise_id: current_franchise.id).find(params[:id])
+    # Preloading booking_items: :product here (not just in #show) also fixes
+    # the N+1 in the #invoice view, which walks @booking.booking_items/item.product directly.
+    @booking = Booking.where(franchise_id: current_franchise.id).includes(booking_items: :product).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to franchise_bookings_path, alert: 'Booking not found'
   end

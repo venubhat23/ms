@@ -9,10 +9,14 @@ class Admin::AffiliatesController < Admin::ApplicationController
     @affiliates = @affiliates.where(status: params[:status]) if params[:status].present?
     @affiliates = paginate_records(@affiliates.order(:first_name))
 
+    # One grouped query instead of 3 separate counts, plus this_month so the
+    # view doesn't need its own extra uncached count query.
+    status_counts = Affiliate.group(:status).count
     @stats = {
-      total: Affiliate.count,
-      active: Affiliate.active.count,
-      inactive: Affiliate.inactive.count
+      total: status_counts.values.sum,
+      active: status_counts[true] || 0,
+      inactive: status_counts[false] || 0,
+      this_month: Affiliate.where('created_at >= ?', 1.month.ago).count
     }
   end
 

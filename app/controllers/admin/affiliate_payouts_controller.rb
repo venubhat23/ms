@@ -176,32 +176,56 @@ class Admin::AffiliatePayoutsController < Admin::ApplicationController
     payouts = []
 
     # Get all commission payouts for affiliates directly
-    affiliate_commission_payouts = CommissionPayout.where(payout_to: 'affiliate').includes(:payout)
+    affiliate_commission_payouts = CommissionPayout.where(payout_to: 'affiliate').includes(:payout).to_a
+
+    # Batch-load the policy behind each commission payout (was
+    # get_policy_from_commission_payout doing a find_by per row).
+    CommissionPayout.preload_policies(affiliate_commission_payouts)
+
+    # Batch-load sub_agents for every policy that passes the same
+    # main_agent_commission_received check as the main loop below (mirrors
+    # the per-row SubAgent.find_by).
+    sub_agent_ids = affiliate_commission_payouts.filter_map do |cp|
+      policy = cp.policy
+      next unless policy && policy.respond_to?(:main_agent_commission_received) && policy.main_agent_commission_received
+      policy.sub_agent_id if policy.respond_to?(:sub_agent_id) && policy.sub_agent_id.present?
+    end.uniq
+    sub_agents_by_id = SubAgent.where(id: sub_agent_ids).index_by(&:id)
+
+    # Batch-load leads by lead_id from both commission_payout.lead_id and
+    # policy.lead_id (mirrors the two per-row Lead.find_by(lead_id:) calls
+    # below — fetching both up front is a superset, correctness is unchanged
+    # since each is still looked up by exact key).
+    lead_ids = (
+      affiliate_commission_payouts.map(&:lead_id) +
+      affiliate_commission_payouts.filter_map { |cp| cp.policy.try(:lead_id) if cp.policy }
+    ).compact.uniq
+    leads_by_lead_id = lead_ids.any? ? Lead.where(lead_id: lead_ids).index_by(&:lead_id) : {}
 
     # Group by affiliate
     affiliate_groups = {}
 
     affiliate_commission_payouts.each do |commission_payout|
       # Get policy from commission payout
-      policy = get_policy_from_commission_payout(commission_payout)
+      policy = commission_payout.policy
       next unless policy
 
       # Skip if main agent commission not received
       next unless policy.respond_to?(:main_agent_commission_received) && policy.main_agent_commission_received
 
       # Get sub_agent from the policy's sub_agent_id
-      sub_agent = SubAgent.find_by(id: policy.sub_agent_id) if policy.respond_to?(:sub_agent_id) && policy.sub_agent_id.present?
+      sub_agent = sub_agents_by_id[policy.sub_agent_id] if policy.respond_to?(:sub_agent_id) && policy.sub_agent_id.present?
       next unless sub_agent
 
       # Get or create lead if needed
       lead = nil
       if commission_payout.lead_id.present?
-        lead = Lead.find_by(lead_id: commission_payout.lead_id)
+        lead = leads_by_lead_id[commission_payout.lead_id]
       end
 
       # Fallback: try to find lead by policy lead_id
       if lead.nil? && policy.respond_to?(:lead_id) && policy.lead_id.present?
-        lead = Lead.find_by(lead_id: policy.lead_id)
+        lead = leads_by_lead_id[policy.lead_id]
       end
 
       # If no lead found, create a virtual lead object for display purposes

@@ -169,9 +169,9 @@
         <div class="success-details">
           <h5 class="mb-3">
             <i class="fas fa-list me-2"></i>
-            Order Items (<%= @booking.booking_items.count %>)
+            Order Items (<%= @booking.booking_items.size %>)
           </h5>
-          <% @booking.booking_items.includes(:product).each do |item| %>
+          <% @booking.booking_items.each do |item| %>
             <div class="item-card">
               <div class="d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">

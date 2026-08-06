@@ -26,8 +26,11 @@ class Admin::InvoicesController < Admin::ApplicationController
     # Calculate summary statistics for regular invoices only
     @stats = calculate_regular_invoice_stats_only
 
-    # Get delivery persons for filter dropdown
-    @delivery_persons = DeliveryPerson.active.order(:first_name, :last_name)
+    # Get delivery persons for filter dropdown — shares the cache key
+    # WarmAdminCustomersCacheJob already keeps warm every 2 minutes.
+    @delivery_persons = Rails.cache.fetch('admin_customers/filter_delivery_people', expires_in: 5.minutes) do
+      DeliveryPerson.active.order(:first_name, :last_name).to_a
+    end
 
     # Set invoice type for the view
     @invoice_type = invoice_type
@@ -468,6 +471,29 @@ class Admin::InvoicesController < Admin::ApplicationController
     apply_search_filters_for_stats(base_query, 'booking_invoices')
   end
 
+  # Memoized so apply_search_filters and apply_search_filters_for_stats (both
+  # called once per index request) don't each re-run the same two
+  # MilkSubscription/SubscriptionTemplate pluck queries.
+  def customer_ids_for_delivery_person(delivery_person_id)
+    @customer_ids_for_delivery_person ||= {}
+    @customer_ids_for_delivery_person[delivery_person_id] ||= begin
+      customer_ids_from_subscriptions = MilkSubscription.where(delivery_person_id: delivery_person_id)
+                                                       .distinct
+                                                       .pluck(:customer_id)
+                                                       .compact
+
+      customer_ids_from_templates = []
+      if defined?(SubscriptionTemplate)
+        customer_ids_from_templates = SubscriptionTemplate.where(delivery_person_id: delivery_person_id)
+                                                         .distinct
+                                                         .pluck(:customer_id)
+                                                         .compact
+      end
+
+      (customer_ids_from_subscriptions + customer_ids_from_templates).uniq
+    end
+  end
+
   def apply_search_filters(base_query, table_name)
     # Apply search filters
     if params[:search].present?
@@ -483,25 +509,7 @@ class Admin::InvoicesController < Admin::ApplicationController
 
     # Apply delivery person filter based on milk subscriptions
     if params[:delivery_person_id].present? && params[:delivery_person_id] != 'all'
-      delivery_person_id = params[:delivery_person_id].to_i
-
-      # Get customers associated with this delivery person through milk subscriptions
-      customer_ids_from_subscriptions = MilkSubscription.where(delivery_person_id: delivery_person_id)
-                                                       .distinct
-                                                       .pluck(:customer_id)
-                                                       .compact
-
-      # Also get customers from subscription templates
-      customer_ids_from_templates = []
-      if defined?(SubscriptionTemplate)
-        customer_ids_from_templates = SubscriptionTemplate.where(delivery_person_id: delivery_person_id)
-                                                         .distinct
-                                                         .pluck(:customer_id)
-                                                         .compact
-      end
-
-      # Combine all customer IDs from subscriptions
-      all_customer_ids = (customer_ids_from_subscriptions + customer_ids_from_templates).uniq
+      all_customer_ids = customer_ids_for_delivery_person(params[:delivery_person_id].to_i)
 
       if all_customer_ids.any?
         base_query = base_query.where(customer_id: all_customer_ids)
@@ -545,25 +553,7 @@ class Admin::InvoicesController < Admin::ApplicationController
 
     # Apply delivery person filter based on milk subscriptions
     if params[:delivery_person_id].present? && params[:delivery_person_id] != 'all'
-      delivery_person_id = params[:delivery_person_id].to_i
-
-      # Get customers associated with this delivery person through milk subscriptions
-      customer_ids_from_subscriptions = MilkSubscription.where(delivery_person_id: delivery_person_id)
-                                                       .distinct
-                                                       .pluck(:customer_id)
-                                                       .compact
-
-      # Also get customers from subscription templates
-      customer_ids_from_templates = []
-      if defined?(SubscriptionTemplate)
-        customer_ids_from_templates = SubscriptionTemplate.where(delivery_person_id: delivery_person_id)
-                                                         .distinct
-                                                         .pluck(:customer_id)
-                                                         .compact
-      end
-
-      # Combine all customer IDs from subscriptions
-      all_customer_ids = (customer_ids_from_subscriptions + customer_ids_from_templates).uniq
+      all_customer_ids = customer_ids_for_delivery_person(params[:delivery_person_id].to_i)
 
       if all_customer_ids.any?
         base_query = base_query.where(customer_id: all_customer_ids)

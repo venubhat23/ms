@@ -121,11 +121,9 @@
               <div class="card h-100 border-0 shadow-sm hover-lift">
                 <%# Product Image %>
                 <div class="position-relative">
-                  <% _img_url = product.r2_image_url.presence || product.image_url.presence %>
-                  <% if _img_url %>
-                    <img src="<%= _img_url %>" class="card-img-top" style="height: 200px; object-fit: cover;" alt="<%= product.name %>" loading="lazy">
-                  <% elsif product.image.attached? %>
-                    <%= image_tag product.image, class: "card-img-top", style: "height: 200px; object-fit: cover;", loading: "lazy" %>
+                  <% img_url = product.main_image_url %>
+                  <% if img_url.present? %>
+                    <img src="<%= img_url %>" class="card-img-top" style="height: 200px; object-fit: cover;" alt="<%= product.name %>" loading="lazy">
                   <% else %>
                     <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
                       <i class="bi bi-box-seam fs-1 text-muted"></i>
@@ -455,8 +453,8 @@
                 </div>
 
                 <div class="col-12">
-                  <label class="form-label">Delivery Address <span class="text-danger">*</span></label>
-                  <%= f.text_area :delivery_address, class: 'form-control', rows: 3, placeholder: 'Enter complete delivery address', required: true %>
+                  <label class="form-label">Delivery Address</label>
+                  <%= f.text_area :delivery_address, class: 'form-control', rows: 3, placeholder: 'Enter complete delivery address' %>
                 </div>
               </div>
             </div>

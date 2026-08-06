@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_06_064021) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -71,6 +71,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.string "username"
     t.index ["email"], name: "index_affiliates_on_email", unique: true
     t.index ["mobile"], name: "index_affiliates_on_mobile", unique: true
+    t.index ["status"], name: "index_affiliates_on_status"
   end
 
   create_table "banners", force: :cascade do |t|
@@ -89,6 +90,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.string "r2_image_url"
     t.index ["display_location"], name: "index_banners_on_display_location"
     t.index ["display_order"], name: "index_banners_on_display_order"
+    t.index ["display_start_date", "display_end_date"], name: "index_banners_on_display_start_date_and_display_end_date"
     t.index ["status"], name: "index_banners_on_status"
   end
 
@@ -112,6 +114,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.string "share_token"
     t.index ["booking_id"], name: "index_booking_invoices_on_booking_id"
     t.index ["customer_id"], name: "index_booking_invoices_on_customer_id"
+    t.index ["invoice_date"], name: "index_booking_invoices_on_invoice_date"
     t.index ["invoice_number"], name: "index_booking_invoices_on_invoice_number", unique: true
     t.index ["share_token"], name: "index_booking_invoices_on_share_token", unique: true
   end
@@ -225,6 +228,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.integer "booking_items_count", default: 0, null: false
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
+    t.index ["booking_date"], name: "index_bookings_on_booking_date"
     t.index ["booking_schedule_id"], name: "index_bookings_on_booking_schedule_id"
     t.index ["cashfree_order_id"], name: "index_bookings_on_cashfree_order_id"
     t.index ["cashfree_payment_id"], name: "index_bookings_on_cashfree_payment_id"
@@ -236,11 +240,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.index ["expected_delivery_date"], name: "index_bookings_on_expected_delivery_date"
     t.index ["franchise_id"], name: "index_bookings_on_franchise_id"
     t.index ["invoice_number"], name: "index_bookings_on_invoice_number"
+    t.index ["is_b2b"], name: "index_bookings_on_is_b2b"
     t.index ["payment_gateway"], name: "index_bookings_on_payment_gateway"
     t.index ["payment_status"], name: "index_bookings_on_payment_status"
     t.index ["stage_updated_at"], name: "index_bookings_on_stage_updated_at"
     t.index ["stage_updated_by"], name: "index_bookings_on_stage_updated_by"
     t.index ["status"], name: "index_bookings_on_status"
+    t.index ["store_id", "created_at"], name: "index_bookings_on_store_id_and_created_at"
     t.index ["store_id"], name: "index_bookings_on_store_id"
     t.index ["tracking_number"], name: "index_bookings_on_tracking_number"
     t.index ["user_id"], name: "index_bookings_on_user_id"
@@ -286,7 +292,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.index ["customer_id"], name: "index_client_requests_on_customer_id"
     t.index ["department"], name: "index_client_requests_on_department"
     t.index ["estimated_resolution_time"], name: "index_client_requests_on_estimated_resolution_time"
+    t.index ["resolved_by_id"], name: "index_client_requests_on_resolved_by_id"
     t.index ["stage"], name: "index_client_requests_on_stage"
+    t.index ["status"], name: "index_client_requests_on_status"
     t.index ["ticket_number"], name: "index_client_requests_on_ticket_number", unique: true
   end
 
@@ -337,9 +345,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "days"
+    t.index ["created_at"], name: "index_customer_formats_on_created_at"
     t.index ["customer_id"], name: "index_customer_formats_on_customer_id"
     t.index ["delivery_person_id"], name: "index_customer_formats_on_delivery_person_id"
+    t.index ["pattern"], name: "index_customer_formats_on_pattern"
     t.index ["product_id"], name: "index_customer_formats_on_product_id"
+    t.index ["status"], name: "index_customer_formats_on_status"
   end
 
   create_table "customer_wallets", force: :cascade do |t|
@@ -387,7 +398,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.string "password_reset_token"
     t.datetime "password_reset_sent_at"
     t.string "location_link"
+    t.index ["created_at"], name: "index_customers_on_created_at"
     t.index ["latitude", "longitude"], name: "index_customers_on_location"
+    t.index ["status"], name: "index_customers_on_status"
     t.index ["whatsapp_number"], name: "index_customers_on_whatsapp_number"
   end
 
@@ -432,6 +445,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.datetime "updated_at", null: false
     t.string "password_digest"
     t.string "auto_generated_password"
+    t.index ["city"], name: "index_delivery_people_on_city"
+    t.index ["created_at"], name: "index_delivery_people_on_created_at"
+    t.index ["email"], name: "index_delivery_people_on_email", unique: true
+    t.index ["license_number"], name: "index_delivery_people_on_license_number", unique: true
+    t.index ["mobile"], name: "index_delivery_people_on_mobile", unique: true
+    t.index ["status"], name: "index_delivery_people_on_status"
+    t.index ["vehicle_number"], name: "index_delivery_people_on_vehicle_number", unique: true
+    t.index ["vehicle_type"], name: "index_delivery_people_on_vehicle_type"
   end
 
   create_table "delivery_rules", force: :cascade do |t|
@@ -507,6 +528,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.index ["email"], name: "index_franchises_on_email", unique: true
     t.index ["mobile"], name: "index_franchises_on_mobile", unique: true
     t.index ["pan_no"], name: "index_franchises_on_pan_no", unique: true
+    t.index ["status"], name: "index_franchises_on_status"
     t.index ["user_id"], name: "index_franchises_on_user_id"
   end
 
@@ -541,6 +563,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.string "share_token"
     t.boolean "quick_invoice", default: false
     t.decimal "paid_amount", precision: 10, scale: 2, default: "0.0"
+    t.decimal "delivery_charge", precision: 10, scale: 2, default: "0.0"
     t.index ["created_at"], name: "index_invoices_on_created_at"
     t.index ["customer_id"], name: "index_invoices_on_customer_id"
     t.index ["invoice_date"], name: "index_invoices_on_invoice_date"
@@ -619,8 +642,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "delivery_person_id"
+    t.index ["created_at"], name: "index_milk_subscriptions_on_created_at"
     t.index ["customer_id"], name: "index_milk_subscriptions_on_customer_id"
     t.index ["delivery_person_id"], name: "index_milk_subscriptions_on_delivery_person_id"
+    t.index ["is_active"], name: "index_milk_subscriptions_on_is_active"
     t.index ["product_id"], name: "index_milk_subscriptions_on_product_id"
     t.index ["start_date", "end_date"], name: "idx_milk_subscriptions_dates"
     t.index ["status"], name: "idx_milk_subscriptions_status"
@@ -879,6 +904,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.string "barcode"
     t.index ["barcode"], name: "index_products_on_barcode", unique: true
     t.index ["category_id"], name: "index_products_on_category_id"
+    t.index ["created_at"], name: "index_products_on_created_at"
     t.index ["is_occasional_product", "occasional_start_date", "occasional_end_date"], name: "index_products_on_occasional_dates"
     t.index ["is_occasional_product"], name: "index_products_on_is_occasional_product"
     t.index ["is_subscription_enabled"], name: "index_products_on_is_subscription_enabled"
@@ -907,6 +933,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.index ["customer_id"], name: "index_referrals_on_customer_id"
     t.index ["referral_source"], name: "index_referrals_on_referral_source"
     t.index ["referring_customer_id"], name: "index_referrals_on_referring_customer_id"
+    t.index ["status"], name: "index_referrals_on_status"
   end
 
   create_table "roles", force: :cascade do |t|
@@ -1163,6 +1190,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_11_092948) do
     t.bigint "product_variant_id"
     t.string "transfer_group_id"
     t.index ["approved_by_id"], name: "index_stock_transfers_on_approved_by_id"
+    t.index ["created_at"], name: "index_stock_transfers_on_created_at"
     t.index ["from_store_id"], name: "index_stock_transfers_on_from_store_id"
     t.index ["product_id"], name: "index_stock_transfers_on_product_id"
     t.index ["requested_by_id"], name: "index_stock_transfers_on_requested_by_id"

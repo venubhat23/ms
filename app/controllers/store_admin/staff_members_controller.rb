@@ -2,13 +2,20 @@ class StoreAdmin::StaffMembersController < StoreAdmin::ApplicationController
   before_action :set_staff_member, only: [:show, :edit, :update, :toggle_status]
 
   def index
-    @staff_members  = @current_store.staff_members.order(:name)
-    @total_count    = @staff_members.count
-    @active_count   = @staff_members.active.count
-    @inactive_count = @staff_members.inactive.count
+    @staff_members  = @current_store.staff_members.order(:name).to_a
+    @total_count    = @staff_members.size
+    @active_count   = @staff_members.count(&:active?)
+    @inactive_count = @total_count - @active_count
 
+    # One grouped query for every staff member's paid-this-month total instead
+    # of one query per record via pending_for -> paid_for (mirrors
+    # Admin::StaffMembersController#index).
     today = Date.current
-    @total_pending = @staff_members.active.sum { |s| s.pending_for(today.month, today.year) }
+    paid_totals = StaffPayment.where(staff_member_id: @staff_members.map(&:id), month: today.month, year: today.year)
+                              .group(:staff_member_id).sum(:amount)
+    @staff_members.each { |s| s.preload_paid_for(today.month, today.year, paid_totals[s.id] || 0) }
+
+    @total_pending = @staff_members.select(&:active?).sum { |s| s.pending_for(today.month, today.year) }
   end
 
   def show

@@ -2,7 +2,7 @@ class Customer::ProductsController < Customer::BaseController
   before_action :find_product, only: [:show]
 
   def index
-    @products = Product.active.includes(:category, :approved_reviews)
+    @products = Product.active.includes(:category, :approved_reviews, image_attachment: :blob)
 
     # Apply filters
     @products = @products.by_category(params[:category_id]) if params[:category_id].present?
@@ -58,6 +58,7 @@ class Customer::ProductsController < Customer::BaseController
     @related_products = Product.active
                               .where.not(id: @product.id)
                               .where(category: @product.category)
+                              .includes(:category, image_attachment: :blob)
                               .limit(4)
     @reviews = @product.approved_reviews.recent.limit(10)
   end

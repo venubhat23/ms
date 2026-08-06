@@ -18,8 +18,14 @@ class Payout < ApplicationRecord
   scope :recent, -> { order(created_at: :desc) }
 
   # Instance methods
+
+  # Memoized (not `||=` — a legitimately-missing policy resolves to nil, and
+  # `||=` would re-query every time for that case) so callers that loop over
+  # many payouts can batch-fetch policies up front and prime each instance via
+  # `preload_policy` instead of firing one find_by per payout per call.
   def policy
-    case policy_type
+    return @policy if defined?(@policy)
+    @policy = case policy_type
     when 'health'
       HealthInsurance.find_by(id: policy_id)
     when 'life'
@@ -29,6 +35,40 @@ class Payout < ApplicationRecord
     when 'other'
       OtherInsurance.find_by(id: policy_id) if defined?(OtherInsurance)
     end
+  end
+
+  def preload_policy(policy)
+    @policy = policy
+  end
+
+  # Batch-fetches the policy behind every given Payout (grouped by
+  # policy_type, one query per type instead of one #policy call per payout)
+  # and primes each instance via #preload_policy. Callers that loop over many
+  # payouts and call #policy on each should run this first.
+  #
+  # Deliberately does NOT eager-load :customer here — OtherInsurance has no
+  # `belongs_to :customer` (only a delegated `#customer` method through its
+  # own `belongs_to :policy`), so `.includes(:customer)` would raise
+  # ActiveRecord::AssociationNotFoundError for that type. Callers that need
+  # customer data should batch it themselves from policy.customer_id.
+  def self.preload_policies(payouts)
+    ids_by_type = payouts.group_by(&:policy_type).transform_values { |ps| ps.map(&:policy_id).uniq }
+    policies_by_type_and_id = {}
+
+    if (ids = ids_by_type['health'])
+      HealthInsurance.where(id: ids).each { |p| policies_by_type_and_id[['health', p.id]] = p }
+    end
+    if (ids = ids_by_type['life'])
+      LifeInsurance.where(id: ids).each { |p| policies_by_type_and_id[['life', p.id]] = p }
+    end
+    if (ids = ids_by_type['motor']) && defined?(MotorInsurance)
+      MotorInsurance.where(id: ids).each { |p| policies_by_type_and_id[['motor', p.id]] = p }
+    end
+    if (ids = ids_by_type['other']) && defined?(OtherInsurance)
+      OtherInsurance.where(id: ids).each { |p| policies_by_type_and_id[['other', p.id]] = p }
+    end
+
+    payouts.each { |payout| payout.preload_policy(policies_by_type_and_id[[payout.policy_type, payout.policy_id]]) }
   end
 
   def main_agent_commission

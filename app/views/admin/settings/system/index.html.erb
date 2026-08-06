@@ -38,6 +38,12 @@
       <i class="bi bi-file-earmark-text me-2"></i>Invoice Template
     </button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="website-theme-tab" data-bs-toggle="pill" data-bs-target="#website-theme"
+            type="button" role="tab" aria-controls="website-theme" aria-selected="false">
+      <i class="bi bi-globe me-2"></i>Website Theme
+    </button>
+  </li>
 </ul>
 
 <!-- Statistics Cards -->
@@ -1073,6 +1079,58 @@
 
   </div> <!-- End of Invoice Template Tab -->
 
+  <!-- Website Theme Tab -->
+  <div class="tab-pane fade" id="website-theme" role="tabpanel" aria-labelledby="website-theme-tab">
+    <%= form_with url: admin_settings_system_path, method: :patch, local: true do |form| %>
+      <%= hidden_field_tag :website_theme_update, "true" %>
+
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header">
+          <h4><i class="bi bi-globe me-2"></i>Public Website Theme</h4>
+          <p class="text-muted mb-0 small">Choose the design shown at your public storefront homepage. Click <strong>Preview</strong> to open a theme in a new tab before saving.</p>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <% SystemSetting::WEBSITE_THEMES.each do |theme_key, theme| %>
+              <div class="col-md-4 d-flex flex-column">
+                <label class="theme-card <%= @website_theme == theme_key ? 'selected' : '' %> flex-grow-1" style="cursor:pointer;display:flex;flex-direction:column;">
+                  <input type="radio" name="website_theme" value="<%= theme_key %>" style="display:none;"
+                    <%= @website_theme == theme_key ? 'checked' : '' %>>
+                  <div class="card h-100 border-2 <%= @website_theme == theme_key ? 'border-primary' : 'border-light' %>" style="transition:all 0.2s;">
+                    <div style="height:8px;display:flex;border-radius:4px 4px 0 0;overflow:hidden;">
+                      <% theme[:swatch].each do |color| %>
+                        <div style="flex:1;background:<%= color %>;"></div>
+                      <% end %>
+                    </div>
+                    <div class="card-body p-3">
+                      <strong><%= theme[:name] %></strong>
+                      <div class="small text-muted mt-1"><%= theme[:description] %></div>
+                    </div>
+                    <div class="card-footer bg-transparent d-flex justify-content-between align-items-center">
+                      <% if @website_theme == theme_key %>
+                        <span class="badge bg-primary"><i class="bi bi-check-circle me-1"></i>Active</span>
+                      <% else %>
+                        <span class="small text-muted">Select to apply</span>
+                      <% end %>
+                      <%= link_to "Preview", root_path(preview_theme: theme_key), target: "_blank", rel: "noopener",
+                            class: "small", onclick: "event.stopPropagation()" %>
+                    </div>
+                  </div>
+                </label>
+              </div>
+            <% end %>
+          </div>
+
+          <div class="mt-4 d-flex gap-2 align-items-center">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-circle me-1"></i>Save Website Theme
+            </button>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div> <!-- End of Website Theme Tab -->
+
 </div> <!-- End of Tab Content -->
 
 <!-- Invoice Template Preview Modal — placed outside tab-content to avoid stacking context issues -->
@@ -1110,6 +1168,10 @@
   .template-card input[type="radio"]:checked + .card,
   .template-card.selected .card { border-color: #0d6efd !important; box-shadow: 0 0 0 3px rgba(13,110,253,0.15); }
   .template-card:hover .card { border-color: #adb5bd !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+  .theme-card input[type="radio"]:checked + .card,
+  .theme-card.selected .card { border-color: #0d6efd !important; box-shadow: 0 0 0 3px rgba(13,110,253,0.15); }
+  .theme-card:hover .card { border-color: #adb5bd !important; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 </style>
 
 <script>
@@ -1128,6 +1190,24 @@
       // Open preview modal for this template
       var radio = this.querySelector('input[type="radio"]');
       if (radio) { openTemplatePreview(radio.value); }
+    });
+  });
+</script>
+
+<script>
+  // Website theme cards: same selected/border toggling as invoice templates,
+  // but no preview-modal popup — the "Preview" link opens the real live page
+  // in a new tab instead of a synthetic in-modal preview.
+  document.querySelectorAll('.theme-card').forEach(function(label) {
+    label.addEventListener('click', function() {
+      document.querySelectorAll('.theme-card').forEach(function(l) {
+        l.classList.remove('selected');
+        l.querySelector('.card').classList.remove('border-primary');
+        l.querySelector('.card').classList.add('border-light');
+      });
+      this.classList.add('selected');
+      this.querySelector('.card').classList.add('border-primary');
+      this.querySelector('.card').classList.remove('border-light');
     });
   });
 </script>

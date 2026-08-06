@@ -160,14 +160,21 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
   def get_sidebar_options
     {
       'Main Menu' => [
-        { key: 'dashboard', name: 'Dashboard' }
+        { key: 'dashboard', name: 'Dashboard' },
+        { key: 'pricing', name: 'Pricing' }
       ],
       'Sales' => [
         { key: 'bookings', name: 'Bookings' },
-        { key: 'stores', name: 'Stores' }
+        { key: 'stores', name: 'Stores' },
+        { key: 'stock_transfers', name: 'Stock Transfers' }
       ],
       'HR' => [
         { key: 'staff_payout', name: 'Staff Payout' }
+      ],
+      'Store Financials' => [
+        { key: 'store_financials_vendor_tracking', name: 'Vendor Tracking' },
+        { key: 'store_financials_commission', name: 'Commission' },
+        { key: 'store_financials_gst_report', name: 'GST Report' }
       ],
       'Subscription' => [
         { key: 'customer_formats', name: 'Customer Format' },
@@ -183,21 +190,30 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
       ],
       'Master Data' => [
         { key: 'customers', name: 'Customers' },
+        { key: 'referrals', name: 'Referrals' },
         { key: 'categories', name: 'Categories' },
         { key: 'products', name: 'Products' },
+        { key: 'qr_codes', name: 'QR Codes' },
         { key: 'coupons', name: 'Coupons' },
         { key: 'customer_wallets', name: 'Customer Wallets' },
         { key: 'franchises', name: 'Franchise' },
         { key: 'affiliates', name: 'Affiliate' }
       ],
       'Delivery Management' => [
-        { key: 'delivery_people', name: 'Delivery People' }
+        { key: 'delivery_people', name: 'Delivery People' },
+        { key: 'delivery_settings', name: 'Delivery Settings' }
       ],
       'Import & Export' => [
         { key: 'imports', name: 'Import Data' }
       ],
+      'Store Analytics' => [
+        { key: 'store_analytics_comparison', name: 'Comparison' },
+        { key: 'store_analytics_top_products', name: 'Top Products' },
+        { key: 'store_analytics_peak_hours', name: 'Peak Hours' }
+      ],
       'Reports' => [
-        { key: 'reports', name: 'Enhanced Sales Report' }
+        { key: 'reports', name: 'Enhanced Sales Report' },
+        { key: 'profit_loss', name: 'Profit & Loss' }
       ],
       'Settings & Configuration' => [
         { key: 'system_settings', name: 'System Settings' },

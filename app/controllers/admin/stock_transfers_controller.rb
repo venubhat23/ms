@@ -1,4 +1,5 @@
 class Admin::StockTransfersController < Admin::ApplicationController
+  before_action { require_sidebar_permission!('stock_transfers') }
   before_action :set_transfer, only: [:show, :approve, :reject]
 
   # A single "request" (transfer_group_id) can contain hundreds of product
@@ -30,6 +31,11 @@ class Admin::StockTransfersController < Admin::ApplicationController
     assoc_scope = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
     assoc_scope = assoc_scope.where(status: params[:status]) if params[:status].present?
 
+    # One grouped count query for every group on this page instead of one
+    # `.count` round trip per group (previously ~20 serial queries/page).
+    group_totals = base_scope.where(transfer_group_id: paged_keys.reject { |k| k.start_with?('single_') })
+                              .group(:transfer_group_id).count
+
     stock_cache = {}
 
     @groups = paged_keys.filter_map do |key|
@@ -37,7 +43,7 @@ class Admin::StockTransfersController < Admin::ApplicationController
         transfers   = assoc_scope.where(id: key.delete_prefix('single_').to_i).to_a
         total_count = transfers.size
       else
-        total_count = StockTransfer.where(transfer_group_id: key).count
+        total_count = group_totals[key] || 0
         transfers   = assoc_scope.where(transfer_group_id: key)
                                   .order(created_at: :desc)
                                   .limit(GROUP_ITEM_INLINE_LIMIT)

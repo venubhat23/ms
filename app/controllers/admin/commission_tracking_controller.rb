@@ -496,24 +496,29 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
     all_policies = []
 
     # Just show payouts we have with policy information - recent payouts at top
-    payouts = Payout.order(created_at: :desc)
+    payouts = Payout.order(created_at: :desc).to_a
+
+    # Batch-load the policy behind each payout (was a find_by per payout).
+    Payout.preload_policies(payouts)
+
+    # Batch-load customers for every policy that has one (mirrors the per-row
+    # `Customer.find_by(id: policy.customer_id)` this loop used to run).
+    # Policies that don't respond to customer_id (e.g. OtherInsurance) are
+    # excluded here the same way they'd raise+get rescued below — this batch
+    # is purely additive and doesn't change which payouts get skipped.
+    customer_ids = payouts.filter_map do |payout|
+      policy = payout.policy
+      policy.customer_id if policy&.respond_to?(:customer_id)
+    end.uniq
+    customers_by_id = Customer.where(id: customer_ids).index_by(&:id)
 
     payouts.each do |payout|
       begin
-        policy = case payout.policy_type
-                 when 'health'
-                   HealthInsurance.find_by(id: payout.policy_id)
-                 when 'life'
-                   LifeInsurance.find_by(id: payout.policy_id)
-                 when 'motor'
-                   MotorInsurance.find_by(id: payout.policy_id)
-                 when 'other'
-                   OtherInsurance.find_by(id: payout.policy_id)
-                 end
+        policy = payout.policy
 
         next unless policy && policy.customer_id
 
-        customer = Customer.find_by(id: policy.customer_id)
+        customer = customers_by_id[policy.customer_id]
         next unless customer
 
         all_policies << {

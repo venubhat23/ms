@@ -1265,6 +1265,11 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     # Paginate
     commission_payouts = commission_payouts.order(payout_date: :desc).page(page).per(per_page)
+    # Batch-load the policy behind each row (was a find_by per payout via
+    # #policy) — `.to_a` loads+caches records on the relation itself, so this
+    # primes the exact same instances `commission_payouts.map` iterates below;
+    # `.total_count`/`.total_pages` (Kaminari) still work on the relation.
+    CommissionPayout.preload_policies(commission_payouts.to_a)
 
     # Format commission data
     commissions_data = commission_payouts.map do |payout|
@@ -1546,17 +1551,17 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     if is_admin?(agent)
       # Admin can see all recent policies
-      recent_health = HealthInsurance.order(created_at: :desc).limit(5)
-      recent_life = LifeInsurance.order(created_at: :desc).limit(5)
+      recent_health = HealthInsurance.includes(:customer).order(created_at: :desc).limit(5)
+      recent_life = LifeInsurance.includes(:customer).order(created_at: :desc).limit(5)
     elsif agent.is_a?(SubAgent)
       # For SubAgents, get their policies directly
-      recent_health = HealthInsurance.where(sub_agent_id: agent.id).order(created_at: :desc).limit(5)
-      recent_life = LifeInsurance.where(sub_agent_id: agent.id).order(created_at: :desc).limit(5)
+      recent_health = HealthInsurance.where(sub_agent_id: agent.id).includes(:customer).order(created_at: :desc).limit(5)
+      recent_life = LifeInsurance.where(sub_agent_id: agent.id).includes(:customer).order(created_at: :desc).limit(5)
     else
       # For User agents, use the cross-reference helper to get their policies
       agent_health_policies, agent_life_policies, _ = get_agent_policies(agent)
-      recent_health = agent_health_policies.order(created_at: :desc).limit(5)
-      recent_life = agent_life_policies.order(created_at: :desc).limit(5)
+      recent_health = agent_health_policies.includes(:customer).order(created_at: :desc).limit(5)
+      recent_life = agent_life_policies.includes(:customer).order(created_at: :desc).limit(5)
     end
 
     recent_health.each do |policy|

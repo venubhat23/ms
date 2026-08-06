@@ -175,7 +175,7 @@
           </div>
           <small class="text-muted">
             <i class="fas fa-lightbulb text-warning me-1"></i>
-            The first variant is automatically set as the default. Units accepted: Kg, Gram, Liter, Bottle, Box, Piece.
+            The first variant is automatically set as the default. Units accepted: <%= Product::UNIT_TYPES.map(&:first).join(', ') %>.
           </small>
         </div>
       </div>

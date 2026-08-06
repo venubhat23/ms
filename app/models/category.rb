@@ -29,7 +29,7 @@ class Category < ApplicationRecord
   end
 
   def products_count
-    products.count
+    products.loaded? ? products.size : products.count
   end
 
   def self.for_select

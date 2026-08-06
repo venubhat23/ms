@@ -121,6 +121,7 @@ Rails.application.routes.draw do
         patch :cancel_order
         patch :mark_delivered
         patch :mark_completed
+        patch :mark_fully_paid
         get :stage_transition
         get :manage_stage
         patch :process_stage_transition
@@ -834,6 +835,12 @@ Rails.application.routes.draw do
     get  'mobile-ui/invoice/:id',      to: 'mobile_ui#show_invoice',    as: 'mobile_ui_show_invoice'
     get  'mobile-ui/invoice/:id/edit', to: 'mobile_ui#edit_invoice',    as: 'mobile_ui_edit_invoice'
     get  'mobile-ui/price-list',       to: 'mobile_ui#price_list',      as: 'mobile_ui_price_list'
+    get  'mobile-ui/vendors',              to: 'mobile_ui#vendors',                as: 'mobile_ui_vendors'
+    get  'mobile-ui/vendors/new',          to: 'mobile_ui#new_vendor',             as: 'mobile_ui_new_vendor'
+    post 'mobile-ui/vendors',              to: 'mobile_ui#create_vendor',          as: 'mobile_ui_create_vendor'
+    patch 'mobile-ui/vendors/:id/toggle-status', to: 'mobile_ui#toggle_vendor_status', as: 'mobile_ui_toggle_vendor_status'
+    get  'mobile-ui/vendor-purchases/new', to: 'mobile_ui#new_vendor_purchase',    as: 'mobile_ui_new_vendor_purchase'
+    post 'mobile-ui/vendor-purchases',     to: 'mobile_ui#create_vendor_purchase', as: 'mobile_ui_create_vendor_purchase'
 
     # Pricing overview
     get 'pricing', to: 'pricing#index', as: :pricing

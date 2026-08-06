@@ -3,17 +3,24 @@ class Admin::FranchisesController < Admin::ApplicationController
   before_action :set_franchise, only: [:show, :edit, :update, :destroy, :toggle_status, :reset_password]
 
   def index
-    @franchises = Franchise.all
-    @franchises = @franchises.where("name ILIKE ? OR email ILIKE ? OR contact_person_name ILIKE ?",
+    franchises_scope = Franchise.all
+    franchises_scope = franchises_scope.where("name ILIKE ? OR email ILIKE ? OR contact_person_name ILIKE ?",
                                    "%#{params[:search]}%", "%#{params[:search]}%", "%#{params[:search]}%") if params[:search].present?
-    @franchises = @franchises.where(status: params[:status]) if params[:status].present?
-    @franchises = paginate_records(@franchises.order(:name))
+    franchises_scope = franchises_scope.where(status: params[:status]) if params[:status].present?
 
+    # Computed once from the filtered scope, before pagination truncates it —
+    # the view used to independently re-query @franchises 4 more times for
+    # these same numbers (and disagreed with this controller's old unfiltered
+    # @stats whenever a search/status filter was active).
+    status_counts = franchises_scope.group(:status).count
     @stats = {
-      total: Franchise.count,
-      active: Franchise.where(status: true).count,
-      inactive: Franchise.where(status: false).count
+      total: status_counts.values.sum,
+      active: status_counts[true] || 0,
+      inactive: status_counts[false] || 0,
+      this_month: franchises_scope.where('created_at >= ?', 1.month.ago).count
     }
+
+    @franchises = paginate_records(franchises_scope.order(:name))
   end
 
   def show

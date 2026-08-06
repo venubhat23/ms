@@ -3,7 +3,7 @@ class Admin::CategoriesController < Admin::ApplicationController
   before_action :authenticate_user!
 
   def index
-    @categories = Category.includes(:products)
+    @categories = Category.includes(:products, image_attachment: :blob)
                          .order(:display_order, :name)
 
     if params[:search].present?

@@ -75,16 +75,18 @@ class Admin::NotesController < ApplicationController
   end
 
   def calculate_note_stats
-    all_notes = Note.all
+    # Two grouped queries instead of 7 separate count/sum round trips.
+    counts  = Note.group(:status).count
+    amounts = Note.group(:status).sum(:amount)
 
     {
-      total_notes: all_notes.count,
-      total_amount: all_notes.sum(:amount),
-      pending_count: all_notes.where(status: 'pending').count,
-      completed_count: all_notes.where(status: 'completed').count,
-      cancelled_count: all_notes.where(status: 'cancelled').count,
-      pending_amount: all_notes.where(status: 'pending').sum(:amount),
-      completed_amount: all_notes.where(status: 'completed').sum(:amount)
+      total_notes: counts.values.sum,
+      total_amount: amounts.values.sum,
+      pending_count: counts['pending'] || 0,
+      completed_count: counts['completed'] || 0,
+      cancelled_count: counts['cancelled'] || 0,
+      pending_amount: amounts['pending'] || 0,
+      completed_amount: amounts['completed'] || 0
     }
   end
 end

@@ -20,7 +20,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Total Requests</h6>
-            <h4 class="mb-0"><%= @client_requests.count %></h4>
+            <h4 class="mb-0"><%= @status_counts.values.sum %></h4>
           </div>
           <div class="text-primary">
             <i class="bi bi-ticket-perforated fs-2"></i>
@@ -35,7 +35,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Pending</h6>
-            <h4 class="mb-0"><%= @client_requests.where(status: 'pending').count %></h4>
+            <h4 class="mb-0"><%= @status_counts['pending'] || 0 %></h4>
           </div>
           <div class="text-warning">
             <i class="bi bi-clock fs-2"></i>
@@ -50,7 +50,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">In Progress</h6>
-            <h4 class="mb-0"><%= @client_requests.where(status: 'in_progress').count %></h4>
+            <h4 class="mb-0"><%= @status_counts['in_progress'] || 0 %></h4>
           </div>
           <div class="text-info">
             <i class="bi bi-gear fs-2"></i>
@@ -65,7 +65,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Resolved</h6>
-            <h4 class="mb-0"><%= @client_requests.where(status: ['resolved', 'closed']).count %></h4>
+            <h4 class="mb-0"><%= (@status_counts['resolved'] || 0) + (@status_counts['closed'] || 0) %></h4>
           </div>
           <div class="text-success">
             <i class="bi bi-check-circle fs-2"></i>
@@ -84,7 +84,7 @@
 
     <% if @client_requests.any? %>
       <% @client_requests.each_with_index do |request, index| %>
-        <div class="p-3 <%= 'border-bottom' unless index == @client_requests.count - 1 %>">
+        <div class="p-3 <%= 'border-bottom' unless index == @client_requests.size - 1 %>">
           <div class="row align-items-center">
             <div class="col-md-6">
               <div class="d-flex align-items-center">

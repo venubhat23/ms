@@ -18,10 +18,12 @@ class Affiliate::BookingsController < Affiliate::ApplicationController
       )
     end
 
-    @total_count      = Booking.where(affiliate_id: current_affiliate.id).count
-    @pending_count    = Booking.where(affiliate_id: current_affiliate.id, status: 'pending').count
-    @completed_count  = Booking.where(affiliate_id: current_affiliate.id, status: 'completed').count
-    @total_value      = Booking.where(affiliate_id: current_affiliate.id).sum(:total_amount).to_f
+    affiliate_bookings = Booking.where(affiliate_id: current_affiliate.id)
+    status_counts      = affiliate_bookings.group(:status).count
+    @total_count       = status_counts.values.sum
+    @pending_count     = status_counts['pending']   || 0
+    @completed_count   = status_counts['completed'] || 0
+    @total_value       = affiliate_bookings.sum(:total_amount).to_f
 
     @bookings = @bookings.page(params[:page]).per(20) if @bookings.respond_to?(:page)
   end

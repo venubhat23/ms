@@ -72,8 +72,10 @@ class Customer::OrdersController < Customer::BaseController
   private
 
   def set_booking
-    # Ensure customer can only access their own bookings
-    @booking = current_customer.bookings.find(params[:id])
+    # Ensure customer can only access their own bookings. Preloading
+    # booking_items: :product here (not just in #show) also fixes the N+1 in
+    # the #invoice view, which walks @booking.booking_items/item.product directly.
+    @booking = current_customer.bookings.includes(booking_items: :product).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to customer_orders_path, alert: 'Order not found.'
   end

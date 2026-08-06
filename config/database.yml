@@ -4,18 +4,26 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
+  # Pool bumped above the shared default: async_count/load_async checks out an
+  # extra connection per in-flight request on top of the request's own thread
+  # connection, so 3 Puma threads (config/puma.rb) each doing 1-2 async queries
+  # can need up to ~9 concurrent connections — a pool of 5 forced overlapping
+  # requests (e.g. a page reloaded before the previous load finished) to queue
+  # for a connection instead of opening their own, compounding the remote DB's
+  # per-connection establishment cost instead of paying it once in parallel.
   primary:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    pool: 15
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
   cable:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
   queue:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
   cache:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
 
 test:
   primary:
@@ -34,14 +42,14 @@ test:
 production:
   primary:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
   cable:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
   queue:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
   cache:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://marlai_santhe_002_user:P4SP9kfmdhOiqCjT5z8FGHTYmDkODaHm@dpg-d7f0kknaqgkc739uphc0-a.oregon-postgres.render.com:5432/marlai_santhe_002' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_x2y4_user:Rs0WYMzNLOR5qQ6D3HExDUKAfFZuCF7C@dpg-d9o1gabm8hqs73f9pvug-a.ohio-postgres.render.com:5432/ms_x2y4' %>
     

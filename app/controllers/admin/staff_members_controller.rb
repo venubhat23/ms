@@ -4,14 +4,20 @@ class Admin::StaffMembersController < Admin::ApplicationController
   def index
     scope = StaffMember.includes(:store).order(:name)
     scope = scope.where(store_id: params[:store_id]) if params[:store_id].present?
-    @staff_members = scope
+    @staff_members = scope.to_a
 
     @stores         = Store.order(:name)
-    @total_count    = @staff_members.count
-    @active_count   = @staff_members.select(&:active?).count
+    @total_count    = @staff_members.size
+    @active_count   = @staff_members.count(&:active?)
     @inactive_count = @total_count - @active_count
 
+    # One grouped query for every staff member's paid-this-month total instead
+    # of one query per record (the view calls paid_for/pending_for per row too).
     today = Date.current
+    paid_totals = StaffPayment.where(staff_member_id: @staff_members.map(&:id), month: today.month, year: today.year)
+                              .group(:staff_member_id).sum(:amount)
+    @staff_members.each { |s| s.preload_paid_for(today.month, today.year, paid_totals[s.id] || 0) }
+
     @total_pending = @staff_members.select(&:active?).sum { |s| s.pending_for(today.month, today.year) }
   end
 

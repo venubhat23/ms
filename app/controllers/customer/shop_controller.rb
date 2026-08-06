@@ -61,15 +61,16 @@ class Customer::ShopController < Customer::BaseController
   end
 
   def product
-    @product = Product.find(params[:id])
+    @product = Product.includes(:category, image_attachment: :blob).find(params[:id])
     @related_products = Product.where(category_id: @product.category_id)
                                .where.not(id: @product.id)
                                .where(status: 'active')
+                               .includes(:category, image_attachment: :blob)
                                .limit(4)
   end
 
   def success
-    @booking = current_customer&.bookings&.find_by(booking_number: params[:booking_id])
+    @booking = current_customer&.bookings&.includes(booking_items: { product: :category })&.find_by(booking_number: params[:booking_id])
 
     unless @booking
       flash[:error] = 'Order not found.'

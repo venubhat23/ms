@@ -19,7 +19,11 @@ class Product < ApplicationRecord
     ['Box', 'Box'],
     ['Liter', 'Liter'],
     ['Piece', 'Piece'],
-    ['Gram', 'Gram']
+    ['Gram', 'Gram'],
+    ['Milliliter', 'Milliliter'],
+    ['Dozen', 'Dozen'],
+    ['Packet', 'Packet'],
+    ['Bag', 'Bag']
   ].freeze
 
   belongs_to :category
@@ -93,14 +97,20 @@ class Product < ApplicationRecord
 
   after_create :generate_barcode
 
+  # barcode -> SVG is a pure, immutable mapping (barcode is set once in
+  # generate_barcode and never changed), so it's cached indefinitely rather
+  # than regenerated on every render. Memoized too since admin/qr_codes/index
+  # calls this twice per product per request (on-screen table + hidden print grid).
   def qr_code_svg
-    RQRCode::QRCode.new(barcode).as_svg(
-      color: '000',
-      shape_rendering: 'crispEdges',
-      module_size: 4,
-      standalone: true,
-      use_path: true
-    )
+    @qr_code_svg ||= Rails.cache.fetch("product/qr_code_svg/#{barcode}") do
+      RQRCode::QRCode.new(barcode).as_svg(
+        color: '000',
+        shape_rendering: 'crispEdges',
+        module_size: 4,
+        standalone: true,
+        use_path: true
+      )
+    end
   end
 
   enum :status, { active: 'active', inactive: 'inactive', draft: 'draft' }
@@ -1179,29 +1189,26 @@ class Product < ApplicationRecord
     }
   end
 
-  # GST utility methods
+  # GST utility methods. GST % is simple: it's a straight percentage of the
+  # selling price (e.g. 10% GST on a ₹200 selling price = ₹20 GST, ₹180 base),
+  # not a reverse-derived inclusive-tax split.
   def calculate_final_price_with_gst
     return price unless gst_enabled? && gst_percentage.present?
 
-    base_price = calculate_base_price
-    gst_amount = calculate_gst_amount(base_price, gst_percentage)
-    base_price + gst_amount
+    price
   end
 
   def calculate_base_price
-    # If price includes GST, extract base price
-    # If price excludes GST, use price as base
     return price unless gst_enabled? && gst_percentage.present?
 
-    # Assuming price includes GST by default
-    price / (1 + (gst_percentage / 100.0))
+    price - calculate_gst_amount(price, gst_percentage)
   end
 
   def gst_breakdown
     return {} unless gst_enabled? && gst_percentage.present?
 
-    base_price = calculate_base_price
-    total_gst = calculate_gst_amount(base_price, gst_percentage)
+    total_gst = calculate_gst_amount(price, gst_percentage)
+    base_price = price - total_gst
 
     {
       base_price: base_price.round(2),
@@ -1449,22 +1456,20 @@ class Product < ApplicationRecord
       errors.add(:igst_percentage, 'must be between 0% and 50%')
     end
 
-    # Validate GST amounts are consistent with percentages if present
-    # Using reverse calculation (price inclusive of GST)
+    # Validate GST amounts are consistent with percentages if present.
+    # GST % is a straight percentage of the selling price (see calculate_gst_amount).
     if gst_amount.present? && price.present? && gst_percentage.present?
-      # Reverse calculation: base_price = inclusive_price / (1 + gst_rate)
-      base_price = price / (1 + (gst_percentage / 100.0))
-      expected_gst_amount = price - base_price
+      expected_gst_amount = calculate_gst_amount(price, gst_percentage)
 
       # Allow for small rounding differences (up to ₹1)
       if (gst_amount - expected_gst_amount).abs > 1.0
-        errors.add(:gst_amount, "should be approximately ₹#{expected_gst_amount.round(2)} based on inclusive price and GST rate")
+        errors.add(:gst_amount, "should be approximately ₹#{expected_gst_amount.round(2)} (#{gst_percentage}% of the selling price)")
       end
     end
   end
 
-  def calculate_gst_amount(base_price, rate)
-    (base_price * rate) / 100.0
+  def calculate_gst_amount(selling_price, rate)
+    (selling_price * rate) / 100.0
   end
 
   def create_initial_stock_movement

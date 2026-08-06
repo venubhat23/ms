@@ -2,6 +2,8 @@ class Customer::ClientRequestsController < Customer::BaseController
 
   def index
     @client_requests = current_customer.client_requests.order(created_at: :desc)
+    # Single GROUP BY replaces 4 separate COUNT queries the view used to run.
+    @status_counts = current_customer.client_requests.group(:status).count
   end
 
   def show

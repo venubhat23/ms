@@ -25,6 +25,12 @@ class Admin::DistributorsController < Admin::ApplicationController
     # Order and paginate using configurable pagination
     @distributors = paginate_records(@distributors.order(created_at: :desc))
 
+    # Single grouped query replaces one `assigned_sub_agents.count` per row
+    # (`.count` on an association always issues fresh SQL, ignoring any preload).
+    @sub_agent_counts_by_distributor = DistributorAssignment.where(distributor_id: @distributors.map(&:id))
+                                                            .group(:distributor_id)
+                                                            .count
+
     # Statistics
     @total_distributors = Distributor.count
     @active_distributors = Distributor.active.count

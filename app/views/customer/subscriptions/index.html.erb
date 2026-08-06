@@ -22,7 +22,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Active Subscriptions</h6>
-            <h4 class="mb-0"><%= @active_subscriptions.count %></h4>
+            <h4 class="mb-0"><%= @active_subscriptions.size %></h4>
           </div>
           <div class="text-success">
             <i class="bi bi-check-circle fs-2"></i>
@@ -37,7 +37,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Paused Subscriptions</h6>
-            <h4 class="mb-0"><%= @paused_subscriptions.count %></h4>
+            <h4 class="mb-0"><%= @paused_subscriptions.size %></h4>
           </div>
           <div class="text-warning">
             <i class="bi bi-pause-circle fs-2"></i>
@@ -52,7 +52,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Total Subscriptions</h6>
-            <h4 class="mb-0"><%= @active_subscriptions.count + @paused_subscriptions.count %></h4>
+            <h4 class="mb-0"><%= @active_subscriptions.size + @paused_subscriptions.size %></h4>
           </div>
           <div class="text-primary">
             <i class="bi bi-arrow-repeat fs-2"></i>
@@ -74,7 +74,7 @@
 
     <% if @active_subscriptions.any? %>
       <% @active_subscriptions.each_with_index do |subscription, index| %>
-        <div class="p-3 <%= 'border-bottom' unless index == @active_subscriptions.count - 1 %>">
+        <div class="p-3 <%= 'border-bottom' unless index == @active_subscriptions.size - 1 %>">
           <div class="row align-items-center">
             <div class="col-md-6">
               <div class="d-flex align-items-center">
@@ -154,7 +154,7 @@
     </div>
     <div class="card-body p-0">
       <% @paused_subscriptions.each_with_index do |subscription, index| %>
-        <div class="p-3 <%= 'border-bottom' unless index == @paused_subscriptions.count - 1 %>">
+        <div class="p-3 <%= 'border-bottom' unless index == @paused_subscriptions.size - 1 %>">
           <div class="row align-items-center">
             <div class="col-md-6">
               <div class="d-flex align-items-center">

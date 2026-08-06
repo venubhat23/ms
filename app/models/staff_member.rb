@@ -17,8 +17,18 @@ class StaffMember < ApplicationRecord
     status == 'active'
   end
 
+  # Memoized per (month, year) so the index/show views can call paid_for and
+  # pending_for (which itself calls paid_for) on the same record without each
+  # call re-hitting the DB. #preload_paid_for lets a controller seed this from
+  # one batched query instead of one query per record.
   def paid_for(month, year)
-    staff_payments.where(month: month, year: year).sum(:amount)
+    @paid_for_cache ||= {}
+    @paid_for_cache[[month, year]] ||= staff_payments.where(month: month, year: year).sum(:amount)
+  end
+
+  def preload_paid_for(month, year, amount)
+    @paid_for_cache ||= {}
+    @paid_for_cache[[month, year]] = amount
   end
 
   def pending_for(month, year)

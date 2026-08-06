@@ -41,6 +41,10 @@ class Admin::PayoutsController < Admin::ApplicationController
                        .page(params[:page])
                        .per(20)
 
+    # Batch-load the policy behind each visible row (was a HealthInsurance/
+    # LifeInsurance.find_by per policy group in the view).
+    @policies_by_type_and_id = load_policies_for_payouts(@payouts)
+
     # Summary statistics
     @summary = {
       total_payouts: CommissionPayout.count,
@@ -337,6 +341,22 @@ class Admin::PayoutsController < Admin::ApplicationController
 
   def set_payout
     @payout = CommissionPayout.find(params[:id])
+  end
+
+  # Mirrors the view's own case/find_by (only 'health' and 'life' are handled
+  # there today — everything else resolves to nil, preserved here exactly).
+  def load_policies_for_payouts(payouts)
+    ids_by_type = payouts.group_by(&:policy_type).transform_values { |ps| ps.map(&:policy_id).uniq }
+    result = {}
+
+    if (health_ids = ids_by_type['health'])
+      HealthInsurance.includes(:customer).where(id: health_ids).each { |p| result[['health', p.id]] = p }
+    end
+    if (life_ids = ids_by_type['life'])
+      LifeInsurance.includes(:customer).where(id: life_ids).each { |p| result[['life', p.id]] = p }
+    end
+
+    result
   end
 
   def payout_params

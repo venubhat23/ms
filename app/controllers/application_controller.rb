@@ -90,6 +90,14 @@ class ApplicationController < ActionController::Base
 
   private
 
+  # Shared controller-level gate matching the sidebar's has_sidebar_permission?
+  # checks — hiding a nav link isn't enough on its own, since a user could
+  # still hit the URL directly. Call as `before_action { require_sidebar_permission!('key') }`.
+  def require_sidebar_permission!(key)
+    return if current_user&.has_sidebar_permission?(key)
+    redirect_to dashboard_path, alert: 'You do not have permission to access this page.'
+  end
+
   def set_cache_control_headers
     # Strong cache prevention for all authenticated pages
     # Skip for franchise controllers to avoid session interference

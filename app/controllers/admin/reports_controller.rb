@@ -4,6 +4,9 @@ class Admin::ReportsController < Admin::ApplicationController
   skip_authorization_check if respond_to?(:skip_authorization_check)
   skip_load_and_authorize_resource if respond_to?(:skip_load_and_authorize_resource)
 
+  before_action(only: [:enhanced_sales]) { require_sidebar_permission!('reports') }
+  before_action(only: [:profit_loss]) { require_sidebar_permission!('profit_loss') }
+
   # GET /admin/reports/commission
   def commission
     @date_range = params[:date_range] || '30_days'
@@ -666,12 +669,15 @@ class Admin::ReportsController < Admin::ApplicationController
   end
 
   def build_enhanced_sales_data
-    # Get all invoices in the date range (both regular and booking invoices)
-    regular_invoices = Invoice.includes(:customer, :invoice_items)
+    # Get all invoices in the date range (both regular and booking invoices).
+    # calculate_gst_breakdown/process_invoice_data below read invoice_items'
+    # (or the booking's booking_items') product on every row — these deeper
+    # includes are needed too, or each row re-queries them (N+1).
+    regular_invoices = Invoice.includes(:customer, invoice_items: :product)
                              .where(invoice_date: @from_date..@to_date)
                              .order(:invoice_date)
 
-    booking_invoices = BookingInvoice.includes(:customer, :booking)
+    booking_invoices = BookingInvoice.includes(:customer, booking: { booking_items: :product })
                                    .where(invoice_date: @from_date..@to_date)
                                    .order(:invoice_date)
 

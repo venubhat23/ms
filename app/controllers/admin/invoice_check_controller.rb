@@ -3,7 +3,7 @@ class Admin::InvoiceCheckController < ApplicationController
   before_action :set_page_info
 
   def index
-    @delivery_persons = DeliveryPerson.active.order(:first_name, :last_name)
+    @delivery_persons = cached_delivery_persons
     @customers_data = []
     @selected_month = params[:month]&.to_i || Date.current.month
     @selected_year = params[:year]&.to_i || Date.current.year
@@ -24,25 +24,42 @@ class Admin::InvoiceCheckController < ApplicationController
     @selected_year = params[:year]&.to_i || Date.current.year
     @selected_delivery_person_id = params[:delivery_person_id]
 
-    @delivery_persons = DeliveryPerson.active.order(:first_name, :last_name)
+    @delivery_persons = cached_delivery_persons
     @month_options = (1..12).map { |month| [Date::MONTHNAMES[month], month] }
     current_year = Date.current.year
     @year_options = ((current_year - 2)..(current_year + 2)).to_a
 
     # Get customers based on subscription data
     customers_with_subscriptions = get_customers_for_check
+    customer_ids = customers_with_subscriptions.map(&:id)
+    month_range = month_date_range(@selected_month, @selected_year)
+
+    # One query per lookup table for every customer on the page instead of
+    # two EXTRACT()-filtered queries per customer (EXTRACT() also can't use
+    # the invoice_date index, forcing a full scan each time it ran).
+    invoice_ids_with_items = Invoice.joins(:invoice_items)
+                                   .where(customer_id: customer_ids, invoice_date: month_range)
+                                   .distinct.pluck(:id)
+    invoice_lookup = Invoice.where(id: invoice_ids_with_items).index_by(&:customer_id)
+    booking_invoice_lookup = BookingInvoice.where(customer_id: customer_ids, invoice_date: month_range)
+                                          .index_by(&:customer_id)
+
+    subscriptions_scope = MilkSubscription.where(customer_id: customer_ids, is_active: true).includes(:product)
+    subscriptions_scope = subscriptions_scope.where(delivery_person_id: @selected_delivery_person_id) if @selected_delivery_person_id.present?
+    subscriptions_by_customer = subscriptions_scope.group_by(&:customer_id)
 
     @customers_data = customers_with_subscriptions.map do |customer|
-      # Check if invoice exists for this customer for the selected month
-      invoice_exists = check_invoice_exists(customer, @selected_month, @selected_year)
+      invoice = invoice_lookup[customer.id] || booking_invoice_lookup[customer.id]
 
-      # Calculate total amount from subscriptions
-      total_amount = calculate_customer_subscription_amount(customer, @selected_month, @selected_year)
+      # Calculate total amount from subscriptions (already preloaded per customer, no query)
+      total_amount = calculate_customer_subscription_amount(
+        subscriptions_by_customer[customer.id] || [], @selected_month, @selected_year
+      )
 
       {
         customer: customer,
-        invoice_exists: invoice_exists[:exists],
-        invoice_link: invoice_exists[:invoice],
+        invoice_exists: invoice.present?,
+        invoice_link: invoice,
         total_amount: total_amount,
         has_subscriptions: total_amount > 0
       }
@@ -85,6 +102,19 @@ class Admin::InvoiceCheckController < ApplicationController
     @page_subtitle = "Check subscription invoices by month and delivery person"
   end
 
+  # Shares the cache key WarmAdminCustomersCacheJob already keeps warm every
+  # 2 minutes instead of a fresh round trip on every index/check request.
+  def cached_delivery_persons
+    Rails.cache.fetch('admin_customers/filter_delivery_people', expires_in: 5.minutes) do
+      DeliveryPerson.active.order(:first_name, :last_name).to_a
+    end
+  end
+
+  def month_date_range(month, year)
+    start_of_month = Date.new(year, month, 1)
+    start_of_month..start_of_month.end_of_month
+  end
+
   def get_customers_for_check
     # Base query for customers with active subscriptions
     customer_query = Customer.joins(:milk_subscriptions)
@@ -100,10 +130,11 @@ class Admin::InvoiceCheckController < ApplicationController
   end
 
   def check_invoice_exists(customer, month, year)
+    range = month_date_range(month, year)
+
     # Check in regular Invoice table first
     invoice = Invoice.joins(:invoice_items)
-                   .where(customer: customer)
-                   .where("EXTRACT(month FROM invoice_date) = ? AND EXTRACT(year FROM invoice_date) = ?", month, year)
+                   .where(customer: customer, invoice_date: range)
                    .first
 
     if invoice
@@ -111,8 +142,7 @@ class Admin::InvoiceCheckController < ApplicationController
     end
 
     # Check in BookingInvoice table
-    booking_invoice = BookingInvoice.where(customer: customer)
-                                  .where("EXTRACT(month FROM invoice_date) = ? AND EXTRACT(year FROM invoice_date) = ?", month, year)
+    booking_invoice = BookingInvoice.where(customer: customer, invoice_date: range)
                                   .first
 
     if booking_invoice
@@ -122,21 +152,12 @@ class Admin::InvoiceCheckController < ApplicationController
     { exists: false, invoice: nil }
   end
 
-  def calculate_customer_subscription_amount(customer, month, year)
-    # Get all active subscriptions for this customer and delivery person (if selected)
-    subscriptions = customer.milk_subscriptions.where(is_active: true)
-
-    if @selected_delivery_person_id.present?
-      subscriptions = subscriptions.where(delivery_person_id: @selected_delivery_person_id)
-    end
-
+  def calculate_customer_subscription_amount(subscriptions, month, year)
+    start_of_month = Date.new(year, month, 1)
+    end_of_month = start_of_month.end_of_month
     total_amount = 0
 
     subscriptions.each do |subscription|
-      # Calculate days in the month for this subscription
-      start_of_month = Date.new(year, month, 1)
-      end_of_month = start_of_month.end_of_month
-
       # Only count subscriptions that were active during the target month
       subscription_start = [subscription.start_date, start_of_month].max
       subscription_end = subscription.end_date ? [subscription.end_date, end_of_month].min : end_of_month
@@ -158,7 +179,9 @@ class Admin::InvoiceCheckController < ApplicationController
     return existing_invoice[:invoice] if existing_invoice[:exists]
 
     # Calculate total amount
-    total_amount = calculate_customer_subscription_amount(customer, month, year)
+    active_subscriptions = customer.milk_subscriptions.where(is_active: true)
+    active_subscriptions = active_subscriptions.where(delivery_person_id: @selected_delivery_person_id) if @selected_delivery_person_id.present?
+    total_amount = calculate_customer_subscription_amount(active_subscriptions, month, year)
 
     return nil if total_amount <= 0
 
@@ -220,9 +243,11 @@ class Admin::InvoiceCheckController < ApplicationController
   end
 
   def calculate_invoice_stats_for_month(month, year, delivery_person_id = nil)
-    # Get all invoices for this month and year
-    regular_invoices = Invoice.where("EXTRACT(month FROM invoice_date) = ? AND EXTRACT(year FROM invoice_date) = ?", month, year)
-    booking_invoices = BookingInvoice.where("EXTRACT(month FROM invoice_date) = ? AND EXTRACT(year FROM invoice_date) = ?", month, year)
+    # Get all invoices for this month and year (range comparison so the
+    # invoice_date index applies — EXTRACT() previously forced a full scan)
+    range = month_date_range(month, year)
+    regular_invoices = Invoice.where(invoice_date: range)
+    booking_invoices = BookingInvoice.where(invoice_date: range)
 
     # If delivery person is selected, filter by customers with subscriptions from that delivery person
     if delivery_person_id.present?

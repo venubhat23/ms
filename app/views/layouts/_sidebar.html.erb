@@ -445,6 +445,7 @@
         <% end %>
 
         <!-- Pricing -->
+        <% if current_user.has_sidebar_permission?('pricing') %>
         <li class="nav-item">
           <%= link_to admin_pricing_path, class: "nav-link-modern #{'active' if request.path == '/admin/pricing'}" do %>
             <div class="nav-icon-modern">
@@ -456,6 +457,7 @@
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+        <% end %>
 
 
 
@@ -465,6 +467,7 @@
     </div>
 
     <!-- Bookings Section -->
+    <% if current_user.has_sidebar_permission?('bookings') || current_user.has_sidebar_permission?('stores') || current_user.has_sidebar_permission?('stock_transfers') %>
     <div class="nav-section">
       <div class="nav-section-title">Sales</div>
       <ul class="nav-menu">
@@ -483,6 +486,7 @@
         </li>
         <% end %>
         <!-- Stores -->
+        <% if current_user.has_sidebar_permission?('stores') %>
         <li class="nav-item">
           <%= link_to admin_stores_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/stores')}" do %>
             <div class="nav-icon-modern">
@@ -494,8 +498,10 @@
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+        <% end %>
 
         <!-- Stock Transfers -->
+        <% if current_user.has_sidebar_permission?('stock_transfers') %>
         <li class="nav-item">
           <%= link_to admin_stock_transfers_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/stock_transfers')}" do %>
             <div class="nav-icon-modern">
@@ -504,15 +510,17 @@
               </div>
             </div>
             <span class="nav-text">Stock Transfers</span>
-            <% pending = StockTransfer.pending.count rescue 0 %>
+            <% pending = Rails.cache.fetch('sidebar/stock_transfers_pending_count', expires_in: 3.minutes) { StockTransfer.pending.count } rescue 0 %>
             <% if pending > 0 %>
               <span class="badge bg-warning ms-auto"><%= pending %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+        <% end %>
       </ul>
     </div>
+    <% end %>
 
     <!-- HR Section -->
     <% if current_user.has_sidebar_permission?('staff_payout') %>
@@ -535,50 +543,12 @@
     </div>
     <% end %>
 
-    <!-- Store Analytics Section -->
-    <div class="nav-section">
-      <div class="nav-section-title">Store Analytics</div>
-      <ul class="nav-menu">
-        <li class="nav-item">
-          <%= link_to admin_store_analytics_comparison_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_analytics/comparison')}" do %>
-            <div class="nav-icon-modern">
-              <div class="icon-bg gradient-teal">
-                <i class="bi bi-bar-chart-line"></i>
-              </div>
-            </div>
-            <span class="nav-text">Comparison</span>
-            <div class="nav-indicator"></div>
-          <% end %>
-        </li>
-        <li class="nav-item">
-          <%= link_to admin_store_analytics_top_products_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_analytics/top_products')}" do %>
-            <div class="nav-icon-modern">
-              <div class="icon-bg gradient-purple">
-                <i class="bi bi-trophy"></i>
-              </div>
-            </div>
-            <span class="nav-text">Top Products</span>
-            <div class="nav-indicator"></div>
-          <% end %>
-        </li>
-        <li class="nav-item">
-          <%= link_to admin_store_analytics_peak_hours_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_analytics/peak_hours')}" do %>
-            <div class="nav-icon-modern">
-              <div class="icon-bg gradient-orange">
-                <i class="bi bi-grid-3x3"></i>
-              </div>
-            </div>
-            <span class="nav-text">Peak Hours</span>
-            <div class="nav-indicator"></div>
-          <% end %>
-        </li>
-      </ul>
-    </div>
-
     <!-- Store Financials Section -->
+    <% if current_user.has_sidebar_permission?('store_financials_vendor_tracking') || current_user.has_sidebar_permission?('store_financials_commission') || current_user.has_sidebar_permission?('store_financials_gst_report') %>
     <div class="nav-section">
       <div class="nav-section-title">Store Financials</div>
       <ul class="nav-menu">
+        <% if current_user.has_sidebar_permission?('store_financials_vendor_tracking') %>
         <li class="nav-item">
           <%= link_to admin_store_financials_vendor_tracking_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_financials/vendor_tracking')}" do %>
             <div class="nav-icon-modern">
@@ -590,6 +560,8 @@
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+        <% end %>
+        <% if current_user.has_sidebar_permission?('store_financials_commission') %>
         <li class="nav-item">
           <%= link_to admin_store_financials_commission_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_financials/commission')}" do %>
             <div class="nav-icon-modern">
@@ -601,6 +573,8 @@
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+        <% end %>
+        <% if current_user.has_sidebar_permission?('store_financials_gst_report') %>
         <li class="nav-item">
           <%= link_to admin_store_financials_gst_report_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_financials/gst_report')}" do %>
             <div class="nav-icon-modern">
@@ -612,8 +586,10 @@
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+        <% end %>
       </ul>
     </div>
+    <% end %>
 
     <!-- Subscription Section -->
     <% if current_user.has_sidebar_permission?('customer_formats') || current_user.has_sidebar_permission?('subscriptions') || current_user.has_sidebar_permission?('invoices') || current_user.has_sidebar_permission?('notes') || current_user.has_sidebar_permission?('pending_amounts') || current_user.has_sidebar_permission?('invoice_check') %>
@@ -706,7 +682,7 @@
             </div>
             <span class="nav-text">Invoice Check</span>
             <% begin %>
-              <% pending_count = MilkSubscription.joins(:customer).where(is_active: true).select(:customer_id).distinct.count %>
+              <% pending_count = Rails.cache.fetch('sidebar/milk_subscription_active_customers_count', expires_in: 3.minutes) { MilkSubscription.joins(:customer).where(is_active: true).select(:customer_id).distinct.count } %>
               <% if pending_count > 0 %>
                 <span class="badge bg-warning text-dark ms-2" style="font-size: 10px; padding: 2px 6px;"><%= pending_count %></span>
               <% end %>
@@ -782,7 +758,7 @@
     <% end %>
 
     <!-- Master Data Section -->
-    <% if current_user.has_sidebar_permission?('customers') || current_user.has_sidebar_permission?('categories') || current_user.has_sidebar_permission?('products') || current_user.has_sidebar_permission?('coupons') || current_user.has_sidebar_permission?('customer_wallets') || current_user.has_sidebar_permission?('franchises') || current_user.has_sidebar_permission?('affiliates') %>
+    <% if current_user.has_sidebar_permission?('customers') || current_user.has_sidebar_permission?('referrals') || current_user.has_sidebar_permission?('categories') || current_user.has_sidebar_permission?('products') || current_user.has_sidebar_permission?('qr_codes') || current_user.has_sidebar_permission?('coupons') || current_user.has_sidebar_permission?('customer_wallets') || current_user.has_sidebar_permission?('franchises') || current_user.has_sidebar_permission?('affiliates') %>
     <div class="nav-section">
       <div class="nav-section-title">Master Data</div>
       <ul class="nav-menu">
@@ -802,7 +778,7 @@
         <% end %>
 
         <!-- Referrals -->
-        <% if current_user.has_sidebar_permission?('referrals') || current_user.user_type == 'admin' || current_user.user_type == 'super_admin' %>
+        <% if current_user.has_sidebar_permission?('referrals') %>
           <li class="nav-item dropdown-menu-item">
             <a href="#" class="nav-link-modern dropdown-toggle #{'active' if request.path.include?('/admin/referrals')}" data-bs-toggle="collapse" data-bs-target="#referralsSubmenu" aria-expanded="false">
               <div class="nav-icon-modern">
@@ -871,7 +847,7 @@
         <% end %>
 
         <!-- QR Codes -->
-        <% if current_user.has_sidebar_permission?('products') %>
+        <% if current_user.has_sidebar_permission?('qr_codes') %>
           <li class="nav-item">
             <%= link_to admin_qr_codes_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/qr_codes')}" do %>
               <div class="nav-icon-modern">
@@ -938,7 +914,7 @@
     <% end %>
 
     <!-- Delivery Management Section -->
-    <% if current_user.has_sidebar_permission?('delivery_people') || current_user.has_sidebar_permission?('delivery_settings') || current_user.admin? || current_user.super_admin? %>
+    <% if current_user.has_sidebar_permission?('delivery_people') || current_user.has_sidebar_permission?('delivery_settings') %>
     <div class="nav-section">
       <div class="nav-section-title">Delivery Management</div>
       <ul class="nav-menu">
@@ -958,7 +934,7 @@
         <% end %>
 
         <!-- Delivery Settings -->
-        <% if current_user.has_sidebar_permission?('delivery_settings') || current_user.admin? || current_user.super_admin? %>
+        <% if current_user.has_sidebar_permission?('delivery_settings') %>
         <li class="nav-item">
           <%= link_to admin_delivery_settings_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/delivery_settings')}" do %>
             <div class="nav-icon-modern">
@@ -998,8 +974,56 @@
     </div>
     <% end %>
 
+    <!-- Store Analytics Section -->
+    <% if current_user.has_sidebar_permission?('store_analytics_comparison') || current_user.has_sidebar_permission?('store_analytics_top_products') || current_user.has_sidebar_permission?('store_analytics_peak_hours') %>
+    <div class="nav-section">
+      <div class="nav-section-title">Store Analytics</div>
+      <ul class="nav-menu">
+        <% if current_user.has_sidebar_permission?('store_analytics_comparison') %>
+        <li class="nav-item">
+          <%= link_to admin_store_analytics_comparison_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_analytics/comparison')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-teal">
+                <i class="bi bi-bar-chart-line"></i>
+              </div>
+            </div>
+            <span class="nav-text">Comparison</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+        <% end %>
+        <% if current_user.has_sidebar_permission?('store_analytics_top_products') %>
+        <li class="nav-item">
+          <%= link_to admin_store_analytics_top_products_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_analytics/top_products')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-purple">
+                <i class="bi bi-trophy"></i>
+              </div>
+            </div>
+            <span class="nav-text">Top Products</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+        <% end %>
+        <% if current_user.has_sidebar_permission?('store_analytics_peak_hours') %>
+        <li class="nav-item">
+          <%= link_to admin_store_analytics_peak_hours_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/store_analytics/peak_hours')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-orange">
+                <i class="bi bi-grid-3x3"></i>
+              </div>
+            </div>
+            <span class="nav-text">Peak Hours</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+        <% end %>
+      </ul>
+    </div>
+    <% end %>
+
     <!-- Reports Section -->
-    <% if current_user.has_sidebar_permission?('reports') %>
+    <% if current_user.has_sidebar_permission?('reports') || current_user.has_sidebar_permission?('profit_loss') %>
     <div class="nav-section">
       <div class="nav-section-title">Reports</div>
       <ul class="nav-menu">
@@ -1018,7 +1042,7 @@
         </li>
         <% end %>
         <!-- Profit & Loss Report -->
-        <% if current_user.has_sidebar_permission?('reports') %>
+        <% if current_user.has_sidebar_permission?('profit_loss') %>
         <li class="nav-item">
           <%= link_to admin_reports_profit_loss_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/reports/profit_loss')}" do %>
             <div class="nav-icon-modern">

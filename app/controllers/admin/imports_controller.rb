@@ -2,10 +2,17 @@ class Admin::ImportsController < Admin::ApplicationController
   require 'csv'
 
   def index
+    # get_total_imports_count used to be called 3 times over (once directly,
+    # once inside get_successful_imports_count, and get_failed_imports_count
+    # called both of those again) — 9 count queries for one number. Compute
+    # it once and derive the rest from it.
+    total = get_total_imports_count
+    successful = get_successful_imports_count(total)
+
     @import_stats = {
-      total_imports: get_total_imports_count,
-      successful_imports: get_successful_imports_count,
-      failed_imports: get_failed_imports_count,
+      total_imports: total,
+      successful_imports: successful,
+      failed_imports: total - successful,
       last_import: get_last_import_date
     }
   end
@@ -643,12 +650,8 @@ class Admin::ImportsController < Admin::ApplicationController
     Customer.count + Product.count + DeliveryPerson.count
   end
 
-  def get_successful_imports_count
-    (get_total_imports_count * 0.85).to_i
-  end
-
-  def get_failed_imports_count
-    get_total_imports_count - get_successful_imports_count
+  def get_successful_imports_count(total)
+    (total * 0.85).to_i
   end
 
   def get_last_import_date

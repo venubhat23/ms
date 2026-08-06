@@ -223,13 +223,19 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     unavailable_products = []
     available_products = []
 
+    # Batch-load every product referenced in the cart in one query (was a
+    # Product.active.find per item) — reused again after save, below.
+    requested_product_ids = booking_params[:booking_items_attributes]&.map { |i| i[:product_id] }&.uniq || []
+    products_by_id = Product.active.where(id: requested_product_ids).index_by(&:id)
+
     booking_params[:booking_items_attributes]&.each do |item_params|
       product_id = item_params[:product_id]
       variant_id = item_params[:product_variant_id]
       quantity = item_params[:quantity].to_f
 
       begin
-        product = Product.active.find(product_id)
+        product = products_by_id[product_id.to_i]
+        raise ActiveRecord::RecordNotFound unless product
 
         # Check stock availability — use variant stock for multi-quantity products
         if product.has_multiple_quantities? && variant_id.present?
@@ -325,9 +331,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
         @booking.save!
 
-        # Update product stock
+        # Update product stock — reuse the products batch-loaded above instead
+        # of item.product re-querying one at a time.
         @booking.booking_items.each do |item|
-          product = item.product
+          product = products_by_id[item.product_id]
           if product.has_multiple_quantities? && item.product_variant_id.present?
             variant = ProductVariant.find_by(id: item.product_variant_id)
             variant&.update!(available_stock: [variant.available_stock - item.quantity, 0].max)
@@ -384,7 +391,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     customer = Customer.find_by(email: @current_user&.email) if @current_user
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
-    @bookings = customer.bookings.recent.includes(:booking_items => :product)
+    @bookings = customer.bookings.recent.includes(:franchise, booking_items: :product)
     user_type = 'customer'
 
     # Filter by status if provided
@@ -477,7 +484,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
     # Get recent activity
     recent_orders = customer.orders.recent.limit(5)
-    recent_bookings = customer.bookings.recent.limit(5)
+    recent_bookings = customer.bookings.recent.includes(:franchise).limit(5)
 
     profile_data = {
       id: customer.id,
@@ -1381,17 +1388,24 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     cart_items = booking_params[:booking_items_attributes]
     return json_response({ success: false, message: 'Cart is empty' }, :bad_request) if cart_items.blank?
 
+    # Batch-load every product/variant referenced in the cart in one query
+    # each (was a Product.find_by + Product.find per item across two loops).
+    cart_product_ids = cart_items.map { |item| (item[:product_id] || item['product_id']).to_i }.uniq
+    cart_variant_ids = cart_items.map { |item| item[:product_variant_id] || item['product_variant_id'] }.compact.uniq
+    products_by_id = Product.where(id: cart_product_ids).index_by(&:id)
+    variants_by_id = cart_variant_ids.any? ? ProductVariant.where(id: cart_variant_ids).index_by(&:id) : {}
+
     # Validate stock before creating booking
     stock_errors = []
     cart_items.each do |item|
       product_id  = item[:product_id] || item['product_id']
       variant_id  = item[:product_variant_id] || item['product_variant_id']
       quantity    = (item[:quantity] || item['quantity']).to_f
-      product     = Product.find_by(id: product_id)
+      product     = products_by_id[product_id.to_i]
       next unless product
 
       if product.has_multiple_quantities? && variant_id.present?
-        variant = ProductVariant.find_by(id: variant_id)
+        variant = variants_by_id[variant_id.to_i]
         avail = variant ? variant.available_stock.to_f : 0.0
       else
         avail = product.available_quantity
@@ -1432,7 +1446,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
       total_amount = 0
       cart_items.each do |item|
-        product    = Product.find(item[:product_id] || item['product_id'])
+        product    = products_by_id[(item[:product_id] || item['product_id']).to_i]
         variant_id = item[:product_variant_id] || item['product_variant_id']
         quantity   = (item[:quantity] || item['quantity']).to_f
         price      = (item[:price] || item['price']).to_f

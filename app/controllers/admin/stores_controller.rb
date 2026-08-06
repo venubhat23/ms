@@ -1,5 +1,6 @@
 class Admin::StoresController < Admin::ApplicationController
   before_action :authenticate_user!
+  before_action { require_sidebar_permission!('stores') }
   before_action :set_store, only: [:show, :edit, :update, :destroy, :toggle_status, :assign_admin, :update_admin, :view_as_store_admin]
   before_action :check_collect_from_store_enabled, only: [:index, :new, :create]
 
@@ -8,6 +9,9 @@ class Admin::StoresController < Admin::ApplicationController
     @can_add_more = Store.can_add_more_stores?
     @remaining_slots = Store.remaining_store_slots
     @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?
+    # One grouped query for every store's booking count instead of one
+    # `store.bookings.count` round trip per card in the view.
+    @booking_counts = Booking.group(:store_id).count
 
     respond_to do |format|
       format.html

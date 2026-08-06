@@ -65,7 +65,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">This Month</h6>
-            <h4 class="mb-0"><%= Affiliate.where('created_at >= ?', 1.month.ago).count %></h4>
+            <h4 class="mb-0"><%= @stats[:this_month] %></h4>
           </div>
           <div class="text-info">
             <i class="bi bi-calendar-plus fs-2"></i>

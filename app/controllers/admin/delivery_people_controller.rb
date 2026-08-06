@@ -30,20 +30,43 @@ class Admin::DeliveryPeopleController < Admin::ApplicationController
 
     @delivery_people = @delivery_people.recent
 
+    filters_applied = %i[search vehicle_type status city].any? { |k| params[k].present? }
+
     # Handle pagination if Kaminari is available
     if @delivery_people.respond_to?(:page)
       @delivery_people = @delivery_people.page(params[:page]).per(20)
+      # Fire the paginated listing on its own pooled connection now so its
+      # round trip overlaps with a stats cache miss below instead of stacking.
+      @delivery_people.load_async
     end
 
-    # Statistics for cards
-    @total_delivery_people = DeliveryPerson.count
-    @active_delivery_people = DeliveryPerson.active.count
-    @inactive_delivery_people = DeliveryPerson.inactive.count
-    @vehicle_types_count = DeliveryPerson.group(:vehicle_type).count
-    @total_filtered_count = @delivery_people.respond_to?(:total_count) ? @delivery_people.total_count : @delivery_people.count
+    # Statistics for cards — combine total/active/inactive into a single
+    # GROUP BY query, and cache the low-churn stats block (city list,
+    # vehicle type breakdown) instead of hitting the DB on every request.
+    stats = Rails.cache.fetch('admin:delivery_people:stats', expires_in: 2.minutes) do
+      status_counts = DeliveryPerson.group(:status).count
+      {
+        total: status_counts.values.sum,
+        active: status_counts[true] || 0,
+        inactive: status_counts[false] || 0,
+        vehicle_types_count: DeliveryPerson.group(:vehicle_type).count,
+        cities: DeliveryPerson.distinct.pluck(:city).compact.sort
+      }
+    end
 
-    # Get unique cities for filter
-    @cities = DeliveryPerson.distinct.pluck(:city).compact.sort
+    @total_delivery_people = stats[:total]
+    @active_delivery_people = stats[:active]
+    @inactive_delivery_people = stats[:inactive]
+    @vehicle_types_count = stats[:vehicle_types_count]
+    @cities = stats[:cities]
+
+    # Reuse the cached total instead of a second COUNT(*) round trip when no
+    # filter narrows the result set.
+    @total_filtered_count = if filters_applied
+      @delivery_people.respond_to?(:total_count) ? @delivery_people.total_count : @delivery_people.count
+    else
+      stats[:total]
+    end
   end
 
   def show

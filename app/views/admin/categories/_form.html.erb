@@ -107,10 +107,10 @@
 
           <div class="col-md-6">
             <label class="form-label fw-medium">
-              <span id="preview-label"><%= @category.image.attached? ? 'Current Image' : 'Image Preview' %></span>
+              <span id="preview-label"><%= @category.persisted? && @category.image.attached? ? 'Current Image' : 'Image Preview' %></span>
             </label>
             <div class="image-preview-container p-3 border border-2 border-dashed rounded bg-light text-center" id="image-preview-container">
-              <% if @category.image.attached? %>
+              <% if @category.persisted? && @category.image.attached? %>
                 <%= image_tag @category.image, class: "img-thumbnail shadow-sm", id: "image-preview", style: "max-width: 150px; max-height: 150px;" %>
               <% else %>
                 <div id="no-preview" class="text-muted">

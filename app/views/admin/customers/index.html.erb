@@ -75,7 +75,7 @@
         </label>
         <select id="customerFilter" class="form-select customer-select2">
           <option value="">All Customers</option>
-          <% Customer.order(:first_name, :last_name).each do |customer| %>
+          <% @customer_filter_options.each do |customer| %>
             <option value="<%= customer.id %>"
                     <%= 'selected' if params[:customer_id] == customer.id.to_s %>
                     data-name="<%= customer.display_name %>"
@@ -93,16 +93,14 @@
         </label>
         <select id="deliveryPersonFilter" class="form-select delivery-person-select2">
           <option value="">All Delivery Persons</option>
-          <% if defined?(DeliveryPerson) %>
-            <% DeliveryPerson.active.order(:first_name, :last_name).each do |dp| %>
-              <option value="<%= dp.id %>"
-                      <%= 'selected' if params[:delivery_person_id] == dp.id.to_s %>
-                      data-name="<%= dp.display_name %>"
-                      data-mobile="<%= dp.mobile %>"
-                      data-vehicle="<%= dp.vehicle_number %>">
-                <%= dp.display_name %> - <%= dp.mobile %> (<%= dp.vehicle_number %>)
-              </option>
-            <% end %>
+          <% @filter_delivery_people.each do |dp| %>
+            <option value="<%= dp.id %>"
+                    <%= 'selected' if params[:delivery_person_id] == dp.id.to_s %>
+                    data-name="<%= dp.display_name %>"
+                    data-mobile="<%= dp.mobile %>"
+                    data-vehicle="<%= dp.vehicle_number %>">
+              <%= dp.display_name %> - <%= dp.mobile %> (<%= dp.vehicle_number %>)
+            </option>
           <% end %>
         </select>
       </div>

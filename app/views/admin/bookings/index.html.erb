@@ -253,112 +253,108 @@
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-transparent border-0 pb-0">
     <!-- Enhanced Filters Bar -->
-    <div class="filters-container bg-light rounded-3 px-3 py-2 mb-3">
+    <div class="filters-container bg-light rounded-3 px-3 py-3 mb-3">
       <%= form_with url: admin_bookings_path, method: :get, local: true, class: "filter-form" do |form| %>
-        <div class="d-flex align-items-end gap-2 flex-nowrap">
+        <div class="d-flex align-items-center gap-3 flex-nowrap">
 
-          <!-- Customer -->
-          <div style="min-width:150px; flex:1.5;">
-            <label class="form-label text-muted mb-1 small fw-semibold">
-              <i class="bi bi-person me-1"></i>Customer
-            </label>
-            <%= form.select :customer_id,
-                options_from_collection_for_select(@customers, :id, :display_name, params[:customer_id]),
-                { prompt: 'All Customers' },
-                { class: "form-select form-select-sm customer-select", data: { placeholder: "Select Customer...", allow_clear: true } } %>
-          </div>
+          <!-- The 6 dropdown/search filters share one grid, so they're always exactly
+               equal width and equally spaced, no matter how narrow the window gets
+               (minmax(0, 1fr) lets a column shrink instead of forcing an overflow). -->
+          <div class="d-grid flex-grow-1" style="grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.75rem; min-width:0;">
 
-          <!-- Status -->
-          <div style="min-width:120px; flex:1;">
-            <label class="form-label text-muted mb-1 small fw-semibold">
-              <i class="bi bi-flag me-1"></i>Status
-            </label>
-            <%= form.select :status,
-                options_for_select([
-                  ['All Stages', ''],
-                  ['Draft', 'draft'],
-                  ['Pending Delivery', 'ordered_and_delivery_pending'],
-                  ['Confirmed', 'confirmed'],
-                  ['Processing', 'processing'],
-                  ['Packed', 'packed'],
-                  ['Shipped', 'shipped'],
-                  ['Out for Delivery', 'out_for_delivery'],
-                  ['Delivered', 'delivered'],
-                  ['Completed', 'completed'],
-                  ['Cancelled', 'cancelled'],
-                  ['Returned', 'returned']
-                ], params[:status]),
-                {},
-                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
-          </div>
-
-          <!-- Search -->
-          <div style="min-width:160px; flex:1.5;">
-            <label class="form-label text-muted mb-1 small fw-semibold">
-              <i class="bi bi-search me-1"></i>Search
-            </label>
-            <div class="position-relative">
-              <%= form.text_field :search,
-                  value: params[:search],
-                  class: "form-control form-control-sm search-input",
-                  placeholder: "Booking #, customer, phone...",
-                  id: "searchInput" %>
-              <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y me-1 p-0"
-                      onclick="document.getElementById('searchInput').value=''; this.form.submit();"
-                      title="Clear search"
-                      style="<%= params[:search].present? ? '' : 'display: none;' %>">
-                <i class="bi bi-x text-muted"></i>
-              </button>
+            <!-- Customer (Select2, for type-to-search). No .filter-chip wrapper: Select2
+                 renders its own bordered pill, so wrapping it in another bordered pill
+                 would double up the border. Its pill shape/size is forced to match the
+                 other filters via the .select2-container--bootstrap-5 rules below. -->
+            <div class="d-flex align-items-center gap-2" style="min-width:0;" title="Customer">
+              <i class="bi bi-person text-secondary flex-shrink-0"></i>
+              <%= form.select :customer_id,
+                  options_from_collection_for_select(@customers, :id, :display_name, params[:customer_id]),
+                  { prompt: 'All Customers' },
+                  { class: "form-select form-select-sm customer-select", data: { placeholder: "Select Customer...", allow_clear: true } } %>
             </div>
-          </div>
 
-          <!-- Source -->
-          <div style="min-width:110px; flex:1;">
-            <label class="form-label text-muted mb-1 small fw-semibold">
-              <i class="bi bi-phone me-1"></i>Source
-            </label>
-            <%= form.select :booked_by,
-                options_for_select([
-                  ['All Sources', ''],
-                  ['Mobile App', 'mobile_api'],
-                  ['Mobile UI Admin', 'mobile_ui_admin'],
-                  ['Customer Website', 'customer'],
-                  ['Franchise', 'franchise'],
-                  ['Affiliate', 'affiliate'],
-                  ['Store / Admin', 'admin']
-                ], params[:booked_by]),
-                {},
-                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
-          </div>
+            <!-- Status -->
+            <div class="filter-chip d-flex align-items-center gap-2" style="min-width:0;" title="Status">
+              <i class="bi bi-flag text-secondary flex-shrink-0"></i>
+              <%= form.select :status,
+                  options_for_select([
+                    ['All Stages', ''],
+                    ['Draft', 'draft'],
+                    ['Pending Delivery', 'ordered_and_delivery_pending'],
+                    ['Confirmed', 'confirmed'],
+                    ['Processing', 'processing'],
+                    ['Packed', 'packed'],
+                    ['Shipped', 'shipped'],
+                    ['Out for Delivery', 'out_for_delivery'],
+                    ['Delivered', 'delivered'],
+                    ['Completed', 'completed'],
+                    ['Cancelled', 'cancelled'],
+                    ['Returned', 'returned']
+                  ], params[:status]),
+                  {},
+                  { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+            </div>
 
-          <!-- Affiliate -->
-          <div style="min-width:110px; flex:1;">
-            <label class="form-label text-muted mb-1 small fw-semibold">
-              <i class="bi bi-person-badge me-1"></i>Affiliate
-            </label>
-            <%= form.select :affiliate_id,
-                options_from_collection_for_select(@affiliates, :id, :display_name, params[:affiliate_id]),
-                { prompt: 'All Affiliates' },
-                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
-          </div>
+            <!-- Search -->
+            <div class="filter-chip d-flex align-items-center gap-2" style="min-width:0;" title="Search">
+              <i class="bi bi-search text-secondary flex-shrink-0"></i>
+              <div class="position-relative flex-grow-1" style="min-width:0;">
+                <%= form.text_field :search,
+                    value: params[:search],
+                    class: "form-control form-control-sm search-input",
+                    placeholder: "Booking #, customer, phone...",
+                    id: "searchInput" %>
+                <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y me-1 p-0"
+                        onclick="document.getElementById('searchInput').value=''; this.form.submit();"
+                        title="Clear search"
+                        style="<%= params[:search].present? ? '' : 'display: none;' %>">
+                  <i class="bi bi-x text-muted"></i>
+                </button>
+              </div>
+            </div>
 
-          <!-- Category -->
-          <div style="min-width:110px; flex:1;">
-            <label class="form-label text-muted mb-1 small fw-semibold">
-              <i class="bi bi-grid me-1"></i>Category
-            </label>
-            <%= form.select :category_id,
-                options_from_collection_for_select(@categories, :id, :name, params[:category_id]),
-                { prompt: 'All Categories' },
-                { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+            <!-- Source -->
+            <div class="filter-chip d-flex align-items-center gap-2" style="min-width:0;" title="Source">
+              <i class="bi bi-phone text-secondary flex-shrink-0"></i>
+              <%= form.select :booked_by,
+                  options_for_select([
+                    ['All Sources', ''],
+                    ['Mobile App', 'mobile_api'],
+                    ['Mobile UI Admin', 'mobile_ui_admin'],
+                    ['Customer Website', 'customer'],
+                    ['Franchise', 'franchise'],
+                    ['Affiliate', 'affiliate'],
+                    ['Store / Admin', 'admin']
+                  ], params[:booked_by]),
+                  {},
+                  { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+            </div>
+
+            <!-- Affiliate -->
+            <div class="filter-chip d-flex align-items-center gap-2" style="min-width:0;" title="Affiliate">
+              <i class="bi bi-person-badge text-secondary flex-shrink-0"></i>
+              <%= form.select :affiliate_id,
+                  options_from_collection_for_select(@affiliates, :id, :display_name, params[:affiliate_id]),
+                  { prompt: 'All Affiliates' },
+                  { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+            </div>
+
+            <!-- Category -->
+            <div class="filter-chip d-flex align-items-center gap-2" style="min-width:0;" title="Category">
+              <i class="bi bi-grid text-secondary flex-shrink-0"></i>
+              <%= form.select :category_id,
+                  options_from_collection_for_select(@categories, :id, :name, params[:category_id]),
+                  { prompt: 'All Categories' },
+                  { class: "form-select form-select-sm", onchange: "this.form.submit();" } %>
+            </div>
+
           </div>
 
           <!-- B2B Toggle -->
-          <div class="flex-shrink-0" style="padding-bottom:2px;">
-            <label class="form-label text-muted mb-1 small fw-semibold d-block">
-              <i class="bi bi-building me-1"></i>B2B
-            </label>
-            <div class="form-check form-switch mb-0" style="padding-top:4px;">
+          <div class="filter-chip d-flex align-items-center gap-2 flex-shrink-0" title="B2B">
+            <i class="bi bi-building text-secondary flex-shrink-0"></i>
+            <div class="form-check form-switch mb-0">
               <%= form.check_box :b2b, checked: params[:b2b] == '1',
                   class: 'form-check-input',
                   id: 'b2bFilterToggle',
@@ -369,7 +365,7 @@
           </div>
 
           <!-- Actions + result count -->
-          <div class="flex-shrink-0 d-flex gap-2 align-items-end" style="padding-bottom:2px;">
+          <div class="flex-shrink-0 d-flex gap-2 align-items-center">
             <%= form.submit "Apply", class: "btn btn-primary btn-sm px-3 d-none" %>
             <% active_filters = params[:search].present? || params[:status].present? || params[:customer_id].present? || params[:b2b].present? || params[:booked_by].present? || params[:category_id].present? || params[:affiliate_id].present? %>
             <% if active_filters %>
@@ -377,7 +373,7 @@
                 <i class="bi bi-arrow-clockwise"></i>
               <% end %>
             <% end %>
-            <span class="small text-muted text-nowrap align-self-center">
+            <span class="filter-status small text-muted text-nowrap">
               <%= pluralize(@bookings.respond_to?(:total_count) ? @bookings.total_count : @bookings.count, 'result') %>
               <%= content_tag(:span, '(filtered)', class: 'text-primary') if active_filters %>
             </span>
@@ -846,7 +842,7 @@ function confirmDelete(bookingId, bookingNumber, customerName, listStateQuery) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Initialize Select2 for customer dropdown
+  // Initialize Select2 for the customer dropdown (type-to-search)
   $('.customer-select').select2({
     theme: 'bootstrap-5',
     placeholder: 'Select Customer...',
@@ -854,7 +850,14 @@ document.addEventListener('DOMContentLoaded', function() {
     width: '100%'
   });
 
-  // Auto-submit form when customer selection changes
+  // Force the pill shape/size to match the other filter chips. Belt-and-suspenders
+  // alongside the CSS rules below, in case anything sets the radius inline.
+  $('.customer-select').next('.select2-container').find('.select2-selection').css({
+    'border-radius': '999px',
+    'height': '36px'
+  });
+
+  // Auto-submit the filter form when the customer selection changes
   $('.customer-select').on('change', function() {
     const form = $(this).closest('form');
     form.addClass('loading');
@@ -2150,6 +2153,45 @@ td .d-flex.gap-2 {
   border-color: #adb5bd;
 }
 
+/* Compact icon + control pills used in the bookings filter bar */
+.filter-chip {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 999px;
+  height: 36px;
+  padding: 0 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.filter-chip:hover {
+  border-color: #adb5bd;
+}
+
+.filter-chip:focus-within {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+.filter-chip > i {
+  font-size: 0.8rem;
+}
+
+.filter-chip .form-select,
+.filter-chip .form-control {
+  border: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  font-size: 0.8125rem;
+  /* Flex items default to min-width:auto, which lets a <select>'s longest
+     option (e.g. "Pending Delivery") win over its assigned width and spill
+     into the next filter chip. Force it to actually respect the box. */
+  flex: 1 1 0%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Search Input Enhancements */
 .search-input {
   padding-right: 35px;
@@ -2173,20 +2215,22 @@ td .d-flex.gap-2 {
   font-weight: 500;
 }
 
-/* Select2 Customer Dropdown Styling */
+/* Select2 Customer Dropdown Styling — pill radius/height/font matches the other
+   .filter-chip controls so it doesn't stand out visually */
 .select2-container--bootstrap-5 .select2-selection {
-  border-radius: 8px !important;
+  border-radius: 999px !important;
   border: 1px solid #dee2e6 !important;
-  min-height: 31px !important;
+  height: 36px !important;
   background: white !important;
+  overflow: hidden !important;
   transition: all 0.3s ease !important;
 }
 
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
   padding-left: 12px !important;
   padding-right: 12px !important;
-  line-height: 29px !important;
-  font-size: 0.875rem !important;
+  line-height: 34px !important;
+  font-size: 0.8125rem !important;
 }
 
 .select2-container--bootstrap-5.select2-container--focus .select2-selection {
@@ -2214,6 +2258,13 @@ td .d-flex.gap-2 {
 .select2-results__option {
   font-size: 0.875rem !important;
   padding: 8px 12px !important;
+}
+
+/* Same min-width:auto flex fix used on the other filter-chip controls, applied to
+   the Select2-generated container so it doesn't spill out of its grid column */
+.customer-select + .select2-container {
+  flex: 1 1 0%;
+  min-width: 0;
 }
 
 /* Clear button styling */

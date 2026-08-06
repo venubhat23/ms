@@ -1,10 +1,26 @@
 class Admin::QrCodesController < Admin::ApplicationController
   before_action :authenticate_user!
+  before_action { require_sidebar_permission!('qr_codes') }
 
   def index
-    @products = Product.where.not(barcode: nil).includes(:category).order(:name)
+    # id/name/barcode/sku/category_id are all the view needs (qr_code_svg only
+    # reads barcode) — trims the row payload on an otherwise unpaginated,
+    # full-table query.
+    base_scope = Product.where.not(barcode: nil)
+                        .select(:id, :name, :barcode, :sku, :category_id)
+                        .includes(:category)
+
     if params[:search].present?
-      @products = @products.where("name LIKE ? OR barcode LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+      @products = base_scope.where("name LIKE ? OR barcode LIKE ?", "%#{params[:search]}%", "%#{params[:search]}%")
+                            .order(:name)
+    else
+      # The common case (no search = "print all") is cached: this is a bulk
+      # reference listing, not live data, so a few minutes of staleness after
+      # a product/barcode is added is an acceptable trade for skipping the
+      # full-table round trip on every request.
+      @products = Rails.cache.fetch('admin_qr_codes/all_products', expires_in: 5.minutes) do
+        base_scope.order(:name).to_a
+      end
     end
   end
 

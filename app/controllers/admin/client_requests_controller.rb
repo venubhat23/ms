@@ -14,16 +14,26 @@ class Admin::ClientRequestsController < Admin::ApplicationController
       @client_requests = @client_requests.search_requests(params[:search])
     end
 
-    @client_requests = @client_requests.page(params[:page]).per(20)
+    filters_applied = params[:status].present? || params[:priority].present? || params[:search].present?
 
-    # Statistics for dashboard cards
+    @client_requests = @client_requests.page(params[:page]).per(20)
+    # Fire the paginated listing on its own pooled connection now so its round
+    # trip overlaps with the status GROUP BY below instead of stacking after it.
+    @client_requests.load_async
+
+    # Single GROUP BY replaces 5 separate COUNT queries.
+    status_counts = ClientRequest.group(:status).count
     @stats = {
-      total: ClientRequest.count,
-      pending: ClientRequest.pending.count,
-      in_progress: ClientRequest.in_progress.count,
-      resolved: ClientRequest.resolved.count,
-      closed: ClientRequest.closed.count
+      total: status_counts.values.sum,
+      pending: status_counts['pending'] || 0,
+      in_progress: status_counts['in_progress'] || 0,
+      resolved: status_counts['resolved'] || 0,
+      closed: status_counts['closed'] || 0
     }
+
+    # Reuse the GROUP BY total instead of a second COUNT(*) round trip when no
+    # filter narrows the result set.
+    @client_requests.instance_variable_set(:@total_count, @stats[:total]) unless filters_applied
   end
 
   def show
@@ -46,22 +56,22 @@ class Admin::ClientRequestsController < Admin::ApplicationController
   end
 
   def pending
-    @client_requests = ClientRequest.pending.recent.page(params[:page]).per(20)
+    @client_requests = ClientRequest.includes(:resolved_by).pending.recent.page(params[:page]).per(20)
     render :index
   end
 
   def in_progress
-    @client_requests = ClientRequest.in_progress.recent.page(params[:page]).per(20)
+    @client_requests = ClientRequest.includes(:resolved_by).in_progress.recent.page(params[:page]).per(20)
     render :index
   end
 
   def resolved
-    @client_requests = ClientRequest.resolved.recent.page(params[:page]).per(20)
+    @client_requests = ClientRequest.includes(:resolved_by).resolved.recent.page(params[:page]).per(20)
     render :index
   end
 
   def search
-    @client_requests = ClientRequest.search_requests(params[:q]).recent.page(params[:page]).per(20)
+    @client_requests = ClientRequest.includes(:resolved_by).search_requests(params[:q]).recent.page(params[:page]).per(20)
     render :index
   end
 

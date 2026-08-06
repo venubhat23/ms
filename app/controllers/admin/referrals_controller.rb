@@ -1,5 +1,6 @@
 class Admin::ReferralsController < ApplicationController
   before_action :authenticate_user!
+  before_action { require_sidebar_permission!('referrals') }
   before_action :set_referral, only: [:show, :update, :destroy, :mark_registered, :mark_converted]
 
   # GET /admin/referrals
@@ -34,16 +35,12 @@ class Admin::ReferralsController < ApplicationController
     # Add pagination manually (25 per page)
     @referrals = @referrals.limit(25).offset((params[:page]&.to_i || 0) * 25)
 
-    # Calculate statistics
-    @stats = {
-      total: Referral.count,
+    # Calculate statistics — 3 queries instead of the 8 serial counts this
+    # used to run (status breakdown collapsed into one GROUP BY).
+    @stats = build_referral_stats(Referral.all).merge(
       customer_referrals: Referral.customer_referrals.count,
-      affiliate_referrals: Referral.affiliate_referrals.count,
-      pending: Referral.pending.count,
-      registered: Referral.registered.count,
-      converted: Referral.converted.count,
-      conversion_rate: calculate_conversion_rate
-    }
+      affiliate_referrals: Referral.affiliate_referrals.count
+    )
   end
 
   # GET /admin/referrals/1
@@ -105,15 +102,10 @@ class Admin::ReferralsController < ApplicationController
     # Add pagination manually (25 per page)
     @referrals = @referrals.limit(25).offset((params[:page]&.to_i || 0) * 25)
 
-    # Calculate statistics for affiliate referrals only
-    @stats = {
-      total: Referral.affiliate_referrals.count,
-      affiliate_referrals: Referral.affiliate_referrals.count,
-      pending: Referral.affiliate_referrals.pending.count,
-      registered: Referral.affiliate_referrals.respond_to?(:registered) ? Referral.affiliate_referrals.registered.count : 0,
-      converted: Referral.affiliate_referrals.respond_to?(:converted) ? Referral.affiliate_referrals.converted.count : 0,
-      conversion_rate: calculate_affiliate_conversion_rate
-    }
+    # Calculate statistics for affiliate referrals only — 1 grouped query
+    # instead of the 5 serial counts this used to run.
+    stats = build_referral_stats(Referral.affiliate_referrals)
+    @stats = stats.merge(affiliate_referrals: stats[:total])
 
     render :index
   end
@@ -190,11 +182,19 @@ class Admin::ReferralsController < ApplicationController
     ((converted.to_f / total) * 100).round(2)
   end
 
-  def calculate_affiliate_conversion_rate
-    total = Referral.affiliate_referrals.count
-    converted = Referral.affiliate_referrals.respond_to?(:converted) ? Referral.affiliate_referrals.converted.count : 0
+  # One GROUP BY query for status breakdown instead of 3 separate
+  # pending/registered/converted counts.
+  def build_referral_stats(scope)
+    status_counts = scope.group(:status).count
+    total = status_counts.values.sum
+    converted = status_counts['converted'] || 0
 
-    return 0 if total == 0
-    ((converted.to_f / total) * 100).round(2)
+    {
+      total: total,
+      pending: status_counts['pending'] || 0,
+      registered: status_counts['registered'] || 0,
+      converted: converted,
+      conversion_rate: total.zero? ? 0 : ((converted.to_f / total) * 100).round(2)
+    }
   end
 end

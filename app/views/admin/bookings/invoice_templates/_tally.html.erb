@@ -1,5 +1,6 @@
 <style>
-  .inv-tally { font-family: Arial, sans-serif; font-size: 11px; border: 1px solid #000; background: #fff; }
+  .inv-tally { font-family: Arial, sans-serif; font-size: 11px; border: 1px solid #000; background: #fff; position: relative; }
+  .inv-tally .paid-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-35deg); font-size: 100px; font-weight: 900; color: rgba(40,167,69,0.12); border: 12px solid rgba(40,167,69,0.12); border-radius: 10px; padding: 10px 30px; letter-spacing: 10px; pointer-events: none; z-index: 0; user-select: none; white-space: nowrap; }
   .inv-tally table { border-collapse: collapse; }
   .inv-tally .t-border td, .inv-tally .t-border th { border: 1px solid #000; }
   .inv-tally .header-row { padding: 6px 10px; }
@@ -16,6 +17,7 @@
 </style>
 
 <div class="inv-tally">
+  <% if booking.payment_status_paid? %><div class="paid-watermark">PAID</div><% end %>
   <%
     upi_id2 = business_settings.upi_id || '9972808044@ybl'
     upi_string2 = "upi://pay?pa=#{upi_id2}&pn=#{CGI.escape(business_settings.business_name || 'Marali Santhe')}&am=#{final_total.round(2)}&cu=INR&tn=#{CGI.escape("Invoice #{booking.invoice_number || booking.booking_number}")}"

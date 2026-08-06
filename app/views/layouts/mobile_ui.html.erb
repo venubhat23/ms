@@ -161,6 +161,7 @@
       _on_today      = _action == 'index' && _tab == 'today'
       _on_bookings   = _action == 'index' && _tab != 'today'
       _on_price_list = _action == 'price_list'
+      _on_vendors    = _action == 'vendors'
     %>
     <nav class="mobile-bottom-nav">
       <%= link_to admin_mobile_ui_dashboard_path,
@@ -183,11 +184,50 @@
         <i class="bi bi-tags"></i>
         <span>Prices</span>
       <% end %>
-      <%= link_to admin_mobile_ui_new_booking_path, class: "bn-item bn-new" do %>
-        <i class="bi bi-plus-circle-fill"></i>
-        <span>New</span>
+      <%= link_to admin_mobile_ui_vendors_path,
+            class: "bn-item #{_on_vendors ? 'active' : ''}" do %>
+        <i class="bi bi-people"></i>
+        <span>Vendors</span>
       <% end %>
+      <button type="button" id="newMenuTrigger" onclick="toggleNewMenu(event)" class="bn-item bn-new" style="border:none;background:none;">
+        <i class="bi bi-plus-circle-fill" id="newMenuIcon"></i>
+        <span>New</span>
+      </button>
     </nav>
+
+    <%# "New" speed-dial — pops up above the bottom nav's New button %>
+    <div id="newSpeedMenu" style="display:none;position:fixed;bottom:74px;right:14px;z-index:250;flex-direction:column;align-items:flex-end;gap:10px;">
+      <%= link_to admin_mobile_ui_new_vendor_purchase_path, style: "display:flex;align-items:center;gap:8px;text-decoration:none;" do %>
+        <span style="background:white;color:#1b5e20;font-size:0.8rem;font-weight:600;padding:5px 12px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.15);white-space:nowrap;">New Vendor Purchase</span>
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#2e7d32,#1b5e20);color:white;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(46,125,50,0.4);">
+          <i class="bi bi-truck" style="font-size:1.1rem;"></i>
+        </div>
+      <% end %>
+      <%= link_to admin_mobile_ui_new_booking_path, style: "display:flex;align-items:center;gap:8px;text-decoration:none;" do %>
+        <span style="background:white;color:#1b5e20;font-size:0.8rem;font-weight:600;padding:5px 12px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.15);white-space:nowrap;">New Booking</span>
+        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#2e7d32,#1b5e20);color:white;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(46,125,50,0.4);">
+          <i class="bi bi-cart-plus-fill" style="font-size:1.1rem;"></i>
+        </div>
+      <% end %>
+    </div>
+    <script>
+      function toggleNewMenu(e) {
+        e.preventDefault();
+        const menu = document.getElementById('newSpeedMenu');
+        const icon = document.getElementById('newMenuIcon');
+        const open = menu.style.display === 'flex';
+        menu.style.display = open ? 'none' : 'flex';
+        icon.className = open ? 'bi bi-plus-circle-fill' : 'bi bi-x-circle-fill';
+      }
+      document.addEventListener('click', function(e) {
+        const menu = document.getElementById('newSpeedMenu');
+        const trigger = document.getElementById('newMenuTrigger');
+        if (menu.style.display === 'flex' && !menu.contains(e.target) && !trigger.contains(e.target)) {
+          menu.style.display = 'none';
+          document.getElementById('newMenuIcon').className = 'bi bi-plus-circle-fill';
+        }
+      });
+    </script>
   <% end %>
 
   <!-- Global loader overlay -->

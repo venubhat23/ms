@@ -25,8 +25,13 @@ Rails.application.configure do
     config.action_controller.perform_caching = false
   end
 
-  # Change to :null_store to avoid any caching.
-  config.cache_store = :memory_store
+  # :memory_store is per-process — the warm_dashboard_cache job (config/recurring.yml)
+  # runs in the separate `bin/jobs` (SolidQueue) process from `bin/rails server`, so a
+  # memory_store cache it populates is invisible to the web process and every dashboard
+  # request was a guaranteed cold miss. :file_store is shared across local processes via
+  # the filesystem, and (unlike :solid_cache_store) a hit is a local disk read instead of
+  # another round-trip to the remote dev DB.
+  config.cache_store = :file_store, Rails.root.join("tmp", "cache", "dev_store")
 
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
@@ -57,7 +62,11 @@ Rails.application.configure do
   config.active_support.deprecation = :log
 
   # Raise an error on page load if there are pending migrations.
-  config.active_record.migration_error = :page_load
+  # Disabled: this app's primary/cable/queue/cache roles all point at the same
+  # physical remote DB, so this check was firing 4 identical, redundant
+  # round-trips (~1s total) on every single request. Pending migrations will
+  # still surface immediately as a real query error against the missing column/table.
+  config.active_record.migration_error = false
 
   # Highlight code that triggered database queries in logs.
   config.active_record.verbose_query_logs = true

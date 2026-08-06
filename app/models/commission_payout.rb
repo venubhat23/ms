@@ -46,8 +46,13 @@ class CommissionPayout < ApplicationRecord
   # after_update :create_audit_log, if: :saved_changes?
 
   # Instance methods
+
+  # Memoized (see Payout#policy for why `defined?` instead of `||=`) so
+  # callers looping over many payouts can batch-fetch via .preload_policies
+  # and prime each instance instead of firing one find_by per payout.
   def policy
-    case policy_type
+    return @policy if defined?(@policy)
+    @policy = case policy_type
     when 'health'
       HealthInsurance.find_by(id: policy_id)
     when 'life'
@@ -57,6 +62,32 @@ class CommissionPayout < ApplicationRecord
     when 'other'
       OtherInsurance.find_by(id: policy_id)
     end
+  end
+
+  def preload_policy(policy)
+    @policy = policy
+  end
+
+  # Batch-fetches the policy behind every given CommissionPayout (grouped by
+  # policy_type, one query per type instead of one #policy call per record).
+  def self.preload_policies(payouts)
+    ids_by_type = payouts.group_by(&:policy_type).transform_values { |ps| ps.map(&:policy_id).uniq }
+    policies_by_type_and_id = {}
+
+    if (ids = ids_by_type['health'])
+      HealthInsurance.where(id: ids).each { |p| policies_by_type_and_id[['health', p.id]] = p }
+    end
+    if (ids = ids_by_type['life'])
+      LifeInsurance.where(id: ids).each { |p| policies_by_type_and_id[['life', p.id]] = p }
+    end
+    if (ids = ids_by_type['motor'])
+      MotorInsurance.where(id: ids).each { |p| policies_by_type_and_id[['motor', p.id]] = p }
+    end
+    if (ids = ids_by_type['other'])
+      OtherInsurance.where(id: ids).each { |p| policies_by_type_and_id[['other', p.id]] = p }
+    end
+
+    payouts.each { |payout| payout.preload_policy(policies_by_type_and_id[[payout.policy_type, payout.policy_id]]) }
   end
 
   def customer

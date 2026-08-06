@@ -5,7 +5,7 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
   layout 'application'
 
   def index
-    @vendor_purchases = VendorPurchase.includes(:vendor, :vendor_purchase_items, :products)
+    @vendor_purchases = VendorPurchase.includes(:vendor, :vendor_purchase_items, :products, :vendor_invoice)
                                      .recent
     @vendor_purchases = @vendor_purchases.joins(:vendor).where('vendors.name ILIKE ?', "%#{params[:search]}%") if params[:search].present?
     @vendor_purchases = @vendor_purchases.where(vendor_id: params[:vendor_id]) if params[:vendor_id].present?
@@ -261,6 +261,7 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
   def set_vendors_and_products
     @vendors = Vendor.active.order(:name)
     @products = Product.active.order(:name)
+    @categories = Category.active.ordered
   end
 
   def vendor_purchase_params

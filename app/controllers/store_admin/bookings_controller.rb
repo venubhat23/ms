@@ -169,12 +169,14 @@ class StoreAdmin::BookingsController < StoreAdmin::ApplicationController
 
   def calculate_bookings_summary
     base = @current_store.bookings
+    status_counts = base.group(:status).count
+
     {
-      total_bookings: base.count,
-      pending_bookings: base.where(status: ['draft', 'ordered_and_delivery_pending', 'confirmed']).count,
-      processing_bookings: base.where(status: ['processing', 'packed', 'shipped', 'out_for_delivery']).count,
-      completed_bookings: base.where(status: ['delivered', 'completed']).count,
-      cancelled_bookings: base.where(status: ['cancelled', 'returned']).count,
+      total_bookings: status_counts.values.sum,
+      pending_bookings: status_counts.values_at('draft', 'ordered_and_delivery_pending', 'confirmed').compact.sum,
+      processing_bookings: status_counts.values_at('processing', 'packed', 'shipped', 'out_for_delivery').compact.sum,
+      completed_bookings: status_counts.values_at('delivered', 'completed').compact.sum,
+      cancelled_bookings: status_counts.values_at('cancelled', 'returned').compact.sum,
       today_revenue: base.where(created_at: Date.current.beginning_of_day..Date.current.end_of_day)
                          .where.not(status: ['cancelled', 'returned']).sum(:total_amount),
       month_revenue: base.where(created_at: Date.current.beginning_of_month..Date.current.end_of_day)

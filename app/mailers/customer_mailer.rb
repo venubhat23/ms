@@ -24,8 +24,11 @@ class CustomerMailer < ApplicationMailer
   end
 
   def booking_confirmation(booking)
-    @booking = booking
-    @customer = booking.customer
+    # Reload with booking_items/product preloaded — the view walks every line
+    # item and its product, and callers (Booking#send_booking_confirmation_email*)
+    # just pass `self`, unpreloaded.
+    @booking = Booking.includes(booking_items: :product).find(booking.id)
+    @customer = @booking.customer
     @app_name = 'Marali Santhe'
     @order_date = @booking.created_at.strftime('%d/%m/%Y at %I:%M %p')
 

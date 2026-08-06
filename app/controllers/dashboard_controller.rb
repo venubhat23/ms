@@ -466,91 +466,24 @@ class DashboardController < ApplicationController
   def load_ecommerce_dashboard_data
     today = Date.current
 
-    # ── Product counts (3 queries → 1) ────────────────────────────────────────
-    begin
-      product_counts  = Product.group(:status).count
-      @total_products = product_counts.values.sum
-      @active_products = product_counts['active'] || @total_products
-      @draft_products  = product_counts['draft']  || 0
-    rescue
-      @total_products  = Product.count
-      @active_products = @total_products
-      @draft_products  = 0
+    # ~20 counter/aggregate queries bundled into a single cache entry. TTL is
+    # long relative to typical browsing sessions because each cache MISS costs
+    # ~15-20s on our current (remote, high-latency) DB connection — a short TTL
+    # just means more visitors eat that cold-start cost. Trade-off: counters can
+    # be up to 15 min stale.
+    counters = Rails.cache.fetch('dashboard:counters', expires_in: 15.minutes) do
+      compute_dashboard_counters(today)
     end
+    counters.each { |key, value| instance_variable_set(:"@#{key}", value) }
 
-    # ── Category counts (2 queries → 1) ───────────────────────────────────────
-    @total_categories  = Category.count
-    @active_categories = Category.where(status: true).count
-
-    # ── Booking counts by status (4 queries → 1) ──────────────────────────────
-    @booking_counts   = Booking.group(:status).count
-    @total_bookings   = @booking_counts.values.sum
-    @pending_bookings   = @booking_counts['pending']   || 0
-    @completed_bookings = @booking_counts['completed'] || 0
-    @cancelled_bookings = @booking_counts['cancelled'] || 0
-
-    # ── Order counts by status (5 queries → 1) ────────────────────────────────
-    begin
-      order_counts     = Order.group(:status).count
-      @total_orders    = order_counts.values.sum
-      @pending_orders  = order_counts['pending']   || 0
-      @shipped_orders  = order_counts['shipped']   || 0
-      @delivered_orders = order_counts['delivered'] || 0
-      @cancelled_orders = order_counts['cancelled'] || 0
-    rescue
-      @total_orders = @pending_orders = @shipped_orders = @delivered_orders = @cancelled_orders = 0
-    end
-
-    # ── Revenue metrics ────────────────────────────────────────────────────────
-    @total_revenue = Booking.sum(:total_amount) || 0
-    @today_revenue = Booking.where(created_at: today.beginning_of_day..today.end_of_day).sum(:total_amount) || 0
-    @month_revenue = Booking.where(created_at: today.beginning_of_month..today.end_of_month).sum(:total_amount) || 0
-    @avg_order_value = @total_bookings > 0 ? (@total_revenue / @total_bookings).round(2) : 0
-
-    # ── Vendor metrics ─────────────────────────────────────────────────────────
-    @total_vendors       = Vendor.count rescue 0
-    @active_vendors      = Vendor.where(status: true).count rescue 0
-    @total_purchases     = VendorPurchase.count rescue 0
-    @pending_purchases   = VendorPurchase.where(status: 'pending').count rescue 0
-    @total_purchase_value = VendorPurchase.sum(:total_amount) rescue 0
-    @pending_payments    = VendorPayment.where(status: 'pending').sum(:amount) rescue 0
-
-    # ── Store metrics ──────────────────────────────────────────────────────────
-    @total_stores  = Store.count rescue 0
-    @active_stores = Store.where(status: true).count rescue 0
-
-    # ── Inventory metrics (3 queries → 1) ─────────────────────────────────────
-    begin
-      inv = Product.select(
-        'COALESCE(SUM(CAST(price AS DECIMAL) * stock), 0) AS total_stock_value, ' \
-        'COUNT(CASE WHEN stock <= 5 AND stock > 0 THEN 1 END) AS low_stock, ' \
-        'COUNT(CASE WHEN stock = 0 THEN 1 END) AS out_of_stock'
-      ).first
-      @total_stock_value    = inv.total_stock_value.to_f
-      @low_stock_products   = inv.low_stock.to_i
-      @out_of_stock_products = inv.out_of_stock.to_i
-    rescue
-      @total_stock_value     = Product.sum('price * stock') || 0
-      @low_stock_products    = Product.where('stock <= 5 AND stock > 0').count
-      @out_of_stock_products = Product.where(stock: 0).count
-    end
-
-    @top_categories = calculate_top_categories
-
-    # ── Customer metrics ───────────────────────────────────────────────────────
-    @total_customers         = Customer.count
-    @new_customers_this_month = Customer.where(created_at: today.beginning_of_month..today.end_of_month).count
-
-    # ── Chart data (all cached for 5 minutes) ─────────────────────────────────
-    @category_performance = Rails.cache.fetch('dashboard:category_performance', expires_in: 5.minutes) do
+    # ── Chart data (cached longer than the counters — trends/analytics tolerate
+    # more staleness than live counts, and each is its own ~15-20s cold-start cost) ──
+    @category_performance = Rails.cache.fetch('dashboard:category_performance', expires_in: 30.minutes) do
       calculate_category_performance
     end
 
-    @order_status_distribution = calculate_order_status_distribution
-    @top_selling_products      = calculate_top_selling_products
-
     # Single query feeds all three sales trend periods (was 7 + 30 + 13 = 50 queries → 1)
-    all_sales_rows = Rails.cache.fetch('dashboard:daily_sales_90d', expires_in: 5.minutes) do
+    all_sales_rows = Rails.cache.fetch('dashboard:daily_sales_90d', expires_in: 30.minutes) do
       fetch_daily_sales(90)
     end
     @sales_trend    = build_7day_trend(all_sales_rows)
@@ -558,34 +491,158 @@ class DashboardController < ApplicationController
     @sales_trend_90d = build_weekly_trend(all_sales_rows, 90)
 
     # Monthly revenue: single query (was 6 queries → 1)
-    @monthly_revenue_trend = Rails.cache.fetch('dashboard:monthly_revenue_trend', expires_in: 5.minutes) do
+    @monthly_revenue_trend = Rails.cache.fetch('dashboard:monthly_revenue_trend', expires_in: 30.minutes) do
       calculate_monthly_revenue_trend
     end
 
-    # Payment distribution: 1 GROUP BY (was 4 queries)
-    @payment_method_distribution = calculate_payment_method_distribution
-
-    @delivery_performance = calculate_delivery_performance
-
-    # Growth metrics — reuses @month_revenue and @new_customers_this_month
-    calculate_ecommerce_growth_metrics
-
-    @conversion_rate = @total_customers > 0 ? ((@total_bookings.to_f / @total_customers) * 100).round(2) : 0
-    @customer_location = calculate_customer_locations
-
-    @top_customers_data = Rails.cache.fetch('dashboard:top_customers', expires_in: 5.minutes) do
+    @top_customers_data = Rails.cache.fetch('dashboard:top_customers', expires_in: 30.minutes) do
       calculate_top_customers_data
     end
 
-    @top_products_revenue = Rails.cache.fetch('dashboard:top_products_revenue', expires_in: 5.minutes) do
+    @top_products_revenue = Rails.cache.fetch('dashboard:top_products_revenue', expires_in: 30.minutes) do
       calculate_top_products_revenue
     end
 
-    # Eager-load recent bookings with customer to prevent N+1 in view
-    @recent_bookings = Booking.includes(:customer).order(created_at: :desc).limit(5) rescue []
+    # Cached + .to_a'd: an uncached/unloaded relation here means the view's
+    # `.any?` (existence check) and `.each` (load) each fire their own query,
+    # and a cache around a still-lazy relation caches the query definition, not
+    # the results, so it would still hit the DB on every "cache hit" too.
+    # Kept shorter than the rest — this is the one widget that's actually
+    # operationally time-sensitive (new orders, low stock).
+    @recent_bookings = begin
+      Rails.cache.fetch('dashboard:recent_bookings', expires_in: 5.minutes) do
+        Booking.includes(:customer).order(created_at: :desc).limit(5).to_a
+      end
+    rescue
+      []
+    end
 
-    # Eager-load low-stock products with category to prevent N+1 in view
-    @low_stock_items = Product.includes(:category).where('stock <= 5 AND stock > 0').limit(5) rescue []
+    @low_stock_items = begin
+      Rails.cache.fetch('dashboard:low_stock_items', expires_in: 5.minutes) do
+        Product.includes(:category).where('stock <= 5 AND stock > 0').limit(5).to_a
+      end
+    rescue
+      []
+    end
+  end
+
+  # Bundles ~20 separate counter/aggregate queries (product/category/booking/order
+  # counts, revenue sums, vendor/store/inventory/customer metrics, and the
+  # derived chart/growth values that depend on them) into one payload so they
+  # can be cached together instead of hitting the DB on every dashboard load.
+  def compute_dashboard_counters(today)
+    h = {}
+
+    # ── Product counts (3 queries → 1) ────────────────────────────────────────
+    begin
+      product_counts = Product.group(:status).count
+      h[:total_products]  = product_counts.values.sum
+      h[:active_products] = product_counts['active'] || h[:total_products]
+      h[:draft_products]  = product_counts['draft']  || 0
+    rescue
+      h[:total_products]  = Product.count
+      h[:active_products] = h[:total_products]
+      h[:draft_products]  = 0
+    end
+
+    # ── Category counts (2 queries → 1) ───────────────────────────────────────
+    h[:total_categories]  = Category.count
+    h[:active_categories] = Category.where(status: true).count
+
+    # ── Booking counts by status (4 queries → 1) ──────────────────────────────
+    h[:booking_counts]    = Booking.group(:status).count
+    h[:total_bookings]    = h[:booking_counts].values.sum
+    h[:pending_bookings]   = h[:booking_counts]['pending']   || 0
+    h[:completed_bookings] = h[:booking_counts]['completed'] || 0
+    h[:cancelled_bookings] = h[:booking_counts]['cancelled'] || 0
+
+    # ── Order counts by status (5 queries → 1) ────────────────────────────────
+    begin
+      order_counts = Order.group(:status).count
+      h[:total_orders]     = order_counts.values.sum
+      h[:pending_orders]   = order_counts['pending']   || 0
+      h[:shipped_orders]   = order_counts['shipped']   || 0
+      h[:delivered_orders] = order_counts['delivered'] || 0
+      h[:cancelled_orders] = order_counts['cancelled'] || 0
+    rescue
+      h[:total_orders] = h[:pending_orders] = h[:shipped_orders] = h[:delivered_orders] = h[:cancelled_orders] = 0
+    end
+
+    # ── Revenue metrics ────────────────────────────────────────────────────────
+    h[:total_revenue] = Booking.sum(:total_amount) || 0
+    h[:today_revenue] = Booking.where(created_at: today.beginning_of_day..today.end_of_day).sum(:total_amount) || 0
+    h[:month_revenue] = Booking.where(created_at: today.beginning_of_month..today.end_of_month).sum(:total_amount) || 0
+    h[:avg_order_value] = h[:total_bookings] > 0 ? (h[:total_revenue] / h[:total_bookings]).round(2) : 0
+
+    # ── Vendor metrics ─────────────────────────────────────────────────────────
+    h[:total_vendors]        = (Vendor.count rescue 0)
+    h[:active_vendors]       = (Vendor.where(status: true).count rescue 0)
+    h[:total_purchases]      = (VendorPurchase.count rescue 0)
+    h[:pending_purchases]    = (VendorPurchase.where(status: 'pending').count rescue 0)
+    h[:total_purchase_value] = (VendorPurchase.sum(:total_amount) rescue 0)
+    h[:pending_payments]     = (VendorPayment.where(status: 'pending').sum(:amount) rescue 0)
+
+    # ── Store metrics ──────────────────────────────────────────────────────────
+    h[:total_stores]  = (Store.count rescue 0)
+    h[:active_stores] = (Store.where(status: true).count rescue 0)
+
+    # ── Inventory metrics (3 queries → 1) ─────────────────────────────────────
+    begin
+      # .take, not .first: .first adds an implicit ORDER BY products.id, which
+      # Postgres rejects on a pure-aggregate SELECT with no GROUP BY — that made
+      # this always raise and fall through to the 3-query fallback below, every time.
+      inv = Product.select(
+        'COALESCE(SUM(CAST(price AS DECIMAL) * stock), 0) AS total_stock_value, ' \
+        'COUNT(CASE WHEN stock <= 5 AND stock > 0 THEN 1 END) AS low_stock, ' \
+        'COUNT(CASE WHEN stock = 0 THEN 1 END) AS out_of_stock'
+      ).take
+      h[:total_stock_value]    = inv.total_stock_value.to_f
+      h[:low_stock_products]   = inv.low_stock.to_i
+      h[:out_of_stock_products] = inv.out_of_stock.to_i
+    rescue
+      h[:total_stock_value]     = Product.sum('price * stock') || 0
+      h[:low_stock_products]    = Product.where('stock <= 5 AND stock > 0').count
+      h[:out_of_stock_products] = Product.where(stock: 0).count
+    end
+
+    h[:top_categories] = calculate_top_categories
+
+    # ── Customer metrics ───────────────────────────────────────────────────────
+    h[:total_customers] = Customer.count
+    h[:new_customers_this_month] = Customer.where(created_at: today.beginning_of_month..today.end_of_month).count
+
+    h[:order_status_distribution] = {
+      'Pending'   => h[:pending_orders],
+      'Shipped'   => h[:shipped_orders],
+      'Delivered' => h[:delivered_orders],
+      'Cancelled' => h[:cancelled_orders]
+    }
+    h[:top_selling_products] = calculate_top_selling_products
+    h[:payment_method_distribution] = calculate_payment_method_distribution
+    h[:delivery_performance] = calculate_delivery_performance
+
+    # ── Growth metrics (reuses h[:month_revenue] / h[:new_customers_this_month]) ──
+    current_month_start = today.beginning_of_month
+    last_month_start    = 1.month.ago.beginning_of_month
+    last_month_end      = 1.month.ago.end_of_month
+
+    current_orders = Booking.where('created_at >= ?', current_month_start).count
+    last_stats     = Booking.where(created_at: last_month_start..last_month_end)
+                             .select('COUNT(*) AS order_count, COALESCE(SUM(total_amount), 0) AS revenue')
+                             .take
+    last_orders    = last_stats.order_count.to_i
+    last_revenue   = last_stats.revenue.to_f
+    last_customers = Customer.where(created_at: last_month_start..last_month_end).count
+
+    h[:revenue_growth]              = calculate_percentage_change(h[:month_revenue], last_revenue)
+    h[:order_growth]                = calculate_percentage_change(current_orders, last_orders)
+    h[:customer_acquisition_growth] = calculate_percentage_change(h[:new_customers_this_month], last_customers)
+
+    h[:conversion_rate]    = h[:total_customers] > 0 ? ((h[:total_bookings].to_f / h[:total_customers]) * 100).round(2) : 0
+    h[:inventory_turnover] = h[:total_stock_value] > 0 ? (h[:total_revenue] / h[:total_stock_value]).round(2) : 0
+    h[:customer_location]  = calculate_customer_locations
+
+    h
   end
 
   # ---------------------------------------------------------------------------
@@ -612,15 +669,6 @@ class DashboardController < ApplicationController
                .to_h
   rescue
     {}
-  end
-
-  def calculate_order_status_distribution
-    {
-      'Pending'   => @pending_orders,
-      'Shipped'   => @shipped_orders,
-      'Delivered' => @delivered_orders,
-      'Cancelled' => @cancelled_orders
-    }
   end
 
   def calculate_top_selling_products
@@ -669,31 +717,6 @@ class DashboardController < ApplicationController
     { on_time_percentage: 0, total_delivered: 0, avg_delivery_days: 0 }
   end
 
-  # Reuses already-computed @month_revenue and @new_customers_this_month
-  # Last month stats fetched in a single query (was 3 queries)
-  def calculate_ecommerce_growth_metrics
-    current_month_start = Date.current.beginning_of_month
-    last_month_start    = 1.month.ago.beginning_of_month
-    last_month_end      = 1.month.ago.end_of_month
-
-    current_orders = Booking.where('created_at >= ?', current_month_start).count
-
-    # Single query for last-month count + sum
-    last_stats    = Booking.where(created_at: last_month_start..last_month_end)
-                           .select('COUNT(*) AS order_count, COALESCE(SUM(total_amount), 0) AS revenue')
-                           .take
-    last_orders   = last_stats.order_count.to_i
-    last_revenue  = last_stats.revenue.to_f
-    last_customers = Customer.where(created_at: last_month_start..last_month_end).count
-
-    @revenue_growth              = calculate_percentage_change(@month_revenue, last_revenue)
-    @order_growth                = calculate_percentage_change(current_orders, last_orders)
-    @customer_acquisition_growth = calculate_percentage_change(@new_customers_this_month, last_customers)
-
-    @conversion_rate     = @total_customers > 0 ? ((@total_bookings.to_f / @total_customers) * 100).round(1) : 0
-    @inventory_turnover  = @total_stock_value > 0 ? (@total_revenue / @total_stock_value).round(2) : 0
-  end
-
   def calculate_customer_locations
     Customer.where.not(state: [nil, ''])
             .group(:state)
@@ -706,11 +729,15 @@ class DashboardController < ApplicationController
   end
 
   def calculate_top_customers_data
+    # .to_a: without it this returns an unloaded relation, so caching it just
+    # caches the query definition — the view's .each still hits the DB on every
+    # "cache hit".
     Customer.joins(:bookings)
             .select('customers.*, COUNT(bookings.id) AS booking_count, SUM(bookings.total_amount) AS total_spent')
             .group('customers.id')
             .order('total_spent DESC')
             .limit(5)
+            .to_a
   rescue
     []
   end

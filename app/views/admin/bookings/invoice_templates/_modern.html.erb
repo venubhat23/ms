@@ -1,5 +1,6 @@
 <style>
-  .inv-modern { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; background: #fff; }
+  .inv-modern { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; background: #fff; position: relative; }
+  .inv-modern .paid-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-35deg); font-size: 100px; font-weight: 900; color: rgba(40,167,69,0.12); border: 12px solid rgba(40,167,69,0.12); border-radius: 10px; padding: 10px 30px; letter-spacing: 10px; pointer-events: none; z-index: 0; user-select: none; white-space: nowrap; }
   .inv-modern .hdr { background: linear-gradient(135deg, #0f4c35 0%, #1a7a55 100%); color: #fff; padding: 28px 30px; }
   .inv-modern .hdr-logo { width: 70px; height: 70px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.5); }
   .inv-modern .hdr-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
@@ -31,6 +32,7 @@
 </style>
 
 <div class="inv-modern">
+  <% if booking.payment_status_paid? %><div class="paid-watermark">PAID</div><% end %>
   <%
     upi_id_m = business_settings.upi_id || '9972808044@ybl'
     upi_str_m = "upi://pay?pa=#{upi_id_m}&pn=#{CGI.escape(business_settings.business_name || 'Marali Santhe')}&am=#{final_total.round(2)}&cu=INR&tn=#{CGI.escape("Invoice #{booking.invoice_number || booking.booking_number}")}"

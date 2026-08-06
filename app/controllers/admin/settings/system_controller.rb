@@ -12,20 +12,30 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       max_file_upload_size: 10
     }
 
+    # Batches the 4 distinct SystemSetting keys this page needs into one query
+    # (was 4 serial round trips — repeated `find_by(key: 'system_config')`
+    # calls were already free via Rails' per-request query cache, but the 4
+    # distinct keys were not) and caches the result since these change rarely.
+    settings_by_key = cached_system_settings_by_key
+    system_config = settings_by_key['system_config']
+    business_config = settings_by_key['business_config']
+
     # Get company expenses percentage from database
-    @company_expenses_percentage = SystemSetting.company_expenses_percentage
+    company_expenses_setting = settings_by_key['company_expenses_percentage']
+    @company_expenses_percentage = company_expenses_setting ? company_expenses_setting.value.to_f : 2.0
 
     # Get default pagination per page from database
-    @default_pagination_per_page = SystemSetting.default_pagination_per_page
+    pagination_setting = settings_by_key['default_pagination_per_page']
+    @default_pagination_per_page = pagination_setting ? pagination_setting.value.to_i : 10
 
     # Get commission settings from database
-    @default_main_agent_commission = SystemSetting.default_main_agent_commission
-    @default_affiliate_commission = SystemSetting.default_affiliate_commission
-    @default_ambassador_commission = SystemSetting.default_ambassador_commission
-    @default_company_expenses = SystemSetting.default_company_expenses
+    @default_main_agent_commission = system_config&.default_main_agent_commission || 0.0
+    @default_affiliate_commission = system_config&.default_affiliate_commission || 0.0
+    @default_ambassador_commission = system_config&.default_ambassador_commission || 0.0
+    @default_company_expenses = system_config&.default_company_expenses || 0.0
 
     # Get business settings
-    @business_setting = SystemSetting.business_settings
+    @business_setting = business_config || SystemSetting.new
     @invoice_template = begin
       SystemSetting.column_names.include?('invoice_template') ? (@business_setting.invoice_template.presence || 'classic') : 'classic'
     rescue
@@ -33,18 +43,26 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     end
 
     # Get collect from store settings
-    @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?
-    @stores_count = Store.count
+    @collect_from_store_enabled = system_config&.collect_from_store_enabled || false
+    @stores_count = Rails.cache.fetch('admin_settings/stores_count', expires_in: 2.minutes) { Store.count }
     @max_stores_limit = Store::MAX_STORES_LIMIT
 
     # Get delivery only at shop settings
-    @delivery_only_at_shop_enabled = SystemSetting.delivery_only_at_shop_enabled?
-    @shop_addresses = SystemSetting.get_shop_addresses
+    @delivery_only_at_shop_enabled = system_config&.delivery_only_at_shop || false
+    @shop_addresses = begin
+      system_config&.shop_addresses.present? ? JSON.parse(system_config.shop_addresses) : []
+    rescue JSON::ParserError
+      []
+    end
 
     # Get low stock alert settings
-    @low_stock_alert_enabled   = SystemSetting.low_stock_alert_enabled?
-    @low_stock_alert_threshold = SystemSetting.low_stock_alert_threshold
-    @low_stock_alert_email     = SystemSetting.low_stock_alert_email
+    @low_stock_alert_enabled   = system_config&.low_stock_alert_enabled || false
+    @low_stock_alert_threshold = system_config&.low_stock_alert_threshold || 10
+    @low_stock_alert_email     = system_config&.low_stock_alert_email.presence || @business_setting&.email
+
+    # Get selected public storefront theme
+    website_theme_setting = settings_by_key['website_theme']
+    @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
   end
 
   def update
@@ -71,6 +89,7 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       # Validate per_page (should be between 5 and 100)
       if per_page >= 5 && per_page <= 100
         SystemSetting.set_default_pagination_per_page(per_page)
+        Rails.cache.delete('system_setting/default_pagination_per_page')
         success_messages << 'Default pagination per page updated successfully!'
       else
         redirect_to admin_settings_system_path, alert: 'Invalid pagination value. Please enter a value between 5 and 100.'
@@ -209,7 +228,19 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       end
     end
 
+    # Handle website theme update
+    if params[:website_theme_update] == "true"
+      if SystemSetting::WEBSITE_THEMES.key?(params[:website_theme])
+        SystemSetting.set_website_theme(params[:website_theme])
+        success_messages << 'Website theme updated successfully!'
+      else
+        redirect_to admin_settings_system_path, alert: 'Invalid website theme selected.'
+        return
+      end
+    end
+
     if success_messages.any?
+      Rails.cache.delete('admin_settings/system_index_settings')
       redirect_to admin_settings_system_path, notice: success_messages.join(' ')
     else
       redirect_to admin_settings_system_path, alert: 'Please enter valid values to update.'
@@ -257,6 +288,14 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
   end
 
   private
+
+  # Busted in #update whenever any settings branch succeeds.
+  def cached_system_settings_by_key
+    Rails.cache.fetch('admin_settings/system_index_settings', expires_in: 2.minutes) do
+      SystemSetting.where(key: %w[company_expenses_percentage default_pagination_per_page system_config business_config website_theme])
+                   .index_by(&:key)
+    end
+  end
 
   def build_dummy_booking
     dummy_customer = OpenStruct.new(

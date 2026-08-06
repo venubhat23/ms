@@ -1,5 +1,8 @@
 class Admin::StoreFinancialsController < Admin::ApplicationController
   before_action :authenticate_user!
+  before_action(only: [:vendor_tracking]) { require_sidebar_permission!('store_financials_vendor_tracking') }
+  before_action(only: [:commission]) { require_sidebar_permission!('store_financials_commission') }
+  before_action(only: [:gst_report]) { require_sidebar_permission!('store_financials_gst_report') }
 
   def vendor_tracking
     @stores = Store.all.order(:name)
@@ -9,9 +12,10 @@ class Admin::StoreFinancialsController < Admin::ApplicationController
     batch_scope = batch_scope.where(store_id: @selected_store_id) if @selected_store_id.present?
 
     grouped = batch_scope.group_by(&:store_id)
+    stores_by_id = @stores.index_by(&:id)
 
     @store_vendor_data = grouped.map do |store_id, batches|
-      store = Store.find_by(id: store_id)
+      store = stores_by_id[store_id]
       next unless store
 
       vendor_breakdown = batches.group_by(&:vendor).map do |vendor, vb|
@@ -37,11 +41,13 @@ class Admin::StoreFinancialsController < Admin::ApplicationController
     @month  = params[:month].present? ? Date.parse(params[:month]) : Date.current.beginning_of_month
     period  = @month.beginning_of_month..@month.end_of_month
 
+    # One grouped query for every store's revenue instead of one query per
+    # store (this used to fire N serial round trips for N stores).
+    revenue_by_store = Booking.where(store_id: @stores.map(&:id), created_at: period, status: %w[completed delivered])
+                              .group(:store_id).sum(:total_amount)
+
     @commission_data = @stores.map do |store|
-      revenue = store.bookings
-                     .where(created_at: period)
-                     .where(status: %w[completed delivered])
-                     .sum(:total_amount).to_f
+      revenue = (revenue_by_store[store.id] || 0).to_f
 
       pct         = store.commission_percentage.to_f
       store_share = (revenue * pct / 100.0).round(2)
@@ -68,13 +74,18 @@ class Admin::StoreFinancialsController < Admin::ApplicationController
     period             = @month.beginning_of_month..@month.end_of_month
 
     store_scope = @selected_store_id.present? ? Store.where(id: @selected_store_id) : Store.all.order(:name)
+    store_ids = store_scope.map(&:id)
+
+    # 3 grouped queries for every store on the page instead of 3 separate
+    # sum/sum/count round trips per store (this used to fire 3×N serial
+    # queries for N stores).
+    revenue_by_store = Booking.where(store_id: store_ids, created_at: period).group(:store_id).sum(:total_amount)
+    tax_by_store     = Booking.where(store_id: store_ids, created_at: period).group(:store_id).sum(:tax_amount)
+    count_by_store   = Booking.where(store_id: store_ids, created_at: period).group(:store_id).count
 
     @gst_data = store_scope.map do |store|
-      bookings    = store.bookings.where(created_at: period)
-      booking_ids = bookings.pluck(:id)
-
-      total_revenue = bookings.sum(:total_amount).to_f
-      total_tax     = bookings.sum(:tax_amount).to_f
+      total_revenue = (revenue_by_store[store.id] || 0).to_f
+      total_tax     = (tax_by_store[store.id] || 0).to_f
 
       {
         store:         store,
@@ -84,7 +95,7 @@ class Admin::StoreFinancialsController < Admin::ApplicationController
         sgst:          (total_tax / 2.0).round(2),
         igst:          0.0,
         taxable_amount: (total_revenue - total_tax).round(2),
-        bookings_count: bookings.count
+        bookings_count: count_by_store[store.id] || 0
       }
     end
 

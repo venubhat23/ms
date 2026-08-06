@@ -1,9 +1,10 @@
 class Admin::DeliverySettingsController < ApplicationController
   before_action :authenticate_admin
+  before_action { require_sidebar_permission!('delivery_settings') }
   before_action :set_delivery_charge, only: [:edit, :update]
 
   def index
-    @bangalore_pincodes = DeliveryCharge.bangalore_pincodes.order(:pincode)
+    load_bangalore_pincodes_index_data
   end
 
   def new
@@ -43,7 +44,7 @@ class Admin::DeliverySettingsController < ApplicationController
   end
 
   def edit_pincode_charges
-    @bangalore_pincodes = DeliveryCharge.bangalore_pincodes.order(:pincode)
+    load_bangalore_pincodes_index_data
     render :index
   end
 
@@ -51,8 +52,13 @@ class Admin::DeliverySettingsController < ApplicationController
     success_count = 0
     error_messages = []
 
-    params[:delivery_charges]&.each do |pincode, charge_params|
-      delivery_charge = DeliveryCharge.find_or_initialize_by(pincode: pincode)
+    submitted = params[:delivery_charges] || {}
+    # Preload every existing record for the submitted pincodes in one query
+    # instead of a find_or_initialize_by (1 query) per row.
+    existing_by_pincode = DeliveryCharge.where(pincode: submitted.keys).index_by(&:pincode)
+
+    submitted.each do |pincode, charge_params|
+      delivery_charge = existing_by_pincode[pincode] || DeliveryCharge.new(pincode: pincode)
       delivery_charge.assign_attributes(charge_params.permit(:charge_amount, :is_active))
 
       if delivery_charge.save
@@ -77,6 +83,33 @@ class Admin::DeliverySettingsController < ApplicationController
   end
 
   private
+
+  # Shared by #index and #edit_pincode_charges (both render the same view).
+  # Paginates the pincode list (mirrors Admin::DeliveryPeopleController's
+  # `.page(params[:page]).per(20)` pattern) and combines the 4 separate
+  # count/average queries the view used to run into a single aggregate query.
+  def load_bangalore_pincodes_index_data
+    scope = DeliveryCharge.bangalore_pincodes.order(:pincode)
+    @bangalore_pincodes = scope.respond_to?(:page) ? scope.page(params[:page]).per(20) : scope
+    # Fire the paginated listing on its own pooled connection now so its round
+    # trip overlaps with the aggregate query below instead of stacking after it.
+    @bangalore_pincodes.load_async if @bangalore_pincodes.respond_to?(:load_async)
+
+    total, active, inactive, avg_active_charge = DeliveryCharge.bangalore_pincodes.pick(
+      Arel.sql('COUNT(*), COUNT(*) FILTER (WHERE is_active), COUNT(*) FILTER (WHERE NOT is_active), AVG(charge_amount) FILTER (WHERE is_active)')
+    )
+    @pincode_stats = {
+      total: total.to_i,
+      active: active.to_i,
+      inactive: inactive.to_i,
+      avg_active_charge: avg_active_charge ? avg_active_charge.to_f.round(2) : 0
+    }
+
+    # Both are computed from the same unfiltered bangalore_pincodes scope, so
+    # reuse the total here instead of a second COUNT(*) round trip when
+    # Kaminari's `paginate` helper asks for @bangalore_pincodes.total_count.
+    @bangalore_pincodes.instance_variable_set(:@total_count, @pincode_stats[:total]) if @bangalore_pincodes.respond_to?(:page)
+  end
 
   def authenticate_admin
     unless current_user&.admin? || current_user&.super_admin?

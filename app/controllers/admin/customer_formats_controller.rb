@@ -13,10 +13,16 @@ class Admin::CustomerFormatsController < Admin::ApplicationController
 
     @customer_formats = @customer_formats.order(created_at: :desc).page(params[:page]).per(20)
 
-    # For filter options
-    @customers = Customer.all.pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
-    @products = Product.where(status: 'active').pluck(:name, :id)
-    @delivery_people = DeliveryPerson.where(status: true).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+    # For filter options — cached since these change rarely relative to page views
+    @customers = Rails.cache.fetch('admin_customer_formats/filter_customers', expires_in: 5.minutes) do
+      Customer.order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+    end
+    @products = Rails.cache.fetch('admin_customer_formats/filter_products', expires_in: 5.minutes) do
+      Product.where(status: 'active').order(:name).pluck(:name, :id)
+    end
+    @delivery_people = Rails.cache.fetch('admin_customer_formats/filter_delivery_people', expires_in: 5.minutes) do
+      DeliveryPerson.where(status: true).order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+    end
 
     # Summary statistics
     @stats = calculate_customer_format_stats
@@ -217,16 +223,14 @@ class Admin::CustomerFormatsController < Admin::ApplicationController
   end
 
   def calculate_customer_format_stats
-    total = CustomerFormat.count
-    active = CustomerFormat.where(status: 'active').count
-    inactive = CustomerFormat.where(status: 'not_active').count
-
+    # One grouped query instead of 3 separate count round trips.
+    status_counts = CustomerFormat.group(:status).count
     pattern_counts = CustomerFormat.group(:pattern).count
 
     {
-      total: total,
-      active: active,
-      inactive: inactive,
+      total: status_counts.values.sum,
+      active: status_counts['active'] || 0,
+      inactive: status_counts['not_active'] || 0,
       pattern_counts: pattern_counts
     }
   end
@@ -377,7 +381,7 @@ class Admin::CustomerFormatsController < Admin::ApplicationController
 
   def check_sidebar_permission
     unless current_user && current_user.has_sidebar_permission?('customer_formats')
-      redirect_to admin_dashboard_path, alert: 'You do not have permission to access this page.'
+      redirect_to dashboard_path, alert: 'You do not have permission to access this page.'
     end
   end
 end

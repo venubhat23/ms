@@ -13,10 +13,16 @@ class Admin::SubscriptionsController < Admin::ApplicationController
 
     @subscriptions = @subscriptions.order(created_at: :desc).page(params[:page]).per(20)
 
-    # For filter options
-    @customers = Customer.all.pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
-    @products = Product.where(product_type: 'milk').pluck(:name, :id)
-    @delivery_people = DeliveryPerson.where(status: true).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+    # For filter options — cached since these change rarely relative to page views
+    @customers = Rails.cache.fetch('admin_subscriptions/filter_customers', expires_in: 5.minutes) do
+      Customer.order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+    end
+    @products = Rails.cache.fetch('admin_subscriptions/filter_products', expires_in: 5.minutes) do
+      Product.where(product_type: 'milk').order(:name).pluck(:name, :id)
+    end
+    @delivery_people = Rails.cache.fetch('admin_subscriptions/filter_delivery_people', expires_in: 5.minutes) do
+      DeliveryPerson.where(status: true).order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+    end
 
     # Summary statistics
     @stats = calculate_subscription_stats
@@ -389,35 +395,35 @@ class Admin::SubscriptionsController < Admin::ApplicationController
   end
 
   def calculate_subscription_stats
-    total = MilkSubscription.count
-    active = MilkSubscription.where(status: 'active').count
-    paused = MilkSubscription.where(status: 'paused').count
-    expired = MilkSubscription.where(status: 'expired').count
+    Rails.cache.fetch('admin_subscriptions/stats', expires_in: 2.minutes) do
+      # One grouped query instead of 4 separate status-count round trips.
+      status_counts = MilkSubscription.group(:status).count
 
-    today_deliveries = MilkDeliveryTask.for_today.count
-    pending_today = MilkDeliveryTask.for_today.pending.count
+      today_deliveries = MilkDeliveryTask.for_today.count
+      pending_today = MilkDeliveryTask.for_today.pending.count
 
-    # Delivery person statistics
-    total_delivery_people = DeliveryPerson.where(status: true).count
-    # Count delivery people who have tasks assigned (pending or assigned status)
-    assigned_delivery_people = MilkDeliveryTask
-      .joins(:delivery_person)
-      .where(status: ['pending', 'assigned'])
-      .where(delivery_people: { status: true })
-      .select(:delivery_person_id)
-      .distinct
-      .count
+      # Delivery person statistics
+      total_delivery_people = DeliveryPerson.where(status: true).count
+      # Count delivery people who have tasks assigned (pending or assigned status)
+      assigned_delivery_people = MilkDeliveryTask
+        .joins(:delivery_person)
+        .where(status: ['pending', 'assigned'])
+        .where(delivery_people: { status: true })
+        .select(:delivery_person_id)
+        .distinct
+        .count
 
-    {
-      total: total,
-      active: active,
-      paused: paused,
-      expired: expired,
-      today_deliveries: today_deliveries,
-      pending_today: pending_today,
-      total_delivery_people: total_delivery_people,
-      assigned_delivery_people: assigned_delivery_people
-    }
+      {
+        total: status_counts.values.sum,
+        active: status_counts['active'] || 0,
+        paused: status_counts['paused'] || 0,
+        expired: status_counts['expired'] || 0,
+        today_deliveries: today_deliveries,
+        pending_today: pending_today,
+        total_delivery_people: total_delivery_people,
+        assigned_delivery_people: assigned_delivery_people
+      }
+    end
   end
 
   def generate_delivery_tasks_for_subscription(subscription)
@@ -481,7 +487,7 @@ class Admin::SubscriptionsController < Admin::ApplicationController
     return if action_name == 'daily_tasks' # Allow daily_tasks without sidebar permission check
     unless current_user && current_user.has_sidebar_permission?('subscriptions')
       respond_to do |format|
-        format.html { redirect_to admin_dashboard_path, alert: 'You do not have permission to access this page.' }
+        format.html { redirect_to dashboard_path, alert: 'You do not have permission to access this page.' }
         format.json { render json: { error: 'Permission denied' }, status: :forbidden }
       end
     end

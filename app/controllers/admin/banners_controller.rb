@@ -22,13 +22,36 @@ class Admin::BannersController < Admin::ApplicationController
       @banners = @banners.by_location(params[:location])
     end
 
-    # Statistics for dashboard cards
+    filters_applied = params[:status].present? || params[:location].present?
+
+    # Fire the paginated listing on its own pooled connection now so its
+    # round trip overlaps with the stats query below instead of stacking.
+    @banners.load_async
+
+    # Statistics for dashboard cards — combined into a single query via
+    # conditional aggregation (was 4 separate COUNT queries every request).
+    # Semantics match Banner's `active`/`current` scopes and the inline
+    # expired filter exactly (see app/models/banner.rb).
+    quoted_today = ActiveRecord::Base.connection.quote(Date.current)
+    total, active, current, expired = Banner.pick(
+      Arel.sql(<<~SQL.squish)
+        COUNT(*),
+        COUNT(*) FILTER (WHERE status = true),
+        COUNT(*) FILTER (WHERE display_start_date <= #{quoted_today} AND display_end_date >= #{quoted_today}),
+        COUNT(*) FILTER (WHERE display_end_date < #{quoted_today})
+      SQL
+    )
+
     @stats = {
-      total_banners: Banner.count,
-      active_banners: Banner.active.count,
-      current_banners: Banner.current.count,
-      expired_banners: Banner.where('display_end_date < ?', Date.current).count
+      total_banners: total,
+      active_banners: active,
+      current_banners: current,
+      expired_banners: expired
     }
+
+    # @stats is computed on the unfiltered Banner scope, so it only matches
+    # @banners's total_count when no status/location filter narrows it.
+    @banners.instance_variable_set(:@total_count, @stats[:total_banners]) unless filters_applied
   end
 
   # GET /admin/banners/1

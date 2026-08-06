@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marali Santhe – Fresh Organic Produce & Groceries</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#111111;--white:#fff;--sage:#6b7a5e;--sage-dark:#4f5c45;
+  --line:#e6e4de;--muted:#767672;--cream:#faf9f6;--cream2:#f2f0ea;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;color:var(--ink);overflow-x:hidden;background:var(--white);font-weight:400}
+h1,h2,h3,h4{font-family:'Fraunces',serif;font-weight:500;letter-spacing:-.01em}
+a{color:inherit}
+.wrap{max-width:1320px;margin:0 auto;padding:0 40px}
+
+/* ── TOP BAR ── */
+.top-bar{background:var(--ink);color:var(--white);text-align:center;padding:11px 20px;font-size:11.5px;letter-spacing:1px;font-weight:500;text-transform:uppercase}
+.top-bar b{color:#d8d3c4}
+
+/* ── NAV ── */
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:88px;background:var(--white);position:sticky;top:0;z-index:300;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+.brand-mark{width:42px;height:42px;border-radius:50%;overflow:hidden;flex-shrink:0;border:1px solid var(--line)}
+.brand-mark img{width:100%;height:100%;object-fit:cover}
+.brand-name{font-family:'Fraunces',serif;font-size:20px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.nav-links{display:flex;gap:38px;list-style:none;align-items:center}
+.nav-links a{text-decoration:none;color:var(--ink);font-size:12.5px;font-weight:500;letter-spacing:.3px}
+.nav-links a{position:relative;padding-bottom:4px}
+.nav-links a::after{content:'';position:absolute;left:0;bottom:0;width:0;height:1px;background:var(--ink);transition:width .25s}
+.nav-links a:hover::after{width:100%}
+.nav-right{display:flex;align-items:center;gap:28px}
+.mobile-nav-links{display:none;position:absolute;top:100%;left:0;width:100%;background:var(--white);border-bottom:1px solid var(--line);flex-direction:column;z-index:200}
+.mobile-nav-links a{display:block;padding:18px 24px;text-decoration:none;color:var(--ink);font-size:12px;letter-spacing:.3px;border-bottom:1px solid var(--line)}
+.mobile-menu-toggle{display:none;background:none;border:none;font-size:22px;color:var(--ink);cursor:pointer}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--white);padding:15px 34px;text-decoration:none;font-size:11.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;border:1px solid var(--ink);cursor:pointer;font-family:'Inter',sans-serif;transition:background .2s,color .2s}
+.btn:hover{background:var(--white);color:var(--ink)}
+.btn-outline{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border:1px solid var(--ink);background:transparent;color:var(--ink);font-size:11.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;text-decoration:none}
+.btn-outline:hover{background:var(--ink);color:var(--white)}
+.btn-sage{display:inline-flex;align-items:center;gap:8px;background:var(--sage);color:var(--white);padding:15px 34px;text-decoration:none;font-size:11.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;border:none;cursor:pointer;transition:background .2s}
+.btn-sage:hover{background:var(--sage-dark)}
+.btn-ghost{background:none;border:none;color:var(--ink);font-size:11.5px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;text-decoration:underline;cursor:pointer;font-family:'Inter',sans-serif}
+
+/* ── HERO ── */
+.hero{display:grid;grid-template-columns:1.05fr 1fr;min-height:88vh;align-items:stretch}
+.hero-left{display:flex;flex-direction:column;justify-content:center;padding:0 70px}
+.hero-eyebrow{display:flex;align-items:center;gap:10px;font-size:11.5px;letter-spacing:2.5px;font-weight:600;text-transform:uppercase;color:var(--sage);margin-bottom:26px}
+.hero-eyebrow::before{content:'';width:28px;height:1px;background:var(--sage)}
+.hero h1{font-size:clamp(40px,5.4vw,78px);line-height:1.02;font-weight:500;margin-bottom:26px;letter-spacing:-.02em}
+.hero h1 em{font-style:italic;color:var(--sage)}
+.hero-sub{font-size:15.5px;color:var(--muted);line-height:1.85;max-width:440px;margin-bottom:40px}
+.hero-ctas{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:44px}
+.hero-stats{display:flex;gap:44px;border-top:1px solid var(--line);padding-top:28px}
+.hero-stats div b{display:block;font-family:'Fraunces',serif;font-size:26px;font-weight:600}
+.hero-stats div span{font-size:11px;color:var(--muted);letter-spacing:.6px;text-transform:uppercase}
+.hero-right{position:relative;overflow:hidden;background:var(--cream2)}
+.hero-right img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-tag{position:absolute;bottom:32px;left:32px;background:var(--white);padding:16px 22px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:10px}
+.hero-tag .dot{width:7px;height:7px;border-radius:50%;background:var(--sage)}
+
+/* ── SECTION LABELS ── */
+.sec-head{display:flex;justify-content:space-between;align-items:flex-end;padding:88px 0 40px;border-bottom:1px solid var(--line);margin-bottom:44px}
+.sec-head .num{font-size:11px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;display:block}
+.sec-head h2{font-size:clamp(28px,3vw,42px)}
+.sec-head p{font-size:13.5px;color:var(--muted);max-width:320px;text-align:right;line-height:1.7}
+
+/* ── CATEGORY SPLIT ── */
+.cats{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line)}
+.cat{position:relative;overflow:hidden;background:var(--white);min-height:460px;cursor:pointer}
+.cat img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;transition:transform .7s ease;filter:grayscale(10%)}
+.cat:hover img{transform:scale(1.05)}
+.cat-info{position:absolute;bottom:0;left:0;right:0;padding:32px;background:linear-gradient(to top,rgba(0,0,0,.55),transparent)}
+.cat-info span{color:#fff;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;opacity:.8}
+.cat-info h3{color:#fff;font-size:28px;margin:8px 0 14px}
+.cat-info a{color:#fff;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;text-decoration:none;border-bottom:1px solid #fff;padding-bottom:3px}
+
+/* ── PRODUCT GRID ── */
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+.pcard{background:var(--white);padding:0;cursor:pointer;transition:background .2s}
+.pcard:hover{background:var(--cream)}
+.pcard-img{position:relative;height:280px;overflow:hidden;background:var(--cream2)}
+.pcard-img img{width:100%;height:100%;object-fit:cover;transition:transform .5s;filter:grayscale(8%)}
+.pcard:hover .pcard-img img{transform:scale(1.06)}
+.ptag{position:absolute;top:14px;left:14px;font-size:9.5px;font-weight:700;letter-spacing:1px;padding:5px 10px;text-transform:uppercase;background:var(--white);border:1px solid var(--ink)}
+.ptag.oos{color:#999;border-color:#ccc}
+.pcard-body{padding:22px 20px 26px}
+.pcard h4{font-size:14.5px;font-weight:500;margin-bottom:5px;font-family:'Fraunces',serif}
+.pcard .psub{font-size:11.5px;color:var(--muted);margin-bottom:14px;letter-spacing:.2px}
+.pcard .pprice{font-size:16px;font-weight:600;font-family:'Fraunces',serif}
+.pcard .pprice s{font-weight:400;color:#bbb;font-size:12px;margin-right:5px}
+.btn-add{width:100%;padding:12px;background:transparent;color:var(--ink);border:1px solid var(--ink);cursor:pointer;font-family:'Inter',sans-serif;font-size:10.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;transition:all .2s;margin-top:4px}
+.btn-add:hover{background:var(--ink);color:var(--white)}
+.btn-add.out{border-color:#ddd;color:#bbb;cursor:not-allowed}
+
+/* ── BANNER ── */
+.banner{position:relative;min-height:64vh;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.banner-bg{position:absolute;inset:0;background:url('https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover;filter:grayscale(35%)}
+.banner::before{content:'';position:absolute;inset:0;background:rgba(17,17,17,.62)}
+.banner-body{position:relative;z-index:2;text-align:center;color:#fff;max-width:680px;padding:60px 24px}
+.banner-body span.tag{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#d8d3c4;display:block;margin-bottom:18px}
+.banner-body h2{font-size:clamp(30px,4.2vw,52px);margin-bottom:20px;line-height:1.1;font-weight:500}
+.banner-body p{font-size:14.5px;line-height:1.85;color:rgba(255,255,255,.78);margin-bottom:30px}
+
+/* ── WHY STRIP ── */
+.why-strip{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.why-item{padding:56px 30px;border-right:1px solid var(--line);text-align:left}
+.why-item:last-child{border:none}
+.why-item .no{font-family:'Fraunces',serif;font-size:15px;color:var(--sage);margin-bottom:18px;display:block}
+.why-item h4{font-size:19px;margin-bottom:8px}
+.why-item p{font-size:12.5px;color:var(--muted);line-height:1.6}
+
+/* ── SPLIT ── */
+.split{display:grid;grid-template-columns:1fr 1fr;min-height:560px}
+.split-img{overflow:hidden;position:relative}
+.split-img img{width:100%;height:100%;object-fit:cover;display:block;filter:grayscale(15%);transition:transform .6s}
+.split:hover .split-img img{transform:scale(1.04)}
+.split-text{background:var(--cream);display:flex;align-items:center;padding:64px 72px}
+.split-text .tag{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--sage);font-weight:600;margin-bottom:14px;display:block}
+.split-text h2{font-size:clamp(26px,3vw,42px);margin-bottom:18px;line-height:1.15}
+.split-text p{font-size:14px;line-height:1.9;color:var(--muted);margin-bottom:14px}
+.split-rev{direction:rtl}
+.split-rev .split-text{direction:ltr;background:var(--ink)}
+.split-rev .split-text h2{color:#fff}
+.split-rev .split-text p{color:rgba(255,255,255,.6)}
+.split-rev .split-img{direction:ltr}
+
+/* ── VIDEO ── */
+.vid-section{display:grid;grid-template-columns:1fr 1fr;min-height:520px}
+.vid-left iframe{width:100%;height:100%;min-height:520px;display:block;border:none}
+.vid-right{background:var(--cream2);display:flex;align-items:center;padding:64px 60px}
+.vid-right h2{font-size:36px;margin-bottom:18px;line-height:1.15}
+.vid-right p{font-size:14px;line-height:1.9;color:var(--muted);margin-bottom:14px}
+
+/* ── REVIEWS ── */
+.reviews{padding:88px 40px;border-top:1px solid var(--line)}
+.reviews-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;max-width:1180px;margin:0 auto;background:var(--line);border:1px solid var(--line)}
+.rcard{background:var(--white);padding:40px 32px}
+.rcard .quote{font-family:'Fraunces',serif;font-size:44px;color:var(--sage);line-height:1;margin-bottom:16px;display:block}
+.rcard blockquote{font-size:14px;line-height:1.85;color:#444;margin-bottom:18px}
+.rcard cite{font-weight:600;font-style:normal;font-size:12.5px;letter-spacing:.4px;text-transform:uppercase}
+
+/* ── ARRIVALS ── */
+.arrivals{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line)}
+.acard{position:relative;overflow:hidden;background:#fff;min-height:480px;cursor:pointer}
+.acard img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;transition:transform .6s;filter:grayscale(10%)}
+.acard:hover img{transform:scale(1.05)}
+.acard-overlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.65));padding:52px 32px 32px;color:#fff}
+.acard-overlay span{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;opacity:.8}
+.acard-overlay h3{font-size:30px;margin:6px 0 0;color:#fff}
+
+/* ── GALLERY ── */
+.gallery-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--line)}
+.gcard{overflow:hidden;cursor:pointer;position:relative;background:#fff}
+.gcard img{width:100%;height:240px;object-fit:cover;display:block;transition:transform .5s;filter:grayscale(20%)}
+.gcard:hover img{transform:scale(1.08)}
+
+/* ── FEATURED ── */
+.featured{padding:96px 40px;background:var(--cream)}
+.feat-wrap{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.feat-img-box img{width:100%;object-fit:cover;max-height:500px;filter:grayscale(10%)}
+.feat-info span.tag{font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--sage);font-weight:600}
+.feat-info h2{font-size:38px;margin:14px 0 12px;line-height:1.1}
+.feat-price{font-size:28px;font-weight:600;font-family:'Fraunces',serif;margin:16px 0}
+.feat-info>p{font-size:14px;line-height:1.85;color:var(--muted);margin-bottom:14px}
+.feat-pills{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 28px}
+.pill{border:1px solid var(--line);color:var(--ink);font-size:11px;font-weight:500;padding:7px 16px;letter-spacing:.3px}
+
+/* ── BLOG ── */
+.blog-section{padding:88px 40px;border-top:1px solid var(--line)}
+.blog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;max-width:1180px;margin:0 auto}
+.bcard{cursor:pointer}
+.bcard img{width:100%;height:220px;object-fit:cover;display:block;filter:grayscale(15%);margin-bottom:18px;transition:transform .5s}
+.bcard:hover img{transform:scale(1.03)}
+.bcard .bdate{font-size:10.5px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.bcard h4{font-size:19px;margin-bottom:8px}
+.bcard p{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* ── MAILING ── */
+.mailing{background:var(--ink);padding:64px 40px;display:flex;align-items:center;justify-content:space-between;gap:40px;flex-wrap:wrap}
+.mailing-left h3{color:#fff;font-size:26px;margin-bottom:6px}
+.mailing-left p{color:rgba(255,255,255,.5);font-size:13px}
+.mailing-form{display:flex;flex:1;max-width:460px;min-width:260px;border-bottom:1px solid rgba(255,255,255,.3)}
+.mailing-form input{flex:1;padding:14px 4px;border:none;background:transparent;color:#fff;font-family:'Inter',sans-serif;font-size:13px;outline:none}
+.mailing-form input::placeholder{color:rgba(255,255,255,.4)}
+.mailing-form button{padding:14px 0;background:none;color:#fff;border:none;cursor:pointer;font-weight:600;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+
+/* ── FOOTER ── */
+footer{background:var(--white);color:var(--muted);padding:72px 40px 32px;border-top:1px solid var(--line)}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:56px}
+.fbrand-name{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:var(--ink);margin-bottom:14px}
+.fbrand p{font-size:13px;line-height:1.9;max-width:280px}
+.fcol h5{color:var(--ink);font-size:11px;letter-spacing:1.8px;text-transform:uppercase;font-weight:600;margin-bottom:22px}
+.fcol ul{list-style:none}
+.fcol ul li{margin-bottom:12px}
+.fcol ul li a{text-decoration:none;color:var(--muted);font-size:13.5px}
+.fcol ul li a:hover{color:var(--ink)}
+.footer-contact{font-size:13px;line-height:1.8;margin-top:18px}
+.footer-contact b{color:var(--ink)}
+.footer-bottom{border-top:1px solid var(--line);padding-top:26px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#aaa;flex-wrap:wrap;gap:12px}
+.footer-policy-links{display:flex;gap:20px}
+.footer-policy-links a{color:var(--muted);text-decoration:none;font-size:12px}
+.footer-policy-links a:hover{color:var(--ink)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--ink);color:#fff;padding:15px 30px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:960px){
+  nav{padding:0 20px}
+  .wrap{padding:0 20px}
+  .mobile-menu-toggle{display:block}
+  .nav-links{display:none}
+  .mobile-nav-links.mobile-open{display:flex}
+  .hero{grid-template-columns:1fr;min-height:auto}
+  .hero-left{padding:56px 24px}
+  .hero-right{height:360px}
+  .cats,.pgrid,.reviews-grid,.arrivals,.blog-grid,.footer-grid,.feat-wrap{grid-template-columns:1fr 1fr}
+  .gallery-grid{grid-template-columns:1fr 1fr}
+  .split,.split-rev,.vid-section{grid-template-columns:1fr;direction:ltr}
+  .split-img,.vid-left{min-height:280px}
+  .why-strip{grid-template-columns:1fr 1fr}
+  .sec-head{flex-direction:column;align-items:flex-start;gap:10px}
+  .sec-head p{text-align:left}
+}
+@media(max-width:600px){
+  .cats,.pgrid,.reviews-grid,.arrivals,.blog-grid,.footer-grid,.gallery-grid,.why-strip{grid-template-columns:1fr}
+  .hero-left{padding:44px 20px}
+  .hero-stats{gap:28px;flex-wrap:wrap}
+  .split-text,.vid-right{padding:40px 24px}
+  .featured,.blog-section,.reviews{padding:56px 20px}
+  .feat-wrap{gap:32px}
+  footer{padding:48px 20px 24px}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast">Added to cart</div>
+
+<div class="top-bar">
+  Free delivery within 5km of JP Nagar — orders above ₹499 · Free delivery across Bengaluru above ₹3000
+</div>
+
+<nav>
+  <a class="brand" href="/">
+    <div class="brand-mark"><img src="/logo.jpeg" alt="Marali Santhe"></div>
+    <span class="brand-name">Marali Santhe</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#">Home</a></li>
+    <li><a href="#">Organic Foods</a></li>
+    <li><a href="#">Wellness</a></li>
+    <li><a href="#">Combos</a></li>
+    <li><a href="#">Journal</a></li>
+  </ul>
+  <div class="nav-right">
+    <a href="/customer/login" class="btn-outline" style="padding:11px 24px">Login</a>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+  </div>
+  <div class="mobile-nav-links" id="mobileNav">
+    <a href="#">Home</a>
+    <a href="#">Organic Foods</a>
+    <a href="#">Wellness</a>
+    <a href="#">Combos</a>
+    <a href="#">Journal</a>
+    <a href="/customer/login">Login</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <p class="hero-eyebrow">Certified Organic · Since 2019</p>
+    <h1>Food, grown<br>the way it<br><em>should be.</em></h1>
+    <p class="hero-sub">Marali Santhe brings fresh, chemical-free produce and pantry staples from small organic farms straight to your table — nothing added, nothing hidden.</p>
+    <div class="hero-ctas">
+      <a href="#" class="btn">Shop the Range</a>
+      <a href="#" class="btn-outline">Our Farms</a>
+    </div>
+    <div class="hero-stats">
+      <div><b>120+</b><span>Organic SKUs</span></div>
+      <div><b>40+</b><span>Partner Farms</span></div>
+      <div><b>4.9</b><span>Customer Rating</span></div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <img src="https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Marali Santhe organic produce">
+    <div class="hero-tag"><span class="dot"></span> Harvested this week</div>
+  </div>
+</section>
+
+<div class="cats">
+  <div class="cat">
+    <img src="https://images.pexels.com/photos/1300975/pexels-photo-1300975.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Organic Foods">
+    <div class="cat-info">
+      <span>Most Loved</span>
+      <h3>Organic Foods</h3>
+      <a href="#">Shop the edit</a>
+    </div>
+  </div>
+  <div class="cat">
+    <img src="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Wellness">
+    <div class="cat-info">
+      <span>Just In</span>
+      <h3>Wellness &amp; Superfoods</h3>
+      <a href="#">Shop the edit</a>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="sec-head">
+    <div><span class="num">01 · Trending</span><h2>This week's picks</h2></div>
+    <p>Our most-reordered organic staples — fresh, pure, and quietly excellent.</p>
+  </div>
+</div>
+<div class="wrap">
+<div class="pgrid">
+  <div class="pcard">
+    <div class="pcard-img"><img src="https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg?auto=compress&cs=tinysrgb&w=700" alt="Wild Forest Honey"><span class="ptag">Organic</span></div>
+    <div class="pcard-body"><h4>Wild Forest Honey</h4><p class="psub">Raw &amp; Unprocessed · 500g</p><div class="pprice">₹420</div><button class="btn-add" onclick="addCart(this,'Wild Forest Honey')">Add to Bag</button></div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-img"><img src="https://images.pexels.com/photos/725998/pexels-photo-725998.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Coconut Oil"><span class="ptag">New</span></div>
+    <div class="pcard-body"><h4>Cold Pressed Coconut Oil</h4><p class="psub">Virgin &amp; Unrefined · 500ml</p><div class="pprice">₹310</div><button class="btn-add" onclick="addCart(this,'Coconut Oil')">Add to Bag</button></div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-img"><img src="https://images.pexels.com/photos/1656663/pexels-photo-1656663.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Moringa"><span class="ptag">Superfood</span></div>
+    <div class="pcard-body"><h4>Moringa Leaf Powder</h4><p class="psub">100% Pure · 200g</p><div class="pprice">₹260</div><button class="btn-add" onclick="addCart(this,'Moringa Powder')">Add to Bag</button></div>
+  </div>
+  <div class="pcard">
+    <div class="pcard-img"><img src="https://images.pexels.com/photos/2802527/pexels-photo-2802527.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Turmeric"><span class="ptag">Ayurvedic</span></div>
+    <div class="pcard-body"><h4>Organic Turmeric Powder</h4><p class="psub">High Curcumin · 250g</p><div class="pprice">₹180</div><button class="btn-add" onclick="addCart(this,'Turmeric Powder')">Add to Bag</button></div>
+  </div>
+</div>
+</div>
+
+<div class="banner">
+  <div class="banner-bg"></div>
+  <div class="banner-body">
+    <span class="tag">Our Philosophy</span>
+    <h2>What makes it different?</h2>
+    <p>We source directly from certified organic farms across India — no middlemen, no chemicals, no shortcuts. Every product is tested for purity before it reaches you.</p>
+    <a href="#" class="btn-outline" style="border-color:#fff;color:#fff">Explore All Products</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="sec-head">
+    <div><span class="num">02 · Collection</span><h2>Premium organic essentials</h2></div>
+    <p>Handpicked pantry staples for the everyday organic household.</p>
+  </div>
+  <div class="pgrid">
+    <div class="pcard">
+      <div class="pcard-img"><img src="https://images.pexels.com/photos/4110251/pexels-photo-4110251.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Wheat"><span class="ptag">Bestseller</span></div>
+      <div class="pcard-body"><h4>Organic Whole Wheat Atta</h4><p class="psub">Stone Ground · 1 kg</p><div class="pprice">₹95</div><button class="btn-add" onclick="addCart(this,'Wheat Atta')">Add to Bag</button></div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-img"><img src="https://images.pexels.com/photos/4198019/pexels-photo-4198019.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Rice"><span class="ptag oos">Out of Stock</span></div>
+      <div class="pcard-body"><h4>Sona Masoori Organic Rice</h4><p class="psub">Hand Pounded · 2 kg</p><div class="pprice">₹210</div><button class="btn-add out" disabled>Out of Stock</button></div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-img"><img src="https://images.pexels.com/photos/2284166/pexels-photo-2284166.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Dal"></div>
+      <div class="pcard-body"><h4>Organic Moong Dal Split</h4><p class="psub">Farm Fresh · 500g</p><div class="pprice">₹140</div><button class="btn-add" onclick="addCart(this,'Moong Dal')">Add to Bag</button></div>
+    </div>
+    <div class="pcard">
+      <div class="pcard-img"><img src="https://images.pexels.com/photos/1435735/pexels-photo-1435735.jpeg?auto=compress&cs=tinysrgb&w=500" alt="Jaggery"><span class="ptag">New</span></div>
+      <div class="pcard-body"><h4>Organic Palm Jaggery</h4><p class="psub">Natural Sweetener · 500g</p><div class="pprice">₹160</div><button class="btn-add" onclick="addCart(this,'Jaggery')">Add to Bag</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="why-strip">
+  <div class="why-item"><span class="no">01</span><h4>Premium Blend</h4><p>Sourced from the finest certified organic farms in India.</p></div>
+  <div class="why-item"><span class="no">02</span><h4>100% Natural</h4><p>No chemicals, no additives, no artificial anything.</p></div>
+  <div class="why-item"><span class="no">03</span><h4>Hand Picked</h4><p>Carefully sourced and inspected, batch by batch.</p></div>
+  <div class="why-item"><span class="no">04</span><h4>Freshly Packed</h4><p>Sealed at source to lock in freshness and flavour.</p></div>
+</div>
+
+<div class="split">
+  <div class="split-img"><img src="https://images.pexels.com/photos/2252584/pexels-photo-2252584.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Farm"></div>
+  <div class="split-text">
+    <div>
+      <span class="tag">Our Farms</span>
+      <h2>From our farms,<br>to your table.</h2>
+      <p>We work directly with certified organic farmers across India — no middlemen, no compromises. Every ingredient is traceable back to its source.</p>
+      <p>Our products retain maximum nutrients and natural flavour because food should nourish, not just fill.</p>
+      <a href="#" class="btn-outline" style="margin-top:8px">Our Story</a>
+    </div>
+  </div>
+</div>
+
+<div class="split split-rev">
+  <div class="split-img"><img src="https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Organic Process"></div>
+  <div class="split-text">
+    <div>
+      <span class="tag" style="color:#d8d3c4">Our Process</span>
+      <h2>The art of doing less.</h2>
+      <p>Minimal processing, maximum care. Every batch is blended and packed to preserve purity, aroma and taste.</p>
+      <p>Our products stay fresher, longer — no preservatives required.</p>
+      <a href="#" class="btn" style="margin-top:8px;background:#fff;color:#111;border-color:#fff">Shop Now</a>
+    </div>
+  </div>
+</div>
+
+<div class="vid-section">
+  <div class="vid-left">
+    <iframe src="https://www.youtube.com/embed/hFZFjoX2cGg?rel=0&modestbranding=1&controls=1" title="Organic Living" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+  </div>
+  <div class="vid-right">
+    <div>
+      <span class="tag" style="font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--sage);font-weight:600;display:block;margin-bottom:14px">Watch &amp; Learn</span>
+      <h2>The art of living organically</h2>
+      <p>Our farmers and wellness experts work together to create the finest organic products — from soil to shelf, with zero compromise.</p>
+      <a href="#" class="btn-outline" style="margin-top:8px">Watch Our Story</a>
+    </div>
+  </div>
+</div>
+
+<div class="reviews">
+  <div class="wrap">
+    <div class="sec-head" style="border:none;padding-top:0"><div><span class="num">03 · Reviews</span><h2>What customers say</h2></div><p>Loved by families across India.</p></div>
+  </div>
+  <div class="reviews-grid">
+    <div class="rcard"><span class="quote">“</span><blockquote>The Wild Honey is absolutely pure — you can taste the difference instantly. My whole family is hooked.</blockquote><cite>Priya Sharma</cite></div>
+    <div class="rcard"><span class="quote">“</span><blockquote>Best organic atta I've used. The rotis come out so soft. I won't go back to regular flour.</blockquote><cite>Rahul Mehta</cite></div>
+    <div class="rcard"><span class="quote">“</span><blockquote>Moringa powder is a game changer. Genuine quality, great packaging, fast delivery.</blockquote><cite>Ananya Nair</cite></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="sec-head"><div><span class="num">04 · New</span><h2>New arrivals</h2></div><p>Fresh additions to the Marali Santhe family.</p></div>
+</div>
+<div class="arrivals">
+  <div class="acard"><img src="https://images.pexels.com/photos/1132047/pexels-photo-1132047.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Fruit Basket"><div class="acard-overlay"><span>New Launch</span><h3>Organic Fruit Basket</h3></div></div>
+  <div class="acard"><img src="https://images.pexels.com/photos/616404/pexels-photo-616404.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Spices"><div class="acard-overlay"><span>New Launch</span><h3>Organic Spice Collection</h3></div></div>
+</div>
+
+<div class="gallery-grid" style="margin-top:2px">
+  <div class="gcard"><img src="/logo1.jpeg" alt="Marali Santhe"></div>
+  <div class="gcard"><img src="https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg?auto=compress&cs=tinysrgb&w=600" alt=""></div>
+  <div class="gcard"><img src="https://images.pexels.com/photos/2252584/pexels-photo-2252584.jpeg?auto=compress&cs=tinysrgb&w=600" alt=""></div>
+  <div class="gcard"><img src="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=600" alt=""></div>
+</div>
+
+<div class="featured">
+  <div class="feat-wrap">
+    <div class="feat-img-box"><img src="https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg?auto=compress&cs=tinysrgb&w=700" alt="Wild Forest Honey"></div>
+    <div class="feat-info">
+      <span class="tag">Featured Product</span>
+      <h2>Wild Forest Honey</h2>
+      <p>Sourced from pristine forest regions of India, this raw honey is cold-extracted and unfiltered to preserve every natural enzyme and antioxidant.</p>
+      <div class="feat-pills"><span class="pill">100% Organic</span><span class="pill">Raw &amp; Unprocessed</span><span class="pill">Lab Tested</span></div>
+      <div class="feat-price">₹420</div>
+      <a href="#" class="btn">Add to Bag</a>
+    </div>
+  </div>
+</div>
+
+<div class="blog-section">
+  <div class="wrap">
+    <div class="sec-head" style="padding-top:0"><div><span class="num">05 · Journal</span><h2>From the journal</h2></div><p>Tips, recipes &amp; organic living insights.</p></div>
+    <div class="blog-grid">
+      <div class="bcard"><img src="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Blog"><p class="bdate">January 30, 2025</p><h4>5 Benefits of Switching to Organic Food</h4><p>How organic food can transform your health and the environment.</p></div>
+      <div class="bcard"><img src="https://images.pexels.com/photos/1300975/pexels-photo-1300975.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Blog"><p class="bdate">January 31, 2025</p><h4>How to Identify Genuine Organic Products</h4><p>The key certifications to look for when shopping organic.</p></div>
+      <div class="bcard"><img src="https://images.pexels.com/photos/2802527/pexels-photo-2802527.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Blog"><p class="bdate">February 5, 2025</p><h4>The Magic of Turmeric</h4><p>The incredible health benefits of turmeric and how to use it daily.</p></div>
+    </div>
+  </div>
+</div>
+
+<div class="mailing">
+  <div class="mailing-left"><h3>Stay in the loop</h3><p>New arrivals, farm stories &amp; the occasional discount.</p></div>
+  <form class="mailing-form" onsubmit="event.preventDefault();"><input type="email" placeholder="Your email address" required><button type="submit">Subscribe →</button></form>
+</div>
+
+<footer>
+  <div class="footer-grid">
+    <div class="fbrand">
+      <div class="fbrand-name">Marali Santhe</div>
+      <p>Bringing the goodness of certified organic farms directly to your table. Pure, natural and full of freshness.</p>
+      <div class="footer-contact">
+        <b>Marali Santhe</b><br>Owner: Raghunandan<br><br>
+        #64, Ground Floor, 7th Cross, 24th Main,<br>RK Colony, JP Nagar 2nd Phase, Bengaluru - 560078<br><br>
+        Contact: 9035408833<br>Email: maralisanthe@gmail.com<br>GSTIN: 29AWEPR9293C1Z0
+      </div>
+    </div>
+    <div class="fcol"><h5>Shop</h5><ul><li><a href="#">Organic Foods</a></li><li><a href="#">Superfoods</a></li><li><a href="#">Spices &amp; Herbs</a></li><li><a href="#">Combo Packs</a></li><li><a href="#">New Arrivals</a></li></ul></div>
+    <div class="fcol"><h5>Support</h5><ul><li><a href="#">FAQs</a></li><li><a href="#">About Us</a></li><li><a href="#">Our Farms</a></li><li><a href="#">Contact Us</a></li><li><a href="#">Journal</a></li></ul></div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 Marali Santhe. All rights reserved.</span>
+    <div class="footer-policy-links"><a href="/terms-and-conditions.html" target="_blank">Terms &amp; Conditions</a><a href="/privacy-policy.html" target="_blank">Privacy Policy</a></div>
+  </div>
+</footer>
+
+<script>
+function toggleMobileMenu(){document.getElementById('mobileNav').classList.toggle('mobile-open')}
+function addCart(btn,name){
+  const orig=btn.textContent;btn.textContent='Added ✓';
+  const t=document.getElementById('toast');t.textContent=(name||'Item')+' added to bag';t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+  setTimeout(()=>{btn.textContent=orig},1600);
+}
+</script>
+</body>
+</html>

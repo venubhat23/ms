@@ -178,32 +178,56 @@ class Admin::DistributorPayoutsController < Admin::ApplicationController
     payouts = []
 
     # Get all commission payouts for ambassadors (distributors) directly - similar to affiliate logic
-    ambassador_commission_payouts = CommissionPayout.where(payout_to: 'ambassador').includes(:payout)
+    ambassador_commission_payouts = CommissionPayout.where(payout_to: 'ambassador').includes(:payout).to_a
+
+    # Batch-load the policy behind each commission payout (was
+    # get_policy_from_commission_payout doing a find_by per row).
+    CommissionPayout.preload_policies(ambassador_commission_payouts)
+
+    # Batch-load distributors for every policy that passes the same
+    # main_agent_commission_received check as the main loop below (mirrors
+    # the per-row Distributor.find_by).
+    distributor_ids = ambassador_commission_payouts.filter_map do |cp|
+      policy = cp.policy
+      next unless policy && policy.respond_to?(:main_agent_commission_received) && policy.main_agent_commission_received
+      policy.distributor_id if policy.respond_to?(:distributor_id) && policy.distributor_id.present?
+    end.uniq
+    distributors_by_id = Distributor.where(id: distributor_ids).index_by(&:id)
+
+    # Batch-load leads by lead_id from both commission_payout.lead_id and
+    # policy.lead_id (mirrors the two per-row Lead.find_by(lead_id:) calls
+    # below — fetching both up front is a superset, correctness is unchanged
+    # since each is still looked up by exact key).
+    lead_ids = (
+      ambassador_commission_payouts.map(&:lead_id) +
+      ambassador_commission_payouts.filter_map { |cp| cp.policy.try(:lead_id) if cp.policy }
+    ).compact.uniq
+    leads_by_lead_id = lead_ids.any? ? Lead.where(lead_id: lead_ids).index_by(&:lead_id) : {}
 
     # Group by distributor
     distributor_groups = {}
 
     ambassador_commission_payouts.each do |commission_payout|
       # Get policy from commission payout
-      policy = get_policy_from_commission_payout(commission_payout)
+      policy = commission_payout.policy
       next unless policy
 
       # Skip if main agent commission not received - same logic as affiliates
       next unless policy.respond_to?(:main_agent_commission_received) && policy.main_agent_commission_received
 
       # Get distributor from the policy's distributor_id field
-      distributor = Distributor.find_by(id: policy.distributor_id) if policy.respond_to?(:distributor_id) && policy.distributor_id.present?
+      distributor = distributors_by_id[policy.distributor_id] if policy.respond_to?(:distributor_id) && policy.distributor_id.present?
       next unless distributor
 
       # Get or create lead if needed
       lead = nil
       if commission_payout.lead_id.present?
-        lead = Lead.find_by(lead_id: commission_payout.lead_id)
+        lead = leads_by_lead_id[commission_payout.lead_id]
       end
 
       # Fallback: try to find lead by policy lead_id
       if lead.nil? && policy.respond_to?(:lead_id) && policy.lead_id.present?
-        lead = Lead.find_by(lead_id: policy.lead_id)
+        lead = leads_by_lead_id[policy.lead_id]
       end
 
       # If no lead found, create a virtual lead object for display purposes (same as affiliates)

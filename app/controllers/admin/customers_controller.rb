@@ -8,138 +8,57 @@ class Admin::CustomersController < Admin::ApplicationController
   skip_before_action :authenticate_user!, only: [:search_sub_agents]
   skip_load_and_authorize_resource only: [:search_sub_agents]
 
+  FILTER_PARAMS = %i[search customer_id status delivery_person_id].freeze
+
   # GET /admin/customers
   def index
-    # Check if policies_count column exists for optimized queries
-    has_counter_cache = Customer.column_names.include?('policies_count')
+    filters_key = FILTER_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&')
+    per_page = per_page_param
 
-    # Check if search is active first
-    search_active = params[:search].present? && params[:search].strip.length >= 4
-
-    if search_active
-      # When search is active, use simpler query without select optimization to avoid pg_search conflicts
-      @customers = Customer.all
-    else
-      # Use standard query and rely on counter cache for policy counts
-      @customers = Customer.all
+    # Stats don't depend on the page, so they're cached separately from the
+    # listing below — paging through the same filtered set shouldn't force a
+    # re-count of the same stats on every page.
+    stats_cache_key = "admin_customers/stats/#{filters_key}"
+    @stats = Rails.cache.fetch(stats_cache_key, expires_in: 1.minute) do
+      compute_customer_stats
     end
-
-    # Search functionality - only search if 4+ characters or empty
-    if params[:search].present?
-      search_term = params[:search].strip
-      if search_term.length >= 4
-        @customers = @customers.search_customers(search_term)
-      elsif search_term.length > 0
-        # Return empty result if search term is too short
-        @customers = @customers.none
-      end
-    end
-
-    # Filter by customer type - removed (column doesn't exist in customers table)
-
-    # Filter by status - removed (status column doesn't exist in customers table)
-    # All customers are considered active since there's no status field
-
-    # Get total count before pagination for display purposes
-    @total_filtered_count = @customers.count
-
-    # Order and paginate using configurable pagination
-    @customers = paginate_records(@customers.order(created_at: :desc))
-
-    # Calculate statistics
-    # Create a separate scope for statistics to avoid pg_search GROUP BY issues
-    stats_scope = Customer.all
-
-    # Apply filters but handle search differently for stats
-    if params[:search].present? && params[:search].strip.length >= 4
-      # For statistics, use a simple where clause instead of pg_search to avoid GROUP BY issues
-      search_term = params[:search].strip
-      stats_scope = stats_scope.where(
-        "first_name ILIKE ? OR last_name ILIKE ? OR company_name ILIKE ? OR email ILIKE ? OR mobile ILIKE ? OR pan_number ILIKE ?",
-        "%#{search_term}%", "%#{search_term}%", "%#{search_term}%", "%#{search_term}%", "%#{search_term}%", "%#{search_term}%"
-      )
-    end
-
-    # Apply Select2 filters
-    if params[:customer_id].present?
-      @customers = @customers.where(id: params[:customer_id])
-      stats_scope = stats_scope.where(id: params[:customer_id])
-    end
-
-    # Status filtering
-    case params[:status]
-    when 'active'
-      if Customer.column_names.include?('status')
-        @customers = @customers.where(status: true)
-        stats_scope = stats_scope.where(status: true)
-      end
-    when 'inactive'
-      if Customer.column_names.include?('status')
-        @customers = @customers.where(status: false)
-        stats_scope = stats_scope.where(status: false)
-      end
-    end
-
-    # Delivery person filtering - check subscriptions and delivery tasks
-    if params[:delivery_person_id].present? && defined?(DeliveryPerson)
-      delivery_person_id = params[:delivery_person_id].to_i
-      @selected_delivery_person = DeliveryPerson.find_by(id: delivery_person_id)
-      customer_ids = Set.new
-
-      # Check milk_subscriptions
-      if ActiveRecord::Base.connection.table_exists?('milk_subscriptions')
-        subscription_customer_ids = ActiveRecord::Base.connection.execute(
-          "SELECT DISTINCT customer_id FROM milk_subscriptions WHERE delivery_person_id = #{delivery_person_id}"
-        ).map { |row| row['customer_id'] }.compact
-        customer_ids.merge(subscription_customer_ids)
-      end
-
-      # Check subscription_templates
-      if ActiveRecord::Base.connection.table_exists?('subscription_templates')
-        template_customer_ids = ActiveRecord::Base.connection.execute(
-          "SELECT DISTINCT customer_id FROM subscription_templates WHERE delivery_person_id = #{delivery_person_id}"
-        ).map { |row| row['customer_id'] }.compact
-        customer_ids.merge(template_customer_ids)
-      end
-
-      # Check milk_delivery_tasks
-      if ActiveRecord::Base.connection.table_exists?('milk_delivery_tasks')
-        task_customer_ids = ActiveRecord::Base.connection.execute(
-          "SELECT DISTINCT customer_id FROM milk_delivery_tasks WHERE delivery_person_id = #{delivery_person_id}"
-        ).map { |row| row['customer_id'] }.compact
-        customer_ids.merge(task_customer_ids)
-      end
-
-      # Check bookings
-      if ActiveRecord::Base.connection.table_exists?('bookings')
-        booking_customer_ids = ActiveRecord::Base.connection.execute(
-          "SELECT DISTINCT customer_id FROM bookings WHERE delivery_person_id = #{delivery_person_id}"
-        ).map { |row| row['customer_id'] }.compact
-        customer_ids.merge(booking_customer_ids)
-      end
-
-      if customer_ids.any?
-        @customers = @customers.where(id: customer_ids.to_a)
-        stats_scope = stats_scope.where(id: customer_ids.to_a)
-      else
-        # No customers found for this delivery person
-        @customers = @customers.none
-        stats_scope = stats_scope.none
-      end
-    end
-
-    # Calculate filtered stats
-    @stats = {
-      total_customers: stats_scope.count,
-      active_customers: stats_scope.where(status: true).count,
-      new_this_month: stats_scope.where(created_at: Time.current.beginning_of_month..Time.current.end_of_month).count,
-      customers_with_orders: stats_scope.joins(:orders).distinct.count
-    }
-
-    @total_customers = @stats[:total_customers]
-    @active_customers = @stats[:active_customers]
-    @new_this_month = @stats[:new_this_month]
+    @total_customers       = @stats[:total_customers]
+    @active_customers      = @stats[:active_customers]
+    @new_this_month        = @stats[:new_this_month]
     @customers_with_orders = @stats[:customers_with_orders]
+
+    # Full listing result (records + total_count) cached per exact filter/page
+    # combination — the DB round trip is the expensive part here, not the
+    # query itself, so a cache hit skips the connection entirely.
+    listing_cache_key = "admin_customers/index_listing/#{filters_key}/page=#{params[:page]}/per=#{per_page}"
+    cached_listing = Rails.cache.read(listing_cache_key)
+
+    if cached_listing
+      @customers = Kaminari.paginate_array(cached_listing[:records], total_count: cached_listing[:total_count])
+                           .page(params[:page]).per(per_page)
+    else
+      scope = apply_customer_filters(Customer.all, use_pg_search: true)
+      # Force-load so the view's `.any?` and `.each` read the already-loaded
+      # records instead of each firing their own round trip (EXISTS, then
+      # SELECT) to the remote DB.
+      @customers = paginate_records(scope.order(created_at: :desc)).load
+      Rails.cache.write(listing_cache_key,
+                        { records: @customers.to_a, total_count: @customers.total_count },
+                        expires_in: 1.minute)
+    end
+
+    # "Select Customer" / "Select Delivery Person" filter dropdowns list every
+    # customer/delivery person regardless of the current page's filters, so they're
+    # cached independently of @customers (which was a full, unpaginated
+    # Customer.order(...) query run directly in the view on every single request).
+    @customer_filter_options = Rails.cache.fetch('admin_customers/filter_customers', expires_in: 2.minutes) do
+      Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
+              .order(:first_name, :last_name).to_a
+    end
+
+    @filter_delivery_people = Rails.cache.fetch('admin_customers/filter_delivery_people', expires_in: 5.minutes) do
+      defined?(DeliveryPerson) ? DeliveryPerson.active.order(:first_name, :last_name).to_a : []
+    end
 
     # Handle AJAX requests
     respond_to do |format|
@@ -835,6 +754,99 @@ class Admin::CustomersController < Admin::ApplicationController
   end
 
   private
+
+  # Applies the index page's search/customer/status/delivery-person filters to
+  # a scope. Shared between the listing (pg_search, for relevance ranking) and
+  # the stats count (a plain ILIKE, since pg_search's ranking join breaks the
+  # GROUP BY stats need) so the two can never drift out of sync with each other.
+  def apply_customer_filters(scope, use_pg_search:)
+    if params[:search].present?
+      search_term = params[:search].strip
+      if search_term.length >= 4
+        scope = if use_pg_search
+          scope.search_customers(search_term)
+        else
+          scope.where(
+            "first_name ILIKE ? OR last_name ILIKE ? OR company_name ILIKE ? OR email ILIKE ? OR mobile ILIKE ? OR pan_number ILIKE ?",
+            *(["%#{search_term}%"] * 6)
+          )
+        end
+      elsif search_term.length > 0
+        # Return empty result if search term is too short
+        scope = scope.none
+      end
+    end
+
+    scope = scope.where(id: params[:customer_id]) if params[:customer_id].present?
+
+    case params[:status]
+    when 'active'
+      scope = scope.where(status: true) if Customer.column_names.include?('status')
+    when 'inactive'
+      scope = scope.where(status: false) if Customer.column_names.include?('status')
+    end
+
+    if params[:delivery_person_id].present? && defined?(DeliveryPerson)
+      customer_ids = customer_ids_for_delivery_person(params[:delivery_person_id].to_i)
+      scope = customer_ids.any? ? scope.where(id: customer_ids) : scope.none
+    end
+
+    scope
+  end
+
+  # Which customers are associated with a delivery person (via subscriptions,
+  # subscription templates, delivery tasks, or bookings) — 4 raw round trips,
+  # so cached per delivery person rather than re-run on every filtered request.
+  def customer_ids_for_delivery_person(delivery_person_id)
+    Rails.cache.fetch("admin_customers/delivery_person_customer_ids/#{delivery_person_id}", expires_in: 2.minutes) do
+      customer_ids = Set.new
+
+      if ActiveRecord::Base.connection.table_exists?('milk_subscriptions')
+        customer_ids.merge(
+          ActiveRecord::Base.connection.execute(
+            "SELECT DISTINCT customer_id FROM milk_subscriptions WHERE delivery_person_id = #{delivery_person_id}"
+          ).map { |row| row['customer_id'] }.compact
+        )
+      end
+
+      if ActiveRecord::Base.connection.table_exists?('subscription_templates')
+        customer_ids.merge(
+          ActiveRecord::Base.connection.execute(
+            "SELECT DISTINCT customer_id FROM subscription_templates WHERE delivery_person_id = #{delivery_person_id}"
+          ).map { |row| row['customer_id'] }.compact
+        )
+      end
+
+      if ActiveRecord::Base.connection.table_exists?('milk_delivery_tasks')
+        customer_ids.merge(
+          ActiveRecord::Base.connection.execute(
+            "SELECT DISTINCT customer_id FROM milk_delivery_tasks WHERE delivery_person_id = #{delivery_person_id}"
+          ).map { |row| row['customer_id'] }.compact
+        )
+      end
+
+      if ActiveRecord::Base.connection.table_exists?('bookings')
+        customer_ids.merge(
+          ActiveRecord::Base.connection.execute(
+            "SELECT DISTINCT customer_id FROM bookings WHERE delivery_person_id = #{delivery_person_id}"
+          ).map { |row| row['customer_id'] }.compact
+        )
+      end
+
+      customer_ids.to_a
+    end
+  end
+
+  def compute_customer_stats
+    scope = apply_customer_filters(Customer.all, use_pg_search: false)
+    status_counts = scope.group(:status).count
+    {
+      total_customers: status_counts.values.sum,
+      active_customers: status_counts[true] || 0,
+      new_this_month: scope.where(created_at: Time.current.beginning_of_month..Time.current.end_of_month).count,
+      customers_with_orders: scope.joins(:orders).distinct.count
+    }
+  end
 
   # Generate a secure password for auto-creation
   def generate_secure_password

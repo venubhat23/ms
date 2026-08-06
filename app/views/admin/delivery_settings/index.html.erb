@@ -22,7 +22,7 @@
                 <div class="card-body text-center" style="background-color: #f8f9fa; color: #333;">
                   <i class="fas fa-map-marker-alt fa-2x text-primary mb-2"></i>
                   <h6 class="text-muted mb-1">Total Pincodes</h6>
-                  <h3 class="text-primary fw-bold"><%= @bangalore_pincodes.count %></h3>
+                  <h3 class="text-primary fw-bold"><%= @pincode_stats[:total] %></h3>
                 </div>
               </div>
             </div>
@@ -31,7 +31,7 @@
                 <div class="card-body text-center" style="background-color: #f8f9fa; color: #333;">
                   <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
                   <h6 class="text-muted mb-1">Active Zones</h6>
-                  <h3 class="text-success fw-bold"><%= @bangalore_pincodes.active.count %></h3>
+                  <h3 class="text-success fw-bold"><%= @pincode_stats[:active] %></h3>
                 </div>
               </div>
             </div>
@@ -40,7 +40,7 @@
                 <div class="card-body text-center" style="background-color: #f8f9fa; color: #333;">
                   <i class="fas fa-pause-circle fa-2x text-warning mb-2"></i>
                   <h6 class="text-muted mb-1">Inactive Zones</h6>
-                  <h3 class="text-warning fw-bold"><%= @bangalore_pincodes.inactive.count %></h3>
+                  <h3 class="text-warning fw-bold"><%= @pincode_stats[:inactive] %></h3>
                 </div>
               </div>
             </div>
@@ -49,7 +49,7 @@
                 <div class="card-body text-center" style="background-color: #f8f9fa; color: #333;">
                   <i class="fas fa-rupee-sign fa-2x text-info mb-2"></i>
                   <h6 class="text-muted mb-1">Avg. Charge</h6>
-                  <h3 class="text-info fw-bold">₹<%= @bangalore_pincodes.active.average(:charge_amount)&.round(2) || 0 %></h3>
+                  <h3 class="text-info fw-bold">₹<%= @pincode_stats[:avg_active_charge] %></h3>
                 </div>
               </div>
             </div>
@@ -114,6 +114,12 @@
                 <i class="fas fa-truck fa-3x text-muted mb-3"></i>
                 <h5 class="text-muted">No delivery charges configured</h5>
                 <p class="text-muted">Add delivery charges for different pincodes to get started.</p>
+              </div>
+            <% end %>
+
+            <% if respond_to?(:paginate) && @bangalore_pincodes.respond_to?(:total_pages) %>
+              <div class="d-flex justify-content-center mt-3">
+                <%= paginate @bangalore_pincodes %>
               </div>
             <% end %>
           </div>

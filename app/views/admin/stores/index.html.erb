@@ -307,7 +307,7 @@
                   <!-- Bookings count -->
                   <div class="d-flex align-items-center gap-1 mt-2 pt-2 border-top">
                     <i class="bi bi-bag-check text-muted" style="font-size:0.85rem;"></i>
-                    <small class="text-muted"><%= store.bookings.count %> bookings</small>
+                    <small class="text-muted"><%= @booking_counts[store.id] || 0 %> bookings</small>
                     <% if store.is_main_inventory %>
                       <span class="badge bg-warning-subtle text-warning ms-auto" style="font-size:0.7rem;">Main Inventory</span>
                     <% end %>

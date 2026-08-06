@@ -72,13 +72,12 @@ class Booking < ApplicationRecord
   # at creation time — if one of those is later marked paid, generate the invoice now
   # instead of silently no-op'ing.
   def sync_invoice_payment_status
-    unless invoice_generated? && invoice_number.present?
+    invoice = invoice_number.present? ? Invoice.find_by(invoice_number: invoice_number) : nil
+
+    unless invoice
       generate_quick_invoice! if payment_status_paid?
       return
     end
-
-    invoice = Invoice.find_by(invoice_number: invoice_number)
-    return unless invoice
 
     case payment_status
     when 'paid'
@@ -135,18 +134,25 @@ class Booking < ApplicationRecord
   end
 
   def calculate_totals
-    # Calculate totals for items (including unsaved ones)
+    # Calculate totals for items (including unsaved ones) — `booking_items.to_a`
+    # keeps any newly-built-but-unsaved items (needed during creation), and
+    # looking products up via product_id from one batched query instead of
+    # `item.product` avoids a query per item.
+    items = booking_items.to_a
+    products_by_id = Product.where(id: items.map(&:product_id).compact.uniq).index_by(&:id)
+
     items_total = 0
     total_gst = 0
 
-    booking_items.each do |item|
+    items.each do |item|
       if item.quantity.present? && item.price.present?
         quantity = item.quantity
         price = item.price
+        product = products_by_id[item.product_id]
 
         # Price is GST-inclusive: extract base via per-unit rounding
-        if item.product && item.product.gst_enabled && item.product.gst_percentage.to_f > 0
-          gst_rate      = item.product.gst_percentage.to_f
+        if product && product.gst_enabled && product.gst_percentage.to_f > 0
+          gst_rate      = product.gst_percentage.to_f
           rounded_final = price.round
           rounded_base  = (rounded_final / (1 + gst_rate / 100.0)).round
           items_total  += rounded_base * quantity
@@ -186,11 +192,16 @@ class Booking < ApplicationRecord
   def calculated_tax_amount
     return tax_amount if tax_amount.present?
 
-    # Calculate GST based on individual products
+    # Calculate GST based on individual products — batched product lookup,
+    # same rationale as calculate_totals above.
+    items = booking_items.to_a
+    products_by_id = Product.where(id: items.map(&:product_id).compact.uniq).index_by(&:id)
+
     total_gst = 0
-    booking_items.each do |item|
-      if item.product && item.product.gst_enabled && item.product.gst_percentage.to_f > 0
-        gst_rate = item.product.gst_percentage.to_f
+    items.each do |item|
+      product = products_by_id[item.product_id]
+      if product && product.gst_enabled && product.gst_percentage.to_f > 0
+        gst_rate = product.gst_percentage.to_f
         item_base = (item.price || 0) * (item.quantity || 0)
         item_gst = (item_base * gst_rate / 100).round(2)
         total_gst += item_gst
@@ -269,6 +280,14 @@ class Booking < ApplicationRecord
       # Generate and send invoice when booking is completed
       generate_and_send_completion_notification
     end
+  end
+
+  # Manual admin action for cash/offline payments collected outside the
+  # gateway flow (see mark_payment_completed! for the Cashfree equivalent).
+  # The existing after_update :sync_invoice_payment_status callback handles
+  # keeping the linked Invoice in sync — no extra work needed here.
+  def mark_as_fully_paid!
+    update!(payment_status: :paid)
   end
 
   def cancel_order!(reason = nil)
@@ -738,7 +757,7 @@ class Booking < ApplicationRecord
   # otherwise unpaid). Sets invoice_generated=true and invoice_number on the booking so
   # the admin UI recognises the booking as invoiced. Returns the Invoice on success, nil on failure.
   def generate_quick_invoice!
-    return nil if invoice_generated?
+    return nil if invoice_number.present? && Invoice.exists?(invoice_number: invoice_number)
     return nil if booking_items.empty?
 
     invoice = Invoice.new(
@@ -748,7 +767,8 @@ class Booking < ApplicationRecord
       status: :sent,
       payment_status: payment_status_paid? ? :fully_paid : :unpaid,
       paid_at: payment_status_paid? ? Time.current : nil,
-      quick_invoice: true
+      quick_invoice: true,
+      delivery_charge: shipping_charges.to_f
     )
 
     invoice_total = 0

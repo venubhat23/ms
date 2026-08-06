@@ -705,6 +705,20 @@
         </div>
       </div>
 
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <%= form.label :hsn_code, "HSN Number", class: "form-label" %>
+          <%= form.text_field :hsn_code,
+              class: "form-control #{'is-invalid' if product.errors[:hsn_code].any?}",
+              placeholder: "e.g., 0401, 1006" %>
+          <% if product.errors[:hsn_code].any? %>
+            <div class="invalid-feedback">
+              <%= product.errors[:hsn_code].first %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
       <div class="form-group">
         <%= form.label :description, "Description", class: "form-label" %>
         <%= form.text_area :description, class: "form-control", rows: 4, placeholder: "Enter product description" %>
@@ -2179,7 +2193,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let taxDetails = '';
 
     if (gstSimpleRadio && gstSimpleRadio.checked) {
-      // Simple GST Reverse Calculation
+      // Simple GST: the % is a straight percentage of the selling price
+      // (e.g. 10% GST on ₹200 = ₹20 GST, ₹180 base) — not a reverse-derived
+      // inclusive-tax split, and matches Product#calculate_gst_amount.
       const gstPercentage = parseFloat(gstPercentageInput?.value) || 0;
 
       if (gstPercentage > 100) {
@@ -2187,14 +2203,8 @@ document.addEventListener('DOMContentLoaded', function() {
         gstPercentage = 100;
       }
 
-      // Fixed calculation: Base Price = Inclusive Price / (1 + GST Rate) but round to whole number for clean display
-      basePrice = sellingPriceInclusive / (1 + (gstPercentage / 100));
-      // Round base price to nearest whole number for clean display (e.g., 95.24 becomes 95)
-      basePrice = Math.round(basePrice);
-      // Calculate GST as the difference to ensure totals match
-      totalGSTAmount = sellingPriceInclusive - basePrice;
-      // Round GST amount to 2 decimal places
-      totalGSTAmount = Math.round(totalGSTAmount * 100) / 100;
+      totalGSTAmount = Math.round(sellingPriceInclusive * gstPercentage) / 100;
+      basePrice = Math.round((sellingPriceInclusive - totalGSTAmount) * 100) / 100;
 
       // Update displays
       if (basePriceDisplay) basePriceDisplay.value = basePrice.toFixed(2);
@@ -2206,21 +2216,16 @@ document.addEventListener('DOMContentLoaded', function() {
       taxDetails = `GST: ${gstPercentage}%`;
 
     } else if (gstDetailedRadio && gstDetailedRadio.checked) {
-      // Detailed GST Reverse Calculation
+      // Detailed GST: same straight-percentage-of-selling-price rule as
+      // Simple GST, applied to the combined CGST+SGST+IGST rate.
       const cgstPercentage = parseFloat(cgstPercentageInput?.value) || 0;
       const sgstPercentage = parseFloat(sgstPercentageInput?.value) || 0;
       const igstPercentage = parseFloat(igstPercentageInput?.value) || 0;
 
       const totalGSTPercentage = cgstPercentage + sgstPercentage + igstPercentage;
 
-      // Fixed calculation: Base Price = Inclusive Price / (1 + Total GST Rate) but round to whole number for clean display
-      basePrice = sellingPriceInclusive / (1 + (totalGSTPercentage / 100));
-      // Round base price to nearest whole number for clean display
-      basePrice = Math.round(basePrice);
-
-      // Calculate total GST as difference first
-      totalGSTAmount = sellingPriceInclusive - basePrice;
-      totalGSTAmount = Math.round(totalGSTAmount * 100) / 100;
+      totalGSTAmount = Math.round(sellingPriceInclusive * totalGSTPercentage) / 100;
+      basePrice = Math.round((sellingPriceInclusive - totalGSTAmount) * 100) / 100;
 
       // Proportionally distribute GST among components based on their percentages
       if (totalGSTPercentage > 0) {

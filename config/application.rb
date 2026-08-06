@@ -42,5 +42,12 @@ module DemoFarmAdmin
 
     # Don't generate system test files.
     config.generators.system_tests = nil
+
+    # The DB is a remote Postgres instance, so every query pays full network
+    # round-trip latency regardless of how simple it is. Running independent
+    # read queries on separate pooled connections lets their round trips
+    # overlap instead of stacking serially (see Booking#index's use of
+    # async_count/load_async).
+    config.active_record.async_query_executor = :global_thread_pool
   end
 end

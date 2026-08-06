@@ -5,8 +5,21 @@ class Admin::ProductsController < Admin::ApplicationController
                                       :manage_images, :upload_main_image, :upload_additional_image, :destroy_gallery_image]
   before_action :authenticate_user!
 
+  # Exact set of columns the index view/its rendered product methods read.
+  # products also carries several large text columns (description, meta_title,
+  # meta_description, tags, price_history, occasional_description, etc.) that
+  # the index page never displays — selecting only what's needed cuts the
+  # per-row payload size on the paginated listing query.
+  INDEX_PRODUCT_COLUMNS = %i[
+    id name sku status price discount_price discount_type discount_value
+    discount_amount original_price is_discounted buying_price stock
+    unit_type image_url r2_image_url category_id created_at
+  ].freeze
+
   def index
-    @products = Product.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+    # additional_images is never read on the index view (only in new/edit forms),
+    # so it's deliberately excluded here to avoid an unused eager-load round trip.
+    @products = Product.select(*INDEX_PRODUCT_COLUMNS).includes(:category, image_attachment: :blob)
 
     if params[:search].present?
       @products = @products.search(params[:search])
@@ -30,7 +43,13 @@ class Admin::ProductsController < Admin::ApplicationController
     end
 
     @products = @products.recent.page(params[:page]).per(20)
-    @categories = Category.active.ordered
+
+    # Kaminari memoizes total_count in this ivar on first access, so pre-seeding
+    # it from a short-lived cache avoids a COUNT(*) round trip on every unfiltered
+    # load (the "Total Products" stat tolerates a minute or two of staleness).
+    if params[:search].blank? && params[:category_id].blank? && params[:status].blank? && params[:stock_status].blank?
+      @products.instance_variable_set(:@total_count, Rails.cache.fetch('admin_products/total_count', expires_in: 2.minutes) { Product.count })
+    end
   end
 
   def show
@@ -45,6 +64,9 @@ class Admin::ProductsController < Admin::ApplicationController
       category = Category.find_by(id: params[:category_id])
       @product.category_id = category.id if category
     end
+
+    # Pre-fill name if provided (e.g. from a no-results product search)
+    @product.name = params[:name] if params[:name].present?
 
     @product.delivery_rules.build(rule_type: 'everywhere') # Default rule
     @categories = Category.active.ordered
@@ -62,10 +84,24 @@ class Admin::ProductsController < Admin::ApplicationController
       # Handle automatic R2 uploads for regular file uploads
       handle_automatic_r2_uploads
 
-      redirect_to admin_product_path(@product), notice: 'Product was successfully created.'
+      respond_to do |format|
+        format.html { redirect_to admin_product_path(@product), notice: 'Product was successfully created.' }
+        format.json do
+          render json: {
+            success: true,
+            product: {
+              id: @product.id, name: @product.name, unit_type: @product.unit_type,
+              default_selling_price: @product.default_selling_price || 0
+            }
+          }
+        end
+      end
     else
       @categories = Category.active.ordered
-      render :new, status: :unprocessable_entity
+      respond_to do |format|
+        format.html { render :new, status: :unprocessable_entity }
+        format.json { render json: { success: false, errors: @product.errors.full_messages }, status: :unprocessable_entity }
+      end
     end
   end
 

@@ -1,15 +1,26 @@
 class Admin::BookingsController < Admin::ApplicationController
   before_action :authenticate_user!
-  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :manage_stage, :update_stage]
+  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :manage_stage, :update_stage]
 
   LIST_STATE_PARAMS = %i[page search status date_from date_to customer_id b2b booked_by affiliate_id category_id].freeze
 
   def index
     # Base scope (no includes — used for lightweight stat counting only)
     base_scope = current_user.franchise? ? Booking.where(user_id: current_user.id) : Booking.all
+    franchise_scope_key = current_user.franchise? ? "franchise_#{current_user.id}" : 'all'
 
-    # Single GROUP BY replaces 6 separate COUNT queries fired in the view
-    @status_counts = base_scope.group(:status).count
+    # Status counts only depend on franchise scope, not on the listing filters
+    # below, so they're cached separately under a coarser key — a search/date/
+    # category filter change shouldn't force a re-count of every status.
+    status_counts_cache_key = "admin_bookings/status_counts/#{franchise_scope_key}"
+    status_counts_cached = Rails.cache.read(status_counts_cache_key)
+
+    # Single GROUP BY replaces 6 separate COUNT queries fired in the view.
+    # Fired async (separate pooled connection) so its round trip overlaps
+    # with the paginated listing query below instead of stacking after it —
+    # the DB is remote, so every query round trip is ~200-400ms regardless
+    # of complexity. Only kicked off on a cache miss.
+    status_counts_promise = base_scope.group(:status).async_count unless status_counts_cached
 
     # Paginated listing with eager-loaded associations
     # user: :franchise avoids N+1 when booking.user.franchise.name is rendered
@@ -56,21 +67,67 @@ class Admin::BookingsController < Admin::ApplicationController
       @bookings = @bookings.joins(booking_items: :product).where(products: { category_id: params[:category_id] }).distinct
     end
 
-    @categories = Category.where(status: true).order(:display_order, :name)
-    @affiliates = Affiliate.where(status: true).order(:first_name, :last_name)
+    @categories = Rails.cache.fetch('admin_bookings/filter_categories', expires_in: 5.minutes) do
+      Category.where(status: true).order(:display_order, :name).to_a
+    end
+    @affiliates = Rails.cache.fetch('admin_bookings/filter_affiliates', expires_in: 5.minutes) do
+      Affiliate.where(status: true).order(:first_name, :last_name).to_a
+    end
 
     @per_page = Rails.cache.fetch('system_setting/default_pagination_per_page', expires_in: 5.minutes) do
       SystemSetting.default_pagination_per_page
     end
+
+    # Full listing result (records + total_count) cached per exact filter/page/
+    # franchise combination — the DB round trip is the expensive part here, not
+    # the query itself, so a cached hit skips the connection entirely. Kept
+    # short (1 min) since bookings are actively created/updated by staff.
+    filters_key = LIST_STATE_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&')
+    listing_cache_key = "admin_bookings/index_listing/#{franchise_scope_key}/#{filters_key}/per=#{@per_page}"
+    cached_listing = Rails.cache.read(listing_cache_key)
+
     @bookings = @bookings.page(params[:page]).per(@per_page)
+    # Kick off the listing query on its own pooled connection now, before we
+    # block on the status_counts promise below, so both round trips overlap.
+    @bookings.load_async unless cached_listing
+
+    @status_counts = status_counts_cached || begin
+      value = status_counts_promise.value
+      Rails.cache.write(status_counts_cache_key, value, expires_in: 3.minutes)
+      value
+    end
+
+    if cached_listing
+      # .page(params[:page]), not .page(1): the cached array is already just this
+      # page's slice, but Kaminari still needs the real page number to compute
+      # the correct offset_value/current_page for the "Showing X-Y of Z" display
+      # and pagination widget. PaginatableArray only re-slices when total_count
+      # <= array.length, so passing the true page here does NOT re-slice away
+      # our already-correct cached records — it just fixes the metadata.
+      @bookings = Kaminari.paginate_array(cached_listing[:records], total_count: cached_listing[:total_count])
+                           .page(params[:page]).per(@per_page)
+    else
+      # Reuse the status_counts GROUP BY (already fetched above) instead of firing a
+      # second COUNT(*) round trip when no filter narrows the result set. Kaminari
+      # memoizes total_count in this ivar on first access, so pre-seeding it here
+      # short-circuits every later .total_count call (result count, pagination widget).
+      @bookings.instance_variable_set(:@total_count, @status_counts.values.sum) unless filters_applied?
+
+      records = @bookings.to_a
+      total_count = @bookings.total_count
+      Rails.cache.write(listing_cache_key, { records: records, total_count: total_count }, expires_in: 1.minute)
+      @bookings = Kaminari.paginate_array(records, total_count: total_count).page(params[:page]).per(@per_page)
+    end
 
     # Pre-populate memoized @associated_invoice on each loaded booking to nil so
     # has_invoice? / invoice_link_path / display_invoice_number never fire a
     # per-booking LIKE query; the index only needs booking_invoices (eager-loaded above).
     @bookings.each { |b| b.instance_variable_set(:@associated_invoice, nil) }
 
-    @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
-                        .order(:first_name, :last_name)
+    @customers = Rails.cache.fetch('admin_bookings/filter_customers', expires_in: 2.minutes) do
+      Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
+              .order(:first_name, :last_name).to_a
+    end
   end
 
   def new
@@ -281,7 +338,7 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def generate_invoice
-    if @booking.invoice_generated?
+    if @booking.has_invoice?
       redirect_to admin_booking_path(@booking, list_state_params), notice: 'Invoice already generated.'
       return
     end
@@ -290,8 +347,7 @@ class Admin::BookingsController < Admin::ApplicationController
     if invoice
       redirect_to admin_booking_path(@booking, list_state_params), notice: "Invoice ##{invoice.invoice_number} generated successfully."
     else
-      @booking.generate_invoice_number
-      redirect_to admin_booking_path(@booking, list_state_params), notice: 'Invoice generated successfully.'
+      redirect_to admin_booking_path(@booking, list_state_params), alert: 'Failed to generate invoice. Please check the booking has items and try again.'
     end
   end
 
@@ -412,6 +468,11 @@ class Admin::BookingsController < Admin::ApplicationController
   def mark_completed
     @booking.mark_as_completed!
     redirect_to admin_booking_path(@booking, list_state_params), notice: 'Order marked as completed!'
+  end
+
+  def mark_fully_paid
+    @booking.mark_as_fully_paid!
+    redirect_to admin_booking_path(@booking, list_state_params), notice: 'Booking marked as fully paid!'
   end
 
   def stage_transition
@@ -596,6 +657,12 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   private
+
+  def filters_applied?
+    %i[search status date_from date_to customer_id b2b booked_by affiliate_id category_id].any? do |key|
+      params[key].present? && params[key].to_s.strip != ''
+    end
+  end
 
   # Read forward-carried list page/filter state from the nested `list_state`
   # param, never the top-level params (some actions, e.g. update_status,

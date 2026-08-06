@@ -57,16 +57,23 @@ class MilkSubscription < ApplicationRecord
     end
   end
 
+  # .where(...).count/.average/.sum always issue a fresh query even when
+  # milk_delivery_tasks is preloaded (Admin::SubscriptionsController#index
+  # does `.includes(milk_delivery_tasks: :delivery_person)`), so on an index
+  # page these used to add ~6 extra round trips per row. Loading the
+  # association once with #to_a and counting in Ruby reuses the preloaded
+  # rows for free; when the association isn't preloaded (e.g. a single
+  # subscription's #show), it still collapses to one query instead of many.
   def completed_deliveries_count
-    milk_delivery_tasks.where(status: 'completed').count
+    loaded_delivery_tasks.count { |t| t.status == 'completed' }
   end
 
   def pending_deliveries_count
-    milk_delivery_tasks.where(status: 'pending').count
+    loaded_delivery_tasks.count { |t| t.status == 'pending' }
   end
 
   def total_deliveries_count
-    milk_delivery_tasks.count
+    loaded_delivery_tasks.size
   end
 
   def completion_percentage
@@ -75,7 +82,7 @@ class MilkSubscription < ApplicationRecord
   end
 
   def paused_deliveries_count
-    milk_delivery_tasks.where(status: 'paused').count
+    loaded_delivery_tasks.count { |t| t.status == 'paused' }
   end
 
   def can_be_paused?
@@ -149,21 +156,29 @@ class MilkSubscription < ApplicationRecord
 
   # Current quantity methods for showing updated quantities
   def current_average_quantity
-    return quantity unless milk_delivery_tasks.any?
-    milk_delivery_tasks.average(:quantity)&.round(2) || quantity
+    tasks = loaded_delivery_tasks
+    return quantity if tasks.empty?
+    (tasks.sum(&:quantity) / tasks.size.to_f).round(2)
   end
 
   def current_total_quantity
-    return total_quantity unless milk_delivery_tasks.any?
-    milk_delivery_tasks.sum(:quantity).round(2)
+    tasks = loaded_delivery_tasks
+    return total_quantity if tasks.empty?
+    tasks.sum(&:quantity).round(2)
   end
 
   def has_quantity_changes?
-    return false unless milk_delivery_tasks.any?
+    return false if loaded_delivery_tasks.empty?
     current_average_quantity != quantity
   end
 
   private
+
+  # Memoized so the several methods above that each need the full task list
+  # (subscription_summary alone calls 5 of them) share one load/query.
+  def loaded_delivery_tasks
+    @loaded_delivery_tasks ||= milk_delivery_tasks.to_a
+  end
 
   def end_date_after_start_date
     return unless start_date && end_date

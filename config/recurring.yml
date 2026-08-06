@@ -9,7 +9,89 @@
 #     priority: 2
 #     schedule: at 5am every day
 
+development:
+  # Keeps dashboard:* cache entries refreshed ahead of their expiry (shortest
+  # TTL among them is 5 minutes) so a real visit never lands on a cold cache,
+  # which on the current remote dev DB costs ~10-20s.
+  warm_dashboard_cache:
+    class: WarmDashboardCacheJob
+    schedule: every 2 minutes
+
+  # Shortest TTL among admin_bookings/* entries is 1 minute (status_counts) —
+  # scheduled at that cadence so it never lands stale/expired.
+  warm_admin_bookings_cache:
+    class: WarmAdminBookingsCacheJob
+    schedule: every minute
+
+  warm_admin_customers_cache:
+    class: WarmAdminCustomersCacheJob
+    schedule: every 2 minutes
+
+  warm_sidebar_cache:
+    class: WarmSidebarCacheJob
+    schedule: every minute
+
+  warm_qr_codes_cache:
+    class: WarmQrCodesCacheJob
+    schedule: every 3 minutes
+
+  # Shortest TTL among admin_store_analytics/* entries is 5 minutes
+  # (comparison/top_products) — scheduled at that cadence so it never lands
+  # stale/expired. peak_hours (30-minute TTL) rides along on the same job;
+  # re-fetching it early is just a cheap cache read until it actually expires.
+  warm_store_analytics_cache:
+    class: WarmStoreAnalyticsCacheJob
+    schedule: every 2 minutes
+
+  # TTL (2 minutes, admin:pricing:overview) is this job's sole cache entry —
+  # scheduled at half that so it never lands in the expiry gap.
+  warm_pricing_cache:
+    class: WarmPricingCacheJob
+    schedule: every minute
+
+  # Shortest TTL among admin_subscriptions/* entries is 2 minutes (stats) —
+  # scheduled at half that so it never lands in the expiry gap.
+  warm_subscriptions_cache:
+    class: WarmSubscriptionsCacheJob
+    schedule: every minute
+
 production:
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
+
+  # Same rationale as development's entry above: keeps dashboard:* cache
+  # entries refreshed ahead of their expiry so real visitors never land on a
+  # cold cache. Requires SOLID_QUEUE_IN_PUMA (render.yaml) so this schedule
+  # actually gets polled.
+  warm_dashboard_cache:
+    class: WarmDashboardCacheJob
+    schedule: every 2 minutes
+
+  warm_admin_bookings_cache:
+    class: WarmAdminBookingsCacheJob
+    schedule: every minute
+
+  warm_admin_customers_cache:
+    class: WarmAdminCustomersCacheJob
+    schedule: every 2 minutes
+
+  warm_sidebar_cache:
+    class: WarmSidebarCacheJob
+    schedule: every minute
+
+  warm_qr_codes_cache:
+    class: WarmQrCodesCacheJob
+    schedule: every 3 minutes
+
+  warm_store_analytics_cache:
+    class: WarmStoreAnalyticsCacheJob
+    schedule: every 2 minutes
+
+  warm_pricing_cache:
+    class: WarmPricingCacheJob
+    schedule: every minute
+
+  warm_subscriptions_cache:
+    class: WarmSubscriptionsCacheJob
+    schedule: every minute

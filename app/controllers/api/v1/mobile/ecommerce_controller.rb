@@ -57,7 +57,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     cache_key = MobileApiCache.products_key(cache_params)
 
     result = Rails.cache.fetch(cache_key, expires_in: MobileApiCache::PRODUCT_TTL) do
-      scope = Product.active.available_for_sale.includes(:product_variants, :category)
+      scope = Product.active.available_for_sale
 
       scope = scope.where(category_id: params[:category_id]) if params[:category_id].present?
       scope = scope.where('price >= ?', params[:min_price]) if params[:min_price].present?
@@ -78,9 +78,14 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
       count_result = scope.count
       total_count = count_result.is_a?(Hash) ? count_result.size : count_result
-      products = scope.offset((page - 1) * per_page).limit(per_page)
+      # Page ids only, from the (possibly grouped/sorted) filter scope above —
+      # the actual product rows (with stock/review/image preloads) are fetched
+      # separately below so the cached_stock LEFT JOIN/select never has to
+      # coexist with a GROUP BY in the same query (Rails' .count breaks when
+      # a custom .select and .group are combined on the same relation).
+      page_ids = scope.offset((page - 1) * per_page).limit(per_page).pluck(:id)
 
-      { products_data: products.map { |p| format_product_data(p) }, total_count: total_count }
+      { products_data: fetch_products_for_listing(page_ids).map { |p| format_product_data(p) }, total_count: total_count }
     end
 
     json_response({
@@ -113,7 +118,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     per_page = params[:per_page]&.to_i || 20
     per_page = [per_page, 50].min
 
-    @products = Product.active.available_for_sale.includes(:product_variants, :category).where(category_id: @category.id)
+    @products = Product.active.available_for_sale.where(category_id: @category.id)
 
     @products = @products.where('price >= ?', params[:min_price]) if params[:min_price].present?
     @products = @products.where('price <= ?', params[:max_price]) if params[:max_price].present?
@@ -135,9 +140,9 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     count_result = @products.count
     total_count = count_result.is_a?(Hash) ? count_result.size : count_result
 
-    @products = @products.offset((page - 1) * per_page).limit(per_page)
+    page_ids = @products.offset((page - 1) * per_page).limit(per_page).pluck(:id)
 
-    products_data = @products.map { |product| format_product_data(product) }
+    products_data = fetch_products_for_listing(page_ids).map { |product| format_product_data(product) }
 
     json_response({
       success: true,
@@ -641,7 +646,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     per_page = [per_page, 50].min
 
     begin
-      @products = Product.active.available_for_sale.includes(:product_variants, :category).search(query)
+      @products = Product.active.available_for_sale.search(query)
 
       # Apply additional filters
       @products = @products.where(category_id: params[:category_id]) if params[:category_id].present?
@@ -665,8 +670,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       count_result = @products.count
       total_count = count_result.is_a?(Hash) ? count_result.size : count_result
 
-      @products = @products.offset((page - 1) * per_page).limit(per_page)
-      products_data = @products.map { |product| format_product_data(product) }
+      page_ids = @products.offset((page - 1) * per_page).limit(per_page).pluck(:id)
+      products_data = fetch_products_for_listing(page_ids).map { |product| format_product_data(product) }
 
       json_response({
         success: true,
@@ -720,11 +725,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
     begin
       products_data = Rails.cache.fetch(MobileApiCache.featured_products_key(limit), expires_in: MobileApiCache::PRODUCT_TTL) do
-        Product.active.available_for_sale
-               .includes(:product_variants, :category)
-               .order(created_at: :desc)
-               .limit(limit)
-               .map { |product| format_product_data(product) }
+        with_product_listing_preloads(Product.active.available_for_sale)
+          .order(created_at: :desc)
+          .limit(limit)
+          .map { |product| format_product_data(product) }
       end
 
       json_response({
@@ -1599,6 +1603,43 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   end
 
   private
+
+  # Per-product active stock, aggregated once instead of once per product —
+  # format_product_data calls in_stock?/low_stock?/stock_status per product,
+  # which would otherwise each fire a stock_batches SUM query (same fix as
+  # HomeController's stock_subquery/cached_stock pattern).
+  def stock_subquery
+    StockBatch.where(status: 'active')
+              .where('quantity_remaining > 0')
+              .select('product_id, SUM(quantity_remaining) AS total_stock')
+              .group(:product_id)
+  end
+
+  # Adds the cached_stock column/join plus review + image-attachment preloads
+  # that format_product_data needs, so rendering a page of products doesn't
+  # fire per-product queries for stock, average_rating/total_reviews, or the
+  # ActiveStorage fallback in images_attached?/images.
+  def with_product_listing_preloads(scope)
+    scope.select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
+         .joins("LEFT JOIN (#{stock_subquery.to_sql}) sq ON sq.product_id = products.id")
+         .includes(:product_variants, :category, :approved_reviews, image_attachment: :blob, additional_images_attachments: :blob)
+  end
+
+  # Re-fetches a page of products (by id, already filtered/sorted/paginated
+  # by the caller) with the listing preloads applied. Kept as a separate
+  # query from the filter/count/sort scope on purpose: the cached_stock
+  # LEFT JOIN + custom .select can't coexist with the 'rating' sort's
+  # .group('products.id') in the same query (Rails' .count breaks when a
+  # custom .select and .group are both present), so counting/sorting happens
+  # against the plain scope and only this final, already-small page of ids
+  # gets the extra preloads — .to_a.index_by/.values_at instead of .where
+  # + .order(id: page_ids) keeps the caller's sort order intact.
+  def fetch_products_for_listing(page_ids)
+    return [] if page_ids.blank?
+
+    products_by_id = with_product_listing_preloads(Product.where(id: page_ids)).index_by(&:id)
+    page_ids.filter_map { |id| products_by_id[id] }
+  end
 
   def payment_result_data(booking)
     {

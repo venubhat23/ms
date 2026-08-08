@@ -12,16 +12,22 @@ class Vendor < ApplicationRecord
   scope :active, -> { where(status: true) }
   scope :inactive, -> { where(status: false) }
 
+  # When vendor_purchases has been preloaded (e.g. Vendor.includes(:vendor_purchases)
+  # for an index list), summing the already-loaded records in Ruby avoids firing a
+  # fresh SQL SUM per vendor — `.sum(:column)` always hits the DB even on a preloaded
+  # association, but `.sum(&block)` reuses the loaded array. Falls back to the DB-side
+  # sum when it isn't preloaded, so this stays correct (just not extra-fast) anywhere
+  # else it's called.
   def total_purchases
-    vendor_purchases.sum(:total_amount)
+    @total_purchases ||= vendor_purchases.loaded? ? vendor_purchases.sum(&:total_amount) : vendor_purchases.sum(:total_amount)
   end
 
   def total_paid
-    vendor_purchases.sum(:paid_amount)
+    @total_paid ||= vendor_purchases.loaded? ? vendor_purchases.sum(&:paid_amount) : vendor_purchases.sum(:paid_amount)
   end
 
   def outstanding_balance
-    total_purchases - total_paid + (opening_balance || 0)
+    @outstanding_balance ||= total_purchases - total_paid + (opening_balance || 0)
   end
 
   def can_be_deleted?

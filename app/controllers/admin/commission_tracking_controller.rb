@@ -496,7 +496,9 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
     all_policies = []
 
     # Just show payouts we have with policy information - recent payouts at top
-    payouts = Payout.order(created_at: :desc).to_a
+    # commission_payouts preloaded here so get_transfer_status_from_payout below
+    # doesn't fire 2 fresh queries per payout (a COUNT + a full SELECT).
+    payouts = Payout.includes(:commission_payouts).order(created_at: :desc).to_a
 
     # Batch-load the policy behind each payout (was a find_by per payout).
     Payout.preload_policies(payouts)
@@ -867,7 +869,7 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
     commission_payouts = payout.commission_payouts || []
 
     {
-      total_payouts: commission_payouts.count,
+      total_payouts: commission_payouts.size,
       paid_payouts: commission_payouts.count { |cp| cp.status == 'paid' },
       pending_payouts: commission_payouts.count { |cp| cp.status == 'pending' },
       total_amount: commission_payouts.sum(&:payout_amount),

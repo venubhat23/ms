@@ -176,7 +176,12 @@ class Admin::MobileUiController < ActionController::Base
 
     @total_vendors  = Vendor.count
     @active_vendors = Vendor.active.count
-    @total_outstanding = Vendor.all.sum(&:outstanding_balance)
+    # Same figure as summing every Vendor#outstanding_balance, computed as three
+    # DB-side aggregates instead of instantiating and querying purchases for
+    # every vendor row in the table.
+    @total_outstanding = (Vendor.sum(:opening_balance) || 0) +
+                          (VendorPurchase.sum(:total_amount) || 0) -
+                          (VendorPurchase.sum(:paid_amount) || 0)
 
     @vendors = @vendors.page(params[:page]).per(15)
   end

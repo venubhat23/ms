@@ -6,16 +6,16 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     customer_id = current_customer.id
 
     # Get all health insurance policies
-    health_policies = HealthInsurance.where(customer_id: customer_id)
+    health_policies = HealthInsurance.where(customer_id: customer_id).includes(policy_documents_attachments: :blob)
 
     # Get all life insurance policies
-    life_policies = LifeInsurance.where(customer_id: customer_id)
+    life_policies = LifeInsurance.where(customer_id: customer_id).includes(policy_documents_attachments: :blob)
 
     # Get all motor insurance policies
     motor_policies = []
     begin
       if defined?(MotorInsurance)
-        motor_policies = MotorInsurance.where(customer_id: customer_id)
+        motor_policies = MotorInsurance.where(customer_id: customer_id).includes(policy_documents_attachments: :blob)
       end
     rescue => e
       Rails.logger.warn "Motor insurance table issue: #{e.message}"
@@ -130,6 +130,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     # Health Insurance installments - include active and expired policies that might need renewal payments
     health_policies = HealthInsurance.where(customer_id: customer_id)
                                     .where('policy_end_date >= ? OR policy_start_date >= ?', 18.months.ago, Date.current)
+                                    .includes(policy_documents_attachments: :blob)
 
     health_policies.each do |policy|
       # Skip policies with missing critical data
@@ -219,6 +220,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     # Life Insurance installments - include active and expired policies that might need renewal payments
     life_policies = LifeInsurance.where(customer_id: customer_id)
                                 .where('policy_end_date >= ? OR policy_start_date >= ?', 18.months.ago, Date.current)
+                                .includes(policy_documents_attachments: :blob)
 
     life_policies.each do |policy|
       # Skip policies with missing critical data
@@ -311,6 +313,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
       if defined?(MotorInsurance)
         motor_policies = MotorInsurance.where(customer_id: customer_id)
                                      .where('policy_end_date >= ? OR policy_start_date >= ?', 18.months.ago, Date.current)
+                                     .includes(policy_documents_attachments: :blob)
       end
     rescue => e
       Rails.logger.warn "Motor insurance table issue: #{e.message}"
@@ -443,6 +446,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     health_policies = HealthInsurance.where(customer_id: customer_id)
                                     .where('policy_end_date BETWEEN ? AND ?', Date.current, 2.months.from_now)
                                     .where.not(policy_end_date: nil)
+                                    .includes(policy_documents_attachments: :blob)
 
     health_policies.each do |policy|
       days_since_end = (Date.current - policy.policy_end_date).to_i
@@ -493,6 +497,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     life_policies = LifeInsurance.where(customer_id: customer_id)
                                 .where('policy_end_date BETWEEN ? AND ?', Date.current, 2.months.from_now)
                                 .where.not(policy_end_date: nil)
+                                .includes(policy_documents_attachments: :blob)
 
     life_policies.each do |policy|
       days_since_end = (Date.current - policy.policy_end_date).to_i
@@ -565,6 +570,11 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
           policies = model_class.where(customer_id: customer_id)
                                .where('policy_end_date BETWEEN ? AND ?', Date.current, 2.months.from_now)
                                .where.not(policy_end_date: nil)
+          # Not every dynamically-loaded insurance model necessarily attaches
+          # policy_documents, so only preload it where that attachment is
+          # actually defined (avoids AssociationNotFoundError on models that
+          # don't have it).
+          policies = policies.includes(policy_documents_attachments: :blob) if model_class.reflect_on_attachment(:policy_documents)
 
           Rails.logger.info "Processing #{policies.count} #{insurance_config[:type]} insurance policies"
 

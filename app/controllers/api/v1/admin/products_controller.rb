@@ -1,7 +1,7 @@
 class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/products
   def index
-    products = Product.includes(:category)
+    products = Product.includes(:category, image_attachment: :blob)
     products = products.where(category_id: params[:category_id]) if params[:category_id].present?
     products = products.search(params[:search]) if params[:search].present?
     products = products.order(created_at: :desc)

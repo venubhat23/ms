@@ -404,13 +404,22 @@ class Product < ApplicationRecord
   end
 
   # Review methods (using new ProductReview model)
+  # `.average`/`.count` always hit the DB even when approved_reviews was
+  # preloaded (e.g. Product.includes(:approved_reviews) on a listing) —
+  # summing the already-loaded records in Ruby instead avoids a fresh query
+  # per product on pages that render many products at once.
   def average_rating
     return 0 if approved_reviews.empty?
-    (approved_reviews.average(:rating) || 0).round(1)
+    if approved_reviews.loaded?
+      ratings = approved_reviews.map(&:rating)
+      (ratings.sum.to_f / ratings.size).round(1)
+    else
+      (approved_reviews.average(:rating) || 0).round(1)
+    end
   end
 
   def total_reviews
-    approved_reviews.count
+    approved_reviews.loaded? ? approved_reviews.size : approved_reviews.count
   end
 
   def review_distribution

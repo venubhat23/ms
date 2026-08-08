@@ -85,19 +85,26 @@ class StoreAdmin::InventoryController < StoreAdmin::ApplicationController
 
   def search_products
     q = params[:q].to_s.strip
-    products = Product.active.where('name ILIKE ?', "%#{q}%").limit(15)
+    products = Product.active.where('name ILIKE ?', "%#{q}%").includes(:product_variants).limit(15)
+
+    # One query for all matched products' store stock, instead of one
+    # available_stock_for(p.id) query per product below.
+    store_stock_map = @current_store.stock_batches
+                                    .where(product_id: products.map(&:id), status: 'active')
+                                    .group(:product_id)
+                                    .sum(:quantity_remaining)
 
     render json: products.map { |p|
-      store_stock = @current_store.available_stock_for(p.id)
+      store_stock = store_stock_map[p.id].to_f
       {
         id: p.id,
         name: p.name,
         sku: p.sku,
         price: p.price.to_f,
-        store_stock: store_stock.to_f,
+        store_stock: store_stock,
         unit_type: p.unit_type,
         has_variants: p.has_multiple_quantities?,
-        variants: p.has_multiple_quantities? ? p.product_variants.order(:display_order, :weight).map { |v|
+        variants: p.has_multiple_quantities? ? p.product_variants.sort_by { |v| [v.display_order.to_i, v.weight.to_f] }.map { |v|
           { id: v.id, label: "#{v.weight} #{v.unit}", price: v.selling_price.to_f, stock: v.available_stock.to_f }
         } : []
       }

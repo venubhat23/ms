@@ -24,7 +24,7 @@ module ExceptionHandler
     # unhandled 500 with a full backtrace. Respond the same way the rest
     # of the JSON endpoints do so callers get a parseable error instead.
     rescue_from ActionDispatch::Http::Parameters::ParseError do |e|
-      if respond_to?(:json_response)
+      if respond_to?(:json_response, true)
         json_response({ message: 'Invalid request.' }, :bad_request)
       else
         render json: { success: false, error: 'Invalid request.' }, status: :bad_request
@@ -36,7 +36,7 @@ module ExceptionHandler
 
   # JSON response with message; Status code 422 - unprocessable entity
   def four_twenty_two(e)
-    if respond_to?(:json_response)
+    if respond_to?(:json_response, true)
       json_response({ message: e.message }, :unprocessable_entity)
     else
       redirect_back(fallback_location: root_path, alert: e.message)
@@ -45,7 +45,7 @@ module ExceptionHandler
 
   # JSON response with message; Status code 401 - Unauthorized
   def unauthorized_request(e)
-    if respond_to?(:json_response)
+    if respond_to?(:json_response, true)
       json_response({ message: e.message }, :unauthorized)
     else
       redirect_back(fallback_location: root_path, alert: e.message)
@@ -54,7 +54,7 @@ module ExceptionHandler
 
   # JSON response with message; Status code 498 - Invalid token
   def four_ninety_eight(e)
-    if respond_to?(:json_response)
+    if respond_to?(:json_response, true)
       json_response({ message: e.message }, 498)
     else
       redirect_back(fallback_location: root_path, alert: e.message)

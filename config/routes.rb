@@ -980,14 +980,36 @@ Rails.application.routes.draw do
         get 'dashboard', to: 'dashboard#index'
         get 'pricing', to: 'pricing#index'
 
-        resources :bookings, only: [:index, :show, :create]
+        resources :bookings, only: [:index, :show, :create] do
+          member do
+            patch :update_status
+            patch :cancel
+            patch :mark_delivered
+            post :generate_invoice
+          end
+        end
 
-        resources :products, only: [:index, :show] do
+        resources :products, only: [:index, :show, :create, :update, :destroy] do
           member do
             post :upload_image
             delete :remove_image
           end
         end
+
+        resources :orders, only: [:index, :show] do
+          member do
+            patch :update_status
+            patch :cancel
+          end
+        end
+
+        resources :customers, only: [:index, :show] do
+          member do
+            patch :toggle_status
+          end
+        end
+
+        resources :banners, only: [:index, :create]
       end
 
       # Sub Agent APIs

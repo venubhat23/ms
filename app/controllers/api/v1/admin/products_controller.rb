@@ -29,6 +29,68 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
     render_error('Product not found', nil, :not_found)
   end
 
+  # POST /api/v1/admin/products
+  def create
+    product = Product.new(product_params)
+
+    if product.save
+      render_success(product_response(product, detailed: true), 'Product created successfully', :created)
+    else
+      render_validation_errors(product)
+    end
+  end
+
+  # PATCH/PUT /api/v1/admin/products/:id
+  def update
+    product = Product.find(params[:id])
+
+    if product.update(product_params)
+      render_success(product_response(product, detailed: true), 'Product updated successfully')
+    else
+      render_validation_errors(product)
+    end
+  rescue ActiveRecord::RecordNotFound
+    render_error('Product not found', nil, :not_found)
+  end
+
+  # DELETE /api/v1/admin/products/:id
+  # Mirrors Admin::ProductsController#destroy (web) — nullifies historical
+  # booking/order/invoice references instead of deleting them, and removes
+  # records that only ever make sense in the context of this product.
+  def destroy
+    product = Product.find(params[:id])
+    product_name = product.name
+
+    ActiveRecord::Base.transaction do
+      product.booking_items.update_all(product_id: nil)
+      product.order_items.update_all(product_id: nil)
+      InvoiceItem.where(product_id: product.id).update_all(product_id: nil)
+
+      task_ids = MilkDeliveryTask.where(product_id: product.id).pluck(:id)
+      InvoiceItem.where(milk_delivery_task_id: task_ids).update_all(milk_delivery_task_id: nil) if task_ids.any?
+      MilkDeliveryTask.where(id: task_ids).delete_all
+      MilkSubscription.where(product_id: product.id).delete_all
+
+      schedule_ids = BookingSchedule.where(product_id: product.id).pluck(:id)
+      Booking.where(booking_schedule_id: schedule_ids).update_all(booking_schedule_id: nil) if schedule_ids.any?
+      BookingSchedule.where(id: schedule_ids).delete_all
+
+      Wishlist.where(product_id: product.id).delete_all
+      SubscriptionTemplate.where(product_id: product.id).delete_all
+      CustomerFormat.where(product_id: product.id).delete_all
+      StockTransfer.where(product_id: product.id).delete_all
+
+      product.destroy!
+    end
+
+    render_success(nil, "Product '#{product_name}' deleted successfully")
+  rescue ActiveRecord::RecordNotFound
+    render_error('Product not found', nil, :not_found)
+  rescue ActiveRecord::InvalidForeignKey => e
+    blocking_table = e.message[/referenced from table "(\w+)"/, 1] || 'related records'
+    render_error("Could not delete: it still has #{blocking_table.humanize.downcase} referencing it.", nil, :unprocessable_entity)
+  end
+
   # POST /api/v1/admin/products/:id/upload_image
   # Pass main=true to replace the main image; otherwise it's appended to the gallery.
   def upload_image
@@ -64,6 +126,16 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
   end
 
   private
+
+  def product_params
+    params.require(:product).permit(
+      :name, :description, :category_id, :price, :discount_price, :stock,
+      :status, :sku, :weight, :buying_price,
+      :product_type, :unit_type,
+      :image_url, :r2_image_url,
+      :gst_enabled, :gst_percentage
+    )
+  end
 
   def extract_r2_key_from_url(image_url)
     return nil if image_url.blank?

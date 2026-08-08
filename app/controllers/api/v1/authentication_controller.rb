@@ -1,4 +1,9 @@
 class Api::V1::AuthenticationController < Api::V1::BaseController
+  # Login/registration must work without an existing token — otherwise nobody
+  # could ever obtain a first token. Mirrors Api::V1::Mobile::AuthenticationController's
+  # equivalent skip, which this controller was missing.
+  skip_before_action :authorize_request, only: [:login, :register, :forgot_password, :reset_password]
+
   # POST /api/v1/auth/login
   def login
     authenticate_user
@@ -148,12 +153,10 @@ class Api::V1::AuthenticationController < Api::V1::BaseController
       address: user.address,
       city: user.city,
       state: user.state,
-      pan_number: user.pan_number,
-      gst_number: user.gst_number,
-      date_of_birth: user.date_of_birth,
+      pan_number: user.pan_no,
+      gst_number: user.gst_no,
+      date_of_birth: user.birth_date,
       gender: user.gender,
-      occupation: user.occupation,
-      annual_income: user.annual_income,
       created_at: user.created_at,
       updated_at: user.updated_at
     }

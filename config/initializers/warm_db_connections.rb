@@ -27,24 +27,41 @@
 # ~6.3s as more piled on), but that's a one-time background cost, not
 # something any request waits on, and it's the only way to actually end up
 # with `pool.size` distinct warm connections sitting in the pool.
+#
+# Boot isn't the only time a connection goes cold, though: the network path
+# to a remote DB also drops connections that just sit idle for a while
+# (minutes, not hours — an admin dashboard checked once an hour will hit
+# this on every visit). So beyond the one-time boot warm-up, the same
+# routine is re-run on a timer for as long as the server is up, to catch
+# connections that went idle long enough to be dropped and silently bring
+# them back before a real request needs them.
 if defined?(Rails::Server)
-  Rails.application.config.after_initialize do
-    Thread.new do
-      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  warm_db_connection_pools = lambda do
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-      pools = ActiveRecord::Base.connection_handler.connection_pools
-      pools.each do |pool|
-        Array.new(pool.size) do
-          Thread.new do
-            pool.with_connection { |conn| conn.execute("SELECT 1") }
-          rescue => e
-            Rails.logger.warn("[warm_db_connections] failed to warm a connection for #{pool.db_config.name}: #{e.class}: #{e.message}")
-          end
-        end.each(&:join)
-      end
-
-      elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
-      Rails.logger.info("[warm_db_connections] warmed #{pools.sum(&:size)} connections across #{pools.size} pool(s) in #{elapsed_ms}ms")
+    pools = ActiveRecord::Base.connection_handler.connection_pools
+    pools.each do |pool|
+      Array.new(pool.size) do
+        Thread.new do
+          pool.with_connection { |conn| conn.execute("SELECT 1") }
+        rescue => e
+          Rails.logger.warn("[warm_db_connections] failed to warm a connection for #{pool.db_config.name}: #{e.class}: #{e.message}")
+        end
+      end.each(&:join)
     end
+
+    elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
+    Rails.logger.info("[warm_db_connections] warmed #{pools.sum(&:size)} connections across #{pools.size} pool(s) in #{elapsed_ms}ms")
+  end
+
+  Rails.application.config.after_initialize do
+    Thread.new { warm_db_connection_pools.call }
+
+    # Re-warm well inside whatever idle window drops a connection, so the
+    # pool never gets the chance to go fully cold between requests on a
+    # quiet admin app.
+    Concurrent::TimerTask.new(execution_interval: 3.minutes, timeout_interval: 30) do
+      warm_db_connection_pools.call
+    end.execute
   end
 end

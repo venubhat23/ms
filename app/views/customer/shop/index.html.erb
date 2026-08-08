@@ -676,11 +676,8 @@
                   <div class="card h-100 border-0 shadow-sm hover-lift product-card">
                 <!-- Product Image -->
                 <div class="position-relative">
-                  <% _img_url = product.r2_image_url.presence || product.image_url.presence %>
-                  <% if _img_url %>
-                    <img src="<%= _img_url %>" class="card-img-top" alt="<%= product.name %>" loading="lazy">
-                  <% elsif product.image.attached? %>
-                    <%= image_tag product.image, class: "card-img-top", loading: "lazy" %>
+                  <% if product.main_image_url.present? %>
+                    <img src="<%= product.main_image_url %>" class="card-img-top" alt="<%= product.name %>" loading="lazy">
                   <% else %>
                     <div class="card-img-top d-flex align-items-center justify-content-center">
                       <i class="bi bi-box-seam fs-1 text-muted"></i>

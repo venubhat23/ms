@@ -21,15 +21,23 @@ class Storefront::CheckoutController < Storefront::BaseController
 
     charge_record = DeliveryCharge.for_pincode(pincode)
     if charge_record
+      order_amount = cart_total
+      min_for_free = charge_record.min_order_for_free_delivery.to_f
+      effective_charge = charge_record.effective_charge_for(order_amount)
+      amount_left_for_free_delivery = charge_record.free_delivery_allowed? && effective_charge > 0 ?
+        (min_for_free - order_amount).round(2) : 0
+
       render json: {
         success: true,
         deliverable: true,
-        delivery_charge: charge_record.charge_amount.to_f,
+        delivery_charge: effective_charge,
         area: charge_record.area,
         free_delivery_allowed: charge_record.free_delivery_allowed?,
-        min_order_for_free_delivery: charge_record.min_order_for_free_delivery.to_f,
-        message: charge_record.charge_amount.to_f > 0 ?
-          "Delivery charge: ₹#{charge_record.charge_amount}" :
+        min_order_for_free_delivery: min_for_free,
+        amount_left_for_free_delivery: amount_left_for_free_delivery,
+        order_amount: order_amount.round(2),
+        message: effective_charge > 0 ?
+          "Delivery charge: ₹#{effective_charge}" :
           'Free delivery available'
       }
     else
@@ -84,7 +92,7 @@ class Storefront::CheckoutController < Storefront::BaseController
           booking_error = 'Delivery is not available for this pincode.'
           raise ActiveRecord::Rollback
         end
-        @booking.shipping_charges = charge_record.charge_amount.to_f
+        @booking.shipping_charges = charge_record.effective_charge_for(cart_total)
       end
 
       product_ids = cart_items.map { |i| i['product_id'].to_i }.uniq

@@ -37,6 +37,18 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
 #pincode-result.ok{background:#eaf6ec;color:#1e7a34;border:1px solid #bfe6c6}
 #pincode-result.bad{background:#fdeceb;color:#a13b32;border:1px solid #f3c7c2}
 .delivery-charge-note{font-size:12px;color:#8a8378;margin-top:4px}
+.free-delivery-banner{margin-top:10px;padding:14px 16px;border-radius:10px;background:linear-gradient(135deg,#fff3d6,#ffe6b3);border:1.5px solid #f0c775}
+.free-delivery-banner .fdb-title{font-weight:700;font-size:14px;color:#7a5300;display:flex;align-items:center;gap:6px}
+.free-delivery-banner .fdb-sub{font-size:12.5px;color:#8a6a1f;margin-top:4px;line-height:1.5}
+.free-delivery-banner .fdb-bar{height:7px;border-radius:99px;background:#fff;border:1px solid #f0c775;margin-top:10px;overflow:hidden}
+.free-delivery-banner .fdb-bar-fill{height:100%;background:linear-gradient(90deg,#e8a33d,#c47f1e);border-radius:99px;transition:width .3s ease}
+.free-delivery-banner .fdb-actions{display:flex;gap:8px;margin-top:12px}
+.free-delivery-banner .fdb-btn{flex:1;text-align:center;padding:9px 10px;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;border:none;transition:opacity .15s}
+.free-delivery-banner .fdb-btn:hover{opacity:.88}
+.free-delivery-banner .fdb-btn.primary{background:#c47f1e;color:#fff}
+.free-delivery-banner .fdb-btn.secondary{background:#fff;color:#7a5300;border:1.5px solid #e8a33d}
+.free-delivery-banner.earned{background:linear-gradient(135deg,#e4f7e8,#c9f0d3);border-color:#8fd9a3}
+.free-delivery-banner.earned .fdb-title{color:#1e7a34}
 .store-pick{border:1px solid #e2ddd3;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:13.5px}
 .store-pick.selected{border-color:#b08d3f;background:#fbf7ee}
 .summary{position:sticky;top:20px}
@@ -50,6 +62,9 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
 .place-btn:hover:not(:disabled){opacity:.88}
 .error-box{background:#fdeceb;color:#a13b32;border:1px solid #f3c7c2;border-radius:8px;padding:12px 14px;font-size:13.5px;margin-bottom:18px;display:none}
 .secure-note{text-align:center;font-size:12px;color:#8a8378;margin-top:10px}
+.place-btn-note{text-align:center;font-size:12.5px;color:#8a8378;margin-top:10px}
+.place-btn-note.bad{color:#a13b32}
+.place-btn-note.ok{color:#1e7a34}
 @media(max-width:820px){.grid{grid-template-columns:1fr}.field-row{grid-template-columns:1fr}}
 </style>
 </head>
@@ -126,12 +141,13 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
             </div>
             <div class="field">
               <label for="pincode">Pincode *</label>
-              <input type="text" id="pincode" name="pincode" maxlength="6" inputmode="numeric" pattern="\d{6}" oninput="pincodeValidated=false;validatedDeliveryCharge=0;document.getElementById('pincode-result').style.display='none';updateSummary();">
+              <input type="text" id="pincode" name="pincode" maxlength="6" inputmode="numeric" pattern="\d{6}" oninput="pincodeValidated=false;pincodeDeliverable=null;validatedDeliveryCharge=0;document.getElementById('pincode-result').style.display='none';hideFreeDeliveryBanner();updateSummary();updatePlaceButtonState();">
             </div>
           </div>
           <div class="pincode-check-box">
             <button type="button" class="check-btn" id="check-pincode-btn" onclick="checkPincode()">Check Availability</button>
             <div id="pincode-result" style="display:none;"></div>
+            <div id="free-delivery-banner" class="free-delivery-banner" style="display:none;"></div>
           </div>
         </div>
 
@@ -181,7 +197,8 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
         <div class="tot-row"><span>Subtotal</span><span>₹<%= @cart_total.round(2) %></span></div>
         <div class="tot-row"><span>Delivery</span><span id="delivery-charge-display">₹0.00</span></div>
         <div class="tot-row grand"><span>Total</span><span id="grand-total-display">₹<%= @cart_total.round(2) %></span></div>
-        <button class="place-btn" id="place-order-btn" onclick="placeOrder()">Place Order</button>
+        <button class="place-btn" id="place-order-btn" onclick="placeOrder()" disabled>Place Order</button>
+        <p class="place-btn-note" id="place-btn-note">Check delivery availability for your pincode to continue.</p>
         <p class="secure-note">🔒 Your order is secure and protected</p>
       </div>
     </div>
@@ -193,12 +210,83 @@ let selectedDeliveryStoreId = null;
 let selectedDeliveryOption = 'home_delivery';
 const cartTotal = <%= @cart_total.round(2) %>;
 let pincodeValidated = false;
+let pincodeDeliverable = null; // null = not checked yet, true/false = last check result
 let validatedDeliveryCharge = 0;
 
 function updateSummary() {
   const charge = (selectedDeliveryOption === 'home_delivery' && pincodeValidated) ? validatedDeliveryCharge : 0;
   document.getElementById('delivery-charge-display').textContent = '₹' + charge.toFixed(2);
   document.getElementById('grand-total-display').textContent = '₹' + (cartTotal + charge).toFixed(2);
+}
+
+function updatePlaceButtonState() {
+  const btn = document.getElementById('place-order-btn');
+  const note = document.getElementById('place-btn-note');
+
+  if (selectedDeliveryOption === 'store_pickup') {
+    btn.disabled = false;
+    note.style.display = 'none';
+    return;
+  }
+
+  if (pincodeDeliverable === true) {
+    btn.disabled = false;
+    note.style.display = 'none';
+  } else if (pincodeDeliverable === false) {
+    btn.disabled = true;
+    note.className = 'place-btn-note bad';
+    note.style.display = 'block';
+    note.textContent = 'Delivery is not serviceable at this pincode. Please try a different address.';
+  } else {
+    btn.disabled = true;
+    note.className = 'place-btn-note';
+    note.style.display = 'block';
+    note.textContent = 'Check delivery availability for your pincode to continue.';
+  }
+}
+
+function hideFreeDeliveryBanner() {
+  const banner = document.getElementById('free-delivery-banner');
+  banner.style.display = 'none';
+  banner.className = 'free-delivery-banner';
+  banner.innerHTML = '';
+}
+
+function showFreeDeliveryBanner(data) {
+  const banner = document.getElementById('free-delivery-banner');
+
+  if (!data.free_delivery_allowed) {
+    hideFreeDeliveryBanner();
+    return;
+  }
+
+  const minOrder = data.min_order_for_free_delivery || 0;
+  const orderAmount = data.order_amount != null ? data.order_amount : cartTotal;
+  const amountLeft = data.amount_left_for_free_delivery || 0;
+
+  banner.style.display = 'block';
+
+  if (amountLeft <= 0) {
+    banner.className = 'free-delivery-banner earned';
+    banner.innerHTML = `
+      <div class="fdb-title">🎉 You've unlocked FREE delivery!</div>
+      <div class="fdb-sub">Your order qualifies for free delivery to this pincode. No delivery charge will be added.</div>
+    `;
+    return;
+  }
+
+  const progressPct = minOrder > 0 ? Math.min(100, Math.round((orderAmount / minOrder) * 100)) : 0;
+
+  banner.className = 'free-delivery-banner';
+  banner.innerHTML = `
+    <div class="fdb-title">🎁 So close! Just ₹${amountLeft.toFixed(2)} away from FREE delivery</div>
+    <div class="fdb-sub">Add ₹${amountLeft.toFixed(2)} more to your cart and save ₹${validatedDeliveryCharge.toFixed(2)} on delivery — or continue with your current order and pay the delivery charge.</div>
+    <div class="fdb-bar"><div class="fdb-bar-fill" style="width:${progressPct}%"></div></div>
+    <div class="fdb-actions">
+      <a href="/" class="fdb-btn secondary" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">Continue Shopping</a>
+      <button type="button" class="fdb-btn primary" onclick="hideFreeDeliveryBanner()">Continue with ₹${validatedDeliveryCharge.toFixed(2)} delivery</button>
+    </div>
+  `;
 }
 
 function selectDelivery(type) {
@@ -210,6 +298,7 @@ function selectDelivery(type) {
   const storeFields = document.getElementById('store-fields');
   if (storeFields) storeFields.style.display = type === 'store' ? 'block' : 'none';
   updateSummary();
+  updatePlaceButtonState();
 }
 
 async function checkPincode() {
@@ -237,24 +326,32 @@ async function checkPincode() {
 
     if (!data.success || !data.deliverable) {
       resultBox.className = 'bad';
-      resultBox.textContent = (data.message || 'Delivery not available to this pincode.');
+      resultBox.textContent = (data.message || 'Delivery is not serviceable at this pincode.');
       pincodeValidated = false;
+      pincodeDeliverable = false;
       validatedDeliveryCharge = 0;
+      hideFreeDeliveryBanner();
     } else {
       pincodeValidated = true;
+      pincodeDeliverable = true;
       validatedDeliveryCharge = data.delivery_charge || 0;
       resultBox.className = 'ok';
       resultBox.textContent = validatedDeliveryCharge > 0
         ? `Delivery available${data.area ? ' to ' + data.area : ''}. Charge: ₹${validatedDeliveryCharge.toFixed(2)}`
         : `Free delivery available${data.area ? ' to ' + data.area : ''}!`;
+      showFreeDeliveryBanner(data);
     }
     updateSummary();
+    updatePlaceButtonState();
   } catch (e) {
     resultBox.className = 'bad';
     resultBox.style.display = 'block';
     resultBox.textContent = 'Could not check pincode. Please try again.';
     pincodeValidated = false;
+    pincodeDeliverable = false;
     validatedDeliveryCharge = 0;
+    hideFreeDeliveryBanner();
+    updatePlaceButtonState();
   } finally {
     btn.disabled = false;
     btn.textContent = 'Check Availability';

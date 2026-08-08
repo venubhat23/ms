@@ -29,6 +29,14 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
 .opt .opt-title{font-weight:600;font-size:14.5px}
 .opt .opt-sub{font-size:12.5px;color:#8a8378;margin-top:2px}
 #address-fields,#store-fields{margin-top:6px;padding-top:14px;border-top:1px solid #eee5d5}
+.pincode-check-box{margin-top:-4px;margin-bottom:14px}
+.check-btn{background:#fff;border:1.5px solid #b08d3f;color:#b08d3f;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s}
+.check-btn:hover:not(:disabled){background:#fbf7ee}
+.check-btn:disabled{opacity:.6;cursor:not-allowed}
+#pincode-result{margin-top:10px;padding:10px 12px;border-radius:8px;font-size:13.5px}
+#pincode-result.ok{background:#eaf6ec;color:#1e7a34;border:1px solid #bfe6c6}
+#pincode-result.bad{background:#fdeceb;color:#a13b32;border:1px solid #f3c7c2}
+.delivery-charge-note{font-size:12px;color:#8a8378;margin-top:4px}
 .store-pick{border:1px solid #e2ddd3;border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:13.5px}
 .store-pick.selected{border-color:#b08d3f;background:#fbf7ee}
 .summary{position:sticky;top:20px}
@@ -118,8 +126,12 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
             </div>
             <div class="field">
               <label for="pincode">Pincode *</label>
-              <input type="text" id="pincode" name="pincode" maxlength="6">
+              <input type="text" id="pincode" name="pincode" maxlength="6" inputmode="numeric" pattern="\d{6}" oninput="pincodeValidated=false;validatedDeliveryCharge=0;document.getElementById('pincode-result').style.display='none';updateSummary();">
             </div>
+          </div>
+          <div class="pincode-check-box">
+            <button type="button" class="check-btn" id="check-pincode-btn" onclick="checkPincode()">Check Availability</button>
+            <div id="pincode-result" style="display:none;"></div>
           </div>
         </div>
 
@@ -167,7 +179,8 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
           </div>
         <% end %>
         <div class="tot-row"><span>Subtotal</span><span>₹<%= @cart_total.round(2) %></span></div>
-        <div class="tot-row grand"><span>Total</span><span>₹<%= @cart_total.round(2) %></span></div>
+        <div class="tot-row"><span>Delivery</span><span id="delivery-charge-display">₹0.00</span></div>
+        <div class="tot-row grand"><span>Total</span><span id="grand-total-display">₹<%= @cart_total.round(2) %></span></div>
         <button class="place-btn" id="place-order-btn" onclick="placeOrder()">Place Order</button>
         <p class="secure-note">🔒 Your order is secure and protected</p>
       </div>
@@ -177,14 +190,75 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
 
 <script>
 let selectedDeliveryStoreId = null;
+let selectedDeliveryOption = 'home_delivery';
+const cartTotal = <%= @cart_total.round(2) %>;
+let pincodeValidated = false;
+let validatedDeliveryCharge = 0;
+
+function updateSummary() {
+  const charge = (selectedDeliveryOption === 'home_delivery' && pincodeValidated) ? validatedDeliveryCharge : 0;
+  document.getElementById('delivery-charge-display').textContent = '₹' + charge.toFixed(2);
+  document.getElementById('grand-total-display').textContent = '₹' + (cartTotal + charge).toFixed(2);
+}
 
 function selectDelivery(type) {
+  selectedDeliveryOption = type === 'home' ? 'home_delivery' : 'store_pickup';
   document.getElementById('opt-home').classList.toggle('selected', type === 'home');
   const storeOpt = document.getElementById('opt-store');
   if (storeOpt) storeOpt.classList.toggle('selected', type === 'store');
   document.getElementById('address-fields').style.display = type === 'home' ? 'block' : 'none';
   const storeFields = document.getElementById('store-fields');
   if (storeFields) storeFields.style.display = type === 'store' ? 'block' : 'none';
+  updateSummary();
+}
+
+async function checkPincode() {
+  const input = document.getElementById('pincode');
+  const resultBox = document.getElementById('pincode-result');
+  const btn = document.getElementById('check-pincode-btn');
+  const pincode = input.value.trim();
+
+  if (!/^\d{6}$/.test(pincode)) {
+    resultBox.className = 'bad';
+    resultBox.style.display = 'block';
+    resultBox.textContent = 'Please enter a valid 6-digit pincode.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+  resultBox.style.display = 'none';
+
+  try {
+    const response = await fetch('<%= check_pincode_storefront_checkout_path %>?pincode=' + encodeURIComponent(pincode));
+    const data = await response.json();
+
+    resultBox.style.display = 'block';
+
+    if (!data.success || !data.deliverable) {
+      resultBox.className = 'bad';
+      resultBox.textContent = (data.message || 'Delivery not available to this pincode.');
+      pincodeValidated = false;
+      validatedDeliveryCharge = 0;
+    } else {
+      pincodeValidated = true;
+      validatedDeliveryCharge = data.delivery_charge || 0;
+      resultBox.className = 'ok';
+      resultBox.textContent = validatedDeliveryCharge > 0
+        ? `Delivery available${data.area ? ' to ' + data.area : ''}. Charge: ₹${validatedDeliveryCharge.toFixed(2)}`
+        : `Free delivery available${data.area ? ' to ' + data.area : ''}!`;
+    }
+    updateSummary();
+  } catch (e) {
+    resultBox.className = 'bad';
+    resultBox.style.display = 'block';
+    resultBox.textContent = 'Could not check pincode. Please try again.';
+    pincodeValidated = false;
+    validatedDeliveryCharge = 0;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check Availability';
+  }
 }
 
 function selectStore(id, el) {
@@ -243,6 +317,10 @@ async function placeOrder() {
   }
   if (deliveryOption === 'home_delivery' && (!payload.address || !payload.city || !payload.pincode)) {
     showError('Please fill in your delivery address, city and pincode.');
+    return;
+  }
+  if (deliveryOption === 'home_delivery' && !pincodeValidated) {
+    showError('Please check delivery availability for your pincode before placing the order.');
     return;
   }
 

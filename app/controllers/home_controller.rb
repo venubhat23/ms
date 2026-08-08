@@ -14,7 +14,12 @@ class HomeController < ApplicationController
     @top_category = Category.top_selling
     @secondary_category = Category.active.ordered.where.not(id: @top_category&.id).first
     @best_seller_ids = Product.best_seller_ids.to_set
-    @new_arrivals = Product.active.includes(image_attachment: :blob).order(created_at: :desc).limit(8)
+    @new_arrivals = Product.active
+                            .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
+                            .joins("LEFT JOIN (#{stock_subquery.to_sql}) sq ON sq.product_id = products.id")
+                            .includes(image_attachment: :blob)
+                            .order(created_at: :desc)
+                            .limit(8)
     @new_arrival_ids = @new_arrivals.map(&:id).to_set
 
     render template: "home/#{theme_key.underscore}", layout: false
@@ -31,9 +36,21 @@ class HomeController < ApplicationController
   end
   helper_method :cart_count
 
+  # Per-product active stock, aggregated once instead of once per product
+  # (avoids the total_batch_stock N+1 that in_stock?/low_stock? would
+  # otherwise trigger for every card rendered on the page).
+  def stock_subquery
+    StockBatch.where(status: 'active')
+              .where('quantity_remaining > 0')
+              .select('product_id, SUM(quantity_remaining) AS total_stock')
+              .group(:product_id)
+  end
+
   # Real catalog data, grouped by category, shared by every theme template.
   def load_catalog_products
     products = Product.active
+                       .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
+                       .joins("LEFT JOIN (#{stock_subquery.to_sql}) sq ON sq.product_id = products.id")
                        .includes(:category, image_attachment: :blob)
                        .references(:category)
                        .order(Arel.sql("categories.display_order ASC NULLS LAST, categories.name ASC, products.name ASC"))

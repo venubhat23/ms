@@ -78,7 +78,10 @@ Rails.application.routes.draw do
     end
 
     resource :checkout, only: [:show, :create], controller: 'checkout' do
-      collection { get :confirmation }
+      collection do
+        get :confirmation
+        get :check_pincode
+      end
     end
   end
 

@@ -10,6 +10,40 @@ class Storefront::CheckoutController < Storefront::BaseController
     redirect_to storefront_cart_path, alert: 'Your cart is empty.' if @cart_items.blank?
   end
 
+  # JSON endpoint the checkout page's pincode "Check" button hits to look up
+  # delivery availability/charge. Mirrors Customer::ShopController#check_delivery_pincode
+  # (which requires customer login) but is reachable by guests.
+  def check_pincode
+    pincode = params[:pincode].to_s.strip
+    if pincode.blank? || !pincode.match?(/\A\d{6}\z/)
+      return render json: { success: false, message: 'Please enter a valid 6-digit pincode' }
+    end
+
+    charge_record = DeliveryCharge.for_pincode(pincode)
+    if charge_record
+      render json: {
+        success: true,
+        deliverable: true,
+        delivery_charge: charge_record.charge_amount.to_f,
+        area: charge_record.area,
+        free_delivery_allowed: charge_record.free_delivery_allowed?,
+        min_order_for_free_delivery: charge_record.min_order_for_free_delivery.to_f,
+        message: charge_record.charge_amount.to_f > 0 ?
+          "Delivery charge: ₹#{charge_record.charge_amount}" :
+          'Free delivery available'
+      }
+    else
+      render json: {
+        success: true,
+        deliverable: false,
+        delivery_charge: 0,
+        free_delivery_allowed: false,
+        min_order_for_free_delivery: 0,
+        message: 'Delivery not available to this pincode'
+      }
+    end
+  end
+
   # JSON endpoint the checkout page's "Place Order" button posts to. Mirrors
   # Customer::CheckoutController#cart_order's shape (redirect_url for COD,
   # payment_session_id for online) so the same Cashfree JS SDK flow used on
@@ -44,6 +78,13 @@ class Storefront::CheckoutController < Storefront::BaseController
 
       if params[:delivery_store_id].present?
         @booking.delivery_store = params[:delivery_store_id]
+      elsif params[:pincode].present?
+        charge_record = DeliveryCharge.for_pincode(params[:pincode].to_s.strip)
+        unless charge_record
+          booking_error = 'Delivery is not available for this pincode.'
+          raise ActiveRecord::Rollback
+        end
+        @booking.shipping_charges = charge_record.charge_amount.to_f
       end
 
       product_ids = cart_items.map { |i| i['product_id'].to_i }.uniq

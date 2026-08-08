@@ -18,6 +18,18 @@ module ExceptionHandler
     rescue_from ActiveRecord::RecordNotFound do |e|
       json_response({ message: e.message }, :not_found)
     end
+
+    # Malformed JSON request bodies (e.g. a stale/broken client sending
+    # `{"product_id":,"quantity":1}`) would otherwise blow up as an
+    # unhandled 500 with a full backtrace. Respond the same way the rest
+    # of the JSON endpoints do so callers get a parseable error instead.
+    rescue_from ActionDispatch::Http::Parameters::ParseError do |e|
+      if respond_to?(:json_response)
+        json_response({ message: 'Invalid request.' }, :bad_request)
+      else
+        render json: { success: false, error: 'Invalid request.' }, status: :bad_request
+      end
+    end
   end
 
   private

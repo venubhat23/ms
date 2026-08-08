@@ -10,6 +10,13 @@ class Api::V1::Mobile::BaseController < ApplicationController
     # This method will be overridden by specific authentication methods
   end
 
+  # Catch-all target for unmatched mobile API paths/methods (routes.rb).
+  # Without this, a wrong-method or misspelled request raises an unhandled
+  # ActionController::RoutingError with a full backtrace in the logs.
+  def not_found
+    render_error('The requested endpoint does not exist', :not_found)
+  end
+
   private
 
   def set_default_response_format

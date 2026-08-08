@@ -1,0 +1,635 @@
+{
+  "info": {
+    "name": "Ecommerce Store MS - Mobile API",
+    "description": "Mobile API endpoints (/api/v1/mobile) verified against config/routes.rb and controllers in app/controllers/api/v1/mobile. Also includes the Admin App API (/api/v1/admin, folder 8) for admin@maralisanthe.com.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "e7a1a2b0-1f3a-4b6e-9d3e-mobileapi0001"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{access_token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "https://maralisanthe.com/api/v1/mobile", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "product_id", "value": "1", "type": "string" },
+    { "key": "category_id", "value": "1", "type": "string" },
+    { "key": "booking_id", "value": "1", "type": "string" },
+    { "key": "subscription_id", "value": "1", "type": "string" },
+    { "key": "task_id", "value": "1", "type": "string" },
+    { "key": "api_v1_base_url", "value": "https://maralisanthe.com/api/v1", "type": "string" },
+    { "key": "admin_base_url", "value": "{{api_v1_base_url}}/admin", "type": "string" },
+    { "key": "admin_access_token", "value": "", "type": "string" },
+    { "key": "admin_booking_id", "value": "1", "type": "string" },
+    { "key": "admin_product_id", "value": "1", "type": "string" },
+    { "key": "admin_gallery_id", "value": "r2_main", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login using email/mobile + password. Accepts email, mobile, or username identifier."
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_type\": \"customer\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"email\": \"user@example.com\",\n  \"mobile\": \"9999999999\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"address\": \"123 Main St\",\n  \"city\": \"City\",\n  \"state\": \"State\",\n  \"pincode\": \"560001\",\n  \"whatsapp_number\": \"9999999999\",\n  \"latitude\": \"12.9716\",\n  \"longitude\": \"77.5946\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Create a new account. user_type/role determines whether register_customer or register_agent flow runs."
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/forgot_password",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "forgot_password"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"password123\",\n  \"new_password\": \"newPassword456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/settings/change_password",
+              "host": ["{{base_url}}"],
+              "path": ["settings", "change_password"]
+            },
+            "description": "Requires auth. Works for Customer/User/SubAgent."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. E-Commerce / Products",
+      "item": [
+        {
+          "name": "Banners",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/banners",
+              "host": ["{{base_url}}"],
+              "path": ["banners"]
+            }
+          }
+        },
+        {
+          "name": "Categories",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/categories",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Featured Products",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/featured_products?limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "featured_products"],
+              "query": [{ "key": "limit", "value": "5" }]
+            },
+            "description": "limit default 5, capped at 10."
+          }
+        },
+        {
+          "name": "All Products",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/products?page=1&per_page=10&category_id=&min_price=&max_price=&search=&sort_by=",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" },
+                { "key": "category_id", "value": "", "disabled": true },
+                { "key": "min_price", "value": "", "disabled": true },
+                { "key": "max_price", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "sort_by", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Products by Category",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/categories/{{category_id}}/products?page=1&per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "categories", "{{category_id}}", "products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Product Details",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/products/{{product_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "products", "{{product_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/ecommerce/profile",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "profile"]
+            },
+            "description": "Requires customer auth."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": {\n    \"first_name\": \"John\",\n    \"last_name\": \"Doe\",\n    \"mobile\": \"9999999999\",\n    \"whatsapp_number\": \"9999999999\",\n    \"address\": \"123 Main St\",\n    \"gender\": \"male\",\n    \"marital_status\": \"single\",\n    \"birth_date\": \"1990-01-01\",\n    \"pan_no\": \"\",\n    \"gst_no\": \"\",\n    \"company_name\": \"\",\n    \"occupation\": \"\",\n    \"annual_income\": \"\",\n    \"nationality\": \"Indian\",\n    \"blood_group\": \"\",\n    \"emergency_contact_name\": \"\",\n    \"emergency_contact_number\": \"\",\n    \"preferred_language\": \"en\",\n    \"longitude\": \"77.5946\",\n    \"latitude\": \"12.9716\",\n    \"notes\": \"\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/profile",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "profile"]
+            },
+            "description": "Requires customer auth. Params can also be nested under 'ecommerce' or sent flat."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Checkout & Payment",
+      "item": [
+        {
+          "name": "Check Delivery (by pincode)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pincode\": \"560001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/check_delivery",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "check_delivery"]
+            },
+            "description": "Maps to ecommerce#check_delivery_by_pincode. Looks up DeliveryCharge.for_pincode."
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{booking_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/verify_payment",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "verify_payment"]
+            },
+            "description": "Requires customer auth. Verifies Cashfree transaction via CashfreeService.get_order."
+          }
+        },
+        {
+          "name": "Create Cart Order (Checkout)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking\": {\n    \"customer_id\": \"\",\n    \"customer_name\": \"John Doe\",\n    \"customer_email\": \"user@example.com\",\n    \"customer_phone\": \"9999999999\",\n    \"delivery_address\": \"123 Main St\",\n    \"payment_method\": \"cod\",\n    \"pincode\": \"560001\",\n    \"latitude\": \"12.9716\",\n    \"longitude\": \"77.5946\",\n    \"notes\": \"\",\n    \"booking_items_attributes\": [\n      {\n        \"product_id\": \"{{product_id}}\",\n        \"product_variant_id\": \"\",\n        \"quantity\": 1,\n        \"price\": 100\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/checkout/cart_order",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "checkout", "cart_order"]
+            },
+            "description": "payment_method: 'cod' or 'cashfree'. Requires customer auth."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Orders",
+      "item": [
+        {
+          "name": "Get Bookings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/ecommerce/bookings?page=1&per_page=10&status=",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "bookings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Note: this returns Booking records (not the separate, undocumented Order model at /ecommerce/orders)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Subscriptions",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscription\": {\n    \"product_id\": \"{{product_id}}\",\n    \"frequency\": \"daily\",\n    \"start_date\": \"2026-08-10\",\n    \"end_date\": \"2026-09-10\",\n    \"quantity\": 1,\n    \"delivery_time\": \"morning\",\n    \"delivery_address\": \"123 Main St\",\n    \"pincode\": \"560001\",\n    \"latitude\": \"12.9716\",\n    \"longitude\": \"77.5946\",\n    \"notes\": \"\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ecommerce/subscriptions",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "subscriptions"]
+            }
+          }
+        },
+        {
+          "name": "Get Subscriptions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/ecommerce/subscriptions?page=1&per_page=10&status=",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "subscriptions"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "10" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pause Subscription",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/ecommerce/subscriptions/{{subscription_id}}/pause",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "subscriptions", "{{subscription_id}}", "pause"]
+            }
+          }
+        },
+        {
+          "name": "Resume Subscription",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/ecommerce/subscriptions/{{subscription_id}}/resume",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "subscriptions", "{{subscription_id}}", "resume"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{base_url}}/ecommerce/subscriptions/{{subscription_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["ecommerce", "subscriptions", "{{subscription_id}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Delivery Person",
+      "item": [
+        {
+          "name": "Today's Tasks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/delivery/tasks/today",
+              "host": ["{{base_url}}"],
+              "path": ["delivery", "tasks", "today"]
+            },
+            "description": "Requires delivery person auth token."
+          }
+        },
+        {
+          "name": "Task Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/delivery/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["delivery", "tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Start Task",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/delivery/tasks/{{task_id}}/start",
+              "host": ["{{base_url}}"],
+              "path": ["delivery", "tasks", "{{task_id}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Delivered successfully\",\n  \"payment_collected\": {\n    \"amount\": 100\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/delivery/tasks/{{task_id}}/complete",
+              "host": ["{{base_url}}"],
+              "path": ["delivery", "tasks", "{{task_id}}", "complete"]
+            }
+          }
+        },
+        {
+          "name": "Bulk Mark Done",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delivery_ids\": [1, 2, 3],\n  \"completed_at\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/delivery/bulk_mark_done",
+              "host": ["{{base_url}}"],
+              "path": ["delivery", "bulk_mark_done"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Settings",
+      "item": [
+        {
+          "name": "Contact Info",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/settings/contact",
+              "host": ["{{base_url}}"],
+              "path": ["settings", "contact"]
+            }
+          }
+        },
+        {
+          "name": "Terms & Conditions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/settings/terms",
+              "host": ["{{base_url}}"],
+              "path": ["settings", "terms"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Admin App",
+      "description": "JSON API for the admin app (/api/v1/admin). Restricted to the admin@maralisanthe.com account (User#user_type == 'admin') — login below issues the bearer token this whole folder uses via {{admin_access_token}}.",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@maralisanthe.com\",\n  \"password\": \"admin@123\"\n}"
+            },
+            "url": {
+              "raw": "{{api_v1_base_url}}/auth/login",
+              "host": ["{{api_v1_base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Returns a JWT in data.token — copy it into the {{admin_access_token}} collection variable. Requires a User record with user_type 'admin'."
+          }
+        },
+        {
+          "name": "Dashboard (small)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/dashboard",
+              "host": ["{{admin_base_url}}"],
+              "path": ["dashboard"]
+            },
+            "description": "Revenue/booking/product counters + 5 most recent bookings. Cached 5 minutes."
+          }
+        },
+        {
+          "name": "Pricing Overview",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/pricing",
+              "host": ["{{admin_base_url}}"],
+              "path": ["pricing"]
+            },
+            "description": "Active products grouped by category with price/buying_price/stock. Cached 2 minutes."
+          }
+        },
+        {
+          "name": "List Bookings",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/bookings?page=1&per_page=20&status=",
+              "host": ["{{admin_base_url}}"],
+              "path": ["bookings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" },
+                { "key": "status", "value": "", "disabled": true, "description": "e.g. confirmed, delivered, cancelled" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Show Booking",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/bookings/{{admin_booking_id}}",
+              "host": ["{{admin_base_url}}"],
+              "path": ["bookings", "{{admin_booking_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Booking (quick)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking\": {\n    \"customer_id\": \"\",\n    \"customer_name\": \"John Doe\",\n    \"customer_email\": \"user@example.com\",\n    \"customer_phone\": \"9999999999\",\n    \"delivery_address\": \"123 Main St\",\n    \"payment_method\": \"cod\",\n    \"notes\": \"\",\n    \"booking_items_attributes\": [\n      {\n        \"product_id\": \"{{admin_product_id}}\",\n        \"quantity\": 1\n      }\n    ]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{admin_base_url}}/bookings",
+              "host": ["{{admin_base_url}}"],
+              "path": ["bookings"]
+            },
+            "description": "Minimal admin-side booking creation. Item price is optional — defaults to the product's selling_price if omitted. customer_id is optional; customer_name/email/phone are used as a walk-in fallback."
+          }
+        },
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/products?page=1&per_page=20&category_id=&search=",
+              "host": ["{{admin_base_url}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "20" },
+                { "key": "category_id", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Show Product",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/products/{{admin_product_id}}",
+              "host": ["{{admin_base_url}}"],
+              "path": ["products", "{{admin_product_id}}"]
+            },
+            "description": "Includes the full image gallery (data.gallery) with stable gallery_ids usable in Remove Image."
+          }
+        },
+        {
+          "name": "Upload Product Image",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": [] },
+                { "key": "main", "value": "true", "type": "text", "description": "true = replace main image; omit/false = append to gallery" }
+              ]
+            },
+            "url": {
+              "raw": "{{admin_base_url}}/products/{{admin_product_id}}/upload_image",
+              "host": ["{{admin_base_url}}"],
+              "path": ["products", "{{admin_product_id}}", "upload_image"]
+            },
+            "description": "Uploads to Cloudflare R2 (folder: products). Response includes the updated gallery."
+          }
+        },
+        {
+          "name": "Remove Product Image",
+          "request": {
+            "method": "DELETE",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{admin_access_token}}", "type": "string" }] },
+            "url": {
+              "raw": "{{admin_base_url}}/products/{{admin_product_id}}/remove_image?gallery_id={{admin_gallery_id}}",
+              "host": ["{{admin_base_url}}"],
+              "path": ["products", "{{admin_product_id}}", "remove_image"],
+              "query": [{ "key": "gallery_id", "value": "{{admin_gallery_id}}" }]
+            },
+            "description": "gallery_id comes from the 'id' field of an entry in Show Product's data.gallery array (e.g. r2_main, r2_additional_0)."
+          }
+        }
+      ]
+    }
+  ]
+}

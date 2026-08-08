@@ -968,6 +968,26 @@ Rails.application.routes.draw do
         get 'banners/locations', to: 'banners#locations'
         get 'banners/:id', to: 'banners#show'
         post 'banners/:id/track_click', to: 'banners#track_click'
+
+        # Catch-all for unmatched mobile API paths/wrong HTTP methods so they
+        # return a clean 404 JSON response instead of raising an unhandled
+        # ActionController::RoutingError (noisy backtrace in production logs).
+        match '*unmatched', to: 'base#not_found', via: :all
+      end
+
+      # Admin App APIs (admin@maralisanthe.com user only)
+      namespace :admin do
+        get 'dashboard', to: 'dashboard#index'
+        get 'pricing', to: 'pricing#index'
+
+        resources :bookings, only: [:index, :show, :create]
+
+        resources :products, only: [:index, :show] do
+          member do
+            post :upload_image
+            delete :remove_image
+          end
+        end
       end
 
       # Sub Agent APIs

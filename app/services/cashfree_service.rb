@@ -80,6 +80,8 @@ class CashfreeService
     end
 
     def build_order_request(booking)
+      # Guest/public bookings have no linked Customer — fall back to the
+      # booking's own guest fields (customer_name/email/phone) in that case.
       customer = booking.customer
 
       {
@@ -87,10 +89,10 @@ class CashfreeService
         order_amount: booking.total_amount.to_f,
         order_currency: 'INR',
         customer_details: {
-          customer_id: customer.id.to_s,
-          customer_name: customer.display_name,
-          customer_email: customer.email,
-          customer_phone: customer.mobile
+          customer_id: customer&.id&.to_s || "guest_#{booking.id}",
+          customer_name: customer&.display_name || booking.customer_name,
+          customer_email: customer&.email || booking.customer_email,
+          customer_phone: customer&.mobile || booking.customer_phone
         },
         order_meta: {
           return_url: return_url(booking.id),

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Cart</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f5f2;color:#232323;line-height:1.5}
+a{color:inherit;text-decoration:none}
+.topbar{background:#1c1c1a;color:#f4ece0;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.topbar .brand{font-weight:700;font-size:16px}
+.wrap{max-width:760px;margin:0 auto;padding:32px 20px 80px}
+h1.page-title{font-size:24px;font-weight:700;margin-bottom:20px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.item{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #f0ece2}
+.item img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#f0ece2}
+.item .info{flex:1}
+.item .name{font-weight:600;font-size:15px}
+.item .price{color:#8a8378;font-size:13px;margin-top:2px}
+.qty-ctrl{display:flex;align-items:center;gap:8px}
+.qty-ctrl button{width:28px;height:28px;border:1px solid #e2ddd3;background:#fff;border-radius:6px;cursor:pointer;font-size:15px}
+.qty-ctrl span{min-width:20px;text-align:center;font-weight:600}
+.remove-link{color:#a13b32;font-size:12.5px;margin-left:14px;cursor:pointer;background:none;border:none}
+.tot-row{display:flex;justify-content:space-between;padding:14px 0;font-size:17px;font-weight:700;border-top:1px solid #eee5d5;margin-top:8px}
+.btn{display:block;text-align:center;width:100%;background:#1c1c1a;color:#fff;border:none;border-radius:9px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;margin-top:16px}
+.empty{text-align:center;padding:60px 20px;color:#8a8378}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="/"><span class="brand">← Continue Shopping</span></a>
+  <span class="brand">Your Cart</span>
+</div>
+
+<div class="wrap">
+  <h1 class="page-title">Your Cart</h1>
+  <div class="card">
+    <% if @cart_items.blank? %>
+      <div class="empty">Your cart is empty. <a href="/" style="color:#b08d3f;font-weight:600;">Start shopping →</a></div>
+    <% else %>
+      <% @cart_items.each do |item| %>
+        <div class="item" data-product-id="<%= item['product_id'] %>">
+          <img src="<%= item['image_url'] %>" alt="" onerror="this.style.display='none'">
+          <div class="info">
+            <div class="name"><%= item['product_name'] %></div>
+            <div class="price">₹<%= item['price'] %> each</div>
+          </div>
+          <div class="qty-ctrl">
+            <button onclick="changeQty(<%= item['product_id'] %>, -1)">−</button>
+            <span><%= item['quantity'].to_i %></span>
+            <button onclick="changeQty(<%= item['product_id'] %>, 1)">+</button>
+          </div>
+          <button class="remove-link" onclick="removeItem(<%= item['product_id'] %>)">Remove</button>
+        </div>
+      <% end %>
+      <div class="tot-row"><span>Total</span><span>₹<%= @cart_total.round(2) %></span></div>
+      <a href="<%= storefront_checkout_path %>" class="btn">Proceed to Checkout</a>
+    <% end %>
+  </div>
+</div>
+
+<script>
+function currentQty(productId) {
+  const row = document.querySelector(`.item[data-product-id="${productId}"]`);
+  return row ? parseInt(row.querySelector('.qty-ctrl span').textContent) : 0;
+}
+
+async function changeQty(productId, delta) {
+  const newQty = currentQty(productId) + delta;
+  const res = await fetch('<%= update_item_storefront_cart_path %>', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: productId, quantity: newQty })
+  });
+  const data = await res.json();
+  if (data.success) window.location.reload();
+  else alert(data.error || 'Could not update cart.');
+}
+
+async function removeItem(productId) {
+  const res = await fetch('<%= remove_item_storefront_cart_path %>', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: productId })
+  });
+  const data = await res.json();
+  if (data.success) window.location.reload();
+}
+</script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 /* Enhanced Insurance-themed animated login page */
 body.auth-page {
   min-height: 100vh !important;
-  background: linear-gradient(-45deg, #667eea, #764ba2, #4facfe, #00f2fe, #f093fb, #43e97b) !important;
+  background: linear-gradient(-45deg, var(--color-primary), var(--color-primary-dark), #4facfe, #00f2fe, #f093fb, #43e97b) !important;
   background-size: 400% 400% !important;
   animation: gradientBG 15s ease infinite !important;
   position: relative !important;
@@ -150,19 +150,19 @@ body.auth-page::after {
 }
 
 .auth-page .form-control:focus {
-  border-color: #667eea !important;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 0.2rem rgba(var(--color-primary-rgb), 0.25) !important;
 }
 
 .auth-page .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   border: none !important;
   transition: all 0.3s ease !important;
 }
 
 .auth-page .btn-primary:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.4) !important;
 }
 
 /* Additional decorative elements */

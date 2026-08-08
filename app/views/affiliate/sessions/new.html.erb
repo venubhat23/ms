@@ -12,6 +12,15 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <!-- Poppins Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- This standalone page loads Bootstrap from a CDN and has no access to
+       application.css, so it keeps its own copy of the brand color variable.
+       Keep in sync with --color-primary in application.scss. -->
+  <style>
+    :root {
+      --color-primary: #667eea;
+      --color-primary-dark: #764ba2;
+    }
+  </style>
 </head>
 <body>
 
@@ -91,7 +100,7 @@ body {
 
 .enhanced-login-wrapper {
   min-height: 100vh !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;

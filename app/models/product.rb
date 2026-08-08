@@ -206,6 +206,22 @@ class Product < ApplicationRecord
                  .sum(:quantity)
   end
 
+  # Storefront "Best Seller" badge — top N products by units sold, same
+  # "sold" statuses as #total_sold_quantity above.
+  def self.best_seller_ids(limit: 8)
+    joins(booking_items: :booking)
+      .where(bookings: { status: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'completed'] })
+      .group('products.id')
+      .order(Arel.sql('SUM(booking_items.quantity) DESC'))
+      .limit(limit)
+      .pluck(:id)
+  end
+
+  # Storefront "New Arrival" badge — most recently added active products.
+  def self.new_arrival_ids(limit: 8)
+    active.order(created_at: :desc).limit(limit).pluck(:id)
+  end
+
   def available_quantity
     if has_multiple_quantities?
       product_variants.sum(:available_stock).to_f

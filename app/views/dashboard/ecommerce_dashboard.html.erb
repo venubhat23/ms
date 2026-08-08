@@ -11,7 +11,7 @@
 
     <style>
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, #f093fb 100%);
             background-attachment: fixed;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             min-height: 100vh;
@@ -50,7 +50,7 @@
         }
 
         .dashboard-title {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             font-size: 2.5rem;
@@ -82,7 +82,7 @@
         }
 
         .breadcrumb-item.active {
-            color: #667eea;
+            color: var(--color-primary);
             font-weight: 600;
         }
 
@@ -138,15 +138,15 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-size: 1.125rem;
-            color: #667eea;
+            color: var(--color-primary);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(var(--color-primary-rgb), 0.2);
         }
 
         .action-btn:hover {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(var(--color-primary-rgb), 0.1);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
         }
 
         .metric-card {
@@ -168,13 +168,13 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
             border-radius: 20px 20px 0 0;
         }
 
         .metric-card:hover {
             transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.2);
+            box-shadow: 0 20px 40px rgba(var(--color-primary-rgb), 0.2);
         }
 
         .metric-icon {
@@ -194,12 +194,12 @@
         .icon-products { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
         .icon-customers { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
         .icon-inventory { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
-        .icon-growth { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .icon-growth { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); }
 
         .metric-value {
             font-size: 2rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             line-height: 1;
@@ -244,7 +244,7 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
             border-radius: 20px 20px 0 0;
         }
 
@@ -287,7 +287,7 @@
         .quick-stat-value {
             font-size: 1.75rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -318,7 +318,7 @@
         }
 
         .alert-item:hover {
-            background: rgba(102, 126, 234, 0.05);
+            background: rgba(var(--color-primary-rgb), 0.05);
         }
 
         .alert-warning {
@@ -354,7 +354,7 @@
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark), #f093fb);
             border-radius: 16px 16px 0 0;
         }
 
@@ -379,22 +379,22 @@
             padding: 0.5rem 1rem;
             border: 2px solid transparent;
             border-radius: 12px;
-            background: rgba(102, 126, 234, 0.1);
-            color: #667eea;
+            background: rgba(var(--color-primary-rgb), 0.1);
+            color: var(--color-primary);
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .filter-btn:hover {
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(var(--color-primary-rgb), 0.2);
             transform: translateY(-2px);
         }
 
         .filter-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
             color: white;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
         }
 
         .top-products-list {
@@ -409,12 +409,12 @@
             padding: 1rem;
             border-radius: 12px;
             margin-bottom: 0.5rem;
-            background: rgba(102, 126, 234, 0.05);
+            background: rgba(var(--color-primary-rgb), 0.05);
             transition: all 0.2s;
         }
 
         .product-item:hover {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(var(--color-primary-rgb), 0.1);
             transform: translateX(4px);
         }
 
@@ -425,7 +425,7 @@
 
         .product-sales {
             font-weight: 700;
-            color: #667eea;
+            color: var(--color-primary);
         }
 
         .refresh-btn {
@@ -435,19 +435,19 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
             color: white;
             border: none;
             font-size: 1.25rem;
             cursor: pointer;
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 25px rgba(var(--color-primary-rgb), 0.3);
             transition: all 0.3s;
             z-index: 1000;
         }
 
         .refresh-btn:hover {
             transform: translateY(-4px) scale(1.05);
-            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 15px 35px rgba(var(--color-primary-rgb), 0.4);
         }
 
         /* Responsive design */
@@ -773,7 +773,7 @@
                     label: 'Daily Sales',
                     data: Object.values(salesTrendData),
                     borderColor: 'rgb(102, 126, 234)',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    backgroundColor: 'rgba(var(--color-primary-rgb), 0.1)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
@@ -823,7 +823,7 @@
                 datasets: [{
                     data: Object.values(orderStatusData),
                     backgroundColor: [
-                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(var(--color-primary-rgb), 0.8)',
                         'rgba(67, 233, 123, 0.8)',
                         'rgba(74, 172, 254, 0.8)',
                         'rgba(239, 68, 68, 0.8)'
@@ -865,7 +865,7 @@
                     label: 'Revenue',
                     data: Object.values(categoryData),
                     backgroundColor: [
-                        'rgba(102, 126, 234, 0.8)',
+                        'rgba(var(--color-primary-rgb), 0.8)',
                         'rgba(67, 233, 123, 0.8)',
                         'rgba(247, 144, 251, 0.8)',
                         'rgba(254, 225, 64, 0.8)',
@@ -923,7 +923,7 @@
                 datasets: [{
                     data: Object.values(paymentData),
                     backgroundColor: [
-                        'rgba(102, 126, 234, 0.6)',
+                        'rgba(var(--color-primary-rgb), 0.6)',
                         'rgba(67, 233, 123, 0.6)',
                         'rgba(74, 172, 254, 0.6)',
                         'rgba(254, 225, 64, 0.6)'

@@ -66,6 +66,22 @@ Rails.application.routes.draw do
   # Root route - Marali Santhe website
   root 'home#index'
 
+  # Guest checkout for the public storefront (no customer login required)
+  namespace :storefront do
+    resource :cart, only: [:show], controller: 'carts' do
+      collection do
+        post :add_item
+        patch :update_item
+        delete :remove_item
+        delete :clear
+      end
+    end
+
+    resource :checkout, only: [:show, :create], controller: 'checkout' do
+      collection { get :confirmation }
+    end
+  end
+
   # Public pages
   get 'adhika/privacy-policy', to: 'public_pages#adhika_privacy_policy'
   get 'adhika/account-deletion-policy', to: 'public_pages#adhika_account_deletion_policy'

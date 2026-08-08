@@ -191,7 +191,7 @@
             <div id="commissionPieChart"></div>
             <div class="commission-legend">
               <div class="legend-item">
-                <span class="legend-dot" style="background: linear-gradient(135deg, #667eea, #764ba2)"></span>
+                <span class="legend-dot" style="background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))"></span>
                 <span>Main Agent</span>
                 <span class="legend-value">35%</span>
               </div>
@@ -430,7 +430,7 @@
 .sphere-1 {
   width: 600px;
   height: 600px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   top: -200px;
   left: -200px;
   animation-delay: 0s;
@@ -540,7 +540,7 @@
 .logo-container {
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -623,7 +623,7 @@
   left: 4px;
   height: calc(100% - 8px);
   width: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 8px;
   transition: all 0.3s ease;
   z-index: 1;
@@ -724,7 +724,7 @@
   justify-content: center;
 }
 
-.gradient-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.gradient-1 { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); }
 .gradient-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
 .gradient-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .gradient-4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
@@ -846,7 +846,7 @@
 
 .chart-btn.active,
 .chart-btn:hover {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-color: transparent;
   color: white;
 }
@@ -967,7 +967,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
   border-radius: 2px;
   animation: progressAnimation 1s ease-out;
 }
@@ -1028,7 +1028,7 @@
 .activity-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -1133,7 +1133,7 @@
 .transaction-id {
   font-family: 'Courier New', monospace;
   font-weight: 600;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .customer-cell {
@@ -1186,9 +1186,9 @@
 }
 
 .policy-type-badge.life {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
-  border: 1px solid rgba(102, 126, 234, 0.3);
+  background: rgba(var(--color-primary-rgb), 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.3);
 }
 
 .policy-type-badge.motor {
@@ -1371,8 +1371,8 @@ document.addEventListener('DOMContentLoaded', function() {
     type: 'line',
     width: '100%',
     height: '60px',
-    lineColor: '#667eea',
-    fillColor: 'rgba(102, 126, 234, 0.1)',
+    lineColor: 'var(--color-primary)',
+    fillColor: 'rgba(var(--color-primary-rgb), 0.1)',
     lineWidth: 2,
     spotRadius: 0,
     minSpotColor: false,
@@ -1402,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', function() {
         enabled: false
       }
     },
-    colors: ['#667eea', '#43e97b'],
+    colors: ['var(--color-primary)', '#43e97b'],
     dataLabels: {
       enabled: false
     },
@@ -1487,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', function() {
       background: 'transparent'
     },
     labels: ['Main Agent', 'Affiliate', 'Ambassador', 'Company'],
-    colors: ['#667eea', '#f093fb', '#4facfe', '#43e97b'],
+    colors: ['var(--color-primary)', '#f093fb', '#4facfe', '#43e97b'],
     plotOptions: {
       pie: {
         donut: {
@@ -1554,7 +1554,7 @@ document.addEventListener('DOMContentLoaded', function() {
         distributed: true
       }
     },
-    colors: ['#667eea', '#f093fb', '#4facfe', '#43e97b'],
+    colors: ['var(--color-primary)', '#f093fb', '#4facfe', '#43e97b'],
     dataLabels: {
       enabled: false
     },
@@ -1636,7 +1636,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   };
 
-  createSparkline('revenueSparkline', [40, 45, 50, 48, 55, 60, 58, 65, 70, 75, 80, 85], '#667eea');
+  createSparkline('revenueSparkline', [40, 45, 50, 48, 55, 60, 58, 65, 70, 75, 80, 85], 'var(--color-primary)');
   createSparkline('policiesSparkline', [30, 35, 32, 38, 40, 42, 45, 48, 50, 52, 55, 58], '#f093fb');
   createSparkline('commissionSparkline', [60, 55, 58, 52, 50, 48, 45, 47, 43, 45, 42, 40], '#4facfe');
   createSparkline('growthSparkline', [20, 22, 25, 28, 30, 32, 35, 38, 40, 42, 45, 48], '#43e97b');

@@ -59,7 +59,7 @@
 /* Modern Forgot Password Styles */
 .forgot-password-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -86,7 +86,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
 }
 
 .logo-section {
@@ -97,12 +97,12 @@
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 10px 30px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .logo-icon i {
@@ -185,9 +185,9 @@
 
 .form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   background: white;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
 }
 
 .form-input::placeholder {
@@ -197,7 +197,7 @@
 .submit-btn {
   width: 100%;
   padding: 16px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border: none;
   border-radius: 12px;
   color: white;
@@ -211,7 +211,7 @@
 
 .submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 15px 35px rgba(var(--color-primary-rgb), 0.4);
 }
 
 .submit-btn:active {
@@ -242,7 +242,7 @@
 }
 
 .sign-in-link {
-  color: #667eea;
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -250,7 +250,7 @@
 }
 
 .sign-in-link:hover {
-  color: #764ba2;
+  color: var(--color-primary-dark);
   text-decoration: underline;
 }
 

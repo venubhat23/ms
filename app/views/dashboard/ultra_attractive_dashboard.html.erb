@@ -20,8 +20,8 @@
   <style>
     :root {
       /* Color Palette - Modern Professional */
-      --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --primary-glow: rgba(102, 126, 234, 0.4);
+      --primary-gradient: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+      --primary-glow: rgba(var(--color-primary-rgb), 0.4);
 
       --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
       --success-glow: rgba(17, 153, 142, 0.4);
@@ -250,7 +250,7 @@
     .ultra-card:hover {
       transform: translateY(-8px);
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
-      border-color: rgba(102, 126, 234, 0.2);
+      border-color: rgba(var(--color-primary-rgb), 0.2);
     }
 
     /* Stat Cards */
@@ -385,7 +385,7 @@
       background: linear-gradient(
         90deg,
         transparent,
-        rgba(102, 126, 234, 0.04),
+        rgba(var(--color-primary-rgb), 0.04),
         transparent
       );
       transition: var(--transition-smooth);
@@ -1063,7 +1063,7 @@
         <div class="action-card"
              style="--action-gradient: var(--primary-gradient);
                     --action-glow: var(--primary-glow);
-                    --action-color: #667eea;"
+                    --action-color: var(--color-primary);"
              onclick="window.location.href='/admin/health_insurances/new'">
           <div class="action-icon">
             <i class="bi bi-file-plus"></i>
@@ -1197,7 +1197,7 @@
 
     // Modern color palette
     const colors = {
-      primary: ['#667eea', '#764ba2'],
+      primary: ['var(--color-primary)', 'var(--color-primary-dark)'],
       success: ['#11998e', '#38ef7d'],
       warning: ['#fc4a1a', '#f7b733'],
       danger: ['#fd1d1d', '#fcb045'],
@@ -1319,8 +1319,8 @@
           backgroundColor: function(context) {
             const ctx = context.chart.ctx;
             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-            gradient.addColorStop(0, 'rgba(102, 126, 234, 0.2)');
-            gradient.addColorStop(1, 'rgba(102, 126, 234, 0.0)');
+            gradient.addColorStop(0, 'rgba(var(--color-primary-rgb), 0.2)');
+            gradient.addColorStop(1, 'rgba(var(--color-primary-rgb), 0.0)');
             return gradient;
           },
           borderWidth: 4,

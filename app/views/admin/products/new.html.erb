@@ -44,7 +44,7 @@
 .page-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -98,7 +98,7 @@
 
 /* Professional gradient backgrounds */
 .gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
 }
 
 .gradient-success {
@@ -129,7 +129,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #667eea, #764ba2, #11998e);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark), #11998e);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -160,7 +160,7 @@
   left: 0;
   width: 60px;
   height: 2px;
-  background: linear-gradient(90deg, #667eea, #764ba2);
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
   border-radius: 2px;
 }
 
@@ -181,8 +181,8 @@
 }
 
 .form-control:focus, .form-select:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.12);
   background: white;
   transform: translateY(-1px);
   outline: none;
@@ -222,7 +222,7 @@
 
 .product-type-card:hover .type-card-content {
   transform: translateY(-3px);
-  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 8px 16px rgba(var(--color-primary-rgb), 0.15);
 }
 
 /* Discount Section Enhancement */
@@ -258,7 +258,7 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border: none;
   border-radius: 12px;
   padding: 0.875rem 2.5rem;
@@ -282,7 +282,7 @@
 
 .btn-primary:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 10px 25px rgba(var(--color-primary-rgb), 0.4);
 }
 
 .btn-primary:hover::before {
@@ -300,10 +300,10 @@
 }
 
 .btn-secondary:hover {
-  border-color: #667eea;
-  color: #667eea;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15);
 }
 
 /* Additional Professional Enhancements */
@@ -326,7 +326,7 @@
 }
 
 .input-group .form-control:focus + .input-icon {
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 /* Smooth page transitions */
@@ -360,7 +360,7 @@
 
 /* Professional color palette */
 :root {
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --primary-gradient: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
   --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   --text-primary: #1a202c;

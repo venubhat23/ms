@@ -1,0 +1,5 @@
+// Single source of truth for Bootstrap's brand color.
+// Every plain Bootstrap .btn-primary, link, badge, table variant and focus
+// ring derives from this. Keep in sync with --color-primary in
+// application.scss and the local :root block in simple_login.css.
+$primary: #667eea;

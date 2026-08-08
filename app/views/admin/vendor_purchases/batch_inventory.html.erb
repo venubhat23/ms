@@ -551,14 +551,14 @@
   .product-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 15px 40px rgba(0,0,0,0.12) !important;
-    border-color: #667eea;
+    border-color: var(--color-primary);
   }
 
   /* Latest Product Highlight */
   .latest-product {
     position: relative;
     background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
-    border: 2px solid #667eea !important;
+    border: 2px solid var(--color-primary) !important;
   }
   .latest-product::before {
     content: '';
@@ -567,7 +567,7 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, var(--color-primary), var(--color-primary-dark));
   }
 
   /* Modern Table */
@@ -623,8 +623,8 @@
     transition: all 0.2s ease;
   }
   .form-control:focus, .form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--color-primary-rgb), 0.25);
   }
 
   /* Animation for collapse */

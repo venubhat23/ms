@@ -7,8 +7,21 @@
 
 // Premium Banking/Fintech CSS Variables
 :root {
+  // Brand color — single source of truth for every button, link, table
+  // header and focus ring across the app. Change these 3 lines to re-theme.
+  // (Bootstrap's own $primary is set separately in _bootstrap_overrides.scss
+  // to this same value.)
+  --color-primary: #667eea;
+  --color-primary-dark: #764ba2;
+  --color-primary-rgb: 102, 126, 234;
+
+  // Table header — single source of truth (used in layout_fix.css)
+  --table-header-bg: #f8fafc;
+  --table-header-text: #2d3748;
+  --table-border: #e2e8f0;
+
   // Premium Gradients
-  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --primary-gradient: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   --luxury-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 25%, #2c3e50 50%, #34495e 75%, #2c3e50 100%);
   --gold-gradient: linear-gradient(135deg, #f7dc6f 0%, #f4d03f 25%, #f7dc6f 50%, #f39c12 75%, #e67e22 100%);
   --platinum-gradient: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 25%, #ecf0f1 50%, #bdc3c7 75%, #95a5a6 100%);
@@ -59,7 +72,7 @@
   --alert-red: #e74c3c;
 
   // Modern Colorful Gradients
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   --gradient-blue: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   --gradient-green: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
   --gradient-purple: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
@@ -69,7 +82,7 @@
   --gradient-cyan: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   --gradient-yellow: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
   --gradient-teal: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-  --gradient-indigo: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-indigo: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   --gradient-amber: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
   --gradient-lime: linear-gradient(135deg, #00b894 0%, #55efc4 100%);
   --gradient-emerald: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
@@ -782,9 +795,9 @@ body {
 
     // Enhanced gradient backgrounds with more vibrant colors
     &.gradient-blue {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4facfe 100%);
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, #4facfe 100%);
       box-shadow:
-        0 8px 25px rgba(102, 126, 234, 0.4),
+        0 8px 25px rgba(var(--color-primary-rgb), 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     &.gradient-green {
@@ -794,7 +807,7 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     &.gradient-purple {
-      background: linear-gradient(135deg, #fa709a 0%, #fee140 50%, #764ba2 100%);
+      background: linear-gradient(135deg, #fa709a 0%, #fee140 50%, var(--color-primary-dark) 100%);
       box-shadow:
         0 8px 25px rgba(250, 112, 154, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -836,9 +849,9 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     &.gradient-indigo {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, var(--color-primary) 100%);
       box-shadow:
-        0 8px 25px rgba(102, 126, 234, 0.4),
+        0 8px 25px rgba(var(--color-primary-rgb), 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     &.gradient-amber {
@@ -866,7 +879,7 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
     &.gradient-gray {
-      background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 50%, #667eea 100%);
+      background: linear-gradient(135deg, #bdc3c7 0%, #95a5a6 50%, var(--color-primary) 100%);
       box-shadow:
         0 8px 25px rgba(189, 195, 199, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -925,7 +938,7 @@ body {
   margin-left: var(--sidebar-width);
   min-height: 100vh;
   background:
-    radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 20% 20%, rgba(var(--color-primary-rgb), 0.05) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(116, 75, 162, 0.05) 0%, transparent 50%),
     radial-gradient(circle at 50% 0%, rgba(79, 172, 254, 0.03) 0%, transparent 50%),
     linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
@@ -960,7 +973,7 @@ body {
     right: 0;
     bottom: 0;
     background:
-      radial-gradient(2px 2px at 20% 30%, rgba(102, 126, 234, 0.3), transparent),
+      radial-gradient(2px 2px at 20% 30%, rgba(var(--color-primary-rgb), 0.3), transparent),
       radial-gradient(2px 2px at 80% 70%, rgba(79, 172, 254, 0.3), transparent),
       radial-gradient(1px 1px at 40% 60%, rgba(116, 75, 162, 0.3), transparent);
     background-size: 200px 200px, 300px 300px, 150px 150px;
@@ -1046,8 +1059,8 @@ body {
 
         &:focus {
           outline: none;
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          border-color: var(--color-primary);
+          box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
         }
 
         &::placeholder {
@@ -1214,7 +1227,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(79, 172, 254, 0.1), rgba(116, 75, 162, 0.1));
+    background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.1), rgba(79, 172, 254, 0.1), rgba(116, 75, 162, 0.1));
     border-radius: 24px;
     padding: 2px;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -1229,16 +1242,16 @@ body {
     transform: translateY(-8px) scale(1.02);
     box-shadow:
       0 32px 64px rgba(0, 0, 0, 0.15),
-      0 8px 16px rgba(102, 126, 234, 0.2),
+      0 8px 16px rgba(var(--color-primary-rgb), 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    border-color: rgba(102, 126, 234, 0.3);
+    border-color: rgba(var(--color-primary-rgb), 0.3);
 
     &::before {
       opacity: 1;
     }
 
     .card-header {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(79, 172, 254, 0.1) 100%);
+      background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.1) 0%, rgba(79, 172, 254, 0.1) 100%);
     }
   }
 
@@ -1252,7 +1265,7 @@ body {
       right: -50%;
       width: 100%;
       height: 100%;
-      background: conic-gradient(from 0deg, transparent, rgba(102, 126, 234, 0.05), transparent, rgba(79, 172, 254, 0.05), transparent);
+      background: conic-gradient(from 0deg, transparent, rgba(var(--color-primary-rgb), 0.05), transparent, rgba(79, 172, 254, 0.05), transparent);
       animation: cardRotate 15s linear infinite;
       pointer-events: none;
     }
@@ -1261,7 +1274,7 @@ body {
   .card-header {
     background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(237, 242, 247, 0.8) 100%);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+    border-bottom: 1px solid rgba(var(--color-primary-rgb), 0.1);
     padding: 2rem 2rem 1.5rem;
     font-weight: 700;
     color: var(--text-primary);
@@ -1275,7 +1288,7 @@ body {
       left: 2rem;
       right: 2rem;
       height: 2px;
-      background: linear-gradient(90deg, transparent 0%, rgba(102, 126, 234, 0.5) 50%, transparent 100%);
+      background: linear-gradient(90deg, transparent 0%, rgba(var(--color-primary-rgb), 0.5) 50%, transparent 100%);
     }
 
     h1, h2, h3, h4, h5, h6 {
@@ -1296,7 +1309,7 @@ body {
   .card-footer {
     background: rgba(248, 250, 252, 0.6);
     backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(102, 126, 234, 0.1);
+    border-top: 1px solid rgba(var(--color-primary-rgb), 0.1);
     padding: 1.5rem 2rem;
     border-radius: 0 0 24px 24px;
   }
@@ -1328,7 +1341,7 @@ body {
     width: 150%;
     height: 150%;
     background:
-      radial-gradient(circle at center, rgba(102, 126, 234, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at center, rgba(var(--color-primary-rgb), 0.05) 0%, transparent 50%),
       radial-gradient(circle at 30% 70%, rgba(79, 172, 254, 0.05) 0%, transparent 50%);
     animation: statCardFloat 8s ease-in-out infinite;
     pointer-events: none;
@@ -1342,7 +1355,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(79, 172, 254, 0.2), rgba(116, 75, 162, 0.2));
+    background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.2), rgba(79, 172, 254, 0.2), rgba(116, 75, 162, 0.2));
     border-radius: 28px;
     padding: 1px;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -1357,7 +1370,7 @@ body {
     transform: translateY(-12px) scale(1.03);
     box-shadow:
       0 40px 80px rgba(0, 0, 0, 0.12),
-      0 16px 32px rgba(102, 126, 234, 0.15),
+      0 16px 32px rgba(var(--color-primary-rgb), 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
     &::after {
@@ -1371,7 +1384,7 @@ body {
 
     .stat-number {
       transform: scale(1.05);
-      color: #667eea;
+      color: var(--color-primary);
     }
   }
 
@@ -1406,7 +1419,7 @@ body {
     }
 
     &.primary {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     }
     &.success {
       background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
@@ -1705,8 +1718,8 @@ body {
 
   &:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
     background: var(--bg-primary);
   }
 
@@ -1779,7 +1792,7 @@ body {
     transform: translateY(-4px) scale(1.02);
     box-shadow:
       0 20px 40px rgba(0, 0, 0, 0.15),
-      0 8px 16px rgba(102, 126, 234, 0.2);
+      0 8px 16px rgba(var(--color-primary-rgb), 0.2);
   }
 
   &:active {
@@ -1788,19 +1801,19 @@ body {
 
   // Primary button with gradient magic
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #4facfe 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, #4facfe 100%);
     background-size: 200% 200%;
     animation: gradientShift 3s ease-in-out infinite;
     color: white;
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow:
-      0 8px 25px rgba(102, 126, 234, 0.3),
+      0 8px 25px rgba(var(--color-primary-rgb), 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.3);
 
     &:hover {
       background-position: 100% 100%;
       box-shadow:
-        0 16px 40px rgba(102, 126, 234, 0.4),
+        0 16px 40px rgba(var(--color-primary-rgb), 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
     }
   }
@@ -1867,16 +1880,16 @@ body {
     border: 2px solid transparent;
     background:
       linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)) padding-box,
-      linear-gradient(135deg, #667eea, #764ba2) border-box;
-    color: #667eea;
+      linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)) border-box;
+    color: var(--color-primary);
     backdrop-filter: blur(10px);
     position: relative;
 
     &:hover {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
       color: white;
       border-color: transparent;
-      box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 12px 30px rgba(var(--color-primary-rgb), 0.4);
     }
   }
 
@@ -2290,9 +2303,9 @@ body {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(102, 126, 234, 0.3);
+  border: 2px solid rgba(var(--color-primary-rgb), 0.3);
   border-radius: 50%;
-  border-top-color: #667eea;
+  border-top-color: var(--color-primary);
   animation: spin 1s ease-in-out infinite;
 }
 
@@ -2311,11 +2324,11 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.3);
+  background: rgba(var(--color-primary-rgb), 0.3);
   border-radius: 3px;
 
   &:hover {
-    background: rgba(102, 126, 234, 0.5);
+    background: rgba(var(--color-primary-rgb), 0.5);
   }
 }
 
@@ -2412,10 +2425,10 @@ body {
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 0 20px rgba(var(--color-primary-rgb), 0.3);
   }
   50% {
-    box-shadow: 0 0 40px rgba(102, 126, 234, 0.6);
+    box-shadow: 0 0 40px rgba(var(--color-primary-rgb), 0.6);
   }
 }
 
@@ -2520,7 +2533,7 @@ body {
 // Enhanced Main Content Background
 .main-content {
   background:
-    radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 20% 20%, rgba(var(--color-primary-rgb), 0.03) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(116, 75, 162, 0.03) 0%, transparent 50%),
     linear-gradient(135deg, var(--bg-luxury) 0%, var(--bg-secondary) 100%);
   position: relative;
@@ -2629,8 +2642,8 @@ body {
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 
   &:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--color-primary-rgb), 0.25);
   }
 }
 
@@ -2641,12 +2654,12 @@ body {
   transition: all 0.3s ease;
 
   &.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border: none;
 
     &:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.4);
     }
   }
 }
@@ -2824,8 +2837,8 @@ canvas {
 
 // Override variables for Insurance theme
 :root {
-  --insurance-primary: #667eea;
-  --insurance-secondary: #764ba2;
+  --insurance-primary: var(--color-primary);
+  --insurance-secondary: var(--color-primary-dark);
   --insurance-success: #43e97b;
   --insurance-warning: #ffc107;
   --insurance-danger: #ef4444;
@@ -2849,13 +2862,13 @@ canvas {
 .btn-primary {
   background: linear-gradient(135deg, var(--insurance-primary) 0%, var(--insurance-secondary) 100%) !important;
   border: none !important;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3) !important;
   border-radius: var(--insurance-radius) !important;
 }
 
 .btn-primary:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4) !important;
+  box-shadow: 0 8px 25px rgba(var(--color-primary-rgb), 0.4) !important;
 }
 
 .card {
@@ -2878,7 +2891,7 @@ canvas {
 
 .form-control:focus {
   border-color: var(--insurance-primary) !important;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.15) !important;
+  box-shadow: 0 0 0 0.2rem rgba(var(--color-primary-rgb), 0.15) !important;
 }
 
 // Insurance-themed Alert Overrides

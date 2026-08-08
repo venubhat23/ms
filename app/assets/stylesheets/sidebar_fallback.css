@@ -48,7 +48,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #43e97b 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, #43e97b 100%);
   z-index: 1;
 }
 
@@ -85,16 +85,16 @@
   transform: translateY(-50%);
   width: 3px;
   height: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 0 2px 2px 0;
   transition: height 0.3s ease;
 }
 
 .sidebar .nav-link:hover {
-  background: rgba(102, 126, 234, 0.08) !important;
-  color: #667eea !important;
+  background: rgba(var(--color-primary-rgb), 0.08) !important;
+  color: var(--color-primary) !important;
   transform: translateX(4px) !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.15) !important;
 }
 
 .sidebar .nav-link:hover::before {
@@ -102,9 +102,9 @@
 }
 
 .sidebar .nav-link.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   color: white !important;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.3) !important;
   border: 2px solid rgba(255, 255, 255, 0.2) !important;
 }
 
@@ -185,7 +185,7 @@
   left: 0 !important;
   right: 0 !important;
   height: 70px !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   border-bottom: 1px solid #e2e8f0 !important;
   z-index: 1050 !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
@@ -200,7 +200,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #43e97b 100%);
+  background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, #43e97b 100%);
 }
 
 .mobile-toggle {
@@ -216,8 +216,8 @@
 }
 
 .mobile-toggle:hover {
-  background: rgba(102, 126, 234, 0.1) !important;
-  color: #667eea !important;
+  background: rgba(var(--color-primary-rgb), 0.1) !important;
+  color: var(--color-primary) !important;
 }
 
 @media (max-width: 768px) {
@@ -234,14 +234,14 @@
 .brand-icon {
   width: 42px !important;
   height: 42px !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   border-radius: 12px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   color: white !important;
   font-size: 18px !important;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3) !important;
+  box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.3) !important;
   position: relative !important;
 }
 
@@ -293,12 +293,12 @@
   transform: translateX(-50%);
   width: 50px;
   height: 2px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 1px;
 }
 
 .sidebar-brand h4 {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
@@ -337,13 +337,13 @@
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.2) !important;
+  background: rgba(var(--color-primary-rgb), 0.2) !important;
   border-radius: 3px !important;
   transition: background 0.3s ease !important;
 }
 
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.4) !important;
+  background: rgba(var(--color-primary-rgb), 0.4) !important;
 }
 
 /* Insurance-themed Section Dividers */
@@ -422,8 +422,8 @@
 }
 
 .sidebar .collapse .nav .nav-link:hover {
-  background: rgba(102, 126, 234, 0.05) !important;
-  color: #667eea !important;
+  background: rgba(var(--color-primary-rgb), 0.05) !important;
+  color: var(--color-primary) !important;
   transform: translateX(2px) !important;
 }
 
@@ -490,16 +490,16 @@
 }
 
 .nav-link-modern:hover {
-  background: rgba(102, 126, 234, 0.15) !important;
+  background: rgba(var(--color-primary-rgb), 0.15) !important;
   color: #ffffff !important;
   transform: translateX(4px) !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.25) !important;
 }
 
 .nav-link-modern.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   color: white !important;
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4) !important;
+  box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.4) !important;
 }
 
 .nav-icon-modern {
@@ -548,9 +548,9 @@
 }
 
 /* Gradient backgrounds for icons */
-.gradient-blue { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+.gradient-blue { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important; }
 .gradient-green { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
-.gradient-purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+.gradient-purple { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important; }
 .gradient-orange { background: linear-gradient(135deg, #ff8a00 0%, #e52e71 100%) !important; }
 .gradient-violet { background: linear-gradient(135deg, #8360c3 0%, #2ebf91 100%) !important; }
 .gradient-emerald { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
@@ -558,7 +558,7 @@
 .gradient-cyan { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%) !important; }
 .gradient-yellow { background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%) !important; }
 .gradient-teal { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important; }
-.gradient-indigo { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+.gradient-indigo { background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important; }
 .gradient-amber { background: linear-gradient(135deg, #ffc107 0%, #ff8f00 100%) !important; }
 .gradient-lime { background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%) !important; }
 .gradient-pink { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%) !important; }
@@ -582,7 +582,7 @@
   width: 40px !important;
   height: 40px !important;
   border-radius: 50% !important;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -604,7 +604,7 @@
 .role-badge {
   font-size: 0.7rem !important;
   padding: 0.2rem 0.5rem !important;
-  background: rgba(102, 126, 234, 0.2) !important;
+  background: rgba(var(--color-primary-rgb), 0.2) !important;
   color: #a0aec0 !important;
   border-radius: 4px !important;
   text-transform: uppercase !important;

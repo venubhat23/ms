@@ -18,6 +18,24 @@ class Category < ApplicationRecord
   scope :inactive, -> { where(status: false) }
   scope :ordered, -> { order(:display_order, :name) }
 
+  # Same "sold" statuses as Product#total_sold_quantity, so a category only
+  # counts revenue from bookings that actually went through.
+  SOLD_STATUSES = %w[confirmed processing packed shipped out_for_delivery delivered completed].freeze
+
+  scope :ranked_by_sales, -> {
+    left_joins(products: { booking_items: :booking })
+      .where(bookings: { status: SOLD_STATUSES })
+      .group('categories.id')
+      .order(Arel.sql('COALESCE(SUM(booking_items.quantity * booking_items.price), 0) DESC'))
+  }
+
+  # Best-selling active category by revenue, for the storefront's "top
+  # category" banner. Falls back to the first active category by
+  # display_order when there's no sales data yet (new store).
+  def self.top_selling
+    active.ranked_by_sales.first || active.ordered.first
+  end
+
   before_validation :set_default_display_order, if: :new_record?
 
   def active?

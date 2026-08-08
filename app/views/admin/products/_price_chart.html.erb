@@ -247,7 +247,7 @@
 }
 
 .bg-gradient-primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
 }
 
 .price-chart-icon {
@@ -290,7 +290,7 @@
 .price-value {
   font-size: 36px;
   font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -614,12 +614,12 @@
           datasets: [{
             label: 'Price',
             data: data,
-            borderColor: '#667eea',
-            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+            borderColor: 'var(--color-primary)',
+            backgroundColor: 'rgba(var(--color-primary-rgb), 0.1)',
             borderWidth: 3,
             fill: true,
             tension: 0.4,
-            pointBackgroundColor: '#667eea',
+            pointBackgroundColor: 'var(--color-primary)',
             pointBorderColor: '#ffffff',
             pointBorderWidth: 2,
             pointRadius: 4,
@@ -663,7 +663,7 @@
           },
           elements: {
             point: {
-              hoverBackgroundColor: '#667eea'
+              hoverBackgroundColor: 'var(--color-primary)'
             }
           }
         }

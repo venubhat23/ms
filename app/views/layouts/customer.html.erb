@@ -70,7 +70,7 @@
         left: 0 !important;
         right: 0 !important;
         height: 70px !important;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
         border-bottom: 1px solid #e2e8f0 !important;
         z-index: 1050 !important;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
@@ -330,7 +330,7 @@
 
       /* BUTTON STANDARDIZATION */
       .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
         border: none !important;
         border-radius: 8px !important;
         padding: 0.75rem 1.5rem !important;
@@ -340,7 +340,7 @@
 
       .btn-primary:hover {
         transform: translateY(-1px) !important;
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3) !important;
+        box-shadow: 0 8px 25px rgba(var(--color-primary-rgb), 0.3) !important;
       }
 
       /* FORM CONTROLS */
@@ -355,8 +355,8 @@
 
       .form-control:focus,
       .form-select:focus {
-        border-color: #667eea !important;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1) !important;
       }
     </style>
 

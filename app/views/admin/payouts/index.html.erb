@@ -73,12 +73,12 @@
 }
 
 .policy-context-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
   border-radius: 16px;
   padding: 24px;
   margin-bottom: 30px;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 8px 32px rgba(var(--color-primary-rgb), 0.2);
 }
 
 .status-badge {
@@ -124,10 +124,10 @@
   left: 0;
   width: 4px;
   height: 100%;
-  background: linear-gradient(to bottom, var(--accent-color, #667eea), var(--accent-light, #764ba2));
+  background: linear-gradient(to bottom, var(--accent-color, var(--color-primary)), var(--accent-light, var(--color-primary-dark)));
 }
 
-.summary-card.total::before { --accent-color: #667eea; --accent-light: #764ba2; }
+.summary-card.total::before { --accent-color: var(--color-primary); --accent-light: var(--color-primary-dark); }
 .summary-card.paid::before { --accent-color: #4caf50; --accent-light: #81c784; }
 .summary-card.pending::before { --accent-color: #ff9800; --accent-light: #ffb74d; }
 .summary-card.failed::before { --accent-color: #f44336; --accent-light: #e57373; }
@@ -307,7 +307,7 @@
 <div class="commission-breakdown-table">
   <div class="table-responsive">
     <table class="table table-hover mb-0">
-      <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <thead style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); color: white;">
         <tr>
           <th class="border-0">Policy Details</th>
           <th class="border-0">Main Agent</th>

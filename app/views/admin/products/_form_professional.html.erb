@@ -1,7 +1,7 @@
 <style>
 /* Professional Product Form Styles */
 .professional-form-wrapper {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   padding: 2px;
   border-radius: 20px;
   margin-bottom: 2rem;
@@ -15,7 +15,7 @@
 }
 
 .form-header-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   padding: 2.5rem;
   color: white;
   position: relative;
@@ -66,7 +66,7 @@
 .section-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -74,7 +74,7 @@
   color: white;
   font-size: 1.5rem;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .section-title {
@@ -133,8 +133,8 @@
 
 .modern-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.1);
   transform: translateY(-2px);
 }
 
@@ -212,7 +212,7 @@
 }
 
 input:checked + .toggle-slider {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
 }
 
 input:checked + .toggle-slider:before {
@@ -235,7 +235,7 @@ input:checked + .toggle-slider:before {
 }
 
 .image-upload-container:hover {
-  border-color: #667eea;
+  border-color: var(--color-primary);
   background: white;
   transform: scale(1.02);
 }
@@ -269,14 +269,14 @@ input:checked + .toggle-slider:before {
 }
 
 .btn-primary-modern {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: white;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .btn-primary-modern:hover {
   transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(var(--color-primary-rgb), 0.4);
 }
 
 .btn-secondary-modern {
@@ -651,10 +651,10 @@ input:checked + .toggle-slider:before {
 }
 
 .product-type-radio:checked + .type-card-content {
-  border-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb), 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
   transform: scale(1.05);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 4px 15px rgba(var(--color-primary-rgb), 0.2);
 }
 
 .type-icon {
@@ -665,7 +665,7 @@ input:checked + .toggle-slider:before {
 }
 
 .product-type-radio:checked + .type-card-content .type-icon {
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .type-name {
@@ -674,7 +674,7 @@ input:checked + .toggle-slider:before {
 }
 
 .product-type-radio:checked + .type-card-content .type-name {
-  color: #667eea;
+  color: var(--color-primary);
   font-weight: 600;
 }
 </style>

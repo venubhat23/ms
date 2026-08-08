@@ -28,7 +28,7 @@
       /* Left Side - Gradient with Illustration */
       .left-side {
         flex: 1;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+        background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, #f093fb 100%);
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -125,7 +125,7 @@
       .bg-shape {
         position: absolute;
         border-radius: 50%;
-        background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(102, 126, 234, 0.08));
+        background: linear-gradient(135deg, rgba(240, 147, 251, 0.1), rgba(var(--color-primary-rgb), 0.08));
         filter: blur(50px);
       }
 
@@ -175,7 +175,7 @@
       .logo {
         width: 70px;
         height: 70px;
-        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark), #f093fb);
         border-radius: 20px;
         display: inline-flex;
         align-items: center;
@@ -227,7 +227,7 @@
       .brand-name {
         font-size: 32px;
         font-weight: 800;
-        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark), #f093fb);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -311,7 +311,7 @@
       }
 
       .password-toggle:hover {
-        color: #667eea;
+        color: var(--color-primary);
       }
 
       .form-row {
@@ -330,7 +330,7 @@
       .checkbox-wrapper input {
         width: 16px;
         height: 16px;
-        accent-color: #667eea;
+        accent-color: var(--color-primary);
         cursor: pointer;
       }
 
@@ -343,7 +343,7 @@
 
       .forgot-link {
         font-size: 14px;
-        color: #667eea;
+        color: var(--color-primary);
         text-decoration: none;
         font-weight: 500;
         transition: color 0.3s ease;
@@ -357,7 +357,7 @@
       .login-button {
         width: 100%;
         padding: 18px;
-        background: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark), #f093fb);
         border: none;
         border-radius: 16px;
         color: white;
@@ -427,7 +427,7 @@
       }
 
       .signup-link a {
-        color: #667eea;
+        color: var(--color-primary);
         text-decoration: none;
         font-weight: 600;
         transition: color 0.3s ease;

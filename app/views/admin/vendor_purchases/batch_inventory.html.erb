@@ -74,6 +74,23 @@
   </div>
 </div>
 
+<!-- Bulk Batch Actions (shown once a batch checkbox is selected) -->
+<div class="card mb-3 border-0 shadow-sm" id="bulk-batch-actions" style="display: none;">
+  <div class="card-body py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      <div><span id="selected-batch-count">0</span> batch(es) selected</div>
+      <div>
+        <button type="button" class="btn btn-danger btn-sm" onclick="bulkMarkBatchesAsSold()">
+          <i class="bi bi-check2-square me-1"></i>Mark Selected as Sold
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearBatchSelection()">
+          <i class="bi bi-x me-1"></i>Clear Selection
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Filters -->
 <div class="card mb-4 border-0 shadow-sm">
   <div class="card-body p-4">
@@ -233,6 +250,10 @@
                   <table class="table table-hover mb-0 modern-table">
                     <thead class="table-dark">
                       <tr>
+                        <th class="fw-bold" style="width:40px;">
+                          <input type="checkbox" class="form-check-input product-select-all"
+                                 data-product-id="<%= stat[:product].id %>" title="Select all in-stock batches for this product">
+                        </th>
                         <th class="fw-bold"><i class="bi bi-hash me-2"></i>Batch #</th>
                         <th class="fw-bold"><i class="bi bi-calendar3 me-2"></i>Date</th>
                         <th class="fw-bold"><i class="bi bi-building me-2"></i>Vendor</th>
@@ -246,7 +267,15 @@
                     </thead>
                     <tbody>
                       <% stat[:batches].each_with_index do |batch, batch_index| %>
-                        <tr class="<%= batch.quantity_remaining <= 0 ? 'table-light bg-opacity-50' : '' %> batch-row">
+                        <tr class="<%= batch.quantity_remaining <= 0 ? 'table-light bg-opacity-50 batch-sold-out' : '' %> batch-row">
+                          <td class="no-strike">
+                            <% if batch.quantity_remaining > 0 %>
+                              <input type="checkbox" class="form-check-input batch-checkbox"
+                                     value="<%= batch.id %>" data-product-id="<%= stat[:product].id %>">
+                            <% else %>
+                              <input type="checkbox" class="form-check-input" disabled title="Already sold out">
+                            <% end %>
+                          </td>
                           <td>
                             <div class="d-flex align-items-center">
                               <span class="badge fs-6 px-3 py-2 <%= batch.quantity_remaining <= 0 ? 'bg-danger' : batch_index == 0 ? 'bg-success' : 'bg-primary' %>">
@@ -296,7 +325,7 @@
                               ₹<%= number_with_delimiter((batch.quantity_remaining * batch.purchase_price).to_i) %>
                             </span>
                           </td>
-                          <td>
+                          <td class="no-strike">
                             <% if batch.quantity_remaining <= 0 %>
                               <span class="badge bg-danger fs-6 px-3 py-2"><i class="bi bi-x-circle me-1"></i>Exhausted</span>
                             <% elsif batch.quantity_remaining <= batch.quantity_purchased * 0.2 %>
@@ -305,7 +334,7 @@
                               <span class="badge bg-success fs-6 px-3 py-2"><i class="bi bi-check-circle me-1"></i>Available</span>
                             <% end %>
                           </td>
-                          <td>
+                          <td class="no-strike">
                             <div class="d-flex gap-1 flex-wrap">
                               <% if batch.vendor_purchase.present? %>
                                 <%= link_to admin_vendor_purchase_path(batch.vendor_purchase),
@@ -320,6 +349,12 @@
                               <%= link_to admin_product_path(batch.product),
                                   class: "btn btn-outline-secondary btn-sm px-2 py-1", title: "View Product" do %>
                                 <i class="bi bi-box"></i>
+                              <% end %>
+                              <% if batch.quantity_remaining > 0 %>
+                                <button type="button" class="btn btn-outline-danger btn-sm px-2 py-1 mark-sold-btn"
+                                        data-batch-id="<%= batch.id %>" title="Mark as Sold">
+                                  <i class="bi bi-check2-square"></i>
+                                </button>
                               <% end %>
                             </div>
                           </td>
@@ -669,4 +704,154 @@
   .btn:hover .bi {
     transform: scale(1.1);
   }
+
+  /* Automatically strike out a batch's data once it's fully consumed —
+     status/actions cells are excluded via .no-strike so badges and buttons
+     stay legible. */
+  .batch-sold-out td:not(.no-strike) {
+    text-decoration: line-through;
+    text-decoration-color: #dc3545;
+    color: #9ca3af !important;
+  }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const bulkBar = document.getElementById('bulk-batch-actions');
+  const selectedCountSpan = document.getElementById('selected-batch-count');
+
+  function batchCheckboxes() {
+    return document.querySelectorAll('.batch-checkbox');
+  }
+
+  function updateBulkBar() {
+    const checked = document.querySelectorAll('.batch-checkbox:checked');
+    if (checked.length > 0) {
+      bulkBar.style.display = 'block';
+      selectedCountSpan.textContent = checked.length;
+    } else {
+      bulkBar.style.display = 'none';
+    }
+  }
+
+  batchCheckboxes().forEach(cb => cb.addEventListener('change', updateBulkBar));
+
+  document.querySelectorAll('.product-select-all').forEach(function(selectAll) {
+    selectAll.addEventListener('change', function() {
+      const productId = this.dataset.productId;
+      document.querySelectorAll('.batch-checkbox[data-product-id="' + productId + '"]').forEach(cb => {
+        cb.checked = selectAll.checked;
+      });
+      updateBulkBar();
+    });
+  });
+
+  document.querySelectorAll('.mark-sold-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const batchId = this.dataset.batchId;
+      if (!confirm('Mark this batch as sold? Remaining quantity will be set to 0 and it will be struck out.')) return;
+
+      const originalContent = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+      fetch('/admin/vendor_purchases/mark_batch_as_sold', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: JSON.stringify({ batch_id: batchId })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          showNotification(data.message || 'Batch marked as sold', 'success');
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showNotification('Error: ' + (data.error || 'Unknown error occurred'), 'error');
+          btn.disabled = false;
+          btn.innerHTML = originalContent;
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error marking batch as sold. Please try again.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+      });
+    });
+  });
+});
+
+function bulkMarkBatchesAsSold() {
+  const selectedBatches = Array.from(document.querySelectorAll('.batch-checkbox:checked')).map(cb => cb.value);
+
+  if (selectedBatches.length === 0) {
+    showNotification('Please select batches to mark as sold', 'error');
+    return;
+  }
+
+  if (!confirm(`Mark ${selectedBatches.length} batch(es) as sold? Remaining quantity will be set to 0 and they will be struck out.`)) {
+    return;
+  }
+
+  const button = event.target;
+  const originalContent = button.innerHTML;
+  button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Processing...';
+  button.disabled = true;
+
+  fetch('/admin/vendor_purchases/bulk_mark_batches_as_sold', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+    },
+    body: JSON.stringify({ batch_ids: selectedBatches })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showNotification(data.message || `Successfully marked ${data.updated_count} batch(es) as sold`, 'success');
+      setTimeout(() => window.location.reload(), 1000);
+    } else {
+      showNotification('Error: ' + (data.error || 'Unknown error occurred'), 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showNotification('Error marking batches as sold. Please try again.', 'error');
+  })
+  .finally(() => {
+    button.innerHTML = originalContent;
+    button.disabled = false;
+  });
+}
+
+function clearBatchSelection() {
+  document.querySelectorAll('.batch-checkbox:checked').forEach(checkbox => {
+    checkbox.checked = false;
+  });
+  document.querySelectorAll('.product-select-all').forEach(cb => {
+    cb.checked = false;
+    cb.indeterminate = false;
+  });
+  document.getElementById('bulk-batch-actions').style.display = 'none';
+}
+
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show position-fixed`;
+  notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  notification.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
+  document.body.appendChild(notification);
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 5000);
+}
+</script>

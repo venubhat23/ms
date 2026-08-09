@@ -525,6 +525,8 @@ Rails.application.routes.draw do
       collection do
         get :batch_inventory
         post :bulk_mark_as_paid
+        post :mark_batch_as_sold
+        post :bulk_mark_batches_as_sold
       end
     end
 

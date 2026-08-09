@@ -252,7 +252,91 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
     end
   end
 
+  # Manual write-off for a single batch — lets an admin close out a batch
+  # that's effectively gone (damaged, lost, sold outside the system) without
+  # waiting for ordinary sales to draw quantity_remaining down to 0.
+  def mark_batch_as_sold
+    batch = StockBatch.find(params[:batch_id])
+
+    if batch.quantity_remaining <= 0
+      respond_to do |format|
+        format.json { render json: { success: false, error: 'Batch is already sold out.' }, status: :unprocessable_entity }
+        format.html { redirect_back fallback_location: batch_inventory_admin_vendor_purchases_path, alert: 'Batch is already sold out.' }
+      end
+      return
+    end
+
+    write_off_batches!([batch])
+
+    respond_to do |format|
+      format.json { render json: { success: true, message: "Batch ##{batch.id} marked as sold." } }
+      format.html { redirect_back fallback_location: batch_inventory_admin_vendor_purchases_path, notice: "Batch ##{batch.id} marked as sold." }
+    end
+  rescue ActiveRecord::RecordNotFound
+    respond_to do |format|
+      format.json { render json: { success: false, error: 'Batch not found.' }, status: :not_found }
+      format.html { redirect_back fallback_location: batch_inventory_admin_vendor_purchases_path, alert: 'Batch not found.' }
+    end
+  end
+
+  # Bulk version of mark_batch_as_sold — same write-off, applied to every
+  # selected batch that still has stock remaining.
+  def bulk_mark_batches_as_sold
+    batch_ids = Array(params[:batch_ids]).reject(&:blank?)
+
+    if batch_ids.empty?
+      render json: { success: false, error: 'No batches selected' }, status: :bad_request
+      return
+    end
+
+    batches = StockBatch.where(id: batch_ids).where('quantity_remaining > 0').to_a
+
+    if batches.empty?
+      render json: { success: false, error: 'Selected batches are already sold out' }, status: :bad_request
+      return
+    end
+
+    write_off_batches!(batches)
+
+    render json: {
+      success: true,
+      updated_count: batches.size,
+      message: "Marked #{batches.size} batch(es) as sold"
+    }
+  rescue => e
+    Rails.logger.error "Bulk mark batches as sold error: #{e.message}"
+    render json: {
+      success: false,
+      error: "Error marking batches as sold: #{e.message}"
+    }, status: :internal_server_error
+  end
+
   private
+
+  # Zeroes out remaining quantity (StockBatch#update_status flips status to
+  # 'exhausted' automatically) and logs a StockMovement adjustment per batch
+  # so the write-off shows up in stock history, same as any other movement.
+  def write_off_batches!(batches)
+    StockBatch.transaction do
+      batches.each do |batch|
+        before_qty = batch.quantity_remaining
+        next if before_qty <= 0
+
+        batch.update!(quantity_remaining: 0)
+
+        StockMovement.create!(
+          product_id: batch.product_id,
+          reference_type: 'adjustment',
+          reference_id: batch.id,
+          movement_type: 'adjusted',
+          quantity: -before_qty,
+          stock_before: before_qty,
+          stock_after: 0,
+          notes: "Batch ##{batch.id} manually marked as sold by #{current_user.email}"
+        )
+      end
+    end
+  end
 
   def set_vendor_purchase
     @vendor_purchase = VendorPurchase.find(params[:id])

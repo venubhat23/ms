@@ -1,0 +1,38 @@
+<% content_for :page_title, "Request Withdrawal" %>
+
+<div class="mb-4">
+  <h2 class="mb-1">Request Withdrawal</h2>
+  <p class="text-muted mb-0">Available balance: <strong><%= @wallet&.formatted_balance || '₹0.00' %></strong></p>
+</div>
+
+<div class="card border-0 shadow-sm" style="max-width: 520px;">
+  <div class="card-body">
+    <% if @withdrawal_request&.errors&.any? %>
+      <div class="alert alert-danger">
+        <ul class="mb-0">
+          <% @withdrawal_request.errors.full_messages.each do |message| %>
+            <li><%= message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with model: @withdrawal_request, url: affiliate_withdrawal_requests_path, local: true do |f| %>
+      <div class="mb-3">
+        <%= f.label :amount, "Amount (₹)", class: "form-label" %>
+        <%= f.number_field :amount, class: "form-control", step: "0.01",
+              min: AffiliateWithdrawalRequest::MINIMUM_AMOUNT, required: true %>
+        <small class="text-muted">Minimum withdrawal amount is ₹<%= AffiliateWithdrawalRequest::MINIMUM_AMOUNT %>.</small>
+      </div>
+
+      <div class="mb-3">
+        <%= f.label :notes, "Notes (Optional)", class: "form-label" %>
+        <%= f.text_area :notes, class: "form-control", rows: 2, placeholder: "Any note for the admin reviewing this request" %>
+      </div>
+
+      <div class="d-grid">
+        <%= f.submit "Submit Request", class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>

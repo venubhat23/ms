@@ -15,8 +15,10 @@ class Customer::RegistrationsController < Customer::BaseController
     @customer = Customer.new(customer_params)
     @customer.password = params[:customer][:password]
     @customer.password_confirmation = params[:customer][:password_confirmation]
+    @customer.referred_by_affiliate_id = referring_affiliate&.id
 
     if @customer.save
+      session.delete(:referral_affiliate_code)
       sign_in_customer(@customer)
       redirect_to customer_dashboard_path, notice: 'Account created successfully! Welcome!'
     else
@@ -26,6 +28,16 @@ class Customer::RegistrationsController < Customer::BaseController
   end
 
   private
+
+  # A code typed into the registration form wins over one captured earlier
+  # from a ?ref= link, in case the visitor is registering with someone
+  # else's code (e.g. a friend told them the code directly).
+  def referring_affiliate
+    code = params[:customer][:affiliate_code].presence || session[:referral_affiliate_code]
+    return nil if code.blank?
+
+    Affiliate.active.find_by(affiliate_code: code)
+  end
 
   def customer_params
     params.require(:customer).permit(

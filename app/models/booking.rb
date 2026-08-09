@@ -62,9 +62,39 @@ class Booking < ApplicationRecord
   before_validation :calculate_totals
   before_validation :calculate_final_amount_after_discount
   after_validation :ensure_total_amount_present
+  before_create :attribute_to_referring_affiliate
   after_update :allocate_inventory, if: :saved_change_to_status?
   after_update :sync_invoice_payment_status, if: :saved_change_to_payment_status?
+  after_update :credit_affiliate_commission, if: :saved_change_to_status?
   after_commit :bust_mobile_customer_cache
+
+  # Covers every booking-creation path (customer checkout, admin, franchise,
+  # affiliate portal, mobile API, ...) from one place instead of needing each
+  # controller to remember to set affiliate_id when the customer was referred.
+  def attribute_to_referring_affiliate
+    self.affiliate_id ||= customer&.referred_by_affiliate_id
+  end
+
+  # Pays the referring affiliate their cut once the sale is final. Guarded by
+  # affiliate_commission_credited_at so this can never double-credit even if
+  # the status-change callback somehow fires more than once for the same
+  # completed booking.
+  def credit_affiliate_commission
+    return unless completed? && affiliate_id.present? && affiliate_commission_credited_at.nil?
+
+    commission_amount = (total_amount.to_f * affiliate.commission_percentage.to_f / 100.0).round(2)
+    return unless commission_amount.positive?
+
+    transaction do
+      update_column(:affiliate_commission_credited_at, Time.current)
+      affiliate.affiliate_wallet.add_money(
+        commission_amount,
+        "Commission for Booking ##{booking_number}",
+        "COMM-BK-#{id}",
+        booking_id: id
+      )
+    end
+  end
 
   # Keeps the already-generated Invoice's payment_status in step with the booking's,
   # so a booking marked paid after invoice creation doesn't leave a stale "unpaid" invoice.

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Welcome Affiliate - Marali Santhe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --color-primary: #667eea; --color-primary-dark: #764ba2; }
+    body {
+      font-family: 'Poppins', sans-serif !important;
+      margin: 0 !important;
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
+      min-height: 100vh;
+    }
+    .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+    .card-box {
+      background: rgba(255,255,255,0.95); border-radius: 24px; padding: 2.5rem;
+      max-width: 560px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+    }
+    .cred-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid #eee; }
+    .cred-label { color: #6b7280; font-weight: 600; font-size: 0.9rem; }
+    .cred-value { font-weight: 700; font-family: monospace; }
+    .link-box { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 0.75rem 1rem; word-break: break-all; font-family: monospace; font-size: 0.9rem; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%) !important;
+      border: none !important; border-radius: 16px !important; font-weight: 700 !important;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card-box">
+    <div class="text-center mb-4">
+      <i class="fas fa-circle-check fa-3x text-success mb-3"></i>
+      <h2 class="fw-bold">You're in, <%= @affiliate.first_name %>!</h2>
+      <p class="text-muted mb-0">Save these login details now — this is the only time your password is shown.</p>
+    </div>
+
+    <div class="mb-4">
+      <div class="cred-row">
+        <span class="cred-label">Affiliate Code</span>
+        <span class="cred-value"><%= @affiliate.affiliate_code %></span>
+      </div>
+      <div class="cred-row">
+        <span class="cred-label">Username</span>
+        <span class="cred-value"><%= @affiliate.username %></span>
+      </div>
+      <div class="cred-row">
+        <span class="cred-label">Password</span>
+        <span class="cred-value"><%= @affiliate.auto_generated_password %></span>
+      </div>
+      <div class="cred-row">
+        <span class="cred-label">Commission Rate</span>
+        <span class="cred-value"><%= @affiliate.formatted_commission %></span>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <div class="cred-label mb-2">Your Referral Link</div>
+      <div class="link-box"><%= @affiliate.referral_link(request.base_url) %></div>
+      <small class="text-muted">Share this link — anyone who registers through it, and later buys, earns you commission.</small>
+    </div>
+
+    <div class="d-grid">
+      <%= link_to "Go to Affiliate Login", affiliate_login_path, class: "btn btn-primary btn-lg py-3" %>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -52,7 +52,8 @@
                    value="<%= group[:group_id] %>"
                    class="form-check-input group-checkbox mt-0" style="cursor:pointer;">
           <% end %>
-          <div class="flex-grow-1">
+          <div class="flex-grow-1"
+               <% if group[:total_count] > 1 %>role="button" style="cursor:pointer;" onclick="openGroupItemsModal('<%= j group[:group_id] %>')"<% end %>>
             <div class="d-flex align-items-center gap-2 flex-wrap">
               <span class="fw-semibold"><%= group[:from_store] %> &rarr; <%= group[:to_store] %></span>
               <% case group[:status]
@@ -66,7 +67,7 @@
                 <span class="badge bg-secondary-subtle text-secondary"><%= group[:status]&.capitalize %></span>
               <% end %>
               <span class="text-muted small">
-                <%= group[:transfers].size %> product<%= group[:transfers].size == 1 ? '' : 's' %>
+                <%= group[:total_count] %> product<%= group[:total_count] == 1 ? '' : 's' %>
               </span>
             </div>
             <div class="text-muted small mt-1">
@@ -80,7 +81,7 @@
 
           <% if is_pending %>
             <div class="d-flex gap-2 align-items-start flex-shrink-0">
-              <% if group[:transfers].size > 1 %>
+              <% if group[:total_count] > 1 %>
                 <!-- Approve entire group -->
                 <form action="<%= approve_group_admin_stock_transfers_path %>" method="post"
                       data-turbo="false" data-bulk-form data-verb="Approve"
@@ -89,7 +90,7 @@
                   <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
                   <%= hidden_field_tag :group_id, group[:group_id] %>
                   <button type="submit" class="btn btn-success btn-sm" style="border-radius:6px; font-size:0.8rem;"
-                          onclick="return confirm('Approve all <%= group[:transfers].size %> products in this request?')">
+                          onclick="return confirm('Approve all <%= group[:total_count] %> products in this request?')">
                     <i class="bi bi-check2-all me-1"></i>Approve All
                   </button>
                 </form>
@@ -103,7 +104,7 @@
         </div>
 
         <!-- Reject All form (hidden) -->
-        <% if is_pending && group[:transfers].size > 1 %>
+        <% if is_pending && group[:total_count] > 1 %>
           <div id="group_reject_<%= group[:group_id] %>" style="display:none;" class="px-4 py-2 bg-danger-subtle">
             <form action="<%= reject_group_admin_stock_transfers_path %>" method="post" class="d-flex gap-2 align-items-center"
                   data-turbo="false" data-bulk-form data-verb="Reject"
@@ -119,91 +120,21 @@
           </div>
         <% end %>
 
-        <!-- Products Table -->
+        <!-- Products -->
         <div class="card-body p-0">
-          <table class="table table-hover mb-0" style="font-size:0.85rem;">
-            <thead style="background:#fafbfc; font-size:0.78rem;">
-              <tr>
-                <th class="px-4 py-2">Product</th>
-                <th class="py-2">Requested</th>
-                <th class="py-2">Available</th>
-                <th class="py-2">Status</th>
-                <th class="py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% group[:transfers].each do |t| %>
-                <% avail = group[:stock_cache][[t.product_id, t.from_store_id]].to_f %>
-                <tr class="<%= avail < t.quantity && t.status == 'pending' ? 'table-danger' : '' %>">
-                  <td class="px-4 py-2">
-                    <strong><%= t.product&.name %></strong>
-                    <% if t.product_variant %>
-                      <span class="badge bg-primary-subtle text-primary ms-1" style="font-size:0.7rem;"><%= t.product_variant.label %></span>
-                    <% end %>
-                  </td>
-                  <td class="py-2 fw-semibold"><%= t.quantity %></td>
-                  <td class="py-2">
-                    <% if t.status == 'pending' %>
-                      <% if avail > 0 %>
-                        <span class="text-success fw-semibold"><%= avail.to_i %></span>
-                        <% if avail < t.quantity %>
-                          <span class="badge bg-danger ms-1" style="font-size:0.68rem;">Low</span>
-                        <% end %>
-                      <% else %>
-                        <span class="text-danger fw-semibold">0</span>
-                        <span class="badge bg-danger ms-1" style="font-size:0.68rem;">No stock</span>
-                      <% end %>
-                    <% else %>
-                      <span class="text-muted">—</span>
-                    <% end %>
-                  </td>
-                  <td class="py-2">
-                    <% case t.status
-                       when 'pending' %>
-                      <span class="badge bg-warning-subtle text-warning">Pending</span>
-                    <% when 'completed' %>
-                      <span class="badge bg-success-subtle text-success">Completed</span>
-                    <% when 'rejected' %>
-                      <span class="badge bg-danger-subtle text-danger">Rejected</span>
-                    <% else %>
-                      <span class="badge bg-secondary-subtle text-secondary"><%= t.status&.capitalize %></span>
-                    <% end %>
-                    <% if t.rejection_reason.present? %>
-                      <div class="text-muted" style="font-size:0.72rem;"><%= t.rejection_reason %></div>
-                    <% end %>
-                  </td>
-                  <td class="py-2">
-                    <% if t.status == 'pending' %>
-                      <div class="d-flex gap-1">
-                        <%= button_to approve_admin_stock_transfer_path(t), method: :patch,
-                            form: { data: { turbo_confirm: "Approve #{t.quantity} × #{t.product&.name}?" } },
-                            class: "btn btn-sm btn-outline-success", style: "border-radius:6px; font-size:0.75rem;" do %>
-                          <i class="bi bi-check-lg"></i> Approve
-                        <% end %>
-                        <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius:6px; font-size:0.75rem;"
-                                onclick="rejectTransfer(<%= t.id %>)">
-                          <i class="bi bi-x-lg"></i> Reject
-                        </button>
-                      </div>
-                      <form id="reject_form_<%= t.id %>" action="<%= reject_admin_stock_transfer_path(t) %>" method="post" style="display:none; margin-top:0.4rem;">
-                        <%= hidden_field_tag :_method, 'patch' %>
-                        <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-                        <input type="text" name="rejection_reason" placeholder="Reason (optional)" class="form-control form-control-sm mb-1">
-                        <button type="submit" class="btn btn-danger btn-sm" style="border-radius:6px; font-size:0.75rem;">Confirm Reject</button>
-                      </form>
-                    <% end %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-          <% if group[:truncated] %>
-            <div class="text-center py-3 border-top">
-              <%= link_to show_group_admin_stock_transfers_path(group_id: group[:group_id]),
-                  class: "btn btn-outline-primary btn-sm" do %>
-                Showing <%= group[:transfers].size %> of <%= group[:total_count] %> products &mdash; View full request
-              <% end %>
+          <% if group[:total_count] > 1 %>
+            <div class="d-flex align-items-center justify-content-between px-4 py-3">
+              <div class="text-muted small">
+                <i class="bi bi-box-seam me-1"></i>
+                <%= group[:total_count] %> products in this request
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm" style="border-radius:6px;"
+                      onclick="openGroupItemsModal('<%= j group[:group_id] %>')">
+                <i class="bi bi-eye me-1"></i>View all <%= group[:total_count] %> items
+              </button>
             </div>
+          <% else %>
+            <%= render 'items_table', transfers: group[:transfers], stock_cache: group[:stock_cache] %>
           <% end %>
         </div>
       </div>
@@ -245,6 +176,45 @@ function confirmBulk(action) {
   const verb = action === 'reject' ? 'Reject' : 'Approve';
   return confirm(verb + ' all selected ' + checked + ' request(s)?');
 }
+
+let groupItemsModalInstance = null;
+function openGroupItemsModal(groupId) {
+  if (!groupItemsModalInstance) {
+    groupItemsModalInstance = new bootstrap.Modal(document.getElementById('groupItemsModal'));
+  }
+  const body = document.getElementById('groupItemsModalBody');
+  body.innerHTML = '<div class="text-center py-5"><div class="spinner-border" style="color:#1C7C54;" role="status"></div><div class="text-muted small mt-2">Loading items&hellip;</div></div>';
+  document.getElementById('groupItemsModalFullLink').href =
+    '<%= show_group_admin_stock_transfers_path(group_id: "GROUP_ID_PLACEHOLDER") %>'.replace('GROUP_ID_PLACEHOLDER', encodeURIComponent(groupId));
+  groupItemsModalInstance.show();
+
+  fetch('<%= group_items_admin_stock_transfers_path %>?group_id=' + encodeURIComponent(groupId), { headers: { 'Accept': 'text/html' } })
+    .then(function(r) { if (!r.ok) throw new Error('failed'); return r.text(); })
+    .then(function(html) { body.innerHTML = html; })
+    .catch(function() {
+      body.innerHTML = '<div class="text-center py-5 text-danger"><i class="bi bi-exclamation-triangle fs-2 mb-2 d-block"></i>Failed to load items. Please try again.</div>';
+    });
+}
 </script>
 
+<!-- View Items Modal -->
+<div class="modal fade" id="groupItemsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content" style="border-radius:14px; border:none;">
+      <div class="modal-header">
+        <h6 class="modal-title fw-semibold mb-0"><i class="bi bi-box-seam me-2" style="color:#1C7C54;"></i>Request items</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0" id="groupItemsModalBody"></div>
+      <div class="modal-footer">
+        <a href="#" id="groupItemsModalFullLink" class="btn btn-outline-secondary btn-sm me-auto" style="border-radius:6px;">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Open as full page
+        </a>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="border-radius:6px;">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <%= render 'bulk_progress_modal' %>
+<%= render 'simple_action_overlay' %>

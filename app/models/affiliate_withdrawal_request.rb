@@ -1,0 +1,67 @@
+class AffiliateWithdrawalRequest < ApplicationRecord
+  MINIMUM_AMOUNT = 500
+
+  belongs_to :affiliate
+  belongs_to :approved_by_user, class_name: 'User', foreign_key: :approved_by_user_id, optional: true
+
+  enum :status, { pending: 'pending', approved: 'approved', rejected: 'rejected', paid: 'paid' }
+
+  validates :amount, presence: true, numericality: { greater_than_or_equal_to: MINIMUM_AMOUNT }
+  validate :sufficient_wallet_balance, on: :create
+
+  before_validation :set_requested_at, on: :create
+  after_create :debit_wallet!
+
+  scope :recent, -> { order(created_at: :desc) }
+
+  def formatted_amount
+    "₹#{amount.to_f.round(2)}"
+  end
+
+  def approve!(user)
+    return false unless pending?
+    update!(status: :approved, approved_at: Time.current, approved_by_user_id: user&.id)
+  end
+
+  # Reverses the hold placed on the wallet at request time.
+  def reject!(user, reason = nil)
+    return false unless pending?
+
+    transaction do
+      update!(status: :rejected, approved_by_user_id: user&.id, notes: [notes, reason].compact_blank.join("\n"))
+      affiliate.affiliate_wallet.add_money(amount, "Withdrawal request ##{id} rejected — refunded", "WD-REFUND-#{id}")
+    end
+
+    true
+  end
+
+  def mark_paid!(payment_reference:)
+    return false unless approved?
+    update!(status: :paid, paid_at: Time.current, payment_reference: payment_reference)
+  end
+
+  private
+
+  def set_requested_at
+    self.requested_at ||= Time.current
+  end
+
+  def sufficient_wallet_balance
+    wallet = affiliate&.affiliate_wallet
+    if wallet.nil?
+      errors.add(:amount, "affiliate wallet not found")
+    elsif amount.present? && amount > wallet.balance
+      errors.add(:amount, "exceeds available wallet balance (#{wallet.formatted_balance})")
+    end
+  end
+
+  # Funds are held immediately on request (not at approval) so the wallet
+  # balance always reflects what's actually still available to request —
+  # locks the wallet row to stay correct if two requests are submitted at
+  # the same time.
+  def debit_wallet!
+    wallet = affiliate.affiliate_wallet.lock!
+    raise "Insufficient affiliate wallet balance" unless wallet.balance >= amount
+    wallet.deduct_money(amount, "Withdrawal request ##{id}", "WD-#{id}")
+  end
+end

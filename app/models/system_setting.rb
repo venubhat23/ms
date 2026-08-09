@@ -3,6 +3,27 @@ class SystemSetting < ApplicationRecord
   validates :value, presence: true
   validates :setting_type, presence: true
 
+  # See lib/local_ttl_cache.rb for why this exists: every SystemSetting read
+  # (theme, collect-from-store toggle, delivery settings, etc.) otherwise
+  # hits the DB directly, every single call, on every page in the app.
+  # Settings only change through the admin Settings screens, so 20s of
+  # staleness is unnoticeable in practice.
+  LOCAL_CACHE = LocalTtlCache.new
+  LOCAL_TTL = 20.seconds
+  SYSTEM_CONFIG_KEY = 'system_config'
+  BUSINESS_CONFIG_KEY = 'business_config'
+
+  # Single cached read of the singleton `system_config` / `business_config`
+  # rows, so the many one-off `find_by(key: ...)` accessors below share one
+  # DB round trip instead of each paying their own.
+  def self.cached_system_config
+    LOCAL_CACHE.fetch(SYSTEM_CONFIG_KEY, LOCAL_TTL) { find_by(key: SYSTEM_CONFIG_KEY) }
+  end
+
+  def self.cached_business_config
+    LOCAL_CACHE.fetch(BUSINESS_CONFIG_KEY, LOCAL_TTL) { find_by(key: BUSINESS_CONFIG_KEY) }
+  end
+
   # Public storefront (HomeController#index) theme options — each maps to a
   # static HTML file under public/websites/. `swatch` drives the small
   # CSS-drawn thumbnail on the picker cards in admin/settings/system.
@@ -66,6 +87,12 @@ class SystemSetting < ApplicationRecord
       description: 'Dark navy with electric blue & neon glow — futuristic smart-grocery feel.',
       file: 'websites/neo-tech.html',
       swatch: %w[#070b14 #3b82f6 #39ff88]
+    },
+    'ayur-wellness' => {
+      name: 'Ayurvedic Wellness',
+      description: 'Sage green & gold, rounded sans-serif — organic wellness-brand editorial style.',
+      file: 'websites/ayur-wellness.html',
+      swatch: %w[#4a6741 #c89b3c #faf8f2]
     }
   }.freeze
 
@@ -75,8 +102,7 @@ class SystemSetting < ApplicationRecord
 
   # Class method to get a setting value by key
   def self.get_value(key)
-    setting = find_by(key: key)
-    setting&.value
+    LOCAL_CACHE.fetch(key, LOCAL_TTL) { find_by(key: key)&.value }
   end
 
   # Class method to set a setting value by key
@@ -86,6 +112,10 @@ class SystemSetting < ApplicationRecord
     setting.description = description if description
     setting.setting_type = setting_type
     setting.save!
+    # Update this worker's copy immediately so the admin who just saved the
+    # setting sees it take effect right away, rather than waiting out
+    # LOCAL_TTL. Other worker processes still pick it up within LOCAL_TTL.
+    LOCAL_CACHE.write(key, value, LOCAL_TTL)
     setting
   end
 
@@ -179,13 +209,15 @@ class SystemSetting < ApplicationRecord
       default_ambassador_commission: params[:default_ambassador_commission],
       default_company_expenses: params[:default_company_expenses]
     )
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
   end
 
   # Business Settings Methods
 
   # Singleton pattern to get the current business settings
   def self.business_settings
-    find_by(key: 'business_config') || new
+    cached_business_config || new
   end
 
   # Update business settings
@@ -214,6 +246,7 @@ class SystemSetting < ApplicationRecord
     }
     update_attrs[:invoice_template] = params[:invoice_template] if column_names.include?('invoice_template') && params[:invoice_template].present?
     setting.update!(update_attrs)
+    LOCAL_CACHE.delete(BUSINESS_CONFIG_KEY)
 
     setting
   end
@@ -231,8 +264,7 @@ class SystemSetting < ApplicationRecord
 
   # Check if collect from store feature is enabled
   def self.collect_from_store_enabled?
-    setting = find_by(key: 'system_config')
-    setting&.collect_from_store_enabled || false
+    cached_system_config&.collect_from_store_enabled || false
   end
 
   # Enable or disable collect from store feature
@@ -244,6 +276,7 @@ class SystemSetting < ApplicationRecord
     end
 
     setting.update!(collect_from_store_enabled: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
     setting
   end
 
@@ -256,6 +289,7 @@ class SystemSetting < ApplicationRecord
     end
 
     setting.update!(collect_from_store_enabled: params[:collect_from_store_enabled] || false)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
     setting
   end
 
@@ -263,8 +297,7 @@ class SystemSetting < ApplicationRecord
 
   # Check if delivery only at shop feature is enabled
   def self.delivery_only_at_shop_enabled?
-    setting = find_by(key: 'system_config')
-    setting&.delivery_only_at_shop || false
+    cached_system_config&.delivery_only_at_shop || false
   end
 
   # Enable or disable delivery only at shop feature
@@ -276,13 +309,13 @@ class SystemSetting < ApplicationRecord
     end
 
     setting.update!(delivery_only_at_shop: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
     setting
   end
 
   # Get shop addresses as array
   def self.get_shop_addresses
-    setting = find_by(key: 'system_config')
-    addresses = setting&.shop_addresses
+    addresses = cached_system_config&.shop_addresses
     return [] if addresses.blank?
 
     JSON.parse(addresses) rescue []
@@ -297,6 +330,7 @@ class SystemSetting < ApplicationRecord
     end
 
     setting.update!(shop_addresses: addresses_array.to_json)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
     setting
   end
 
@@ -322,6 +356,7 @@ class SystemSetting < ApplicationRecord
       delivery_only_at_shop: delivery_enabled,
       shop_addresses: addresses.to_json
     )
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
 
     setting
   end
@@ -335,18 +370,15 @@ class SystemSetting < ApplicationRecord
   # Low Stock Alert Methods
 
   def self.low_stock_alert_enabled?
-    setting = find_by(key: 'system_config')
-    setting&.low_stock_alert_enabled || false
+    cached_system_config&.low_stock_alert_enabled || false
   end
 
   def self.low_stock_alert_threshold
-    setting = find_by(key: 'system_config')
-    setting&.low_stock_alert_threshold || 10
+    cached_system_config&.low_stock_alert_threshold || 10
   end
 
   def self.low_stock_alert_email
-    setting = find_by(key: 'system_config')
-    setting&.low_stock_alert_email.presence || business_settings&.email
+    cached_system_config&.low_stock_alert_email.presence || business_settings&.email
   end
 
   def self.update_low_stock_settings(params)
@@ -360,6 +392,7 @@ class SystemSetting < ApplicationRecord
       low_stock_alert_threshold: params[:low_stock_alert_threshold].to_i,
       low_stock_alert_email:     params[:low_stock_alert_email]
     )
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
     setting
   end
 end

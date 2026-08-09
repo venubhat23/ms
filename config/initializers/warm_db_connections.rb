@@ -59,8 +59,11 @@ if defined?(Rails::Server)
 
     # Re-warm well inside whatever idle window drops a connection, so the
     # pool never gets the chance to go fully cold between requests on a
-    # quiet admin app.
-    Concurrent::TimerTask.new(execution_interval: 3.minutes, timeout_interval: 30) do
+    # quiet admin app. Tightened from 3min to 90s after production requests
+    # kept eating the ~1.5-2.5s reconnect tax mid-request, implying the
+    # network path was dropping idle connections faster than the old interval
+    # re-warmed them.
+    Concurrent::TimerTask.new(execution_interval: 90.seconds, timeout_interval: 30) do
       warm_db_connection_pools.call
     end.execute
   end

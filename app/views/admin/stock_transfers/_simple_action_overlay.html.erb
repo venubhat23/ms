@@ -1,0 +1,27 @@
+<div id="simpleActionOverlay" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.35); z-index:2000; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:16px; padding:2rem 2.5rem; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.2); min-width:260px;">
+    <i class="bi bi-arrow-repeat" style="font-size:2rem; color:#1C7C54; display:inline-block; animation: simple-loader-spin 1s linear infinite;"></i>
+    <div id="simpleActionOverlayText" class="fw-semibold mt-3" style="color:#1C7C54;">Processing&hellip;</div>
+    <div class="text-muted small mt-1">Please wait a moment</div>
+  </div>
+</div>
+
+<style>
+  @keyframes simple-loader-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+</style>
+
+<script>
+(function() {
+  document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    if (!form.dataset.simpleLoader || form.hasAttribute('data-bulk-form')) return;
+    const verb = form.dataset.simpleLoader === 'reject' ? 'Rejecting' : 'Approving';
+    document.getElementById('simpleActionOverlayText').textContent = verb + '…';
+    document.getElementById('simpleActionOverlay').style.display = 'flex';
+  });
+})();
+</script>

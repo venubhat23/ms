@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marali Santhe – Ayurvedic Organic Wellness</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sage:#4a6741;--sage-dark:#33492c;--sage-light:#eef3ea;
+  --gold:#c89b3c;--gold-light:#f2dfa8;
+  --dark:#1e2a1a;--cream:#faf8f2;--white:#fff;
+  --gray:#f4f5f1;--muted:#6f7268;--text:#26291f;--red:#c0392b;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;color:var(--text);overflow-x:hidden;background:var(--white)}
+h1,h2,h3,h4{font-family:'Poppins',sans-serif}
+
+/* ── TOP BAR ── */
+.top-bar{background:var(--sage-dark);color:var(--white);display:flex;justify-content:center;gap:36px;align-items:center;padding:9px 20px;font-size:12px;letter-spacing:.3px;font-weight:500;flex-wrap:wrap}
+.top-bar span{white-space:nowrap}
+.top-bar b{color:var(--gold-light)}
+
+/* ── NAV ── */
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 48px;height:76px;background:var(--white);position:sticky;top:0;z-index:300;box-shadow:0 2px 14px rgba(0,0,0,.06)}
+.nav-left,.nav-right{flex:1;display:flex;align-items:center}
+.nav-right{justify-content:flex-end;gap:22px}
+.nav-links{display:flex;gap:30px;list-style:none;align-items:center}
+.nav-links a{text-decoration:none;color:var(--text);font-size:13.5px;font-weight:600}
+.nav-links a:hover{color:var(--sage)}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;flex-shrink:0}
+.brand-mark{width:46px;height:46px;border-radius:50%;overflow:hidden;background:var(--sage);flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(74,103,65,.35)}
+.brand-mark img{width:100%;height:100%;object-fit:cover}
+.brand-word{display:flex;flex-direction:column;line-height:1.05}
+.brand-word b{font-family:'Poppins',sans-serif;font-size:19px;font-weight:800;color:var(--sage-dark);letter-spacing:.2px}
+.brand-word span{font-size:9.5px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);font-weight:600}
+.cart-link{position:relative;font-size:18px;text-decoration:none;color:var(--text);display:flex;align-items:center}
+.cart-badge{position:absolute;top:-8px;right:-11px;background:var(--red);color:var(--white);font-size:10px;font-weight:700;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center}
+.btn-pill-login{background:var(--sage);color:var(--white)!important;padding:9px 22px;border-radius:30px;font-size:12.5px!important;font-weight:600!important;text-decoration:none}
+.btn-pill-login:hover{background:var(--sage-dark)}
+.mobile-menu-toggle{display:none;background:none;border:none;font-size:24px;color:var(--text);cursor:pointer}
+.mobile-nav-links{display:none;position:absolute;top:100%;left:0;width:100%;background:var(--white);box-shadow:0 2px 10px rgba(0,0,0,.1);flex-direction:column;z-index:200}
+.mobile-nav-links.mobile-open{display:flex}
+.mobile-nav-links a{display:block;padding:15px 20px;text-decoration:none;color:var(--text);font-size:13.5px;font-weight:600;border-bottom:1px solid #eee}
+
+/* ── BUTTONS ── */
+.btn{display:inline-block;background:var(--sage);color:var(--white);padding:14px 34px;text-decoration:none;font-size:13px;font-weight:600;border:none;cursor:pointer;font-family:'Inter',sans-serif;border-radius:30px;transition:background .2s,transform .15s}
+.btn:hover{background:var(--sage-dark);transform:translateY(-2px)}
+.btn-gold{display:inline-block;background:var(--gold);color:var(--dark);padding:14px 34px;text-decoration:none;font-size:13px;font-weight:700;border-radius:30px;transition:background .2s}
+.btn-gold:hover{background:var(--gold-light)}
+.btn-outline-w{padding:13px 32px;border:2px solid rgba(255,255,255,.75);background:transparent;color:var(--white);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:30px;text-decoration:inline-block;display:inline-block;transition:all .2s}
+.btn-outline-w:hover{background:var(--white);color:var(--sage-dark)}
+
+/* ── HERO ── */
+.hero{position:relative;min-height:86vh;display:flex;align-items:center;overflow:hidden;background:var(--sage-dark)}
+.hero-bg{position:absolute;inset:0;background:url('https://images.pexels.com/photos/4198567/pexels-photo-4198567.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover;opacity:.42}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(120deg,rgba(30,42,26,.94) 0%,rgba(51,73,44,.75) 45%,rgba(74,103,65,.25) 100%)}
+.hero-body{position:relative;z-index:2;max-width:640px;padding:0 60px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:var(--white);font-size:12px;font-weight:600;letter-spacing:.5px;padding:8px 18px;border-radius:30px;margin-bottom:24px}
+.hero h1{font-size:clamp(34px,5vw,58px);font-weight:800;color:var(--white);line-height:1.12;margin-bottom:18px}
+.hero h1 em{font-style:normal;color:var(--gold-light)}
+.hero p{font-size:15px;color:rgba(255,255,255,.8);line-height:1.85;margin-bottom:34px;max-width:480px}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:40px}
+.hero-stats{display:flex;gap:36px;flex-wrap:wrap}
+.hero-stats div b{display:block;font-family:'Poppins',sans-serif;font-size:24px;font-weight:800;color:var(--gold-light)}
+.hero-stats div span{font-size:11.5px;color:rgba(255,255,255,.65);letter-spacing:.4px;text-transform:uppercase}
+
+/* ── TRUST STRIP ── */
+.trust{display:flex;justify-content:center;background:var(--white);border-bottom:1px solid #eee;flex-wrap:wrap}
+.trust-item{flex:1;min-width:180px;display:flex;align-items:center;gap:12px;padding:22px 26px;border-right:1px solid #eee;justify-content:center}
+.trust-item:last-child{border:none}
+.trust-item .ti{font-size:26px}
+.trust-item p{font-size:12.5px;font-weight:600;color:var(--sage-dark);line-height:1.4}
+.trust-item span.sub{display:block;font-size:11px;color:var(--muted);font-weight:400}
+
+/* ── SECTION LABELS ── */
+.sec-eyebrow{display:block;text-align:center;font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold);font-weight:700;padding-top:56px}
+.sec-title{text-align:center;padding:6px 20px 10px;font-family:'Poppins',sans-serif;font-size:clamp(26px,3vw,38px);font-weight:800;color:var(--sage-dark)}
+.sec-sub{text-align:center;font-size:14px;color:var(--muted);padding:0 20px 36px;line-height:1.7}
+
+/* ── SHOP BY CATEGORY (image tiles) ── */
+.catgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px;max-width:1240px;margin:0 auto 68px;padding:0 28px}
+.ctile{position:relative;height:210px;border-radius:16px;overflow:hidden;cursor:pointer;background:var(--sage-light);display:flex;align-items:flex-end}
+.ctile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.ctile:hover img{transform:scale(1.08)}
+.ctile-noimg{font-size:44px;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.35}
+.ctile-shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(30,42,26,.82) 0%,transparent 60%)}
+.ctile span{position:relative;z-index:2;color:var(--white);font-weight:700;font-size:15px;padding:18px;font-family:'Poppins',sans-serif}
+
+/* ── PRODUCT GRID ── */
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;max-width:1280px;margin:0 auto 30px;padding:0 28px}
+.pcard{background:var(--white);border:1px solid #ececE6;border-radius:14px;overflow:hidden;transition:box-shadow .25s,transform .22s;cursor:pointer;position:relative}
+.pcard:hover{box-shadow:0 16px 36px rgba(30,42,26,.12);transform:translateY(-4px)}
+.pcard-img{position:relative;height:220px;overflow:hidden;background:var(--cream);display:flex;align-items:center;justify-content:center}
+.pcard-img img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.pcard-img .no-image{font-size:30px;opacity:.3}
+.pcard:hover .pcard-img img{transform:scale(1.08)}
+.ptag{position:absolute;top:12px;left:12px;font-size:10.5px;font-weight:700;padding:6px 12px;text-transform:uppercase;border-radius:20px;letter-spacing:.4px}
+.ptag.discount{background:var(--red);color:var(--white)}
+.ptag.new{background:var(--gold);color:var(--dark)}
+.ptag.super{background:var(--sage);color:var(--white)}
+.ptag.oos{background:#999;color:var(--white)}
+.ptag.best{background:var(--dark);color:var(--gold-light)}
+.pcard-body{padding:18px 16px 20px}
+.pcard h4{font-size:14.5px;font-weight:600;margin-bottom:4px;line-height:1.4;color:var(--text)}
+.pcard .psub{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.pcard .pprice{font-size:17px;font-weight:800;margin-bottom:14px;color:var(--sage-dark);font-family:'Poppins',sans-serif}
+.pcard .pprice s{font-weight:400;color:#bbb;font-size:12px;margin-right:6px}
+.btn-add{width:100%;padding:11px;background:var(--sage);color:var(--white);border:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;letter-spacing:.3px;transition:background .2s;border-radius:30px}
+.btn-add:hover{background:var(--sage-dark)}
+.btn-add.out{background:#e2e2de;color:#999;cursor:not-allowed}
+
+/* ── WHY US STRIP ── */
+.why-strip{background:var(--sage-light);display:grid;grid-template-columns:repeat(4,1fr);max-width:1240px;margin:0 auto;border-radius:20px;overflow:hidden}
+.why-item{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 22px;text-align:center}
+.why-icon{font-size:34px;margin-bottom:12px;display:block}
+.why-item h4{font-size:15px;font-weight:700;color:var(--sage-dark);margin-bottom:4px}
+.why-item p{font-size:11.5px;color:var(--muted);letter-spacing:.3px}
+
+/* ── BANNER (brand story) ── */
+.banner{position:relative;min-height:440px;overflow:hidden;display:flex;align-items:center;justify-content:center;border-radius:24px;max-width:1240px;margin:64px auto;}
+.banner-bg-img{position:absolute;inset:0;background:url('https://images.pexels.com/photos/6157228/pexels-photo-6157228.jpeg?auto=compress&cs=tinysrgb&w=1600') center/cover}
+.banner::before{content:'';position:absolute;inset:0;background:rgba(30,42,26,.78)}
+.banner-body{position:relative;z-index:2;text-align:center;color:var(--white);max-width:680px;padding:50px 24px}
+.banner-body .leaf{font-size:40px;display:block;margin-bottom:14px}
+.banner-body h2{font-size:clamp(26px,4vw,42px);font-weight:800;margin-bottom:16px;line-height:1.2;font-family:'Poppins',sans-serif}
+.banner-body p{font-size:14.5px;line-height:1.85;color:rgba(255,255,255,.82);margin-bottom:8px}
+
+/* ── SPLIT ── */
+.split{display:flex;min-height:500px;max-width:1240px;margin:0 auto 64px;border-radius:24px;overflow:hidden}
+.split-img{flex:1;overflow:hidden;position:relative}
+.split-img img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s}
+.split:hover .split-img img{transform:scale(1.05)}
+.split-text{flex:1;background:var(--cream);display:flex;align-items:center;padding:56px 60px}
+.split-text h2{font-size:clamp(24px,3vw,36px);font-weight:800;margin-bottom:16px;line-height:1.2;color:var(--sage-dark)}
+.split-tag{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:12px;display:block}
+.split-text p{font-size:14px;line-height:1.9;color:var(--muted);margin-bottom:14px}
+
+/* ── REVIEWS ── */
+.reviews{background:var(--sage-dark);padding:80px 28px;border-radius:24px;max-width:1240px;margin:0 auto 64px}
+.reviews .sec-title,.reviews .sec-eyebrow{color:var(--white)}
+.reviews .sec-sub{color:rgba(255,255,255,.65)}
+.reviews-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1100px;margin:0 auto}
+.rcard{background:var(--white);padding:32px 26px;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.15)}
+.stars{color:var(--gold);font-size:18px;letter-spacing:3px;margin-bottom:14px}
+.rcard blockquote{font-size:13.5px;line-height:1.85;color:#555;margin-bottom:16px}
+.rcard cite{font-weight:700;font-style:normal;font-size:13px;color:var(--sage-dark)}
+
+/* ── NEWSLETTER ── */
+.mailing{background:var(--dark);border-radius:24px;max-width:1240px;margin:0 auto 72px;padding:56px 48px;display:flex;align-items:center;justify-content:space-between;gap:36px;flex-wrap:wrap}
+.mailing-left h3{font-size:26px;font-weight:800;color:var(--white);margin-bottom:6px;font-family:'Poppins',sans-serif}
+.mailing-left p{font-size:13px;color:rgba(255,255,255,.5)}
+.mailing-form{display:flex;flex:1;max-width:460px;min-width:260px}
+.mailing-form input{flex:1;padding:14px 20px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:var(--white);font-family:'Inter',sans-serif;font-size:13px;outline:none;border-radius:30px 0 0 30px}
+.mailing-form input::placeholder{color:rgba(255,255,255,.4)}
+.mailing-form button{padding:14px 26px;background:var(--gold);color:var(--dark);border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:700;font-size:12.5px;border-radius:0 30px 30px 0}
+.mailing-form button:hover{background:var(--gold-light)}
+
+/* ── FOOTER ── */
+footer{background:var(--dark);color:rgba(255,255,255,.62);padding:60px 52px 30px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:44px;margin-bottom:48px}
+.fbrand-name{font-family:'Poppins',sans-serif;font-size:24px;font-weight:800;color:var(--gold-light);margin-bottom:12px}
+.fbrand p{font-size:13px;line-height:1.9;max-width:280px;margin-top:8px}
+.fcol h5{color:var(--white);font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:18px}
+.fcol ul{list-style:none}
+.fcol ul li{margin-bottom:10px}
+.fcol ul li a{text-decoration:none;color:rgba(255,255,255,.55);font-size:13px}
+.fcol ul li a:hover{color:var(--gold-light)}
+.footer-contact{font-size:13px;color:rgba(255,255,255,.48);line-height:1.8;margin-top:14px}
+.footer-contact b{color:rgba(255,255,255,.75)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.3);flex-wrap:wrap;gap:12px}
+.footer-policy-links{display:flex;gap:20px}
+.footer-policy-links a{color:rgba(255,255,255,.48);text-decoration:none;font-size:12px}
+.footer-policy-links a:hover{color:var(--gold-light)}
+.socials{display:flex;gap:14px}
+.socials a{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);text-decoration:none;font-size:13px;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s}
+.socials a:hover{background:var(--gold);color:var(--dark)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--sage-dark);color:var(--white);padding:14px 28px;border-radius:30px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:960px){
+  nav{padding:0 16px;position:relative}
+  .mobile-menu-toggle{display:block}
+  .nav-links{display:none}
+  .hero-body{padding:0 24px}
+  .pgrid,.reviews-grid,.footer-grid{grid-template-columns:1fr 1fr}
+  .catgrid{grid-template-columns:repeat(2,1fr)}
+  .split{flex-direction:column}
+  .split-img{min-height:280px}
+  .why-strip{grid-template-columns:1fr 1fr}
+  .banner,.split,.reviews,.mailing{border-radius:16px;margin-left:16px;margin-right:16px}
+}
+@media(max-width:600px){
+  .pgrid,.reviews-grid,.footer-grid,.catgrid,.why-strip{grid-template-columns:1fr}
+  nav{height:auto;min-height:70px;padding:12px 16px}
+  .brand-word b{font-size:16px}
+  .hero{min-height:70vh}
+  .hero-body{padding:0 20px}
+  .hero h1{font-size:30px}
+  .trust-item{padding:14px 16px}
+  .sec-title{font-size:24px}
+  footer{padding:40px 24px 24px}
+  .mailing{padding:36px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✓ Added to cart!</div>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <span>🌿 <b>100% Ayurvedic &amp; Organic</b> — Sourced from Certified Farms</span>
+  <span>🚚 Free Delivery on orders above ₹499</span>
+  <span>💳 Cash on Delivery Available</span>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-left">
+    <ul class="nav-links">
+      <li><a href="#collection">Shop</a></li>
+      <li><a href="#bestsellers">Bestsellers</a></li>
+      <li><a href="#categories">Categories</a></li>
+    </ul>
+  </div>
+  <a class="brand" href="/">
+    <div class="brand-mark"><img src="logo.jpeg" alt="Marali Santhe"></div>
+    <div class="brand-word"><b>Marali Santhe</b><span>Ayurvedic Wellness</span></div>
+  </a>
+  <div class="nav-right">
+    <ul class="nav-links">
+      <li><a href="#new-arrivals">New</a></li>
+      <li><a href="<%= storefront_cart_path %>" class="cart-link" aria-label="Cart">🛒<% if cart_count > 0 %><span class="cart-badge"><%= cart_count %></span><% end %></a></li>
+      <li><a href="/customer/login" class="btn-pill-login">Login</a></li>
+    </ul>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+  </div>
+  <div class="mobile-nav-links" id="mobileNav">
+    <a href="#collection">Shop</a>
+    <a href="#bestsellers">Bestsellers</a>
+    <a href="#categories">Categories</a>
+    <a href="#new-arrivals">New Arrivals</a>
+    <a href="<%= storefront_cart_path %>">Cart (<%= cart_count %>)</a>
+    <a href="/customer/login">Login</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-body">
+    <span class="hero-badge">🌱 Trusted Organic &amp; Ayurvedic Wellness Brand</span>
+    <h1>Nourish Naturally,<br>Live <em>Wellness</em> Every Day</h1>
+    <p>Pure, chemical-free organic foods and Ayurvedic wellness essentials — grown by certified farms and delivered straight to your doorstep.</p>
+    <div class="hero-ctas">
+      <a href="#collection" class="btn">Shop Collection</a>
+      <a href="#bestsellers" class="btn-outline-w">Our Bestsellers</a>
+    </div>
+    <div class="hero-stats">
+      <div><b><%= @total_products %>+</b><span>Products</span></div>
+      <div><b>100%</b><span>Natural</span></div>
+      <div><b>4.8★</b><span>Customer Rating</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST STRIP -->
+<div class="trust">
+  <div class="trust-item"><span class="ti">🌿</span><p>100% Organic<span class="sub">Certified Farms</span></p></div>
+  <div class="trust-item"><span class="ti">🧪</span><p>Lab Tested<span class="sub">Purity Guaranteed</span></p></div>
+  <div class="trust-item"><span class="ti">🚚</span><p>Free Shipping<span class="sub">On orders ₹499+</span></p></div>
+  <div class="trust-item"><span class="ti">💳</span><p>Cash on Delivery<span class="sub">Pay when it arrives</span></p></div>
+</div>
+
+<!-- SHOP BY CATEGORY -->
+<span class="sec-eyebrow" id="categories">Explore</span>
+<h2 class="sec-title">Shop By Category</h2>
+<p class="sec-sub">Find exactly what your wellness routine needs</p>
+<div class="catgrid">
+  <% @products_by_category.each do |category_name, products| %>
+    <% tile_image = products.find(&:main_image_url)&.main_image_url %>
+    <div class="ctile">
+      <% if tile_image %>
+        <%= image_tag tile_image, alt: category_name %>
+      <% else %>
+        <span class="ctile-noimg">🌿</span>
+      <% end %>
+      <div class="ctile-shade"></div>
+      <span><%= category_name %> · <%= pluralize(products.size, 'item') %></span>
+    </div>
+  <% end %>
+</div>
+
+<!-- BESTSELLERS -->
+<% best_sellers = @products_by_category.values.flatten.select { |p| @best_seller_ids.include?(p.id) }.first(8) %>
+<% if best_sellers.any? %>
+  <span class="sec-eyebrow" id="bestsellers">Loved By Customers</span>
+  <h2 class="sec-title">Our Bestsellers</h2>
+  <p class="sec-sub">The wellness essentials our customers keep coming back for</p>
+  <div class="pgrid">
+    <% best_sellers.each do |product| %>
+      <div class="pcard">
+        <div class="pcard-img">
+          <% if product.main_image_url %>
+            <%= image_tag product.main_image_url, alt: product.name %>
+          <% else %>
+            <span class="no-image">🌿</span>
+          <% end %>
+          <% if !product.in_stock? %>
+            <span class="ptag oos">Out of Stock</span>
+          <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
+            <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
+          <% else %>
+            <span class="ptag best">★ Bestseller</span>
+          <% end %>
+        </div>
+        <div class="pcard-body">
+          <h4><%= product.name %></h4>
+          <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+          <div class="pprice">
+            <% if product.discounted? %>
+              <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+            <% else %>
+              ₹<%= product.selling_price %>
+            <% end %>
+          </div>
+          <% if product.in_stock? %>
+            <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+          <% else %>
+            <button class="btn-add out" disabled>Out of Stock</button>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<!-- WHY US -->
+<div class="why-strip">
+  <div class="why-item"><span class="why-icon">🍃</span><h4>Chemical Free</h4><p>No pesticides, no additives</p></div>
+  <div class="why-item"><span class="why-icon">🕉️</span><h4>Ayurvedic Roots</h4><p>Time-tested natural wisdom</p></div>
+  <div class="why-item"><span class="why-icon">👐</span><h4>Ethically Sourced</h4><p>Direct from certified farmers</p></div>
+  <div class="why-item"><span class="why-icon">📦</span><h4>Freshly Packed</h4><p>Sealed for maximum purity</p></div>
+</div>
+
+<!-- BRAND BANNER -->
+<div class="banner">
+  <div class="banner-bg-img"></div>
+  <div class="banner-body">
+    <span class="leaf">🌿</span>
+    <h2>Wellness, Rooted in Nature</h2>
+    <p>Marali Santhe brings together organic farming and Ayurvedic tradition to create products that nourish body and mind — free from chemicals, full of goodness.</p>
+    <a href="#collection" class="btn-gold" style="margin-top:24px;display:inline-block">Explore All Products</a>
+  </div>
+</div>
+
+<!-- FULL COLLECTION -->
+<span class="sec-eyebrow" id="collection">Full Range</span>
+<h2 class="sec-title">Shop Our Collection</h2>
+<p class="sec-sub">
+  <% if @products_by_category.present? %>
+    <%= pluralize(@total_products, 'item') %> across <%= pluralize(@products_by_category.size, 'category') %>
+  <% else %>
+    Our catalog is being restocked — please check back shortly
+  <% end %>
+</p>
+
+<% @products_by_category.each do |category_name, products| %>
+  <h2 class="sec-title" style="padding:24px 20px 4px;font-size:22px"><%= category_name %></h2>
+  <p class="sec-sub" style="padding-bottom:24px"><%= pluralize(products.size, 'item') %></p>
+  <div class="pgrid">
+    <% products.each do |product| %>
+      <div class="pcard">
+        <div class="pcard-img">
+          <% if product.main_image_url %>
+            <%= image_tag product.main_image_url, alt: product.name %>
+          <% else %>
+            <span class="no-image">🌿</span>
+          <% end %>
+          <% if !product.in_stock? %>
+            <span class="ptag oos">Out of Stock</span>
+          <% elsif @best_seller_ids.include?(product.id) %>
+            <span class="ptag best">★ Bestseller</span>
+          <% elsif @new_arrival_ids.include?(product.id) %>
+            <span class="ptag super">🆕 New</span>
+          <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
+            <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
+          <% end %>
+        </div>
+        <div class="pcard-body">
+          <h4><%= product.name %></h4>
+          <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+          <div class="pprice">
+            <% if product.discounted? %>
+              <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+            <% else %>
+              ₹<%= product.selling_price %>
+            <% end %>
+          </div>
+          <% if product.in_stock? %>
+            <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+          <% else %>
+            <button class="btn-add out" disabled>Out of Stock</button>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<!-- SPLIT: OUR STORY -->
+<div class="split">
+  <div class="split-img">
+    <img src="https://images.pexels.com/photos/2252584/pexels-photo-2252584.jpeg?auto=compress&cs=tinysrgb&w=900" alt="Organic Farm">
+  </div>
+  <div class="split-text">
+    <div>
+      <span class="split-tag">Our Story</span>
+      <h2>From Certified Farms<br>To Your Doorstep</h2>
+      <p>We partner directly with certified organic and Ayurvedic farmers across India — no middlemen, no shortcuts. Every product is traceable back to its source, grown the way nature intended.</p>
+      <p>Rooted in centuries-old Ayurvedic wisdom and backed by modern lab testing, our promise is simple: pure ingredients, honest labelling, real wellness.</p>
+      <a href="#collection" class="btn" style="margin-top:8px;display:inline-block">Discover Our Range</a>
+    </div>
+  </div>
+</div>
+
+<!-- NEW ARRIVALS -->
+<% if @new_arrivals.present? %>
+  <span class="sec-eyebrow" id="new-arrivals">Just In</span>
+  <h2 class="sec-title">New Arrivals</h2>
+  <p class="sec-sub">Fresh additions to the Marali Santhe family</p>
+  <div class="pgrid">
+    <% @new_arrivals.first(4).each do |product| %>
+      <div class="pcard">
+        <div class="pcard-img">
+          <% if product.main_image_url %>
+            <%= image_tag product.main_image_url, alt: product.name %>
+          <% else %>
+            <span class="no-image">🌿</span>
+          <% end %>
+          <span class="ptag super">🆕 New</span>
+        </div>
+        <div class="pcard-body">
+          <h4><%= product.name %></h4>
+          <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+          <div class="pprice">₹<%= product.selling_price %></div>
+          <% if product.in_stock? %>
+            <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+          <% else %>
+            <button class="btn-add out" disabled>Out of Stock</button>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<!-- REVIEWS -->
+<div class="reviews">
+  <span class="sec-eyebrow" style="padding-top:0">Testimonials</span>
+  <h2 class="sec-title">What Our Customers Say</h2>
+  <p class="sec-sub">Loved by wellness-focused families across India</p>
+  <div class="reviews-grid">
+    <div class="rcard">
+      <div class="stars">★★★★★</div>
+      <blockquote>"The purity is unmatched — you can genuinely taste and feel the difference. My whole family switched over."</blockquote>
+      <cite>— Priya Sharma</cite>
+    </div>
+    <div class="rcard">
+      <div class="stars">★★★★★</div>
+      <blockquote>"Finally an organic brand that delivers on its promise. Lab-tested quality with fast, reliable delivery."</blockquote>
+      <cite>— Rahul Mehta</cite>
+    </div>
+    <div class="rcard">
+      <div class="stars">★★★★★</div>
+      <blockquote>"Their Ayurvedic wellness range genuinely helped my digestion. Great packaging and honest pricing too."</blockquote>
+      <cite>— Ananya Nair</cite>
+    </div>
+  </div>
+</div>
+
+<!-- NEWSLETTER -->
+<div class="mailing">
+  <div class="mailing-left">
+    <h3>Join the Wellness Circle</h3>
+    <p>Get early access to new arrivals, seasonal offers & Ayurvedic wellness tips.</p>
+  </div>
+  <form class="mailing-form" onsubmit="event.preventDefault(); alert('Thanks for subscribing!');">
+    <input type="email" placeholder="Enter your email" required>
+    <button type="submit">Subscribe</button>
+  </form>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="fbrand">
+      <div class="fbrand-name">Marali Santhe</div>
+      <p>Bringing the goodness of certified organic farms and Ayurvedic tradition directly to your table. Pure, natural, full of wellness.</p>
+      <div class="footer-contact">
+        <b>Marali Santhe</b><br>
+        Owner: Raghunandan<br><br>
+        #64, Ground Floor,<br>
+        7th Cross, 24th Main,<br>
+        RK Colony, JP Nagar 2nd Phase,<br>
+        Bengaluru - 560078<br><br>
+        Contact: 9035408833<br>
+        Email: maralisanthe@gmail.com<br>
+        GSTIN: 29AWEPR9293C1Z0
+      </div>
+      <div class="socials" style="margin-top:18px">
+        <a href="#" aria-label="Instagram">📷</a>
+        <a href="#" aria-label="Facebook">📘</a>
+        <a href="#" aria-label="YouTube">▶️</a>
+        <a href="#" aria-label="Twitter">🐦</a>
+      </div>
+    </div>
+    <div class="fcol">
+      <h5>Shop</h5>
+      <ul>
+        <li><a href="#collection">All Products</a></li>
+        <li><a href="#bestsellers">Bestsellers</a></li>
+        <li><a href="#new-arrivals">New Arrivals</a></li>
+        <li><a href="#categories">Categories</a></li>
+      </ul>
+    </div>
+    <div class="fcol">
+      <h5>Customer Support</h5>
+      <ul>
+        <li><a href="#">FAQs</a></li>
+        <li><a href="#">About Us</a></li>
+        <li><a href="#">Our Farms</a></li>
+        <li><a href="#">Contact Us</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© <%= Date.current.year %> Marali Santhe. All rights reserved.</span>
+    <div class="footer-policy-links">
+      <a href="/terms-and-conditions.html" target="_blank">Terms &amp; Conditions</a>
+      <a href="/privacy-policy.html" target="_blank">Privacy Policy</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggleMobileMenu(){
+    document.getElementById('mobileNav').classList.toggle('mobile-open');
+  }
+
+  async function addToCart(productId, name, btn) {
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    try {
+      const res = await fetch('<%= add_item_storefront_cart_path %>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, quantity: 1 })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Could not add item to cart.');
+        btn.disabled = false;
+        btn.textContent = orig;
+        return;
+      }
+      const t = document.getElementById('toast');
+      t.textContent = '✓ ' + (name || 'Item') + ' added to cart!';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+      btn.textContent = '✓ Added!';
+      setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 1600);
+
+      const badge = document.querySelector('.cart-badge');
+      if (badge) {
+        badge.textContent = data.cart_count;
+      } else if (data.cart_count > 0) {
+        const cartLink = document.querySelector('.cart-link');
+        const span = document.createElement('span');
+        span.className = 'cart-badge';
+        span.textContent = data.cart_count;
+        cartLink.appendChild(span);
+      }
+    } catch (e) {
+      alert('Could not add item to cart.');
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+</script>
+</body>
+</html>

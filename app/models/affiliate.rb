@@ -1,7 +1,10 @@
 class Affiliate < ApplicationRecord
   has_one :user, as: :authenticatable, dependent: :destroy
+  has_one :affiliate_wallet, dependent: :destroy
   has_many :referrals, dependent: :destroy
   has_many :bookings, foreign_key: :affiliate_id
+  has_many :referred_customers, class_name: 'Customer', foreign_key: :referred_by_affiliate_id
+  has_many :affiliate_withdrawal_requests, dependent: :destroy
 
   validates :first_name, presence: true
   validates :last_name, presence: true
@@ -13,7 +16,16 @@ class Affiliate < ApplicationRecord
   scope :inactive, -> { where(status: false) }
 
   before_create :set_username
+  before_create :set_affiliate_code
   after_create :create_user_account
+  after_create :create_wallet
+
+  # base_url should be request.base_url from the calling controller/view —
+  # the app doesn't have routes.default_url_options configured for a fixed
+  # host, so this can't safely build an absolute URL on its own.
+  def referral_link(base_url)
+    "#{base_url}/?ref=#{affiliate_code}"
+  end
 
   def display_name
     "#{first_name} #{last_name}".strip
@@ -31,25 +43,44 @@ class Affiliate < ApplicationRecord
     status? ? 'Active' : 'Inactive'
   end
 
-  # Referral statistics
+  # Referral statistics — one grouped COUNT query, memoized per instance, so
+  # calling total_referrals/pending_referrals/.../conversion_rate together
+  # (as the dashboard and admin show page do) costs a single DB round trip
+  # instead of up to 6.
+  def referral_stats
+    @referral_stats ||= begin
+      counts = referrals.group(:status).count
+      total = counts.values.sum
+      converted = counts['converted'] || 0
+
+      {
+        total: total,
+        pending: counts['pending'] || 0,
+        registered: counts['registered'] || 0,
+        converted: converted,
+        conversion_rate: total.zero? ? 0 : ((converted.to_f / total) * 100).round(2)
+      }
+    end
+  end
+
   def total_referrals
-    referrals.count
+    referral_stats[:total]
   end
 
   def pending_referrals
-    referrals.pending.count
+    referral_stats[:pending]
   end
 
   def registered_referrals
-    referrals.registered.count
+    referral_stats[:registered]
   end
 
   def converted_referrals
-    referrals.converted.count
+    referral_stats[:converted]
   end
 
   def conversion_rate
-    Referral.conversion_rate(id)
+    referral_stats[:conversion_rate]
   end
 
   private
@@ -58,9 +89,17 @@ class Affiliate < ApplicationRecord
     self.username ||= generate_username
   end
 
+  def set_affiliate_code
+    self.affiliate_code ||= mobile
+  end
+
+  def create_wallet
+    create_affiliate_wallet!(balance: 0)
+  end
+
   def create_user_account
     password = generate_secure_password
-    affiliate_role = Role.find_by(name: 'affiliate')
+    affiliate_role = Role.find_or_create_by!(name: 'affiliate') { |r| r.description = 'Affiliate portal user'; r.status = true }
 
     create_user!(
       first_name: first_name,

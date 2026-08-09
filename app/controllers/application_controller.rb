@@ -8,6 +8,7 @@ class ApplicationController < ActionController::Base
   # Security headers and cache control
   before_action :set_cache_control_headers
   before_action :ensure_session_security
+  before_action :capture_referral_code
 
   # Devise authentication (skip for mobile API)
   before_action :authenticate_user!, unless: :mobile_api?
@@ -89,6 +90,17 @@ class ApplicationController < ActionController::Base
   end
 
   private
+
+  # No-op unless a ?ref= link is actually followed, so this costs nothing on
+  # the vast majority of requests. One indexed lookup only when the param is
+  # present; remembers the code in session so it survives browsing before the
+  # visitor actually registers.
+  def capture_referral_code
+    return if params[:ref].blank?
+
+    affiliate = Affiliate.active.find_by(affiliate_code: params[:ref])
+    session[:referral_affiliate_code] = affiliate.affiliate_code if affiliate
+  end
 
   # Shared controller-level gate matching the sidebar's has_sidebar_permission?
   # checks — hiding a nav link isn't enough on its own, since a user could

@@ -13,13 +13,7 @@ class Affiliate::ReferralsController < Affiliate::ApplicationController
       @referrals = @referrals.where(status: params[:status])
     end
 
-    @stats = {
-      total: current_affiliate.total_referrals,
-      pending: current_affiliate.pending_referrals,
-      registered: current_affiliate.registered_referrals,
-      converted: current_affiliate.converted_referrals,
-      conversion_rate: current_affiliate.conversion_rate
-    }
+    @stats = current_affiliate.referral_stats
   end
 
   # GET /affiliate/referrals/new

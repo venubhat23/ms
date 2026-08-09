@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_06_064021) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -42,6 +42,48 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_06_064021) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "affiliate_wallet_transactions", force: :cascade do |t|
+    t.bigint "affiliate_wallet_id", null: false
+    t.string "transaction_type", null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.decimal "balance_after", precision: 10, scale: 2, null: false
+    t.string "description"
+    t.string "reference_number"
+    t.bigint "booking_id"
+    t.json "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["affiliate_wallet_id"], name: "index_affiliate_wallet_transactions_on_affiliate_wallet_id"
+    t.index ["booking_id"], name: "index_affiliate_wallet_transactions_on_booking_id"
+    t.index ["reference_number"], name: "index_affiliate_wallet_transactions_on_reference_number", unique: true
+  end
+
+  create_table "affiliate_wallets", force: :cascade do |t|
+    t.bigint "affiliate_id", null: false
+    t.decimal "balance", precision: 10, scale: 2, default: "0.0", null: false
+    t.boolean "status", default: true
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["affiliate_id"], name: "index_affiliate_wallets_on_affiliate_id", unique: true
+  end
+
+  create_table "affiliate_withdrawal_requests", force: :cascade do |t|
+    t.bigint "affiliate_id", null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "requested_at"
+    t.datetime "approved_at"
+    t.bigint "approved_by_user_id"
+    t.datetime "paid_at"
+    t.string "payment_reference"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["affiliate_id"], name: "index_affiliate_withdrawal_requests_on_affiliate_id"
+    t.index ["status"], name: "index_affiliate_withdrawal_requests_on_status"
+  end
+
   create_table "affiliates", force: :cascade do |t|
     t.string "first_name"
     t.string "last_name"
@@ -69,6 +111,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_06_064021) do
     t.datetime "updated_at", null: false
     t.string "company_name"
     t.string "username"
+    t.string "affiliate_code"
+    t.index ["affiliate_code"], name: "index_affiliates_on_affiliate_code", unique: true
     t.index ["email"], name: "index_affiliates_on_email", unique: true
     t.index ["mobile"], name: "index_affiliates_on_mobile", unique: true
     t.index ["status"], name: "index_affiliates_on_status"
@@ -226,6 +270,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_06_064021) do
     t.boolean "is_b2b", default: false, null: false
     t.bigint "affiliate_id"
     t.integer "booking_items_count", default: 0, null: false
+    t.datetime "affiliate_commission_credited_at"
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_date"], name: "index_bookings_on_booking_date"
@@ -398,8 +443,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_06_064021) do
     t.string "password_reset_token"
     t.datetime "password_reset_sent_at"
     t.string "location_link"
+    t.bigint "referred_by_affiliate_id"
     t.index ["created_at"], name: "index_customers_on_created_at"
     t.index ["latitude", "longitude"], name: "index_customers_on_location"
+    t.index ["referred_by_affiliate_id"], name: "index_customers_on_referred_by_affiliate_id"
     t.index ["status"], name: "index_customers_on_status"
     t.index ["whatsapp_number"], name: "index_customers_on_whatsapp_number"
   end

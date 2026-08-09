@@ -1,0 +1,101 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Withdrawal Request #<%= @withdrawal_request.id %></h2>
+    <p class="text-muted mb-0">
+      <%= link_to @withdrawal_request.affiliate.display_name, admin_affiliate_path(@withdrawal_request.affiliate) %>
+    </p>
+  </div>
+  <% status_color = { 'pending' => 'warning', 'approved' => 'info', 'paid' => 'success', 'rejected' => 'danger' }[@withdrawal_request.status] %>
+  <span class="badge bg-<%= status_color %> fs-6"><%= @withdrawal_request.status.capitalize %></span>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Request Details</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Amount</dt>
+          <dd class="col-sm-8 fw-semibold"><%= @withdrawal_request.formatted_amount %></dd>
+
+          <dt class="col-sm-4">Requested On</dt>
+          <dd class="col-sm-8"><%= @withdrawal_request.requested_at&.strftime("%b %d, %Y %I:%M %p") %></dd>
+
+          <% if @withdrawal_request.approved_at %>
+            <dt class="col-sm-4">Approved On</dt>
+            <dd class="col-sm-8"><%= @withdrawal_request.approved_at.strftime("%b %d, %Y %I:%M %p") %></dd>
+          <% end %>
+
+          <% if @withdrawal_request.paid_at %>
+            <dt class="col-sm-4">Paid On</dt>
+            <dd class="col-sm-8"><%= @withdrawal_request.paid_at.strftime("%b %d, %Y %I:%M %p") %></dd>
+
+            <dt class="col-sm-4">Payment Reference</dt>
+            <dd class="col-sm-8"><%= @withdrawal_request.payment_reference %></dd>
+          <% end %>
+
+          <% if @withdrawal_request.notes.present? %>
+            <dt class="col-sm-4">Notes</dt>
+            <dd class="col-sm-8"><%= simple_format(@withdrawal_request.notes) %></dd>
+          <% end %>
+        </dl>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Affiliate Payout Details</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Bank Name</dt>
+          <dd class="col-sm-8"><%= @withdrawal_request.affiliate.bank_name.presence || '—' %></dd>
+
+          <dt class="col-sm-4">Account No.</dt>
+          <dd class="col-sm-8"><%= @withdrawal_request.affiliate.account_no.presence || '—' %></dd>
+
+          <dt class="col-sm-4">IFSC Code</dt>
+          <dd class="col-sm-8"><%= @withdrawal_request.affiliate.ifsc_code.presence || '—' %></dd>
+
+          <dt class="col-sm-4">UPI ID</dt>
+          <dd class="col-sm-8"><%= @withdrawal_request.affiliate.upi_id.presence || '—' %></dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Actions</h5>
+      </div>
+      <div class="card-body">
+        <% if @withdrawal_request.pending? %>
+          <%= button_to "Approve", approve_admin_affiliate_withdrawal_request_path(@withdrawal_request),
+              method: :patch, class: "btn btn-success w-100 mb-3",
+              data: { confirm: "Approve this withdrawal request?" } %>
+
+          <%= form_with url: reject_admin_affiliate_withdrawal_request_path(@withdrawal_request), method: :patch, local: true do |f| %>
+            <div class="mb-2">
+              <%= f.text_field :reason, class: "form-control", placeholder: "Reason for rejection (optional)" %>
+            </div>
+            <%= f.submit "Reject", class: "btn btn-outline-danger w-100",
+                data: { confirm: "Reject this request? The amount will be refunded to the affiliate's wallet." } %>
+          <% end %>
+        <% elsif @withdrawal_request.approved? %>
+          <%= form_with url: mark_paid_admin_affiliate_withdrawal_request_path(@withdrawal_request), method: :patch, local: true do |f| %>
+            <div class="mb-2">
+              <%= f.label :payment_reference, "Payment Reference", class: "form-label" %>
+              <%= f.text_field :payment_reference, class: "form-control", required: true, placeholder: "UTR / transaction ID" %>
+            </div>
+            <%= f.submit "Mark as Paid", class: "btn btn-success w-100" %>
+          <% end %>
+        <% else %>
+          <p class="text-muted mb-0">This request is <%= @withdrawal_request.status %> — no further action available.</p>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

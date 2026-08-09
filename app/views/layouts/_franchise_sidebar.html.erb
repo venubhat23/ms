@@ -364,7 +364,7 @@
 
   <!-- Logout Section - Fixed at bottom -->
   <div class="sidebar-footer">
-    <%= link_to franchise_logout_path, method: :delete, class: "logout-btn-modern" do %>
+    <%= link_to franchise_logout_path, data: { turbo_method: :delete }, class: "logout-btn-modern" do %>
       <div class="nav-icon-modern">
         <div class="icon-bg gradient-gray">
           <i class="bi bi-box-arrow-right"></i>

@@ -48,82 +48,7 @@
 
 <div class="card border-0 shadow-sm" style="border-radius:14px;">
   <div class="card-body p-0">
-    <table class="table table-hover mb-0" style="font-size:0.85rem;">
-      <thead style="background:#fafbfc; font-size:0.78rem;">
-        <tr>
-          <th class="px-4 py-2">Product</th>
-          <th class="py-2">Requested</th>
-          <th class="py-2">Available</th>
-          <th class="py-2">Status</th>
-          <th class="py-2">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% @transfers.each do |t| %>
-          <% avail = @stock_cache[[t.product_id, t.from_store_id]].to_f %>
-          <tr class="<%= avail < t.quantity && t.status == 'pending' ? 'table-danger' : '' %>">
-            <td class="px-4 py-2">
-              <strong><%= t.product&.name %></strong>
-              <% if t.product_variant %>
-                <span class="badge bg-primary-subtle text-primary ms-1" style="font-size:0.7rem;"><%= t.product_variant.label %></span>
-              <% end %>
-            </td>
-            <td class="py-2 fw-semibold"><%= t.quantity %></td>
-            <td class="py-2">
-              <% if t.status == 'pending' %>
-                <% if avail > 0 %>
-                  <span class="text-success fw-semibold"><%= avail.to_i %></span>
-                  <% if avail < t.quantity %>
-                    <span class="badge bg-danger ms-1" style="font-size:0.68rem;">Low</span>
-                  <% end %>
-                <% else %>
-                  <span class="text-danger fw-semibold">0</span>
-                  <span class="badge bg-danger ms-1" style="font-size:0.68rem;">No stock</span>
-                <% end %>
-              <% else %>
-                <span class="text-muted">&mdash;</span>
-              <% end %>
-            </td>
-            <td class="py-2">
-              <% case t.status
-                 when 'pending' %>
-                <span class="badge bg-warning-subtle text-warning">Pending</span>
-              <% when 'completed' %>
-                <span class="badge bg-success-subtle text-success">Completed</span>
-              <% when 'rejected' %>
-                <span class="badge bg-danger-subtle text-danger">Rejected</span>
-              <% else %>
-                <span class="badge bg-secondary-subtle text-secondary"><%= t.status&.capitalize %></span>
-              <% end %>
-              <% if t.rejection_reason.present? %>
-                <div class="text-muted" style="font-size:0.72rem;"><%= t.rejection_reason %></div>
-              <% end %>
-            </td>
-            <td class="py-2">
-              <% if t.status == 'pending' %>
-                <div class="d-flex gap-1">
-                  <%= button_to approve_admin_stock_transfer_path(t), method: :patch,
-                      form: { data: { turbo_confirm: "Approve #{t.quantity} × #{t.product&.name}?" } },
-                      class: "btn btn-sm btn-outline-success", style: "border-radius:6px; font-size:0.75rem;" do %>
-                      <i class="bi bi-check-lg"></i> Approve
-                    <% end %>
-                  <button type="button" class="btn btn-sm btn-outline-danger" style="border-radius:6px; font-size:0.75rem;"
-                          onclick="rejectTransfer(<%= t.id %>)">
-                    <i class="bi bi-x-lg"></i> Reject
-                  </button>
-                </div>
-                <form id="reject_form_<%= t.id %>" action="<%= reject_admin_stock_transfer_path(t) %>" method="post" style="display:none; margin-top:0.4rem;">
-                  <%= hidden_field_tag :_method, 'patch' %>
-                  <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-                  <input type="text" name="rejection_reason" placeholder="Reason (optional)" class="form-control form-control-sm mb-1">
-                  <button type="submit" class="btn btn-danger btn-sm" style="border-radius:6px; font-size:0.75rem;">Confirm Reject</button>
-                </form>
-              <% end %>
-            </td>
-          </tr>
-        <% end %>
-      </tbody>
-    </table>
+    <%= render 'items_table', transfers: @transfers, stock_cache: @stock_cache %>
   </div>
 </div>
 
@@ -144,3 +69,4 @@ function toggleGroupReject() {
 </script>
 
 <%= render 'bulk_progress_modal' %>
+<%= render 'simple_action_overlay' %>

@@ -12,6 +12,10 @@ class Customer < ApplicationRecord
   has_one_attached :personal_image
   has_one_attached :house_image
   belongs_to :affiliate, class_name: 'SubAgent', foreign_key: 'sub_agent_id', optional: true
+  # Named distinctly from :affiliate above — that association is dead code
+  # tied to the unrelated SubAgent/insurance vertical (no sub_agent_id
+  # column even exists). This is the real affiliate-referral link.
+  belongs_to :referring_affiliate, class_name: 'Affiliate', foreign_key: 'referred_by_affiliate_id', optional: true
 
   # Product associations (investment/loan features removed for ecommerce focus)
 

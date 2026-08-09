@@ -510,7 +510,7 @@
               </div>
             </div>
             <span class="nav-text">Stock Transfers</span>
-            <% pending = Rails.cache.fetch('sidebar/stock_transfers_pending_count', expires_in: 3.minutes) { StockTransfer.pending.count } rescue 0 %>
+            <% pending = sidebar_badge_count('sidebar/stock_transfers_pending_count') { StockTransfer.pending.count } %>
             <% if pending > 0 %>
               <span class="badge bg-warning ms-auto"><%= pending %></span>
             <% end %>
@@ -681,12 +681,9 @@
               </div>
             </div>
             <span class="nav-text">Invoice Check</span>
-            <% begin %>
-              <% pending_count = Rails.cache.fetch('sidebar/milk_subscription_active_customers_count', expires_in: 3.minutes) { MilkSubscription.joins(:customer).where(is_active: true).select(:customer_id).distinct.count } %>
-              <% if pending_count > 0 %>
-                <span class="badge bg-warning text-dark ms-2" style="font-size: 10px; padding: 2px 6px;"><%= pending_count %></span>
-              <% end %>
-            <% rescue %>
+            <% pending_count = sidebar_badge_count('sidebar/milk_subscription_active_customers_count') { MilkSubscription.joins(:customer).where(is_active: true).select(:customer_id).distinct.count } %>
+            <% if pending_count > 0 %>
+              <span class="badge bg-warning text-dark ms-2" style="font-size: 10px; padding: 2px 6px;"><%= pending_count %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>
@@ -889,6 +886,17 @@
                 </div>
               </div>
               <span class="nav-text">Affiliate</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+          <li class="nav-item">
+            <%= link_to admin_affiliate_withdrawal_requests_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/affiliate_withdrawal_requests')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg gradient-purple">
+                  <i class="bi bi-cash-stack"></i>
+                </div>
+              </div>
+              <span class="nav-text">Affiliate Withdrawals</span>
               <div class="nav-indicator"></div>
             <% end %>
           </li>

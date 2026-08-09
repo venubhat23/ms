@@ -3,6 +3,9 @@
 .st-card:hover { border-color:#1C7C54; box-shadow:0 4px 16px rgba(28,124,84,0.12); transform:translateY(-2px); }
 .st-card.selected { border-color:#1C7C54; background:#f0fdf4; }
 .st-cart-row { background:#f8fafc; border-radius:8px; padding:0.6rem 0.8rem; margin-bottom:0.4rem; }
+.st-spinner { display:inline-block; width:1rem; height:1rem; border:2px solid rgba(255,255,255,0.5); border-top-color:#fff; border-radius:50%; animation:st-spin 0.7s linear infinite; vertical-align:-2px; margin-right:0.5rem; }
+@keyframes st-spin { to { transform:rotate(360deg); } }
+#stSubmitBtn:disabled { opacity:0.85; cursor:not-allowed; }
 </style>
 
 <script>const ST_PRODUCTS = <%= raw json_escape(@products_json) %>;</script>
@@ -99,8 +102,8 @@
             <input type="text" name="notes" class="form-control form-control-sm" placeholder="Reason for this transfer request...">
           </div>
           <div class="col-md-4">
-            <button type="submit" class="btn w-100 fw-semibold" style="background:linear-gradient(135deg,#1C7C54,#10b981);color:white;border-radius:8px;">
-              <i class="bi bi-send me-1"></i>Submit Transfer Request (<span id="stSubmitCount">0</span>)
+            <button type="submit" id="stSubmitBtn" class="btn w-100 fw-semibold" style="background:linear-gradient(135deg,#1C7C54,#10b981);color:white;border-radius:8px;transition:opacity 0.15s;">
+              <span id="stSubmitBtnContent"><i class="bi bi-send me-1"></i>Submit Transfer Request (<span id="stSubmitCount">0</span>)</span>
             </button>
           </div>
         </div>
@@ -330,6 +333,9 @@ function stStockFilter(mode) {
 }
 
 document.getElementById('stForm')?.addEventListener('submit', function(e) {
-  if (stCart.length === 0) { e.preventDefault(); alert('Please select at least one product.'); }
+  if (stCart.length === 0) { e.preventDefault(); alert('Please select at least one product.'); return; }
+  const btn = document.getElementById('stSubmitBtn');
+  btn.disabled = true;
+  document.getElementById('stSubmitBtnContent').innerHTML = '<span class="st-spinner"></span>Submitting request&hellip;';
 });
 </script>

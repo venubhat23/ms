@@ -24,20 +24,21 @@ module ConfigurablePagination
 
   def paginate_records(records)
     per_page = per_page_param
-    total_count = records.count
+
+    # Paginate first and read total_count off the SAME relation, instead of
+    # issuing a separate records.count beforehand. Kaminari memoizes
+    # total_count per relation instance, so this reuses the one COUNT query
+    # for both @total_record_count here and any later `paginate`/total_count
+    # calls in the view, cutting a redundant round trip to the (remote) DB.
+    paginated = records.page(params[:page]).per(per_page)
+    total_count = paginated.total_count
 
     # Store total count and per_page for view access
     @total_record_count = total_count
     @items_per_page = per_page
     @show_pagination = total_count > per_page
 
-    # Only apply pagination if needed
-    if @show_pagination
-      records.page(params[:page]).per(per_page)
-    else
-      # Return all records without pagination if count is less than or equal to items per page
-      records.page(1).per(total_count > 0 ? total_count : 1)
-    end
+    paginated
   end
 
   # Helper method to check if pagination should be shown

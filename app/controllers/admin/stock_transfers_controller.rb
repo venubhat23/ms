@@ -4,51 +4,82 @@ class Admin::StockTransfersController < Admin::ApplicationController
 
   # A single "request" (transfer_group_id) can contain hundreds of product
   # line-items — rendering them all inline is what actually breaks the page.
-  # Cap what's shown per group on the index; "View full request" links to
-  # show_group for the rest.
-  GROUP_ITEM_INLINE_LIMIT = 20
+  # The index only shows one representative row per group (for header info);
+  # the full item list is fetched on demand into a modal via group_items.
+  GROUP_ITEM_INLINE_LIMIT = 1
 
   def index
     base_scope = StockTransfer.all
     base_scope = base_scope.where(status: params[:status]) if params[:status].present?
 
     # Paginate by request-group, not raw row, so a multi-product request never
-    # gets split across pages. Determine group order with a light column-only
-    # query first (no associations, no full row hydration).
-    group_keys_ordered = []
-    seen = {}
-    base_scope.select(:id, :transfer_group_id, :created_at).order(created_at: :desc).each do |r|
-      key = r.transfer_group_id.presence || "single_#{r.id}"
-      unless seen[key]
-        seen[key] = true
-        group_keys_ordered << key
-      end
-    end
+    # gets split across pages. Determine group order with one aggregate query
+    # (MAX(created_at) per group) instead of hydrating every row in the table.
+    group_key_expr = "COALESCE(transfer_group_id, 'single_' || id::text)"
+    group_keys_ordered = base_scope
+                         .select("#{group_key_expr} AS group_key")
+                         .group(group_key_expr)
+                         .order(Arel.sql('MAX(created_at) DESC'))
+                         .map(&:group_key)
 
     per_page = SystemSetting.default_pagination_per_page || 20
     paged_keys = Kaminari.paginate_array(group_keys_ordered).page(params[:page]).per(per_page)
 
-    assoc_scope = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
-    assoc_scope = assoc_scope.where(status: params[:status]) if params[:status].present?
+    real_group_ids = paged_keys.reject { |k| k.start_with?('single_') }
+    single_ids     = paged_keys.select { |k| k.start_with?('single_') }.map { |k| k.delete_prefix('single_').to_i }
 
     # One grouped count query for every group on this page instead of one
     # `.count` round trip per group (previously ~20 serial queries/page).
-    group_totals = base_scope.where(transfer_group_id: paged_keys.reject { |k| k.start_with?('single_') })
-                              .group(:transfer_group_id).count
+    group_totals = real_group_ids.any? ? base_scope.where(transfer_group_id: real_group_ids)
+                                                     .group(:transfer_group_id).count : {}
+
+    # Status per group must reflect ALL rows in the group, not just the single
+    # representative row fetched below for header display — otherwise a group
+    # whose most-recent row happens to be resolved would misreport its status.
+    group_status_counts = Hash.new { |h, k| h[k] = Hash.new(0) }
+    if real_group_ids.any?
+      base_scope.where(transfer_group_id: real_group_ids)
+                .group(:transfer_group_id, :status).count
+                .each { |(gid, status), count| group_status_counts[gid][status] = count }
+    end
+
+    # Fetch only the top GROUP_ITEM_INLINE_LIMIT rows per group (by created_at)
+    # in a single query via a window function, instead of one query per group
+    # (previously the dominant cost — each per-group `.includes` fanned out
+    # into ~6 extra queries, multiplied by every group on the page).
+    ids_needed = single_ids.dup
+    if real_group_ids.any?
+      conditions = ['transfer_group_id IN (?)']
+      binds      = [real_group_ids]
+      if params[:status].present?
+        conditions << 'status = ?'
+        binds << params[:status]
+      end
+
+      ranked_sql = <<~SQL
+        SELECT id FROM (
+          SELECT id, ROW_NUMBER() OVER (PARTITION BY transfer_group_id ORDER BY created_at DESC) AS rn
+          FROM stock_transfers
+          WHERE #{conditions.join(' AND ')}
+        ) ranked
+        WHERE rn <= ?
+      SQL
+      sanitized = ActiveRecord::Base.sanitize_sql_array([ranked_sql, *binds, GROUP_ITEM_INLINE_LIMIT])
+      ids_needed += ActiveRecord::Base.connection.select_values(sanitized).map(&:to_i)
+    end
+
+    # Single query (+ preload queries for the includes) for every transfer
+    # shown on the page, instead of one query-with-includes per group.
+    transfers_by_id    = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
+                                       .where(id: ids_needed)
+                                       .index_by(&:id)
+    transfers_by_group = transfers_by_id.values.group_by { |t| t.transfer_group_id.presence || "single_#{t.id}" }
 
     stock_cache = {}
 
     @groups = paged_keys.filter_map do |key|
-      if key.start_with?('single_')
-        transfers   = assoc_scope.where(id: key.delete_prefix('single_').to_i).to_a
-        total_count = transfers.size
-      else
-        total_count = group_totals[key] || 0
-        transfers   = assoc_scope.where(transfer_group_id: key)
-                                  .order(created_at: :desc)
-                                  .limit(GROUP_ITEM_INLINE_LIMIT)
-                                  .to_a
-      end
+      transfers   = (transfers_by_group[key] || []).sort_by { |t| -t.created_at.to_f }
+      total_count = key.start_with?('single_') ? transfers.size : (group_totals[key] || 0)
       next if transfers.empty?
 
       # Pre-compute available stock per (product_id, from_store_id) to avoid N+1 — only for what's shown
@@ -58,12 +89,13 @@ class Admin::StockTransfersController < Admin::ApplicationController
                                        .sum(:quantity_remaining)
       end
 
+      statuses = key.start_with?('single_') ? transfers.map(&:status) : group_status_counts[key].keys
+
       {
         group_id:     key,
         transfers:    transfers,
         total_count:  total_count,
-        truncated:    total_count > transfers.size,
-        status:       group_status(transfers),
+        status:       group_status(statuses),
         from_store:   transfers.first.from_store_name,
         to_store:     transfers.first.to_store&.name,
         requested_by: transfers.first.requested_by,
@@ -100,7 +132,7 @@ class Admin::StockTransfersController < Admin::ApplicationController
     end
     @stock_cache  = stock_cache
     first         = @transfers.first
-    @status       = group_status(StockTransfer.where(transfer_group_id: @group_id).select(:status))
+    @status       = group_status(StockTransfer.where(transfer_group_id: @group_id).pluck(:status))
     @from_store   = first.from_store_name
     @to_store     = first.to_store&.name
     @requested_by = first.requested_by
@@ -109,6 +141,29 @@ class Admin::StockTransfersController < Admin::ApplicationController
   end
 
   def show
+  end
+
+  # Full item list for a single request (transfer_group_id), rendered as an
+  # HTML fragment for the "View items" modal on the index page.
+  def group_items
+    transfers = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
+                              .where(transfer_group_id: params[:group_id])
+                              .order(created_at: :desc)
+                              .to_a
+
+    if transfers.empty?
+      render plain: 'Transfer request not found.', status: :not_found
+      return
+    end
+
+    stock_cache = {}
+    transfers.each do |t|
+      key = [t.product_id, t.from_store_id]
+      stock_cache[key] ||= StockBatch.available_for_product(t.product_id, store_id: t.from_store_id)
+                                     .sum(:quantity_remaining)
+    end
+
+    render partial: 'items_table', locals: { transfers: transfers, stock_cache: stock_cache }
   end
 
   def approve
@@ -199,8 +254,8 @@ class Admin::StockTransfersController < Admin::ApplicationController
     @transfer = StockTransfer.find(params[:id])
   end
 
-  def group_status(transfers)
-    statuses = transfers.map(&:status).uniq
+  def group_status(statuses)
+    statuses = statuses.uniq
     return 'pending'   if statuses.include?('pending')
     return 'completed' if statuses.all? { |s| s == 'completed' }
     return 'rejected'  if statuses.all? { |s| s == 'rejected' }

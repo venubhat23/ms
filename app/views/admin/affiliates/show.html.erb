@@ -396,6 +396,75 @@
         <% end %>
       </div>
     </div>
+
+    <!-- Wallet & Withdrawals -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="bi bi-wallet2 me-2 text-success"></i>
+          Wallet &amp; Withdrawals
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 text-center mb-3">
+          <div class="col-md-4">
+            <div class="border rounded p-3">
+              <h4 class="text-success mb-1"><%= @wallet&.formatted_balance || '₹0.00' %></h4>
+              <small class="text-muted">Wallet Balance</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-3">
+              <h4 class="text-primary mb-1"><%= @referred_customers_count %></h4>
+              <small class="text-muted">Customers Referred</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="border rounded p-3">
+              <h4 class="text-info mb-1"><%= @withdrawal_requests.count %></h4>
+              <small class="text-muted">Withdrawal Requests</small>
+            </div>
+          </div>
+        </div>
+
+        <% if @withdrawal_requests.any? %>
+          <h6 class="mb-3">Recent Withdrawal Requests</h6>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead>
+                <tr>
+                  <th>Requested</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Reference</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @withdrawal_requests.each do |wr| %>
+                  <tr>
+                    <td><%= wr.requested_at&.strftime("%b %d, %Y") %></td>
+                    <td><%= wr.formatted_amount %></td>
+                    <td>
+                      <% status_color = { 'pending' => 'warning', 'approved' => 'info', 'paid' => 'success', 'rejected' => 'danger' }[wr.status] %>
+                      <span class="badge bg-<%= status_color %>"><%= wr.status.capitalize %></span>
+                    </td>
+                    <td><small class="text-muted"><%= wr.payment_reference || '—' %></small></td>
+                    <td>
+                      <%= link_to "Manage", admin_affiliate_withdrawal_request_path(wr), class: "btn btn-sm btn-outline-primary" %>
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% else %>
+          <div class="text-center text-muted py-3">
+            <p class="mb-0">No withdrawal requests yet.</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
   </div>
 
   <!-- Sidebar -->

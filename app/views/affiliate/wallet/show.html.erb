@@ -1,0 +1,115 @@
+<% content_for :page_title, "Wallet" %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Wallet</h2>
+    <p class="text-muted mb-0">Commission earnings from customers you referred</p>
+  </div>
+  <div>
+    <%= link_to new_affiliate_withdrawal_request_path, class: "btn btn-primary" do %>
+      <i class="fas fa-money-bill-transfer me-1"></i>
+      Request Withdrawal
+    <% end %>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-4 col-sm-6 mb-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Available Balance</h6>
+        <h3 class="mb-0 text-success"><%= @wallet.formatted_balance %></h3>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 col-sm-6 mb-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Referred Customers</h6>
+        <h3 class="mb-0 text-primary"><%= @referred_customers_count %></h3>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 col-sm-6 mb-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Commission Rate</h6>
+        <h3 class="mb-0 text-info"><%= current_affiliate.formatted_commission %></h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h6 class="mb-2"><i class="fas fa-link me-2"></i>Your Referral Link</h6>
+    <div class="input-group">
+      <input type="text" id="referral-link-input" class="form-control" readonly value="<%= current_affiliate.referral_link(request.base_url) %>">
+      <button class="btn btn-outline-secondary" type="button" onclick="copyReferralLink()">
+        <i class="fas fa-copy"></i> Copy
+      </button>
+    </div>
+    <small class="text-muted d-block mt-2">Share this link — when someone registers through it and later completes a purchase, you earn <%= current_affiliate.formatted_commission %> commission automatically.</small>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent border-0">
+    <h5 class="mb-0">Transaction History</h5>
+  </div>
+  <div class="card-body p-0">
+    <% if @transactions.any? %>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="border-0">Date</th>
+              <th class="border-0">Description</th>
+              <th class="border-0">Type</th>
+              <th class="border-0">Amount</th>
+              <th class="border-0">Balance After</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @transactions.each do |txn| %>
+              <tr>
+                <td class="small"><%= txn.created_at.strftime('%b %d, %Y %I:%M %p') %></td>
+                <td><%= txn.description %></td>
+                <td>
+                  <span class="badge bg-<%= txn.transaction_color %>">
+                    <i class="fas fa-<%= txn.transaction_icon %> me-1"></i><%= txn.transaction_type.capitalize %>
+                  </span>
+                </td>
+                <td class="fw-semibold"><%= txn.credit? ? '+' : '-' %><%= txn.formatted_amount %></td>
+                <td>₹<%= number_with_precision(txn.balance_after, precision: 2) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @transactions.respond_to?(:total_pages) %>
+        <div class="card-footer bg-transparent border-0">
+          <%= paginate @transactions %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-5">
+        <i class="fas fa-wallet fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">No transactions yet</h5>
+        <p class="text-muted mb-0">Commission earnings will appear here once a referred customer's order is completed.</p>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<script>
+function copyReferralLink() {
+  const input = document.getElementById('referral-link-input');
+  input.select();
+  input.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(input.value);
+}
+</script>

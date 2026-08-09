@@ -388,6 +388,7 @@ Rails.application.routes.draw do
         patch :bulk_reject
         get :bulk_progress
         get :show_group
+        get :group_items
       end
     end
 
@@ -787,6 +788,15 @@ Rails.application.routes.draw do
       end
     end
 
+    # Affiliate withdrawal requests
+    resources :affiliate_withdrawal_requests, only: [:index, :show] do
+      member do
+        patch :approve
+        patch :reject
+        patch :mark_paid
+      end
+    end
+
     # Stock Movements Management
     resources :stock_movements, only: [:index, :show] do
       collection do
@@ -1076,6 +1086,9 @@ Rails.application.routes.draw do
     get '/login', to: 'sessions#new'
     post '/login', to: 'sessions#create'
     delete '/logout', to: 'sessions#destroy'
+    # GET fallback for direct/bookmarked navigation to the logout URL (same
+    # pattern as /users/sign_out and /customer/logout below).
+    get '/logout', to: 'sessions#destroy'
 
     # Dashboard and main functionality
     root 'dashboard#index'
@@ -1112,9 +1125,17 @@ Rails.application.routes.draw do
     post '/login', to: 'sessions#create'
     delete '/logout', to: 'sessions#destroy'
 
+    # Public self-registration
+    get '/register', to: 'registrations#new'
+    post '/register', to: 'registrations#create'
+
     # Dashboard and main functionality
     root 'dashboard#index'
     get '/dashboard', to: 'dashboard#index'
+
+    # Wallet and withdrawals
+    get '/wallet', to: 'wallet#show'
+    resources :withdrawal_requests, only: [:index, :new, :create]
 
     # Referral management
     resources :referrals do

@@ -12,26 +12,102 @@ class HomeController < ApplicationController
   # need, so a cache hit needs zero AR/ActiveStorage objects rebuilt.
   CategoryBanner = Struct.new(:id, :name, :display_image_url)
 
+  # Rails.cache is Solid Cache here, and Solid Cache's `cache` database
+  # (config/database.yml) points at the same cross-region Postgres as the
+  # primary DB — so a Rails.cache "hit" still pays a full network round trip,
+  # same as an uncached query would. On this deployment that round trip runs
+  # ~700-900ms (see config/initializers/warm_db_connections.rb), and a single
+  # homepage request makes ~9-10 of them (theme lookup + version counters +
+  # category/best-seller cache reads + the always-uncached catalog query).
+  #
+  # This second, in-process cache sits in front of all of that. A hit here is
+  # a plain Ruby object read with no network hop at all, so it turns every
+  # request landing inside the TTL window into a near-zero-latency response;
+  # only one request per worker, once per window, pays the full remote cost
+  # to repopulate it. Short TTLs keep staleness imperceptible — well under
+  # the 30-minute TTLs the underlying Rails.cache entries already tolerate.
+  PAYLOAD_LOCAL_TTL = 15.seconds
+  THEME_LOCAL_TTL = 60.seconds
+
+  @payload_mutex = Mutex.new
+  @theme_mutex = Mutex.new
+
+  class << self
+    attr_accessor :cached_payload, :payload_expires_at, :cached_theme, :theme_expires_at
+    attr_reader :payload_mutex, :theme_mutex
+  end
+
   def index
     # `preview_theme` (used only by the admin theme-picker's Preview links) is
     # always checked against WEBSITE_THEMES's fixed key set below, never used
     # to build a path directly — no arbitrary file read is possible here.
-    theme_key = params[:preview_theme].presence_in(SystemSetting::WEBSITE_THEMES.keys) || SystemSetting.website_theme
+    theme_key = params[:preview_theme].presence_in(SystemSetting::WEBSITE_THEMES.keys) || cached_website_theme
 
-    all_products = load_catalog_products
-    load_top_categories
-    @best_seller_ids = cached_best_seller_ids.to_set
-
-    # Same rows load_catalog_products already fetched — reordering them in
-    # Ruby avoids a second full products round trip that was otherwise
-    # identical to the first query bar the ORDER BY/LIMIT.
-    @new_arrivals = all_products.sort_by(&:created_at).reverse.first(8)
-    @new_arrival_ids = @new_arrivals.map(&:id).to_set
+    payload = cached_home_payload
+    @products_by_category = payload[:products_by_category]
+    @total_products = payload[:total_products]
+    @best_seller_ids = payload[:best_seller_ids]
+    @new_arrivals = payload[:new_arrivals]
+    @new_arrival_ids = payload[:new_arrival_ids]
+    @top_category = payload[:top_category]
+    @secondary_category = payload[:secondary_category]
 
     render template: "home/#{theme_key.underscore}", layout: false
   end
 
   private
+
+  # Local (in-process, per-worker) memoization of SystemSetting.website_theme
+  # — otherwise an uncached DB query on every single homepage request for a
+  # value that only ever changes when an admin edits it in Settings.
+  def cached_website_theme
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    klass = self.class
+    return klass.cached_theme if klass.cached_theme && klass.theme_expires_at.to_f > now
+
+    klass.theme_mutex.synchronize do
+      return klass.cached_theme if klass.cached_theme && klass.theme_expires_at.to_f > now
+      klass.cached_theme = SystemSetting.website_theme
+      klass.theme_expires_at = now + THEME_LOCAL_TTL
+    end
+    klass.cached_theme
+  end
+
+  # Local (in-process, per-worker) memoization of the whole homepage data
+  # bundle. See PAYLOAD_LOCAL_TTL above for why this exists on top of the
+  # already-Rails.cache-backed methods it calls.
+  def cached_home_payload
+    now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    klass = self.class
+    return klass.cached_payload if klass.cached_payload && klass.payload_expires_at.to_f > now
+
+    klass.payload_mutex.synchronize do
+      return klass.cached_payload if klass.cached_payload && klass.payload_expires_at.to_f > now
+      klass.cached_payload = build_home_payload
+      klass.payload_expires_at = now + PAYLOAD_LOCAL_TTL
+    end
+    klass.cached_payload
+  end
+
+  def build_home_payload
+    all_products = load_catalog_products
+    load_top_categories
+
+    # Same rows load_catalog_products already fetched — reordering them in
+    # Ruby avoids a second full products round trip that was otherwise
+    # identical to the first query bar the ORDER BY/LIMIT.
+    new_arrivals = all_products.sort_by(&:created_at).reverse.first(8)
+
+    {
+      products_by_category: @products_by_category,
+      total_products: @total_products,
+      best_seller_ids: cached_best_seller_ids.to_set,
+      new_arrivals: new_arrivals,
+      new_arrival_ids: new_arrivals.map(&:id).to_set,
+      top_category: @top_category,
+      secondary_category: @secondary_category
+    }
+  end
 
   # Guest cart count for the storefront nav badge — same session[:cart] the
   # Storefront::CartsController reads/writes.

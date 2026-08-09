@@ -90,7 +90,7 @@
     </div>
   </div>
   <div class="card-body p-0">
-    <% if @affiliates.any? %>
+    <% if @affiliates.load.any? %>
       <div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead class="table-light">
@@ -100,6 +100,7 @@
               <th class="border-0 fw-semibold">Contact Info</th>
               <th class="border-0 fw-semibold">Login Credentials</th>
               <th class="border-0 fw-semibold">Commission</th>
+              <th class="border-0 fw-semibold">Referred</th>
               <th class="border-0 fw-semibold">Status</th>
               <th class="border-0 fw-semibold">Joined</th>
               <th class="border-0 fw-semibold">Actions</th>
@@ -166,6 +167,12 @@
                   <span class="badge bg-info-subtle text-info">
                     <i class="bi bi-percent me-1"></i>
                     <%= affiliate.formatted_commission %>
+                  </span>
+                </td>
+                <td class="align-middle">
+                  <span class="badge bg-primary-subtle text-primary">
+                    <i class="bi bi-people me-1"></i>
+                    <%= @referred_counts[affiliate.id] || 0 %>
                   </span>
                 </td>
                 <td class="align-middle">

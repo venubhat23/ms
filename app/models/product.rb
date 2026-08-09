@@ -899,8 +899,11 @@ class Product < ApplicationRecord
     if r2_image_url.present?
       r2_image_url
     elsif image_url.present?
-      cloudinary_url = cloudinary_image_url(transformation)
-      cloudinary_url.present? ? cloudinary_url : image_url
+      url = cloudinary_image_url(transformation).presence || image_url
+      # image_url stores a Cloudinary public_id, not a real path — if
+      # Cloudinary isn't configured, falling back to it as-is produces a
+      # broken relative <img src>, so only ever return absolute URLs.
+      url =~ %r{\Ahttps?://} ? url : nil
     elsif image.attached?
       Rails.application.routes.url_helpers.rails_blob_url(image, only_path: true)
     else

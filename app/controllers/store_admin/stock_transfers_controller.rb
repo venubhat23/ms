@@ -34,7 +34,7 @@ class StoreAdmin::StockTransfersController < StoreAdmin::ApplicationController
         category_name: p.category&.name || 'No Category',
         stock:         p.cached_total_batch_stock,
         has_variants:  p.has_multiple_quantities,
-        image_url:     p.r2_image_url.presence || p.image_url.presence,
+        image_url:     p.main_image_url(width: 300, height: 300, crop: :fill),
         variants:      p.has_multiple_quantities ? p.product_variants.sort_by { |v| [v.display_order.to_i, v.weight.to_f] }.map { |v| { id: v.id, label: v.label.to_s, stock: v.available_stock.to_f } } : []
       }
     end.to_json
@@ -52,8 +52,6 @@ class StoreAdmin::StockTransfersController < StoreAdmin::ApplicationController
       redirect_to new_store_admin_stock_transfer_path and return
     end
 
-    errors        = []
-    created       = 0
     transfer_group_id = SecureRandom.uuid
 
     items = transfers_params.values.map do |item|
@@ -63,37 +61,32 @@ class StoreAdmin::StockTransfersController < StoreAdmin::ApplicationController
     product_ids = items.map { |i| i[:product_id] }.uniq
     variant_ids = items.map { |i| i[:variant_id] }.select(&:positive?).uniq
 
-    products_by_id = Product.where(id: product_ids).index_by(&:id)
-    variants_by_id = variant_ids.any? ? ProductVariant.where(id: variant_ids).index_by(&:id) : {}
+    valid_product_ids = Product.where(id: product_ids).pluck(:id).to_set
+    valid_variant_ids = variant_ids.any? ? ProductVariant.where(id: variant_ids).pluck(:id).to_set : Set.new
 
-    items.each do |item|
-      product = products_by_id[item[:product_id]]
-      next unless product
+    now = Time.current
+    rows = items.filter_map do |item|
+      next unless valid_product_ids.include?(item[:product_id])
 
-      variant = item[:variant_id] > 0 ? variants_by_id[item[:variant_id]] : nil
+      variant_id = item[:variant_id].positive? && valid_variant_ids.include?(item[:variant_id]) ? item[:variant_id] : nil
 
-      transfer = StockTransfer.new(
-        product:            product,
-        product_variant:    variant,
+      {
+        product_id:         item[:product_id],
+        product_variant_id: variant_id,
         from_store_id:      from_store_id,
-        to_store:           @current_store,
-        requested_by:       current_user,
+        to_store_id:        @current_store.id,
+        requested_by_id:    current_user.id,
         quantity:           item[:quantity],
         notes:              notes,
         status:             'pending',
-        transfer_group_id:  transfer_group_id
-      )
-
-      if transfer.save
-        created += 1
-      else
-        errors << "#{product.name}: #{transfer.errors.full_messages.join(', ')}"
-      end
+        transfer_group_id:  transfer_group_id,
+        created_at:         now,
+        updated_at:         now
+      }
     end
 
-    if errors.any?
-      flash[:alert] = "Some requests failed — #{errors.join(' | ')}"
-    end
+    created = rows.size
+    StockTransfer.insert_all!(rows) if rows.any?
 
     if created > 0
       flash[:notice] = "#{created} transfer request(s) submitted. Awaiting admin approval."

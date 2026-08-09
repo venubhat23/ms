@@ -4,11 +4,21 @@ class Admin::VendorsController < Admin::ApplicationController
   layout 'application'
 
   def index
-    @vendors = Vendor.includes(:vendor_purchases, :stock_batches)
+    scope = Vendor.all
+    scope = scope.where('name ILIKE ?', "%#{params[:search]}%") if params[:search].present?
+    scope = scope.where(status: params[:status]) if params[:status].present?
+
+    # One grouped count instead of two separate `.count` round trips
+    # (and `@vendors.count`/`.active.count` were being run on the
+    # paginated relation, which — with LIMIT/OFFSET applied — only
+    # counted the current page, not all matching vendors).
+    status_counts = scope.group(:status).count
+    @total_vendor_count  = status_counts.values.sum
+    @active_vendor_count = status_counts[true] || 0
+
+    @vendors = scope.includes(:vendor_purchases)
                     .order(created_at: :desc)
-    @vendors = @vendors.where('name ILIKE ?', "%#{params[:search]}%") if params[:search].present?
-    @vendors = @vendors.where(status: params[:status]) if params[:status].present?
-    @vendors = @vendors.page(params[:page]).per(20)
+                    .page(params[:page]).per(20)
 
     respond_to do |format|
       format.html

@@ -9,18 +9,29 @@ class Admin::AffiliatesController < Admin::ApplicationController
     @affiliates = @affiliates.where(status: params[:status]) if params[:status].present?
     @affiliates = paginate_records(@affiliates.order(:first_name))
 
-    # One grouped query instead of 3 separate counts, plus this_month so the
-    # view doesn't need its own extra uncached count query.
-    status_counts = Affiliate.group(:status).count
-    @stats = {
-      total: status_counts.values.sum,
-      active: status_counts[true] || 0,
-      inactive: status_counts[false] || 0,
-      this_month: Affiliate.where('created_at >= ?', 1.month.ago).count
-    }
+    # Single aggregate query (FILTER clauses) instead of a grouped count plus
+    # a separate this_month count, since each query is a full round trip to
+    # the (remote) DB.
+    stats_row = Affiliate.pick(
+      Arel.sql('COUNT(*)'),
+      Arel.sql('COUNT(*) FILTER (WHERE status = TRUE)'),
+      Arel.sql('COUNT(*) FILTER (WHERE status = FALSE)'),
+      Arel.sql(Affiliate.sanitize_sql_array(['COUNT(*) FILTER (WHERE created_at >= ?)', 1.month.ago]))
+    )
+    total, active, inactive, this_month = stats_row
+    @stats = { total: total, active: active, inactive: inactive, this_month: this_month }
+
+    # One grouped query for the whole (already paginated) page instead of a
+    # referred_customers.count per row.
+    @referred_counts = Customer.where(referred_by_affiliate_id: @affiliates.map(&:id))
+                                .group(:referred_by_affiliate_id).count
   end
 
   def show
+    @wallet = @affiliate.affiliate_wallet
+    @referred_customers = @affiliate.referred_customers.order(created_at: :desc).limit(10)
+    @referred_customers_count = @affiliate.referred_customers.count
+    @withdrawal_requests = @affiliate.affiliate_withdrawal_requests.recent.limit(10)
   end
 
   def new

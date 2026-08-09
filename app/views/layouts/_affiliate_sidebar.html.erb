@@ -167,6 +167,23 @@
     <% end %>
   </div>
 
+  <!-- Wallet Section -->
+  <div class="sidebar-section">
+    <h6>Wallet</h6>
+
+    <%= link_to affiliate_wallet_path,
+        class: "nav-link-modern #{'active' if controller_name == 'wallet'}" do %>
+      <i class="fas fa-wallet"></i>
+      <span>My Wallet</span>
+    <% end %>
+
+    <%= link_to affiliate_withdrawal_requests_path,
+        class: "nav-link-modern #{'active' if controller_name == 'withdrawal_requests'}" do %>
+      <i class="fas fa-money-bill-transfer"></i>
+      <span>Withdrawals</span>
+    <% end %>
+  </div>
+
   <!-- Bookings Section -->
   <div class="sidebar-section">
     <h6>Bookings</h6>

@@ -113,9 +113,9 @@
 
         <!-- Stock Status -->
         <div class="stock-info mb-4">
-          <% if @product.total_batch_stock > 0 %>
+          <% if @available_stock > 0 %>
             <span class="badge bg-success fs-6">
-              <i class="fas fa-check-circle me-1"></i>In Stock (<%= @product.total_batch_stock %> available)
+              <i class="fas fa-check-circle me-1"></i>In Stock (<%= @available_stock %> available)
             </span>
           <% else %>
             <span class="badge bg-danger fs-6">
@@ -141,14 +141,14 @@
                 <button type="button" class="btn btn-outline-secondary" onclick="decreaseQuantity()">
                   <i class="fas fa-minus"></i>
                 </button>
-                <input type="number" id="quantity" class="form-control text-center" value="1" min="1" max="<%= @product.total_batch_stock %>" style="width: 80px;">
+                <input type="number" id="quantity" class="form-control text-center" value="1" min="1" max="<%= @available_stock %>" style="width: 80px;">
                 <button type="button" class="btn btn-outline-secondary" onclick="increaseQuantity()">
                   <i class="fas fa-plus"></i>
                 </button>
               </div>
             </div>
             <div class="col">
-              <% if @product.total_batch_stock > 0 %>
+              <% if @available_stock > 0 %>
                 <button type="button" class="btn btn-primary btn-lg w-100" onclick="addToCart(<%= @product.id %>)">
                   <i class="fas fa-cart-plus me-2"></i>Add to Cart
                 </button>

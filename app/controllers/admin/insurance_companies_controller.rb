@@ -2,8 +2,16 @@ class Admin::InsuranceCompaniesController < Admin::ApplicationController
   before_action :set_insurance_company, only: [:show, :edit, :update, :destroy]
 
   def index
-    @insurance_companies = InsuranceCompany.all.order(:name)
-    @insurance_companies = @insurance_companies.page(params[:page])
+    scope = InsuranceCompany.all
+    @insurance_companies = scope.order(:name).page(params[:page])
+
+    # One grouped query for both header stats instead of 3 separate .count
+    # round trips (the view previously queried "active" twice) — also fixes
+    # those counts being capped at the per-page limit, since a bare .count on
+    # a .page()'d relation counts only the current page, not the true total.
+    status_counts = scope.group(:status).count
+    @insurance_companies_total  = status_counts.values.sum
+    @insurance_companies_active = status_counts[true] || 0
   rescue NameError
     # Handle case where InsuranceCompany model doesn't exist yet
     redirect_to admin_customers_path, alert: 'Insurance Companies functionality not yet implemented.'

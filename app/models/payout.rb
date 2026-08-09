@@ -72,7 +72,13 @@ class Payout < ApplicationRecord
   end
 
   def main_agent_commission
-    commission_payouts.find_by(payout_to: 'main_agent')
+    # find_by on an association always queries even when preloaded; use the
+    # in-memory records when commission_payouts has already been .includes'd.
+    if commission_payouts.loaded?
+      commission_payouts.find { |cp| cp.payout_to == 'main_agent' }
+    else
+      commission_payouts.find_by(payout_to: 'main_agent')
+    end
   end
 
   def affiliate_commission

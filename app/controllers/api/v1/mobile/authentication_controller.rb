@@ -757,13 +757,16 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   end
 
   def get_sub_agent_statistics(sub_agent)
-    # Get policies where sub-agent is involved (using sub_agent_id)
-    health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id)
-    life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id)
+    # Get policies where sub-agent is involved (using sub_agent_id).
+    # Loaded once via .to_a and reused below for commission sum, customer_ids,
+    # and count — previously each of those re-queried the same rows (up to 9
+    # round trips per agent instead of 3).
+    health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id).to_a
+    life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id).to_a
     motor_policies = []
 
     begin
-      motor_policies = MotorInsurance.where(sub_agent_id: sub_agent.id) if defined?(MotorInsurance)
+      motor_policies = MotorInsurance.where(sub_agent_id: sub_agent.id).to_a if defined?(MotorInsurance)
     rescue => e
       # Skip motor insurance if there's an error
       motor_policies = []
@@ -807,11 +810,11 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     total_commission = health_commission + life_commission + motor_commission
 
     # Get unique customer IDs from actual policies - this is the real-time customer count
-    customer_ids = (health_policies.pluck(:customer_id) + life_policies.pluck(:customer_id))
-    customer_ids += motor_policies.pluck(:customer_id) if motor_policies&.any?
+    customer_ids = (health_policies.map(&:customer_id) + life_policies.map(&:customer_id))
+    customer_ids += motor_policies.map(&:customer_id) if motor_policies&.any?
 
-    total_policies = health_policies.count + life_policies.count
-    total_policies += motor_policies.count if motor_policies&.any?
+    total_policies = health_policies.size + life_policies.size
+    total_policies += motor_policies.size if motor_policies&.any?
 
     # Use only customers who have active policies for real-time data
     real_customers_count = customer_ids.uniq.count
@@ -990,18 +993,17 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   end
 
   def calculate_agent_ranking(sub_agent)
-    # Calculate ranking based on commission earned compared to other sub-agents
+    # Calculate ranking based on commission earned compared to other sub-agents.
+    # This used to recompute full statistics (~9 queries) for EVERY active
+    # sub-agent on EVERY single login — O(N agents) DB round trips on a hot
+    # auth path. The full sorted ranking is now cached for a short window and
+    # shared across concurrent logins instead of rebuilt from scratch each time.
     begin
-      all_sub_agents = SubAgent.where(status: 'active')
-      sub_agent_commissions = []
-
-      all_sub_agents.each do |agent|
-        stats = get_sub_agent_statistics(agent)
-        sub_agent_commissions << { id: agent.id, commission: stats[:commission_earned] }
+      sorted_agents = Rails.cache.fetch('sub_agent_commission_rankings', expires_in: 15.minutes) do
+        SubAgent.where(status: 'active').map do |agent|
+          { id: agent.id, commission: get_sub_agent_statistics(agent)[:commission_earned] }
+        end.sort_by { |agent| -agent[:commission] }
       end
-
-      # Sort by commission in descending order
-      sorted_agents = sub_agent_commissions.sort_by { |agent| -agent[:commission] }
 
       # Find current agent's position
       current_agent_rank = sorted_agents.find_index { |agent| agent[:id] == sub_agent.id }

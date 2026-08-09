@@ -283,11 +283,14 @@ class Admin::ReportsController < Admin::ApplicationController
                                .where(health_insurances: { created_at: start_date..Time.current })
                                .distinct.count rescue 0
 
-    @customer_growth = []
-    (0..6).each do |i|
+    # One grouped query for the whole 7-day window instead of one .count per day.
+    growth_range_start = 6.days.ago.to_date.beginning_of_day
+    customer_counts_by_date = Customer.where(created_at: growth_range_start..Time.current)
+                                       .group("DATE(created_at)").count
+
+    @customer_growth = (0..6).map do |i|
       date = (6-i).days.ago.to_date
-      count = Customer.where('DATE(created_at) = ?', date).count
-      @customer_growth << { date: date.strftime('%b %d'), count: count }
+      { date: date.strftime('%b %d'), count: customer_counts_by_date[date] || 0 }
     end
   end
 
@@ -315,22 +318,28 @@ class Admin::ReportsController < Admin::ApplicationController
       @total_orders = Order.where(created_at: start_date..Time.current).count
       @average_order_value = @total_orders > 0 ? (@total_revenue / @total_orders).round(2) : 0
 
-      @revenue_by_day = []
-      (0..6).each do |i|
+      # One grouped query for the whole 7-day window instead of one .sum per day.
+      revenue_range_start = 6.days.ago.to_date.beginning_of_day
+      revenue_by_date = Order.where(created_at: revenue_range_start..Time.current)
+                              .group("DATE(created_at)").sum(:total_amount)
+
+      @revenue_by_day = (0..6).map do |i|
         date = (6-i).days.ago.to_date
-        revenue = Order.where('DATE(created_at) = ?', date).sum(:total_amount)
-        @revenue_by_day << { date: date.strftime('%b %d'), revenue: revenue }
+        { date: date.strftime('%b %d'), revenue: revenue_by_date[date] || 0 }
       end
     elsif defined?(Booking)
       @total_revenue = Booking.where(created_at: start_date..Time.current).sum(:total_amount)
       @total_orders = Booking.where(created_at: start_date..Time.current).count
       @average_order_value = @total_orders > 0 ? (@total_revenue / @total_orders).round(2) : 0
 
-      @revenue_by_day = []
-      (0..6).each do |i|
+      # One grouped query for the whole 7-day window instead of one .sum per day.
+      revenue_range_start = 6.days.ago.to_date.beginning_of_day
+      revenue_by_date = Booking.where(created_at: revenue_range_start..Time.current)
+                                .group("DATE(created_at)").sum(:total_amount)
+
+      @revenue_by_day = (0..6).map do |i|
         date = (6-i).days.ago.to_date
-        revenue = Booking.where('DATE(created_at) = ?', date).sum(:total_amount)
-        @revenue_by_day << { date: date.strftime('%b %d'), revenue: revenue }
+        { date: date.strftime('%b %d'), revenue: revenue_by_date[date] || 0 }
       end
     else
       @total_revenue = 0

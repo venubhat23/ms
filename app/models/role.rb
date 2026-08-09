@@ -45,7 +45,9 @@ class Role < ApplicationRecord
   end
 
   def user_count
-    users.count
+    # .size is loaded-aware (uses the preloaded association in memory when
+    # available); .count always issues a fresh SQL COUNT even if preloaded.
+    users.size
   end
 
   # Permission methods

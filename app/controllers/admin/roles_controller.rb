@@ -9,10 +9,12 @@ class Admin::RolesController < Admin::ApplicationController
     @permissions_count = Permission.count
     @users_count = User.count
 
-    # Statistics
-    @active_roles = @roles.where(status: true).count
-    @inactive_roles = @roles.where(status: false).count
-    @total_assignments = @roles.joins(:users).count
+    # Statistics — one grouped query instead of separate total/active/inactive counts
+    role_status_counts = Role.group(:status).count
+    @active_roles       = role_status_counts[true] || 0
+    @inactive_roles     = role_status_counts[false] || 0
+    @total_roles        = @active_roles + @inactive_roles
+    @total_assignments  = Role.joins(:users).count
   end
 
   # GET /admin/roles/1

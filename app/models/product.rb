@@ -224,9 +224,13 @@ class Product < ApplicationRecord
 
   def available_quantity
     if has_multiple_quantities?
-      product_variants.sum(:available_stock).to_f
+      if product_variants.loaded?
+        product_variants.sum { |v| v.available_stock.to_f }
+      else
+        product_variants.sum(:available_stock).to_f
+      end
     else
-      total_batch_stock
+      cached_total_batch_stock
     end
   end
 
@@ -714,7 +718,7 @@ class Product < ApplicationRecord
         return product_variants.any? { |v| v.available_stock.to_f >= requested_quantity }
       end
     end
-    total_batch_stock >= requested_quantity
+    cached_total_batch_stock >= requested_quantity
   end
 
   def get_fifo_allocation(requested_quantity)

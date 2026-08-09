@@ -20,7 +20,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Total Partners</h6>
-            <h4 class="mb-0"><%= @agency_brokers.count %></h4>
+            <h4 class="mb-0"><%= @agency_brokers_total %></h4>
           </div>
           <div class="text-primary">
             <i class="bi bi-building fs-2"></i>
@@ -35,7 +35,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Active Partners</h6>
-            <h4 class="mb-0"><%= @agency_brokers.where(status: true).count %></h4>
+            <h4 class="mb-0"><%= @agency_brokers_active %></h4>
           </div>
           <div class="text-success">
             <i class="bi bi-check-circle fs-2"></i>
@@ -50,7 +50,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Agents</h6>
-            <h4 class="mb-0"><%= @agency_brokers.where(user_type: 'agent').count %></h4>
+            <h4 class="mb-0"><%= @agency_brokers_agents %></h4>
           </div>
           <div class="text-info">
             <i class="bi bi-person-badge fs-2"></i>
@@ -65,7 +65,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Affiliates</h6>
-            <h4 class="mb-0"><%= @agency_brokers.where(user_type: 'sub_agent').count %></h4>
+            <h4 class="mb-0"><%= @agency_brokers_affiliates %></h4>
           </div>
           <div class="text-warning">
             <i class="bi bi-people fs-2"></i>

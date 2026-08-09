@@ -3,8 +3,18 @@ class Admin::AgencyBrokersController < Admin::ApplicationController
   # In practice, this might be handled through the Users controller with specific user_types
 
   def index
-    @agency_brokers = User.where(user_type: ['agent', 'sub_agent']).order(:first_name)
-    @agency_brokers = @agency_brokers.page(params[:page])
+    scope = User.where(user_type: ['agent', 'sub_agent'])
+    @agency_brokers = scope.order(:first_name).page(params[:page])
+
+    # One grouped query for all 4 header stats instead of 4 separate .count
+    # round trips — also fixes those counts being silently capped at the
+    # per-page limit (a bare .count on a .page()'d relation counts only the
+    # current page, not the true total).
+    counts = scope.group(:user_type, :status).count
+    @agency_brokers_total      = counts.values.sum
+    @agency_brokers_active     = counts.sum { |(_type, status), n| status ? n : 0 }
+    @agency_brokers_agents     = counts.sum { |(type, _status), n| type == 'agent' ? n : 0 }
+    @agency_brokers_affiliates = counts.sum { |(type, _status), n| type == 'sub_agent' ? n : 0 }
   end
 
   def show

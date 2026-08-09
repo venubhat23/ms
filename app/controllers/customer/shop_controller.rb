@@ -62,6 +62,7 @@ class Customer::ShopController < Customer::BaseController
 
   def product
     @product = Product.includes(:category, image_attachment: :blob).find(params[:id])
+    @available_stock = @product.total_batch_stock
     @related_products = Product.where(category_id: @product.category_id)
                                .where.not(id: @product.id)
                                .where(status: 'active')

@@ -24,7 +24,7 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="text-muted mb-2">Total Roles</h6>
-            <h3 class="mb-0 text-primary"><%= number_with_delimiter(@roles.count) %></h3>
+            <h3 class="mb-0 text-primary"><%= number_with_delimiter(@total_roles) %></h3>
           </div>
           <div class="bg-primary bg-opacity-10 rounded p-3">
             <i class="bi bi-person-badge text-primary fs-4"></i>
@@ -121,15 +121,17 @@
                     </div>
                   </div>
                 </td>
+                <% role_users = role.users.to_a %>
+                <% role_module_names = role.permissions.map(&:module_name).uniq %>
                 <td>
                   <div>
-                    <span class="badge bg-info"><%= role.user_count %> users</span>
-                    <% if role.users.any? %>
+                    <span class="badge bg-info"><%= role_users.size %> users</span>
+                    <% if role_users.any? %>
                       <div class="mt-1">
                         <small class="text-muted">
-                          <%= role.users.limit(3).map(&:full_name).join(', ') %>
-                          <% if role.users.count > 3 %>
-                            and <%= role.users.count - 3 %> more
+                          <%= role_users.first(3).map(&:full_name).join(', ') %>
+                          <% if role_users.size > 3 %>
+                            and <%= role_users.size - 3 %> more
                           <% end %>
                         </small>
                       </div>
@@ -138,14 +140,14 @@
                 </td>
                 <td>
                   <div>
-                    <span class="badge bg-secondary"><%= role.permissions.count %> permissions</span>
+                    <span class="badge bg-secondary"><%= role.permissions.size %> permissions</span>
                     <% if role.permissions.any? %>
                       <div class="mt-1">
-                        <% role.permissions.distinct.pluck(:module_name).first(3).each do |module_name| %>
+                        <% role_module_names.first(3).each do |module_name| %>
                           <span class="badge badge-sm bg-outline-primary me-1"><%= module_name.humanize %></span>
                         <% end %>
-                        <% if role.permissions.distinct.count(:module_name) > 3 %>
-                          <span class="text-muted">+<%= role.permissions.distinct.count(:module_name) - 3 %> more</span>
+                        <% if role_module_names.size > 3 %>
+                          <span class="text-muted">+<%= role_module_names.size - 3 %> more</span>
                         <% end %>
                       </div>
                     <% end %>

@@ -91,9 +91,14 @@ class Customer::CartsController < Customer::BaseController
     # Clear existing session cart
     @cart[:items] = []
 
+    # Pre-load every product (+ the associations available_quantity needs) in
+    # one round trip instead of one Product.find_by + one stock query per item.
+    product_ids = cart_items.map { |i| i[:product_id] }.compact.uniq
+    products_by_id = Product.where(id: product_ids).includes(:stock_batches, :product_variants).index_by(&:id)
+
     # Add items from localStorage
     cart_items.each do |item_data|
-      product = Product.find_by(id: item_data[:product_id])
+      product = products_by_id[item_data[:product_id].to_i]
       next unless product && product.status == 'active'
 
       # Validate quantity
@@ -137,8 +142,11 @@ class Customer::CartsController < Customer::BaseController
     out_of_stock = []
     insufficient_stock = []
 
+    product_ids = cart_items.map { |i| i[:id] }.compact.uniq
+    products_by_id = Product.active.where(id: product_ids).includes(:stock_batches, :product_variants).index_by(&:id)
+
     cart_items.each do |item_data|
-      product = Product.active.find_by(id: item_data[:id])
+      product = products_by_id[item_data[:id].to_i]
 
       if product.nil?
         out_of_stock << { id: item_data[:id], name: item_data[:name].to_s }

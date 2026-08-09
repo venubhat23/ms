@@ -323,12 +323,10 @@ body.modal-open {
 
                 <td>
                   <%
-                    # Check CommissionPayout status for main_agent
-                    main_agent_payout = CommissionPayout.find_by(
-                      policy_type: type,
-                      policy_id: policy.id,
-                      payout_to: 'main_agent'
-                    )
+                    # Main agent's CommissionPayout, read from the payout's
+                    # already-preloaded commission_payouts association instead
+                    # of a fresh CommissionPayout.find_by per row.
+                    main_agent_payout = policy_data[:saved_payout]&.main_agent_commission
                   %>
                   <% if main_agent_payout&.status == 'paid' %>
                     <div>

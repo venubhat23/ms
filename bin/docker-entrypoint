@@ -5,4 +5,4 @@ if [ -z "${LD_PRELOAD+x}" ]; then
   export LD_PRELOAD
 fi
 
-exec "${@}"
+exec bash -c "$*"

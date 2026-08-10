@@ -198,7 +198,7 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
         <div class="tot-row"><span>Delivery</span><span id="delivery-charge-display">₹0.00</span></div>
         <div class="tot-row grand"><span>Total</span><span id="grand-total-display">₹<%= @cart_total.round(2) %></span></div>
         <button class="place-btn" id="place-order-btn" onclick="placeOrder()" disabled>Place Order</button>
-        <p class="place-btn-note" id="place-btn-note">Check delivery availability for your pincode to continue.</p>
+        <p class="place-btn-note" id="place-btn-note">Please check delivery availability first to place your order.</p>
         <p class="secure-note">🔒 Your order is secure and protected</p>
       </div>
     </div>
@@ -241,7 +241,7 @@ function updatePlaceButtonState() {
     btn.disabled = true;
     note.className = 'place-btn-note';
     note.style.display = 'block';
-    note.textContent = 'Check delivery availability for your pincode to continue.';
+    note.textContent = 'Please check delivery availability first to place your order.';
   }
 }
 

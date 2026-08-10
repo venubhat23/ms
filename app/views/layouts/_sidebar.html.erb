@@ -874,6 +874,19 @@
               <div class="nav-indicator"></div>
             <% end %>
           </li>
+          <% if SystemSetting.franchise_commission_enabled? %>
+            <li class="nav-item">
+              <%= link_to admin_franchise_withdrawal_requests_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/franchise_withdrawal_requests')}" do %>
+                <div class="nav-icon-modern">
+                  <div class="icon-bg gradient-indigo">
+                    <i class="bi bi-cash-stack"></i>
+                  </div>
+                </div>
+                <span class="nav-text">Franchise Withdrawals</span>
+                <div class="nav-indicator"></div>
+              <% end %>
+            </li>
+          <% end %>
         <% end %>
 
         <!-- Affiliate -->

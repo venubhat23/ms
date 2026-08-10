@@ -24,6 +24,11 @@ class Admin::FranchisesController < Admin::ApplicationController
   end
 
   def show
+    if SystemSetting.franchise_commission_enabled?
+      @franchise_wallet = @franchise.franchise_wallet || @franchise.create_franchise_wallet!(balance: 0)
+      @franchise_wallet_transactions = @franchise_wallet.franchise_wallet_transactions.recent.limit(10)
+      @franchise_inventories = @franchise.franchise_inventories.includes(:product).references(:product).order('products.name')
+    end
   end
 
   def new

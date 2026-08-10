@@ -259,7 +259,20 @@
         <!-- Out for Delivery Fields -->
         <div id="out_for_deliveryFields" class="stage-fields" style="display: none;">
           <h6 class="mb-3 text-muted">Delivery Assignment</h6>
-          <div class="row g-3">
+
+          <% if SystemSetting.franchise_commission_enabled? %>
+            <div class="mb-3">
+              <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="delivery_mode" id="delivery_mode_other" value="delivery_person" checked onchange="toggleDeliveryMode(this)">
+                <label class="btn btn-outline-primary btn-sm" for="delivery_mode_other">Other</label>
+
+                <input type="radio" class="btn-check" name="delivery_mode" id="delivery_mode_franchise" value="franchise" onchange="toggleDeliveryMode(this)">
+                <label class="btn btn-outline-primary btn-sm" for="delivery_mode_franchise">Franchise Delivery</label>
+              </div>
+            </div>
+          <% end %>
+
+          <div id="otherDeliveryFields" class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Delivery Person <span class="text-danger">*</span></label>
               <select class="form-select" name="delivery_person_id" id="delivery_person_select" onchange="updateDeliveryPersonInfo()">
@@ -291,6 +304,24 @@
               <label class="form-label">Delivery Areas</label>
               <input type="text" class="form-control" id="delivery_areas" placeholder="Areas covered by delivery person" readonly>
             </div>
+          </div>
+
+          <% if SystemSetting.franchise_commission_enabled? %>
+            <div id="franchiseDeliveryFields" class="row g-3" style="display: none;">
+              <div class="col-md-6">
+                <label class="form-label">Franchise <span class="text-danger">*</span></label>
+                <select class="form-select" name="delivery_franchise_id" id="delivery_franchise_select">
+                  <option value="">Select Franchise</option>
+                  <% Franchise.active.order(:name).each do |fr| %>
+                    <option value="<%= fr.id %>"><%= fr.name %> (<%= number_with_precision(fr.commission_percentage, precision: 2) %>% commission)</option>
+                  <% end %>
+                </select>
+                <div class="form-text">The selected franchise will see this booking under their "Deliveries" list and earn a commission once they mark it delivered/completed.</div>
+              </div>
+            </div>
+          <% end %>
+
+          <div class="row g-3">
             <div class="col-12">
               <label class="form-label">Delivery Notes</label>
               <textarea class="form-control" name="transition_notes" rows="3" placeholder="Route details, special instructions..."></textarea>
@@ -841,6 +872,31 @@ function updateDeliveryPersonInfo() {
     document.getElementById('delivery_contact').value = '';
     document.getElementById('vehicle_info').value = '';
     document.getElementById('delivery_areas').value = '';
+  }
+}
+
+function toggleDeliveryMode(radio) {
+  const otherFields = document.getElementById('otherDeliveryFields');
+  const franchiseFields = document.getElementById('franchiseDeliveryFields');
+  const deliveryPersonSelect = document.getElementById('delivery_person_select');
+  const franchiseSelect = document.getElementById('delivery_franchise_select');
+
+  if (radio.value === 'franchise') {
+    if (otherFields) otherFields.style.display = 'none';
+    if (franchiseFields) franchiseFields.style.display = 'flex';
+    if (deliveryPersonSelect) {
+      deliveryPersonSelect.value = '';
+      deliveryPersonSelect.removeAttribute('name');
+    }
+    if (franchiseSelect) franchiseSelect.setAttribute('name', 'delivery_franchise_id');
+  } else {
+    if (otherFields) otherFields.style.display = 'flex';
+    if (franchiseFields) franchiseFields.style.display = 'none';
+    if (deliveryPersonSelect) deliveryPersonSelect.setAttribute('name', 'delivery_person_id');
+    if (franchiseSelect) {
+      franchiseSelect.value = '';
+      franchiseSelect.removeAttribute('name');
+    }
   }
 }
 

@@ -4,6 +4,11 @@ class Franchise < ApplicationRecord
   # Associations
   belongs_to :user, optional: true
   has_many :bookings, dependent: :nullify
+  has_many :delivered_bookings, class_name: 'Booking', foreign_key: :delivery_franchise_id, dependent: :nullify
+  has_one :franchise_wallet, dependent: :destroy
+  has_many :franchise_inventories, dependent: :destroy
+  has_many :franchise_stock_movements, dependent: :destroy
+  has_many :franchise_withdrawal_requests, dependent: :destroy
 
   # Password support
   has_secure_password validations: false
@@ -48,6 +53,7 @@ class Franchise < ApplicationRecord
   # Set default values
   after_initialize :set_defaults
   after_create :create_franchise_user
+  after_create :create_franchise_wallet_record
 
   def set_defaults
     self.status = true if status.nil?
@@ -148,5 +154,11 @@ class Franchise < ApplicationRecord
     end
   rescue => e
     Rails.logger.error "❌ Error creating franchise user: #{e.message}"
+  end
+
+  def create_franchise_wallet_record
+    create_franchise_wallet!(balance: 0) unless franchise_wallet
+  rescue => e
+    Rails.logger.error "❌ Error creating franchise wallet for franchise #{name}: #{e.message}"
   end
 end

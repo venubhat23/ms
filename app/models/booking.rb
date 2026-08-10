@@ -5,6 +5,7 @@ class Booking < ApplicationRecord
   belongs_to :store, optional: true
   belongs_to :delivery_person, optional: true
   belongs_to :franchise, optional: true
+  belongs_to :delivery_franchise, class_name: 'Franchise', optional: true
   belongs_to :affiliate, optional: true
   has_many :booking_items, dependent: :destroy
   # has_one :order, dependent: :nullify  # Temporarily disabled until booking_id column is added to orders table
@@ -66,6 +67,8 @@ class Booking < ApplicationRecord
   after_update :allocate_inventory, if: :saved_change_to_status?
   after_update :sync_invoice_payment_status, if: :saved_change_to_payment_status?
   after_update :credit_affiliate_commission, if: :saved_change_to_status?
+  after_update :credit_wholesale_stock_to_franchise, if: :saved_change_to_status?
+  after_update :credit_franchise_commission, if: :saved_change_to_status?
   after_commit :bust_mobile_customer_cache
 
   # Covers every booking-creation path (customer checkout, admin, franchise,
@@ -91,6 +94,53 @@ class Booking < ApplicationRecord
         commission_amount,
         "Commission for Booking ##{booking_number}",
         "COMM-BK-#{id}",
+        booking_id: id
+      )
+    end
+  end
+
+  # Wholesale "Franchise Booking" from admin/bookings/new: once the sale is
+  # confirmed (stock already deducted from central inventory by
+  # allocate_inventory above), the same quantities are credited into the
+  # buying franchise's own inventory ledger.
+  def credit_wholesale_stock_to_franchise
+    return unless status == 'confirmed' && status_previously_was != 'confirmed'
+    return unless booked_by == 'admin' && franchise_id.present? && wholesale_stock_credited_at.nil?
+    return unless SystemSetting.franchise_commission_enabled?
+
+    transaction do
+      update_column(:wholesale_stock_credited_at, Time.current)
+      booking_items.each do |item|
+        next unless item.product_id.present? && item.quantity.to_f.positive?
+
+        FranchiseInventory.add_stock!(
+          franchise, item.product,
+          item.quantity,
+          reference_type: 'wholesale_booking',
+          reference_id: id,
+          notes: "Wholesale Booking ##{booking_number}"
+        )
+      end
+    end
+  end
+
+  # Commission for whichever franchise delivered the booking (assigned via
+  # manage_stage "Franchise Delivery"), regardless of who booked/owns it.
+  def credit_franchise_commission
+    return unless (status == 'delivered' || status == 'completed') && delivery_franchise_id.present?
+    return unless franchise_commission_credited_at.nil?
+    return unless SystemSetting.franchise_commission_enabled?
+
+    commission_amount = (total_amount.to_f * delivery_franchise.commission_percentage.to_f / 100.0).round(2)
+    return unless commission_amount.positive?
+
+    transaction do
+      update_columns(franchise_commission_amount: commission_amount, franchise_commission_credited_at: Time.current)
+      wallet = delivery_franchise.franchise_wallet || delivery_franchise.create_franchise_wallet!(balance: 0)
+      wallet.add_money(
+        commission_amount,
+        "Delivery commission for Booking ##{booking_number}",
+        "FCOMM-BK-#{id}",
         booking_id: id
       )
     end
@@ -591,9 +641,53 @@ class Booking < ApplicationRecord
     result.join(" ")
   end
 
+  def allocate_franchise_inventory
+    insufficient_items = []
+
+    booking_items.each do |item|
+      next unless item.product_id.present? && item.quantity.to_f.positive?
+
+      available = FranchiseInventory.balance_for(franchise, item.product)
+      if available < item.quantity
+        insufficient_items << { product: item.product.name, available: available, requested: item.quantity }
+      end
+    end
+
+    if insufficient_items.any?
+      update_column(:status, status_previously_was)
+      errors.add(:status, "Insufficient franchise inventory: #{insufficient_items.map { |i|
+        "#{i[:product]} (need #{i[:requested]}, have #{i[:available]})"
+      }.join(', ')}")
+      return false
+    end
+
+    booking_items.each do |item|
+      next unless item.product_id.present? && item.quantity.to_f.positive?
+
+      FranchiseInventory.consume_stock!(
+        franchise, item.product,
+        item.quantity,
+        reference_type: 'franchise_booking',
+        reference_id: id,
+        notes: "Franchise Booking ##{booking_number}"
+      )
+    end
+
+    Rails.logger.info "Franchise inventory allocated successfully for booking ##{booking_number}"
+  rescue => e
+    Rails.logger.error "Error allocating franchise inventory for booking ##{booking_number}: #{e.message}"
+  end
+
   def allocate_inventory
     # Only allocate when order is confirmed
     if status == 'confirmed' && status_previously_was != 'confirmed'
+      # Franchise self-service bookings sell from the franchise's own
+      # inventory ledger (credited via wholesale bookings), not central stock.
+      if booked_by == 'franchise' && franchise_id.present? && SystemSetting.franchise_commission_enabled?
+        allocate_franchise_inventory
+        return
+      end
+
       begin
         inventory_service = InventoryService.new
 

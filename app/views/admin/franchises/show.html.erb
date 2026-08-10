@@ -418,6 +418,63 @@
       </div>
     </div>
 
+    <% if SystemSetting.franchise_commission_enabled? %>
+      <!-- Franchise Wallet -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="mb-0">
+            <i class="bi bi-wallet2 me-1 text-success"></i>
+            Franchise Wallet
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="text-center mb-3">
+            <small class="text-muted d-block">Current Balance</small>
+            <h3 class="text-success mb-0"><%= @franchise_wallet.formatted_balance %></h3>
+          </div>
+          <% if @franchise_wallet_transactions.any? %>
+            <hr>
+            <small class="text-muted d-block mb-2">Recent Transactions</small>
+            <% @franchise_wallet_transactions.each do |txn| %>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <small class="d-block"><%= txn.description %></small>
+                  <small class="text-muted"><%= txn.created_at.strftime("%b %d, %Y") %></small>
+                </div>
+                <span class="badge bg-<%= txn.transaction_color %>-subtle text-<%= txn.transaction_color %>">
+                  <%= txn.credit? ? '+' : '-' %><%= txn.formatted_amount %>
+                </span>
+              </div>
+            <% end %>
+          <% else %>
+            <p class="text-muted small mb-0">No wallet transactions yet.</p>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Franchise Inventory -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="mb-0">
+            <i class="bi bi-boxes me-1 text-primary"></i>
+            Franchise Inventory
+          </h6>
+        </div>
+        <div class="card-body">
+          <% if @franchise_inventories.any? %>
+            <% @franchise_inventories.each do |inv| %>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <small><%= inv.product.name %></small>
+                <span class="badge bg-secondary-subtle text-secondary"><%= number_with_precision(inv.quantity, precision: 2) %></span>
+              </div>
+            <% end %>
+          <% else %>
+            <p class="text-muted small mb-0">No stock credited to this franchise yet.</p>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
     <!-- Franchise Timeline -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-transparent border-0">

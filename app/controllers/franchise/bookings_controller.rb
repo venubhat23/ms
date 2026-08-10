@@ -371,6 +371,10 @@ class Franchise::BookingsController < Franchise::BaseController
     items = booking.booking_items.reject(&:marked_for_destruction?)
     return true if items.empty?
 
+    # Once the franchise commission feature is on, a franchise sells from its
+    # own credited inventory ledger, not the shared central pool.
+    return validate_franchise_stock_availability(booking, items, is_update: is_update) if SystemSetting.franchise_commission_enabled?
+
     product_ids = items.map(&:product_id).compact.uniq
 
     # Batch-load products (was: Product.find per item — N queries)
@@ -399,6 +403,25 @@ class Franchise::BookingsController < Franchise::BaseController
 
       if item.quantity > available_stock
         @booking.errors.add(:base, "Insufficient stock for #{product.name}. Available: #{available_stock.to_i}, Requested: #{item.quantity}")
+        return false
+      end
+    end
+    true
+  end
+
+  def validate_franchise_stock_availability(booking, items, is_update: false)
+    product_ids = items.map(&:product_id).compact.uniq
+    products_by_id = Product.where(id: product_ids).index_by(&:id)
+
+    items.each do |item|
+      product = products_by_id[item.product_id]
+      next unless product
+
+      available_stock = FranchiseInventory.balance_for(current_franchise, product).to_f
+      available_stock += item.quantity_was.to_f if is_update && item.persisted?
+
+      if item.quantity > available_stock
+        @booking.errors.add(:base, "Insufficient franchise inventory for #{product.name}. Available: #{available_stock}, Requested: #{item.quantity}")
         return false
       end
     end

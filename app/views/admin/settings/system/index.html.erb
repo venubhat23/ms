@@ -453,6 +453,50 @@
           <% end %>
         </div>
 
+        <!-- Franchise Commission Feature -->
+        <div class="mb-2">
+          <h6 class="text-muted mb-3">Franchise Commission Feature</h6>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-check form-switch mb-3">
+                <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "franchise-commission-form" do |form| %>
+                  <%= form.check_box :franchise_commission_enabled,
+                        { checked: @franchise_commission_enabled,
+                          class: "form-check-input",
+                          id: "franchise_commission_enabled",
+                          onchange: "handleFranchiseCommissionToggle(this)" },
+                        "1", "0" %>
+                  <%= form.hidden_field :franchise_commission_settings_update, value: "true" %>
+                  <label class="form-check-label" for="franchise_commission_enabled">
+                    <strong>Enable Franchise Commission</strong>
+                  </label>
+                <% end %>
+                <div class="form-text">
+                  When enabled: admin bookings can be tagged as wholesale Franchise Bookings (with a discount), franchises get their own inventory ledger and a "Deliveries" queue, and delivering franchises earn a commission credited to their wallet, withdrawable via admin approval.
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="alert alert-info mb-0">
+                <h6 class="alert-heading">Feature Status</h6>
+                <% if @franchise_commission_enabled %>
+                  <span class="badge bg-success">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Enabled
+                  </span>
+                  <p class="mb-0 mt-2">Franchise wholesale booking, inventory, delivery commission and wallet are active.</p>
+                <% else %>
+                  <span class="badge bg-secondary">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Disabled
+                  </span>
+                  <p class="mb-0 mt-2">Franchise commission features are hidden and inactive.</p>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1374,6 +1418,14 @@ function copyUpiId() {
 // Collect From Store Toggle Function
 function handleCollectFromStoreToggle(checkbox) {
   const form = document.getElementById('collect-from-store-form');
+  if (form) {
+    form.submit();
+  }
+}
+
+// Franchise Commission Toggle Function
+function handleFranchiseCommissionToggle(checkbox) {
+  const form = document.getElementById('franchise-commission-form');
   if (form) {
     form.submit();
   }

@@ -1,0 +1,81 @@
+<!-- Franchise Delivery Detail -->
+<div class="dashboard-container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">Booking #<%= @delivery.booking_number %></h2>
+      <p class="text-muted mb-0">Assigned to you for delivery</p>
+    </div>
+    <%= link_to franchise_deliveries_path, class: "btn btn-outline-secondary" do %>
+      <i class="bi bi-arrow-left me-1"></i>Back to Deliveries
+    <% end %>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="mb-0">Booking Details</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <strong class="text-muted d-block">Customer Name</strong>
+              <%= @delivery.customer_name %>
+            </div>
+            <div class="col-md-6">
+              <strong class="text-muted d-block">Mobile</strong>
+              <%= @delivery.customer_phone %>
+            </div>
+            <div class="col-md-6">
+              <strong class="text-muted d-block">Total Amount</strong>
+              ₹<%= number_with_delimiter(@delivery.total_amount.to_f) %>
+            </div>
+            <div class="col-md-6">
+              <strong class="text-muted d-block">Status</strong>
+              <span class="badge bg-<%= @delivery.status == 'completed' ? 'success' : @delivery.status == 'delivered' ? 'info' : 'warning' %>-subtle text-<%= @delivery.status == 'completed' ? 'success' : @delivery.status == 'delivered' ? 'info' : 'warning' %>">
+                <%= @delivery.status.humanize %>
+              </span>
+            </div>
+            <div class="col-12">
+              <strong class="text-muted d-block">Delivery Address</strong>
+              <%= @delivery.delivery_address.presence || '-' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="mb-0">Your Commission</h6>
+        </div>
+        <div class="card-body">
+          <% if @delivery.franchise_commission_credited_at.present? %>
+            <h3 class="text-success mb-1">₹<%= number_with_delimiter(@delivery.franchise_commission_amount.to_f) %></h3>
+            <small class="text-muted">Credited to your wallet on <%= @delivery.franchise_commission_credited_at.strftime("%b %d, %Y") %></small>
+          <% else %>
+            <p class="text-muted mb-0">Commission will be credited once this booking is marked delivered or completed.</p>
+          <% end %>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="mb-0">Update Status</h6>
+        </div>
+        <div class="card-body d-grid gap-2">
+          <% unless %w[delivered completed].include?(@delivery.status) %>
+            <%= button_to "Mark as Delivered", mark_delivered_franchise_delivery_path(@delivery), method: :patch, class: "btn btn-info" %>
+          <% end %>
+          <% unless @delivery.status == 'completed' %>
+            <%= button_to "Mark as Completed", mark_completed_franchise_delivery_path(@delivery), method: :patch, class: "btn btn-success" %>
+          <% end %>
+          <% if @delivery.status == 'completed' %>
+            <p class="text-muted small mb-0">This booking is complete.</p>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

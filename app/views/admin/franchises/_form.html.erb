@@ -43,6 +43,12 @@
             <%= f.label :mobile, "Phone Number", class: "form-label required" %>
             <%= f.text_field :mobile, class: "form-control", required: true %>
           </div>
+
+          <div class="mb-3">
+            <%= f.label :commission_percentage, "Commission (%)", class: "form-label" %>
+            <%= f.number_field :commission_percentage, class: "form-control", min: 0, max: 100, step: "0.01" %>
+            <small class="text-muted">Paid to this franchise when they deliver a booking (used when the Franchise Commission feature is enabled).</small>
+          </div>
         </div>
 
         <!-- Address Information -->

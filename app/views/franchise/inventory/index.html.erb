@@ -1,0 +1,44 @@
+<!-- Franchise Inventory -->
+<div class="dashboard-container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">Inventory</h2>
+      <p class="text-muted mb-0">Stock credited to you by HQ via wholesale bookings, minus what you've sold to your own customers.</p>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <% if @franchise_inventories.any? %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="border-0">Product</th>
+                <th class="border-0">Available Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @franchise_inventories.each do |inv| %>
+                <tr>
+                  <td><%= inv.product.name %></td>
+                  <td class="fw-semibold">
+                    <span class="badge bg-<%= inv.quantity.to_f > 0 ? 'success' : 'secondary' %>-subtle text-<%= inv.quantity.to_f > 0 ? 'success' : 'secondary' %>">
+                      <%= number_with_precision(inv.quantity, precision: 2) %>
+                    </span>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="text-center py-5">
+          <i class="bi bi-boxes fs-1 text-muted d-block mb-3"></i>
+          <h5 class="text-muted">No stock credited yet</h5>
+          <p class="text-muted mb-0">Stock appears here once HQ creates a wholesale Franchise Booking for you.</p>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

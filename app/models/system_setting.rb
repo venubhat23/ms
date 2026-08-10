@@ -293,6 +293,40 @@ class SystemSetting < ApplicationRecord
     setting
   end
 
+  # Franchise Commission Feature Methods
+
+  # Check if the franchise commission feature (wholesale bookings, franchise
+  # inventory, franchise delivery + commission wallet) is enabled
+  def self.franchise_commission_enabled?
+    cached_system_config&.franchise_commission_enabled || false
+  end
+
+  # Enable or disable the franchise commission feature
+  def self.set_franchise_commission_enabled(enabled)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(franchise_commission_enabled: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
+
+  # Update franchise commission setting along with other settings
+  def self.update_franchise_commission_settings(params)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(franchise_commission_enabled: params[:franchise_commission_enabled] == "1")
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
+
   # Delivery Only At Shop Feature Methods
 
   # Check if delivery only at shop feature is enabled

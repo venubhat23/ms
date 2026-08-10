@@ -1,0 +1,65 @@
+<!-- Franchise Deliveries -->
+<div class="dashboard-container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-1">Deliveries</h2>
+      <p class="text-muted mb-0">Bookings assigned to you for delivery. Mark them delivered/completed to earn your commission.</p>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <% if @deliveries.any? %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="border-0">Booking #</th>
+                <th class="border-0">Customer</th>
+                <th class="border-0">Total Amount</th>
+                <th class="border-0">Status</th>
+                <th class="border-0">Commission</th>
+                <th class="border-0"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @deliveries.each do |booking| %>
+                <tr>
+                  <td><%= booking.booking_number %></td>
+                  <td><%= booking.customer_name %></td>
+                  <td>₹<%= number_with_delimiter(booking.total_amount.to_f) %></td>
+                  <td>
+                    <span class="badge bg-<%= booking.status == 'completed' ? 'success' : booking.status == 'delivered' ? 'info' : 'warning' %>-subtle text-<%= booking.status == 'completed' ? 'success' : booking.status == 'delivered' ? 'info' : 'warning' %>">
+                      <%= booking.status.humanize %>
+                    </span>
+                  </td>
+                  <td>
+                    <% if booking.franchise_commission_credited_at.present? %>
+                      <span class="text-success">₹<%= number_with_delimiter(booking.franchise_commission_amount.to_f) %></span>
+                    <% else %>
+                      <span class="text-muted">Pending</span>
+                    <% end %>
+                  </td>
+                  <td>
+                    <%= link_to "View", franchise_delivery_path(booking), class: "btn btn-sm btn-outline-primary" %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <% if @deliveries.respond_to?(:total_pages) %>
+          <div class="card-footer bg-transparent border-0">
+            <%= paginate @deliveries %>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="text-center py-5">
+          <i class="bi bi-truck fs-1 text-muted d-block mb-3"></i>
+          <h5 class="text-muted">No deliveries assigned yet</h5>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

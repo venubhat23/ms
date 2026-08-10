@@ -60,6 +60,9 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     @low_stock_alert_threshold = system_config&.low_stock_alert_threshold || 10
     @low_stock_alert_email     = system_config&.low_stock_alert_email.presence || @business_setting&.email
 
+    # Get franchise commission feature settings
+    @franchise_commission_enabled = system_config&.franchise_commission_enabled || false
+
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
@@ -224,6 +227,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating Delivery Only at Shop settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle franchise commission feature toggle
+    if params[:franchise_commission_settings_update] == "true"
+      begin
+        franchise_commission_enabled = params[:franchise_commission_enabled] == "1"
+
+        SystemSetting.set_franchise_commission_enabled(franchise_commission_enabled)
+
+        if franchise_commission_enabled
+          success_messages << 'Franchise Commission feature enabled successfully!'
+        else
+          success_messages << 'Franchise Commission feature disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Franchise Commission settings: #{e.message}"
         return
       end
     end

@@ -148,6 +148,9 @@ class Admin::BookingsController < Admin::ApplicationController
                         .order(:first_name, :last_name)
     @categories = Category.where(status: true).order(:display_order, :name)
     @stores = Store.active.order(:name)
+
+    @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+    @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
   end
 
   def create
@@ -179,6 +182,26 @@ class Admin::BookingsController < Admin::ApplicationController
       @booking.discount_amount = 0
     end
 
+    # Wholesale "Franchise Booking" discount — recomputed server-side (not
+    # trusted from the client) and folded into discount_amount so the
+    # standard total calculation picks it up.
+    if @booking.franchise_id.present? && SystemSetting.franchise_commission_enabled?
+      subtotal_for_discount = @booking.calculated_subtotal.to_f
+      franchise_discount = case @booking.franchise_discount_type
+                            when 'percentage'
+                              subtotal_for_discount * @booking.franchise_discount_value.to_f / 100.0
+                            when 'fixed'
+                              @booking.franchise_discount_value.to_f
+                            else
+                              0
+                            end
+      franchise_discount = [[franchise_discount, 0].max, subtotal_for_discount].min.round(2)
+      @booking.franchise_discount_amount = franchise_discount
+      @booking.discount_amount = @booking.discount_amount.to_f + franchise_discount
+    else
+      @booking.franchise_id = nil
+    end
+
     # Store payment status value for after save (to avoid enum conflicts during validation)
     @payment_status_from_form = params[:booking][:payment_status]
     Rails.logger.info "Payment status from form: #{@payment_status_from_form}"
@@ -189,6 +212,8 @@ class Admin::BookingsController < Admin::ApplicationController
       @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
+      @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
       render :new, status: :unprocessable_entity
       return
     end
@@ -240,6 +265,8 @@ class Admin::BookingsController < Admin::ApplicationController
       @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
+      @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
     end
@@ -792,9 +819,14 @@ class Admin::BookingsController < Admin::ApplicationController
       transition_data[:shipping_charges] = params[:shipping_charges]
       transition_data[:expected_delivery_date] = params[:expected_delivery_date]
     when 'out_for_delivery'
-      transition_data[:delivery_person_id] = params[:delivery_person_id]
-      transition_data[:delivery_person] = params[:delivery_person]
-      transition_data[:delivery_contact] = params[:delivery_contact]
+      transition_data[:delivery_mode] = params[:delivery_mode].presence || 'delivery_person'
+      if transition_data[:delivery_mode] == 'franchise'
+        transition_data[:delivery_franchise_id] = params[:delivery_franchise_id]
+      else
+        transition_data[:delivery_person_id] = params[:delivery_person_id]
+        transition_data[:delivery_person] = params[:delivery_person]
+        transition_data[:delivery_contact] = params[:delivery_contact]
+      end
     when 'delivered'
       transition_data[:delivery_person] = params[:delivery_person]
       transition_data[:delivery_time] = params[:delivery_time]
@@ -841,9 +873,14 @@ class Admin::BookingsController < Admin::ApplicationController
       @booking.package_dimensions = transition_data[:package_dimensions] if transition_data[:package_dimensions].present?
       @booking.quality_status = transition_data[:quality_status] if transition_data[:quality_status].present?
     when 'out_for_delivery'
-      @booking.delivery_person = transition_data[:delivery_person] if transition_data[:delivery_person].present?
-      @booking.delivery_contact = transition_data[:delivery_contact] if transition_data[:delivery_contact].present?
-      @booking.delivery_person_id = transition_data[:delivery_person_id] if transition_data[:delivery_person_id].present?
+      @booking.delivery_mode = transition_data[:delivery_mode] if transition_data[:delivery_mode].present?
+      if transition_data[:delivery_mode] == 'franchise'
+        @booking.delivery_franchise_id = transition_data[:delivery_franchise_id] if transition_data[:delivery_franchise_id].present?
+      else
+        @booking.delivery_person = transition_data[:delivery_person] if transition_data[:delivery_person].present?
+        @booking.delivery_contact = transition_data[:delivery_contact] if transition_data[:delivery_contact].present?
+        @booking.delivery_person_id = transition_data[:delivery_person_id] if transition_data[:delivery_person_id].present?
+      end
     end
 
     # Update stage history - parse existing JSON and add new entry
@@ -875,7 +912,8 @@ class Admin::BookingsController < Admin::ApplicationController
       :customer_id, :customer_name, :customer_email, :customer_phone,
       :payment_method, :payment_status, :discount_amount, :notes,
       :delivery_address, :cash_received, :change_amount, :status, :store_id,
-      :booking_date, :is_b2b, booking_items_attributes: [:id, :product_id, :product_variant_id, :quantity, :price, :_destroy]
+      :booking_date, :is_b2b, :franchise_id, :franchise_discount_type, :franchise_discount_value,
+      booking_items_attributes: [:id, :product_id, :product_variant_id, :quantity, :price, :_destroy]
     )
   end
 
@@ -1000,13 +1038,23 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def process_out_for_delivery_transition
-    # Validation for required fields
-    unless params[:delivery_person_id].present?
-      respond_to do |format|
-        format.html { redirect_to manage_stage_admin_booking_path(@booking), alert: 'Please select a delivery person for out for delivery' }
-        format.json { render json: { success: false, error: 'Please select a delivery person for out for delivery' } }
+    if params[:delivery_mode] == 'franchise' && SystemSetting.franchise_commission_enabled?
+      unless params[:delivery_franchise_id].present?
+        respond_to do |format|
+          format.html { redirect_to manage_stage_admin_booking_path(@booking), alert: 'Please select a franchise for out for delivery' }
+          format.json { render json: { success: false, error: 'Please select a franchise for out for delivery' } }
+        end
+        return
       end
-      return
+    else
+      # Validation for required fields
+      unless params[:delivery_person_id].present?
+        respond_to do |format|
+          format.html { redirect_to manage_stage_admin_booking_path(@booking), alert: 'Please select a delivery person for out for delivery' }
+          format.json { render json: { success: false, error: 'Please select a delivery person for out for delivery' } }
+        end
+        return
+      end
     end
 
     respond_to do |format|

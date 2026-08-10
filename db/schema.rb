@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_10_100006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -271,6 +271,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
     t.bigint "affiliate_id"
     t.integer "booking_items_count", default: 0, null: false
     t.datetime "affiliate_commission_credited_at"
+    t.string "franchise_discount_type"
+    t.decimal "franchise_discount_value", precision: 10, scale: 2
+    t.decimal "franchise_discount_amount", precision: 10, scale: 2, default: "0.0"
+    t.datetime "wholesale_stock_credited_at"
+    t.string "delivery_mode", default: "delivery_person"
+    t.bigint "delivery_franchise_id"
+    t.decimal "franchise_commission_amount", precision: 10, scale: 2, default: "0.0"
+    t.datetime "franchise_commission_credited_at"
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_date"], name: "index_bookings_on_booking_date"
@@ -280,6 +288,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
     t.index ["courier_service"], name: "index_bookings_on_courier_service"
     t.index ["created_at"], name: "index_bookings_on_created_at"
     t.index ["customer_id"], name: "index_bookings_on_customer_id"
+    t.index ["delivery_franchise_id"], name: "index_bookings_on_delivery_franchise_id"
     t.index ["delivery_person_id"], name: "index_bookings_on_delivery_person_id"
     t.index ["delivery_time"], name: "index_bookings_on_delivery_time"
     t.index ["expected_delivery_date"], name: "index_bookings_on_expected_delivery_date"
@@ -541,6 +550,76 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
     t.index ["created_by_id"], name: "index_expenses_on_created_by_id"
     t.index ["store_id", "expense_date"], name: "index_expenses_on_store_id_and_expense_date"
     t.index ["store_id"], name: "index_expenses_on_store_id"
+  end
+
+  create_table "franchise_inventories", force: :cascade do |t|
+    t.bigint "franchise_id", null: false
+    t.bigint "product_id", null: false
+    t.decimal "quantity", precision: 10, scale: 2, default: "0.0", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_id", "product_id"], name: "index_franchise_inventories_on_franchise_and_product", unique: true
+    t.index ["product_id"], name: "index_franchise_inventories_on_product_id"
+  end
+
+  create_table "franchise_stock_movements", force: :cascade do |t|
+    t.bigint "franchise_id", null: false
+    t.bigint "product_id", null: false
+    t.string "reference_type", null: false
+    t.integer "reference_id"
+    t.string "movement_type", null: false
+    t.decimal "quantity", precision: 10, scale: 2, null: false
+    t.decimal "stock_before", precision: 10, scale: 2, null: false
+    t.decimal "stock_after", precision: 10, scale: 2, null: false
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_id", "product_id"], name: "idx_franchise_stock_movements_franchise_product"
+    t.index ["franchise_id"], name: "index_franchise_stock_movements_on_franchise_id"
+    t.index ["product_id"], name: "index_franchise_stock_movements_on_product_id"
+    t.index ["reference_type", "reference_id"], name: "idx_franchise_stock_movements_ref_type_id"
+  end
+
+  create_table "franchise_wallet_transactions", force: :cascade do |t|
+    t.bigint "franchise_wallet_id", null: false
+    t.string "transaction_type", null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.decimal "balance_after", precision: 10, scale: 2, null: false
+    t.string "description"
+    t.string "reference_number"
+    t.bigint "booking_id"
+    t.json "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["booking_id"], name: "index_franchise_wallet_transactions_on_booking_id"
+    t.index ["franchise_wallet_id"], name: "index_franchise_wallet_transactions_on_franchise_wallet_id"
+    t.index ["reference_number"], name: "index_franchise_wallet_transactions_on_reference_number", unique: true
+  end
+
+  create_table "franchise_wallets", force: :cascade do |t|
+    t.bigint "franchise_id", null: false
+    t.decimal "balance", precision: 10, scale: 2, default: "0.0", null: false
+    t.boolean "status", default: true
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_id"], name: "index_franchise_wallets_on_franchise_id", unique: true
+  end
+
+  create_table "franchise_withdrawal_requests", force: :cascade do |t|
+    t.bigint "franchise_id", null: false
+    t.decimal "amount", precision: 10, scale: 2, null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "requested_at"
+    t.datetime "approved_at"
+    t.bigint "approved_by_user_id"
+    t.datetime "paid_at"
+    t.string "payment_reference"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_id"], name: "index_franchise_withdrawal_requests_on_franchise_id"
+    t.index ["status"], name: "index_franchise_withdrawal_requests_on_status"
   end
 
   create_table "franchises", force: :cascade do |t|
@@ -1362,6 +1441,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
     t.string "invoice_template", default: "classic"
     t.string "logo_url"
     t.string "website"
+    t.boolean "franchise_commission_enabled", default: false
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 
@@ -1561,6 +1641,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_09_060000) do
   add_foreign_key "bookings", "booking_schedules"
   add_foreign_key "bookings", "delivery_people"
   add_foreign_key "bookings", "franchises"
+  add_foreign_key "bookings", "franchises", column: "delivery_franchise_id"
   add_foreign_key "bookings", "stores"
   add_foreign_key "client_requests", "customers"
   add_foreign_key "client_requests", "users", column: "assignee_id"

@@ -1,0 +1,110 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Franchise Withdrawal Requests</h2>
+    <p class="text-muted mb-0">Review and process franchise wallet withdrawals</p>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Total</h6>
+        <h4 class="mb-0"><%= @stats[:total] %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Pending</h6>
+        <h4 class="mb-0 text-warning"><%= @stats[:pending] %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Approved</h6>
+        <h4 class="mb-0 text-info"><%= @stats[:approved] %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Paid</h6>
+        <h4 class="mb-0 text-success"><%= @stats[:paid] %></h4>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <select class="form-select" onchange="window.location.href='<%= admin_franchise_withdrawal_requests_path %>?status=' + this.value">
+          <option value="">All Status</option>
+          <option value="pending" <%= 'selected' if params[:status] == 'pending' %>>Pending</option>
+          <option value="approved" <%= 'selected' if params[:status] == 'approved' %>>Approved</option>
+          <option value="paid" <%= 'selected' if params[:status] == 'paid' %>>Paid</option>
+          <option value="rejected" <%= 'selected' if params[:status] == 'rejected' %>>Rejected</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <%= link_to "Clear Filters", admin_franchise_withdrawal_requests_path, class: "btn btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <% if @withdrawal_requests.any? %>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="border-0">Franchise</th>
+              <th class="border-0">Amount</th>
+              <th class="border-0">Requested</th>
+              <th class="border-0">Status</th>
+              <th class="border-0">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @withdrawal_requests.each do |wr| %>
+              <tr>
+                <td class="align-middle">
+                  <%= link_to wr.franchise.display_name, admin_franchise_path(wr.franchise) %>
+                  <div class="small text-muted"><%= wr.franchise.mobile %></div>
+                </td>
+                <td class="align-middle fw-semibold"><%= wr.formatted_amount %></td>
+                <td class="align-middle small"><%= wr.requested_at&.strftime("%b %d, %Y") %></td>
+                <td class="align-middle">
+                  <% status_color = { 'pending' => 'warning', 'approved' => 'info', 'paid' => 'success', 'rejected' => 'danger' }[wr.status] %>
+                  <span class="badge bg-<%= status_color %>"><%= wr.status.capitalize %></span>
+                </td>
+                <td class="align-middle">
+                  <%= link_to "Manage", admin_franchise_withdrawal_request_path(wr), class: "btn btn-sm btn-outline-primary" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @withdrawal_requests.respond_to?(:total_pages) %>
+        <div class="card-footer bg-transparent border-0">
+          <%= paginate @withdrawal_requests %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-5">
+        <i class="bi bi-cash-stack fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">No withdrawal requests</h5>
+      </div>
+    <% end %>
+  </div>
+</div>

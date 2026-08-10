@@ -339,8 +339,20 @@
             <div class="mb-4">
               <h6 class="mb-3"><i class="bi bi-person me-2"></i>Customer Information</h6>
 
+              <% if @franchise_commission_enabled %>
+                <div class="mb-3">
+                  <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input" id="franchiseBookingToggle" onchange="toggleFranchiseBooking(this)">
+                    <label class="form-check-label" for="franchiseBookingToggle">
+                      <strong><i class="bi bi-shop-window me-1"></i>Franchise Booking</strong>
+                      <span class="text-muted">(wholesale sale to a franchise, at a discount)</span>
+                    </label>
+                  </div>
+                </div>
+              <% end %>
+
               <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-4" id="customerSearchSection">
                   <label class="form-label">
                     <i class="bi bi-person-search me-1"></i>Search & Select Customer
                   </label>
@@ -384,6 +396,49 @@
                     </div>
                   </div>
                 </div>
+
+                <% if @franchise_commission_enabled %>
+                  <div class="col-md-4" id="franchiseSearchSection" style="display: none;">
+                    <label class="form-label">
+                      <i class="bi bi-shop-window me-1"></i>Search & Select Franchise
+                    </label>
+                    <div class="position-relative">
+                      <%= f.hidden_field :franchise_id, id: 'selected_franchise_id' %>
+
+                      <div class="customer-search-wrapper">
+                        <i class="bi bi-search customer-search-icon"></i>
+                        <input type="text"
+                               class="form-control customer-search-input"
+                               id="franchiseSearchInput"
+                               placeholder="Search franchise by name, mobile, or email..."
+                               autocomplete="off">
+                      </div>
+
+                      <div class="customer-search-dropdown" id="franchiseSearchDropdown">
+                        <div class="customer-search-results" id="franchiseSearchResults">
+                          <!-- Results will be populated here -->
+                        </div>
+                        <div class="customer-search-footer">
+                          <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="showAllFranchises()">
+                            <i class="bi bi-shop me-1"></i>Show All Franchises
+                          </button>
+                        </div>
+                      </div>
+
+                      <div class="selected-customer-display" id="selectedFranchiseDisplay" style="display: none;">
+                        <div class="d-flex align-items-center justify-content-between">
+                          <div class="customer-info">
+                            <div class="customer-name fw-medium"></div>
+                            <div class="customer-details text-muted small"></div>
+                          </div>
+                          <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearSelectedFranchise()">
+                            <i class="bi bi-x"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
 
                 <div class="col-md-4">
                   <label class="form-label">Store (Optional)</label>
@@ -456,6 +511,40 @@
                   <label class="form-label">Delivery Address</label>
                   <%= f.text_area :delivery_address, class: 'form-control', rows: 3, placeholder: 'Enter complete delivery address' %>
                 </div>
+
+                <% if @franchise_commission_enabled %>
+                  <div class="col-12" id="wholesaleDiscountSection" style="display: none;">
+                    <div class="card border-0 bg-light-subtle">
+                      <div class="card-body">
+                        <h6 class="mb-3"><i class="bi bi-percent me-2"></i>Wholesale Discount</h6>
+                        <div class="row g-3 align-items-end">
+                          <div class="col-md-4">
+                            <label class="form-label">Discount Type</label>
+                            <div class="d-flex gap-3">
+                              <div class="form-check">
+                                <%= f.radio_button :franchise_discount_type, 'fixed', class: 'form-check-input', checked: true %>
+                                <label class="form-check-label" for="booking_franchise_discount_type_fixed">Fixed Amount</label>
+                              </div>
+                              <div class="form-check">
+                                <%= f.radio_button :franchise_discount_type, 'percentage', class: 'form-check-input' %>
+                                <label class="form-check-label" for="booking_franchise_discount_type_percentage">Percentage</label>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">Discount Value</label>
+                            <%= f.number_field :franchise_discount_value, class: 'form-control', min: 0, step: '0.01', placeholder: '0.00' %>
+                          </div>
+                          <div class="col-md-4">
+                            <div class="form-text">
+                              <i class="bi bi-info-circle me-1"></i>Applied to the bill total and recorded against this franchise. The quantity sold will also be credited to the franchise's own inventory.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
               </div>
             </div>
 
@@ -1352,9 +1441,208 @@ let customers = <%= raw @customers.map { |c| {
   address: c.respond_to?(:address) ? c.address : ''
 }}.to_json %>;
 
+// Franchise Search System (Franchise Booking toggle)
+let franchises = <%= raw (@franchises || []).map { |fr| {
+  id: fr.id,
+  name: fr.name,
+  mobile: fr.mobile,
+  email: fr.email,
+  address: fr.respond_to?(:address) ? fr.address : ''
+}}.to_json %>;
+
 let searchTimeout;
 let currentSearchQuery = '';
 let selectedCustomerIndex = -1;
+let franchiseSearchTimeout;
+let selectedFranchiseIndex = -1;
+
+function toggleFranchiseBooking(checkbox) {
+  const customerSection = document.getElementById('customerSearchSection');
+  const franchiseSection = document.getElementById('franchiseSearchSection');
+  const discountSection = document.getElementById('wholesaleDiscountSection');
+
+  if (checkbox.checked) {
+    if (customerSection) customerSection.style.display = 'none';
+    if (franchiseSection) franchiseSection.style.display = 'block';
+    if (discountSection) discountSection.style.display = 'block';
+    clearSelectedCustomer();
+  } else {
+    if (customerSection) customerSection.style.display = 'block';
+    if (franchiseSection) franchiseSection.style.display = 'none';
+    if (discountSection) discountSection.style.display = 'none';
+    clearSelectedFranchise();
+  }
+}
+
+function initializeFranchiseSearch() {
+  const searchInput = document.getElementById('franchiseSearchInput');
+  const dropdown = document.getElementById('franchiseSearchDropdown');
+
+  if (!searchInput || !dropdown) return;
+
+  searchInput.addEventListener('focus', function() {
+    if (this.value.length >= 1 || franchises.length <= 20) {
+      showFranchiseDropdown();
+      if (this.value.length >= 1) {
+        performFranchiseSearch(this.value);
+      } else {
+        showAllFranchises();
+      }
+    }
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.position-relative')) {
+      hideFranchiseDropdown();
+    }
+  });
+
+  searchInput.addEventListener('input', function() {
+    const query = this.value.trim();
+    selectedFranchiseIndex = -1;
+
+    clearTimeout(franchiseSearchTimeout);
+    franchiseSearchTimeout = setTimeout(() => {
+      if (query.length >= 1) {
+        showFranchiseDropdown();
+        performFranchiseSearch(query);
+      } else if (query.length === 0) {
+        if (franchises.length <= 20) {
+          showAllFranchises();
+        } else {
+          hideFranchiseDropdown();
+        }
+      }
+    }, 300);
+  });
+
+  searchInput.addEventListener('keydown', function(e) {
+    const items = document.querySelectorAll('.franchise-search-item');
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedFranchiseIndex = Math.min(selectedFranchiseIndex + 1, items.length - 1);
+      updateHighlightedFranchiseItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedFranchiseIndex = Math.max(selectedFranchiseIndex - 1, -1);
+      updateHighlightedFranchiseItem(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedFranchiseIndex >= 0 && items[selectedFranchiseIndex]) {
+        items[selectedFranchiseIndex].click();
+      }
+    } else if (e.key === 'Escape') {
+      hideFranchiseDropdown();
+      this.blur();
+    }
+  });
+}
+
+function performFranchiseSearch(query) {
+  const results = document.getElementById('franchiseSearchResults');
+  if (!results) return;
+
+  results.innerHTML = '<div class="customer-search-loading"><div class="customer-search-spinner"></div>Searching franchises...</div>';
+
+  setTimeout(() => {
+    const filtered = franchises.filter(fr =>
+      fr.name.toLowerCase().includes(query.toLowerCase()) ||
+      (fr.mobile && fr.mobile.includes(query)) ||
+      (fr.email && fr.email.toLowerCase().includes(query.toLowerCase()))
+    ).slice(0, 10);
+
+    displayFranchiseResults(filtered);
+  }, 200);
+}
+
+function displayFranchiseResults(franchiseList) {
+  const results = document.getElementById('franchiseSearchResults');
+  if (!results) return;
+
+  if (franchiseList.length === 0) {
+    results.innerHTML = '<div class="customer-search-empty"><i class="bi bi-shop fs-4 mb-2 d-block text-muted"></i><div class="fw-medium">No franchises found</div></div>';
+    return;
+  }
+
+  let html = '';
+  franchiseList.forEach((fr, index) => {
+    html += '<div class="customer-search-item franchise-search-item" onclick="selectFranchise(' + fr.id + ', \'' + escapeHtml(fr.name) + '\', \'' + (fr.mobile || '') + '\', \'' + escapeHtml(fr.email) + '\', \'' + escapeHtml(fr.address) + '\')" data-index="' + index + '">';
+    html += '<div class="customer-result-card">';
+    html += '<div class="customer-result-name">' + fr.name + '</div>';
+    html += '<div class="customer-result-details">';
+    html += '<span class="customer-detail-item"><i class="bi bi-phone"></i>' + (fr.mobile || '') + '</span>';
+    if (fr.email) {
+      html += '<span class="customer-detail-item"><i class="bi bi-envelope"></i>' + fr.email + '</span>';
+    }
+    html += '<span class="customer-detail-badge">ID: ' + fr.id + '</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  results.innerHTML = html;
+}
+
+function updateHighlightedFranchiseItem(items) {
+  items.forEach((item, index) => {
+    item.classList.toggle('active', index === selectedFranchiseIndex);
+  });
+
+  if (selectedFranchiseIndex >= 0 && items[selectedFranchiseIndex]) {
+    items[selectedFranchiseIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function selectFranchise(franchiseId, franchiseName, franchiseMobile, franchiseEmail, franchiseAddress) {
+  document.getElementById('selected_franchise_id').value = franchiseId;
+  document.getElementById('franchiseSearchInput').style.display = 'none';
+
+  const selectedDisplay = document.getElementById('selectedFranchiseDisplay');
+  selectedDisplay.style.display = 'block';
+  selectedDisplay.querySelector('.customer-name').textContent = franchiseName;
+  selectedDisplay.querySelector('.customer-details').innerHTML = '<div class="d-flex align-items-center gap-2 flex-wrap"><span class="badge bg-primary-subtle text-primary"><i class="bi bi-telephone me-1"></i>' + franchiseMobile + '</span>' + (franchiseEmail ? '<span class="badge bg-success-subtle text-success"><i class="bi bi-envelope me-1"></i>' + franchiseEmail + '</span>' : '') + '</div>';
+
+  // Auto-fill required customer fields from the franchise's own contact info
+  document.getElementById('booking_customer_name').value = franchiseName;
+  document.getElementById('booking_customer_phone').value = franchiseMobile;
+  document.getElementById('booking_customer_email').value = franchiseEmail || '';
+  if (franchiseAddress) {
+    document.getElementById('booking_delivery_address').value = franchiseAddress;
+  }
+
+  hideFranchiseDropdown();
+  showNotification('Selected franchise: ' + franchiseName, 'success');
+}
+
+function clearSelectedFranchise() {
+  const franchiseIdField = document.getElementById('selected_franchise_id');
+  if (franchiseIdField) franchiseIdField.value = '';
+
+  const searchInput = document.getElementById('franchiseSearchInput');
+  if (searchInput) {
+    searchInput.style.display = 'block';
+    searchInput.value = '';
+  }
+
+  const selectedDisplay = document.getElementById('selectedFranchiseDisplay');
+  if (selectedDisplay) selectedDisplay.style.display = 'none';
+}
+
+function showAllFranchises() {
+  displayFranchiseResults(franchises.slice(0, 10));
+}
+
+function showFranchiseDropdown() {
+  const dropdown = document.getElementById('franchiseSearchDropdown');
+  if (dropdown) dropdown.classList.add('show');
+}
+
+function hideFranchiseDropdown() {
+  const dropdown = document.getElementById('franchiseSearchDropdown');
+  if (dropdown) dropdown.classList.remove('show');
+  selectedFranchiseIndex = -1;
+}
 
 // Initialize customer search
 function initializeCustomerSearch() {
@@ -1857,6 +2145,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeCart();
   setupSearch();
   initializeCustomerSearch();
+  initializeFranchiseSearch();
 
   // Set default payment method
   selectPaymentMethod('cash');

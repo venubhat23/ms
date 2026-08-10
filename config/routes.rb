@@ -799,6 +799,15 @@ Rails.application.routes.draw do
       end
     end
 
+    # Franchise withdrawal requests
+    resources :franchise_withdrawal_requests, only: [:index, :show] do
+      member do
+        patch :approve
+        patch :reject
+        patch :mark_paid
+      end
+    end
+
     # Stock Movements Management
     resources :stock_movements, only: [:index, :show] do
       collection do
@@ -1118,6 +1127,21 @@ Rails.application.routes.draw do
         get :realtime_data
       end
     end
+
+    # Franchise-wise inventory
+    get '/inventory', to: 'inventory#index'
+
+    # Deliveries assigned to this franchise
+    resources :deliveries, only: [:index, :show] do
+      member do
+        patch :mark_delivered
+        patch :mark_completed
+      end
+    end
+
+    # Wallet and withdrawals
+    get '/wallet', to: 'wallet#show'
+    resources :withdrawal_requests, only: [:index, :new, :create]
   end
 
   # Affiliate routes

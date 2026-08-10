@@ -530,6 +530,47 @@
       </div>
     </div>
 
+    <% if @booking.franchise_id.present? || @booking.delivery_franchise_id.present? %>
+      <!-- Franchise -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h6 class="mb-0"><i class="bi bi-shop-window me-1 text-warning"></i>Franchise</h6>
+        </div>
+        <div class="card-body">
+          <% if @booking.franchise_id.present? %>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted">Wholesale Buyer:</span>
+              <span class="fw-medium"><%= link_to @booking.franchise.name, admin_franchise_path(@booking.franchise) %></span>
+            </div>
+            <% if @booking.franchise_discount_amount.to_f > 0 %>
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted">Wholesale Discount:</span>
+                <span class="fw-medium text-success">
+                  -₹<%= number_with_delimiter(@booking.franchise_discount_amount.to_f) %>
+                  <small class="text-muted">(<%= @booking.franchise_discount_type&.titleize %>)</small>
+                </span>
+              </div>
+            <% end %>
+          <% end %>
+
+          <% if @booking.delivery_franchise_id.present? %>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted">Delivering Franchise:</span>
+              <span class="fw-medium"><%= link_to @booking.delivery_franchise.name, admin_franchise_path(@booking.delivery_franchise) %></span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <span class="text-muted">Franchise Commission:</span>
+              <% if @booking.franchise_commission_credited_at.present? %>
+                <span class="fw-medium text-success">₹<%= number_with_delimiter(@booking.franchise_commission_amount.to_f) %> <small class="text-muted">(credited)</small></span>
+              <% else %>
+                <span class="fw-medium text-muted">Not yet credited</span>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
     <!-- Timeline -->
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent border-0">

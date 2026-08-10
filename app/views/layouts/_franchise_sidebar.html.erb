@@ -358,6 +358,47 @@
             <div class="nav-indicator"></div>
           <% end %>
         </li>
+
+        <% if SystemSetting.franchise_commission_enabled? %>
+          <!-- Inventory -->
+          <li class="nav-item">
+            <%= link_to franchise_inventory_path, class: "nav-link-modern #{'active' if request.path.include?('/franchise/inventory')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg gradient-blue">
+                  <i class="bi bi-boxes"></i>
+                </div>
+              </div>
+              <span class="nav-text">Inventory</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+
+          <!-- Deliveries -->
+          <li class="nav-item">
+            <%= link_to franchise_deliveries_path, class: "nav-link-modern #{'active' if request.path.include?('/franchise/deliveries')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg gradient-red">
+                  <i class="bi bi-truck"></i>
+                </div>
+              </div>
+              <span class="nav-text">Deliveries</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+
+          <!-- Wallet -->
+          <li class="nav-item">
+            <%= link_to franchise_wallet_path, class: "nav-link-modern #{'active' if request.path.include?('/franchise/wallet') || request.path.include?('/franchise/withdrawal_requests')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg gradient-green">
+                  <i class="bi bi-wallet2"></i>
+                </div>
+              </div>
+              <span class="nav-text">Wallet</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+        <% end %>
       </ul>
     </div>
   </nav>

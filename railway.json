@@ -6,7 +6,7 @@
   },
   "deploy": {
     "preDeployCommand": "bundle exec rails db:migrate",
-    "startCommand": "bundle exec rails server -p $PORT -e production",
+    "startCommand": "bundle exec rails server -e production",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }

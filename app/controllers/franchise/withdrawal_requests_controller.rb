@@ -1,4 +1,6 @@
 class Franchise::WithdrawalRequestsController < Franchise::BaseController
+  before_action :ensure_franchise_commission_enabled
+
   def index
     @withdrawal_requests = current_franchise.franchise_withdrawal_requests.recent.page(params[:page]).per(20)
     @wallet = current_franchise.franchise_wallet

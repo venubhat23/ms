@@ -1,4 +1,5 @@
 class Franchise::DeliveriesController < Franchise::BaseController
+  before_action :ensure_franchise_commission_enabled
   before_action :set_delivery, only: [:show, :mark_delivered, :mark_completed]
 
   def index

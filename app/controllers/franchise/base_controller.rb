@@ -32,4 +32,13 @@ class Franchise::BaseController < ApplicationController
   end
 
   helper_method :current_franchise
+
+  # Blocks direct URL access to inventory/deliveries/wallet/withdrawals when
+  # the admin has the Franchise Commission feature turned off — the sidebar
+  # links are already hidden, but the actions themselves must refuse too.
+  def ensure_franchise_commission_enabled
+    unless SystemSetting.franchise_commission_enabled?
+      redirect_to franchise_dashboard_path, alert: 'This feature is currently disabled.'
+    end
+  end
 end

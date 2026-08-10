@@ -453,50 +453,6 @@
           <% end %>
         </div>
 
-        <!-- Franchise Commission Feature -->
-        <div class="mb-2">
-          <h6 class="text-muted mb-3">Franchise Commission Feature</h6>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="form-check form-switch mb-3">
-                <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "franchise-commission-form" do |form| %>
-                  <%= form.check_box :franchise_commission_enabled,
-                        { checked: @franchise_commission_enabled,
-                          class: "form-check-input",
-                          id: "franchise_commission_enabled",
-                          onchange: "handleFranchiseCommissionToggle(this)" },
-                        "1", "0" %>
-                  <%= form.hidden_field :franchise_commission_settings_update, value: "true" %>
-                  <label class="form-check-label" for="franchise_commission_enabled">
-                    <strong>Enable Franchise Commission</strong>
-                  </label>
-                <% end %>
-                <div class="form-text">
-                  When enabled: admin bookings can be tagged as wholesale Franchise Bookings (with a discount), franchises get their own inventory ledger and a "Deliveries" queue, and delivering franchises earn a commission credited to their wallet, withdrawable via admin approval.
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="alert alert-info mb-0">
-                <h6 class="alert-heading">Feature Status</h6>
-                <% if @franchise_commission_enabled %>
-                  <span class="badge bg-success">
-                    <i class="bi bi-check-circle me-1"></i>
-                    Enabled
-                  </span>
-                  <p class="mb-0 mt-2">Franchise wholesale booking, inventory, delivery commission and wallet are active.</p>
-                <% else %>
-                  <span class="badge bg-secondary">
-                    <i class="bi bi-x-circle me-1"></i>
-                    Disabled
-                  </span>
-                  <p class="mb-0 mt-2">Franchise commission features are hidden and inactive.</p>
-                <% end %>
-              </div>
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
 
@@ -736,6 +692,54 @@
                       <small>
                         <i class="bi bi-<%= @delivery_only_at_shop_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
                         Status: <%= @delivery_only_at_shop_enabled ? 'Enabled' : 'Disabled' %>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
+        <!-- Franchise Commission Feature Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-transparent border-0">
+            <h5 class="mb-0">
+              <i class="bi bi-shop-window me-2"></i>
+              Franchise Commission Feature
+            </h5>
+          </div>
+          <div class="card-body">
+            <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "franchise-commission-form" do |form| %>
+              <%= form.hidden_field :franchise_commission_settings_update, value: "true" %>
+
+              <div class="row">
+                <div class="col-md-12">
+                  <div class="form-check form-switch mb-3">
+                    <%= form.check_box :franchise_commission_enabled,
+                          { checked: @franchise_commission_enabled,
+                            class: "form-check-input",
+                            id: "franchise_commission_enabled",
+                            onchange: "handleFranchiseCommissionToggle(this)" },
+                          "1", "0" %>
+                    <label class="form-check-label" for="franchise_commission_enabled">
+                      <strong>Enable Franchise Commission</strong>
+                    </label>
+                    <div class="form-text">
+                      When enabled: admin bookings can be tagged as wholesale Franchise Bookings (with a discount), franchises get their own inventory ledger and a "Deliveries" queue, and delivering franchises earn a commission credited to their wallet, withdrawable via admin approval.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row mt-3">
+                <div class="col-md-12">
+                  <div class="d-flex gap-2">
+                    <%= form.submit "Update Franchise Settings", class: "btn btn-primary" %>
+                    <div class="alert alert-<%= @franchise_commission_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                      <small>
+                        <i class="bi bi-<%= @franchise_commission_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                        Status: <%= @franchise_commission_enabled ? 'Enabled' : 'Disabled' %>
                       </small>
                     </div>
                   </div>

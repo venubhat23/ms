@@ -1,6 +1,13 @@
 class Admin::FranchiseWithdrawalRequestsController < Admin::ApplicationController
   include ConfigurablePagination
+  before_action :ensure_franchise_commission_enabled
   before_action :set_withdrawal_request, only: [:show, :approve, :reject, :mark_paid]
+
+  private def ensure_franchise_commission_enabled
+    unless SystemSetting.franchise_commission_enabled?
+      redirect_to admin_settings_system_path, alert: 'Enable the Franchise Commission feature (Settings > System > Store Settings) to manage franchise withdrawals.'
+    end
+  end
 
   def index
     @withdrawal_requests = FranchiseWithdrawalRequest.includes(:franchise).recent

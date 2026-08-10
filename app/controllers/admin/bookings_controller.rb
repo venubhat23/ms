@@ -819,7 +819,7 @@ class Admin::BookingsController < Admin::ApplicationController
       transition_data[:shipping_charges] = params[:shipping_charges]
       transition_data[:expected_delivery_date] = params[:expected_delivery_date]
     when 'out_for_delivery'
-      transition_data[:delivery_mode] = params[:delivery_mode].presence || 'delivery_person'
+      transition_data[:delivery_mode] = franchise_delivery_mode_requested? ? 'franchise' : 'delivery_person'
       if transition_data[:delivery_mode] == 'franchise'
         transition_data[:delivery_franchise_id] = params[:delivery_franchise_id]
       else
@@ -1037,8 +1037,15 @@ class Admin::BookingsController < Admin::ApplicationController
     end
   end
 
+  # Single source of truth for whether this request is asking for the
+  # franchise-delivery path — always re-checks the feature flag so a crafted
+  # request can't set delivery_franchise_id while the feature is disabled.
+  def franchise_delivery_mode_requested?
+    params[:delivery_mode] == 'franchise' && SystemSetting.franchise_commission_enabled?
+  end
+
   def process_out_for_delivery_transition
-    if params[:delivery_mode] == 'franchise' && SystemSetting.franchise_commission_enabled?
+    if franchise_delivery_mode_requested?
       unless params[:delivery_franchise_id].present?
         respond_to do |format|
           format.html { redirect_to manage_stage_admin_booking_path(@booking), alert: 'Please select a franchise for out for delivery' }

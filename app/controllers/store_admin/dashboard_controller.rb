@@ -17,17 +17,21 @@ class StoreAdmin::DashboardController < StoreAdmin::ApplicationController
   def calculate_daily_sales_trend
     start_date = 7.days.ago.to_date
     end_date = Date.current
+
+    # Was 2 queries (sum + count) per day in the range — 16 round trips for
+    # one chart. Pull the week's rows once and group by day in Ruby instead.
+    rows = @current_store.bookings
+                         .where(created_at: start_date.beginning_of_day..end_date.end_of_day)
+                         .where.not(status: ['cancelled', 'returned'])
+                         .pluck(:created_at, :total_amount)
+    rows_by_date = rows.group_by { |created_at, _amount| created_at.to_date }
+
     (start_date..end_date).map do |date|
+      day_rows = rows_by_date[date] || []
       {
         date: date.strftime('%m/%d'),
-        sales: @current_store.bookings
-                             .where(created_at: date.beginning_of_day..date.end_of_day)
-                             .where.not(status: ['cancelled', 'returned'])
-                             .sum(:total_amount),
-        bookings_count: @current_store.bookings
-                                      .where(created_at: date.beginning_of_day..date.end_of_day)
-                                      .where.not(status: ['cancelled', 'returned'])
-                                      .count
+        sales: day_rows.sum { |_created_at, amount| amount || 0 },
+        bookings_count: day_rows.size
       }
     end
   end

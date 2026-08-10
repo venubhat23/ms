@@ -4,18 +4,23 @@ class Customer::ReferralsController < Customer::BaseController
 
   # GET /customer/referrals
   def index
-    @referrals = current_customer.referrals
-                                .includes(:customer)
-                                .order(created_at: :desc)
-                                .page(params[:page])
-                                .per(10)
+    scope = current_customer.referrals
 
-    # Calculate statistics
-    @total_referrals = @referrals.count
-    @pending_referrals = current_customer.referrals.pending.count
-    @registered_referrals = current_customer.referrals.registered.count
-    @converted_referrals = current_customer.referrals.converted.count
+    # One grouped query for all status counts instead of 4 separate .count
+    # round trips — also avoids calling .count on the relation after
+    # .page()/.per() are applied, which returns the wrong (page-limited)
+    # total instead of the true total on page 2+.
+    status_counts = scope.group(:status).count
+    @total_referrals = status_counts.values.sum
+    @pending_referrals = status_counts['pending'] || 0
+    @registered_referrals = status_counts['registered'] || 0
+    @converted_referrals = status_counts['converted'] || 0
     @conversion_rate = calculate_conversion_rate
+
+    @referrals = scope.includes(:customer)
+                       .order(created_at: :desc)
+                       .page(params[:page])
+                       .per(10)
   end
 
   # GET /customer/referrals/1

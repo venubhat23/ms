@@ -375,8 +375,9 @@
               </div>
             </div>
             <span class="customer-nav-text">Orders</span>
-            <% if current_customer && current_customer.bookings.where(status: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery']).count > 0 %>
-              <span class="customer-nav-badge"><%= current_customer.bookings.where(status: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery']).count %></span>
+            <% orders_badge_count = current_customer ? sidebar_badge_count("sidebar/customer/#{current_customer.id}/active_orders_count") { current_customer.bookings.where(status: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery']).count } : 0 %>
+            <% if orders_badge_count > 0 %>
+              <span class="customer-nav-badge"><%= orders_badge_count %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>
@@ -391,8 +392,9 @@
               </div>
             </div>
             <span class="customer-nav-text">Invoices</span>
-            <% if current_customer && current_customer.bookings.where.not(invoice_number: [nil, '']).where(payment_status: [:unpaid, nil]).count > 0 %>
-              <span class="customer-nav-badge"><%= current_customer.bookings.where.not(invoice_number: [nil, '']).where(payment_status: [:unpaid, nil]).count %></span>
+            <% invoices_badge_count = current_customer ? sidebar_badge_count("sidebar/customer/#{current_customer.id}/unpaid_invoices_count") { current_customer.bookings.where.not(invoice_number: [nil, '']).where(payment_status: [:unpaid, nil]).count } : 0 %>
+            <% if invoices_badge_count > 0 %>
+              <span class="customer-nav-badge"><%= invoices_badge_count %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>
@@ -407,8 +409,9 @@
               </div>
             </div>
             <span class="customer-nav-text">Subscriptions</span>
-            <% if current_customer && current_customer.milk_subscriptions.where(is_active: true).count > 0 %>
-              <span class="customer-nav-badge"><%= current_customer.milk_subscriptions.where(is_active: true).count %></span>
+            <% subscriptions_badge_count = current_customer ? sidebar_badge_count("sidebar/customer/#{current_customer.id}/active_subscriptions_count") { current_customer.milk_subscriptions.where(is_active: true).count } : 0 %>
+            <% if subscriptions_badge_count > 0 %>
+              <span class="customer-nav-badge"><%= subscriptions_badge_count %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>
@@ -450,8 +453,9 @@
               </div>
             </div>
             <span class="customer-nav-text">Refer Friends</span>
-            <% if current_customer && current_customer.referrals.pending.count > 0 %>
-              <span class="customer-nav-badge"><%= current_customer.referrals.pending.count %></span>
+            <% referrals_badge_count = current_customer ? sidebar_badge_count("sidebar/customer/#{current_customer.id}/pending_referrals_count") { current_customer.referrals.pending.count } : 0 %>
+            <% if referrals_badge_count > 0 %>
+              <span class="customer-nav-badge"><%= referrals_badge_count %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>
@@ -466,8 +470,9 @@
               </div>
             </div>
             <span class="customer-nav-text">Support</span>
-            <% if current_customer && current_customer.client_requests.where(status: ['pending', 'in_progress']).count > 0 %>
-              <span class="customer-nav-badge"><%= current_customer.client_requests.where(status: ['pending', 'in_progress']).count %></span>
+            <% support_badge_count = current_customer ? sidebar_badge_count("sidebar/customer/#{current_customer.id}/open_client_requests_count") { current_customer.client_requests.where(status: ['pending', 'in_progress']).count } : 0 %>
+            <% if support_badge_count > 0 %>
+              <span class="customer-nav-badge"><%= support_badge_count %></span>
             <% end %>
             <div class="nav-indicator"></div>
           <% end %>

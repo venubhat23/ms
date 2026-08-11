@@ -902,6 +902,8 @@ Rails.application.routes.draw do
         post 'auth/register', to: 'authentication#register'
         post 'auth/forgot_password', to: 'authentication#forgot_password'
         post 'auth/reset_password',  to: 'authentication#reset_password'
+        post 'auth/otp/request',     to: 'authentication#request_otp'
+        post 'auth/otp/verify',      to: 'authentication#verify_otp'
 
         # E-commerce Module APIs
         get 'ecommerce/categories', to: 'ecommerce#categories'

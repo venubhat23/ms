@@ -63,6 +63,9 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get franchise commission feature settings
     @franchise_commission_enabled = system_config&.franchise_commission_enabled || false
 
+    # Get OTP login feature settings
+    @otp_login_enabled = system_config&.otp_login_enabled || false
+
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
@@ -245,6 +248,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating Franchise Commission settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle OTP login feature toggle
+    if params[:otp_login_settings_update] == "true"
+      begin
+        otp_login_enabled = params[:otp_login_enabled] == "1"
+
+        SystemSetting.set_otp_login_enabled(otp_login_enabled)
+
+        if otp_login_enabled
+          success_messages << 'OTP Login feature enabled successfully!'
+        else
+          success_messages << 'OTP Login feature disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating OTP Login settings: #{e.message}"
         return
       end
     end

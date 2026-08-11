@@ -1,5 +1,5 @@
 class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
-  skip_before_action :authorize_request, only: [:login, :register, :forgot_password, :reset_password]
+  skip_before_action :authorize_request, only: [:login, :register, :forgot_password, :reset_password, :request_otp, :verify_otp]
 
   # POST /api/v1/mobile/auth/login
   def login
@@ -657,7 +657,136 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     end
   end
 
+  # POST /api/v1/mobile/auth/otp/request
+  def request_otp
+    unless SystemSetting.otp_login_enabled?
+      return json_response({ success: false, message: 'OTP login is currently disabled' }, :forbidden)
+    end
+
+    mobile = format_mobile_number(params[:mobile])
+    unless mobile
+      return json_response({
+        success: false,
+        message: 'Please enter a valid Indian mobile number (10 digits starting with 6-9)'
+      }, :unprocessable_entity)
+    end
+
+    status, retry_after = OtpVerification.rate_limit_status(mobile)
+    if status != :ok
+      message = status == :cooldown ? 'Please wait before requesting another OTP' : 'Too many OTP requests. Please try again later.'
+      return json_response({ success: false, message: message, retry_after: retry_after }, :too_many_requests)
+    end
+
+    _record, otp_code = OtpVerification.generate!(mobile, purpose: 'login', request_ip: request.remote_ip)
+    result = OtpSmsService.send_otp(mobile, otp_code)
+
+    if result[:success]
+      json_response({
+        success: true,
+        message: 'OTP sent successfully',
+        retry_after: OtpVerification::RESEND_COOLDOWN.to_i
+      })
+    else
+      json_response({ success: false, message: result[:error] || 'Failed to send OTP' }, :internal_server_error)
+    end
+  end
+
+  # POST /api/v1/mobile/auth/otp/verify
+  def verify_otp
+    unless SystemSetting.otp_login_enabled?
+      return json_response({ success: false, message: 'OTP login is currently disabled' }, :forbidden)
+    end
+
+    mobile = format_mobile_number(params[:mobile])
+    otp_code = params[:otp].to_s.strip
+
+    if mobile.nil? || otp_code.blank?
+      return json_response({ success: false, message: 'Mobile number and OTP are required' }, :unprocessable_entity)
+    end
+
+    case OtpVerification.verify(mobile, otp_code, purpose: 'login')
+    when :verified
+      user, customer, is_new_user = find_or_create_otp_account(mobile)
+      token = generate_token(user, 'customer')
+
+      json_response({
+        success: true,
+        message: is_new_user ? 'Account created and logged in successfully' : 'Logged in successfully',
+        data: {
+          token: token,
+          user_id: user.id,
+          customer_id: customer.id,
+          mobile: user.mobile,
+          is_new_user: is_new_user
+        }
+      })
+    when :expired
+      json_response({ success: false, message: 'OTP has expired. Please request a new one.' }, :unprocessable_entity)
+    when :too_many_attempts
+      json_response({ success: false, message: 'Too many incorrect attempts. Please request a new OTP.' }, :too_many_requests)
+    else
+      json_response({ success: false, message: 'Invalid OTP' }, :unprocessable_entity)
+    end
+  end
+
   private
+
+  # Finds the User/Customer pair for a mobile-verified OTP login, creating a
+  # minimal pair (placeholder name + synthetic unique email) on first login so
+  # the app can prompt the user to complete their profile afterwards via the
+  # existing PUT /settings/profile endpoint. Mirrors the User+Customer
+  # creation done in #register_customer above so both auth paths stay in sync.
+  def find_or_create_otp_account(mobile)
+    user = User.find_by(mobile: mobile)
+
+    if user
+      customer = Customer.find_by(mobile: mobile) || Customer.find_by(email: user.email)
+      return [user, customer, false] if customer
+
+      customer = Customer.new(
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        mobile: mobile,
+        is_registered_by_mobile: true,
+        status: true
+      )
+      customer.password = SecureRandom.hex(16)
+      customer.save!(validate: false)
+      return [user, customer, false]
+    end
+
+    random_password = SecureRandom.hex(16)
+    new_user = nil
+    new_customer = nil
+
+    ActiveRecord::Base.transaction do
+      new_user = User.new(
+        first_name: 'Customer',
+        last_name: mobile[-4..-1],
+        email: "otp_#{mobile}@users.noemail",
+        mobile: mobile,
+        user_type: 'customer',
+        status: true
+      )
+      new_user.password = random_password
+      new_user.password_confirmation = random_password
+      new_user.save!
+
+      new_customer = Customer.new(
+        first_name: new_user.first_name,
+        last_name: new_user.last_name,
+        email: new_user.email,
+        mobile: mobile,
+        is_registered_by_mobile: true,
+        status: true
+      )
+      new_customer.password = random_password
+      new_customer.save!(validate: false)
+    end
+
+    [new_user, new_customer, true]
+  end
 
   def generate_token(user, role)
     payload = {

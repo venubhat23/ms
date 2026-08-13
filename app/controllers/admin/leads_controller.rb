@@ -39,15 +39,19 @@ class Admin::LeadsController < Admin::ApplicationController
 
     @leads = paginate_records(@leads.order(created_at: :desc).includes(:converted_customer, :created_policy))
 
-    # Statistics for dashboard
-    @total_leads = Lead.count
-    @lead_generated_leads = Lead.lead_generated.count
-    @consultation_leads = Lead.consultation_scheduled.count
-    @one_on_one_leads = Lead.one_on_one.count
-    @follow_up_leads = Lead.follow_up.count
-    @converted_leads = Lead.converted.count
-    @policy_created_leads = Lead.policy_created.count
-    @lead_closed_leads = Lead.lead_closed.count
+    # Statistics for dashboard — one grouped query instead of 8 separate
+    # COUNT(*) round trips (was Lead.count + 7x Lead.<stage>.count).
+    stage_counts = Rails.cache.fetch('admin_leads/stage_counts', expires_in: 1.minute) do
+      Lead.group(:current_stage).count
+    end
+    @total_leads           = stage_counts.values.sum
+    @lead_generated_leads  = stage_counts['lead_generated']  || 0
+    @consultation_leads    = stage_counts['consultation_scheduled'] || 0
+    @one_on_one_leads      = stage_counts['one_on_one']       || 0
+    @follow_up_leads       = stage_counts['follow_up']        || 0
+    @converted_leads       = stage_counts['converted']        || 0
+    @policy_created_leads  = stage_counts['policy_created']   || 0
+    @lead_closed_leads     = stage_counts['lead_closed']      || 0
 
     # Conversion rate calculation
     total_converted = @converted_leads + @policy_created_leads
@@ -516,7 +520,7 @@ class Admin::LeadsController < Admin::ApplicationController
       true
     when 'consultation_scheduled'
       result = @lead.move_to_consultation_scheduled!
-      Rails.logger.info "Move to consultation_scheduled result: #{result}, new current_stage: #{@lead.reload.current_stage}"
+      Rails.logger.info "Move to consultation_scheduled result: #{result}, new current_stage: #{@lead.current_stage}"
       result
     when 'one_on_one'
       @lead.move_to_one_on_one!

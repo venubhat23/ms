@@ -19,11 +19,11 @@ class Admin::DistributorsController < Admin::ApplicationController
       @distributors = @distributors.inactive
     end
 
-    # Get total count before pagination for display purposes
-    @total_filtered_count = @distributors.count
-
-    # Order and paginate using configurable pagination
+    # Order and paginate using configurable pagination — total_count is read
+    # off this same relation inside paginate_records, so reuse it below
+    # instead of issuing a separate .count round trip beforehand.
     @distributors = paginate_records(@distributors.order(created_at: :desc))
+    @total_filtered_count = @total_record_count
 
     # Single grouped query replaces one `assigned_sub_agents.count` per row
     # (`.count` on an association always issues fresh SQL, ignoring any preload).
@@ -31,10 +31,13 @@ class Admin::DistributorsController < Admin::ApplicationController
                                                             .group(:distributor_id)
                                                             .count
 
-    # Statistics
-    @total_distributors = Distributor.count
-    @active_distributors = Distributor.active.count
-    @inactive_distributors = Distributor.inactive.count
+    # Statistics — one grouped query instead of 3 separate COUNT(*) round trips
+    status_counts = Rails.cache.fetch('admin_distributors/status_counts', expires_in: 1.minute) do
+      Distributor.group(:status).count
+    end
+    @total_distributors = status_counts.values.sum
+    @active_distributors = status_counts['active'] || 0
+    @inactive_distributors = status_counts['inactive'] || 0
   end
 
   # GET /admin/distributors/1

@@ -2,8 +2,14 @@ class Lead < ApplicationRecord
   include PgSearch::Model
 
   validates :name, presence: true
-  validates :contact_number, presence: true, uniqueness: { message: "Contact number already exists" }, format: { with: /\A[\+]?[0-9\s\-\(\)]+\z/, message: "Invalid phone number format" }
-  validates :email, uniqueness: { message: "Email already exists" }, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
+  validates :contact_number, presence: true, format: { with: /\A[\+]?[0-9\s\-\(\)]+\z/, message: "Invalid phone number format" }
+  # Uniqueness only re-checked when the field actually changes — every stage
+  # transition (convert_stage, advance_stage, ...) calls update!, and without
+  # this guard each of those round-trips to the DB re-validates uniqueness
+  # for contact_number/email/pan_no even though they weren't touched.
+  validates :contact_number, uniqueness: { message: "Contact number already exists" }, if: :will_save_change_to_contact_number?
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }, allow_blank: true
+  validates :email, uniqueness: { message: "Email already exists" }, if: :will_save_change_to_email?, allow_blank: true
   validates :current_stage, presence: true, inclusion: { in: ['lead_generated', 'consultation_scheduled', 'one_on_one', 'follow_up', 'follow_up_successful', 'follow_up_unsuccessful', 'not_interested', 'converted', 're_follow_up', 'policy_created', 'lead_closed'] }
   validates :lead_source, presence: true, inclusion: { in: ['online', 'offline', 'agent_referral', 'walk_in', 'tele_calling', 'campaign'] }
   validates :product_category, presence: true, inclusion: { in: ['insurance', 'investments', 'loans', 'taxation'] }
@@ -23,7 +29,8 @@ class Lead < ApplicationRecord
   # Optional validations
   validates :gender, inclusion: { in: ['male', 'female', 'other'] }, allow_blank: true
   validates :marital_status, inclusion: { in: ['single', 'married', 'divorced', 'widowed'] }, allow_blank: true
-  validates :pan_no, uniqueness: { message: "PAN number already exists" }, format: { with: /\A[A-Z]{5}\d{4}[A-Z]\z/ }, allow_blank: true
+  validates :pan_no, format: { with: /\A[A-Z]{5}\d{4}[A-Z]\z/ }, allow_blank: true
+  validates :pan_no, uniqueness: { message: "PAN number already exists" }, if: :will_save_change_to_pan_no?, allow_blank: true
   validates :gst_no, format: { with: /\A\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z\d][A-Z\d]\z/ }, allow_blank: true
   validates :height, numericality: { greater_than: 3.5, less_than_or_equal_to: 8.0 }, allow_blank: true
   validates :weight, numericality: { greater_than: 10, less_than_or_equal_to: 300 }, allow_blank: true

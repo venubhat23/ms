@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_10_100006) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -723,6 +723,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_100006) do
     t.decimal "weight"
     t.decimal "annual_income"
     t.string "business_job"
+    t.index ["affiliate_id"], name: "index_leads_on_affiliate_id"
+    t.index ["created_at"], name: "index_leads_on_created_at"
+    t.index ["current_stage"], name: "index_leads_on_current_stage"
+    t.index ["lead_source"], name: "index_leads_on_lead_source"
+    t.index ["product_category"], name: "index_leads_on_product_category"
   end
 
   create_table "milk_delivery_tasks", force: :cascade do |t|
@@ -874,6 +879,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_100006) do
     t.datetime "booking_date"
     t.integer "booking_id"
     t.index ["booking_id"], name: "index_orders_on_booking_id"
+  end
+
+  create_table "otp_verifications", force: :cascade do |t|
+    t.string "mobile", null: false
+    t.string "otp_digest", null: false
+    t.string "purpose", default: "login", null: false
+    t.integer "attempts", default: 0, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "verified_at"
+    t.string "request_ip"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["mobile", "created_at"], name: "index_otp_verifications_on_mobile_and_created_at"
   end
 
   create_table "pending_amounts", force: :cascade do |t|
@@ -1385,9 +1403,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_100006) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["aadhar_no"], name: "index_sub_agents_on_aadhar_no", unique: true
+    t.index ["created_at"], name: "index_sub_agents_on_created_at"
     t.index ["email"], name: "index_sub_agents_on_email", unique: true
     t.index ["mobile"], name: "index_sub_agents_on_mobile", unique: true
     t.index ["pan_no"], name: "index_sub_agents_on_pan_no", unique: true
+    t.index ["status"], name: "index_sub_agents_on_status"
   end
 
   create_table "subscription_templates", force: :cascade do |t|
@@ -1442,6 +1462,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_10_100006) do
     t.string "logo_url"
     t.string "website"
     t.boolean "franchise_commission_enabled", default: false
+    t.boolean "otp_login_enabled", default: false
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 

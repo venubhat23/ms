@@ -19,16 +19,17 @@ class Admin::SubAgentsController < Admin::ApplicationController
       @sub_agents = @sub_agents.inactive
     end
 
-    # Get total count before pagination for display purposes
-    @total_filtered_count = @sub_agents.count
-
-    # Order and paginate using configurable pagination
+    # Order and paginate using configurable pagination (total_count is read off
+    # this same relation inside paginate_records — no separate .count round trip)
     @sub_agents = paginate_records(@sub_agents.order(created_at: :desc))
 
-    # Statistics
-    @total_sub_agents = SubAgent.count
-    @active_sub_agents = SubAgent.active.count
-    @inactive_sub_agents = SubAgent.inactive.count
+    # Statistics — one grouped query instead of 3 separate COUNT(*) round trips
+    status_counts = Rails.cache.fetch('admin_sub_agents/status_counts', expires_in: 1.minute) do
+      SubAgent.group(:status).count
+    end
+    @total_sub_agents = status_counts.values.sum
+    @active_sub_agents = status_counts['active'] || 0
+    @inactive_sub_agents = status_counts['inactive'] || 0
   end
 
   # GET /admin/sub_agents/1

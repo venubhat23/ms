@@ -4,7 +4,9 @@ class Admin::LifeInsurancesController < Admin::ApplicationController
 
   # GET /admin/insurance/life
   def index
-    @life_insurances = LifeInsurance.includes(:customer, :sub_agent, :agency_code, :broker)
+    # sub_agent/agency_code/broker are never rendered on the index list (only
+    # on show/edit), so preloading them here was 3 wasted round trips per load.
+    @life_insurances = LifeInsurance.includes(:customer)
 
     # Tab-based filtering for Dhanvantari Farm vs Non-Dhanvantari Farm policies
     @current_tab = params[:tab] || 'dhanvantri'
@@ -337,39 +339,42 @@ class Admin::LifeInsurancesController < Admin::ApplicationController
     Rails.logger.error "Failed to set distributor from affiliate: #{e.message}"
   end
 
+  # This was the slowest endpoint of the four insurance index pages: it ran 7
+  # separate unindexed aggregate queries (2x count, 2x sum premium, 2x sum
+  # coverage, 1x joins+distinct count) against the full LifeInsurance table on
+  # every single request, for both tabs, even though only one tab's premium/
+  # coverage/covered-lives numbers are ever displayed. Now: at most 4 queries
+  # (2 counts + 1 combined premium/coverage sum + 1 covered-lives count),
+  # cached per tab for 1 minute — same TTL already used for the leads/
+  # sub_agents/distributors dashboard stat cards.
   def calculate_tab_statistics
-    # Calculate statistics for all Dhanvantari Farm policies
-    dhanvantri_policies = LifeInsurance.where(
-      is_admin_added: true,
-      is_customer_added: false,
-      is_agent_added: false
-    )
+    stats = Rails.cache.fetch("admin_life_insurances/tab_stats/#{@current_tab}", expires_in: 1.minute) do
+      dhanvantri_scope = LifeInsurance.where(
+        is_admin_added: true,
+        is_customer_added: false,
+        is_agent_added: false
+      )
+      non_dhanvantri_scope = LifeInsurance.where(
+        '(is_customer_added = ? AND is_admin_added = ? AND is_agent_added = ?) OR (is_agent_added = ? AND is_customer_added = ? AND is_admin_added = ?)',
+        true, false, false, true, false, false
+      )
+      current_scope = @current_tab == 'dhanvantri' ? dhanvantri_scope : non_dhanvantri_scope
+      premium, coverage = current_scope.pick(Arel.sql('COALESCE(SUM(total_premium), 0), COALESCE(SUM(sum_insured), 0)'))
 
-    @dhanvantri_count = dhanvantri_policies.count
-    @dhanvantri_premium = dhanvantri_policies.sum(:total_premium) || 0
-    @dhanvantri_coverage = dhanvantri_policies.sum(:sum_insured) || 0
-
-    # Calculate statistics for all Non-Dhanvantari Farm policies
-    non_dhanvantri_policies = LifeInsurance.where(
-      '(is_customer_added = ? AND is_admin_added = ? AND is_agent_added = ?) OR (is_agent_added = ? AND is_customer_added = ? AND is_admin_added = ?)',
-      true, false, false, true, false, false
-    )
-
-    @non_dhanvantri_count = non_dhanvantri_policies.count
-    @non_dhanvantri_premium = non_dhanvantri_policies.sum(:total_premium) || 0
-    @non_dhanvantri_coverage = non_dhanvantri_policies.sum(:sum_insured) || 0
-
-    # Set current tab statistics
-    if @current_tab == 'dhanvantri'
-      @total_policies_count = @dhanvantri_count
-      @total_premium_amount = @dhanvantri_premium
-      @total_coverage_amount = @dhanvantri_coverage
-      @covered_lives_count = dhanvantri_policies.joins(:customer).distinct.count('customers.id')
-    else
-      @total_policies_count = @non_dhanvantri_count
-      @total_premium_amount = @non_dhanvantri_premium
-      @total_coverage_amount = @non_dhanvantri_coverage
-      @covered_lives_count = non_dhanvantri_policies.joins(:customer).distinct.count('customers.id')
+      {
+        dhanvantri_count: dhanvantri_scope.count,
+        non_dhanvantri_count: non_dhanvantri_scope.count,
+        total_premium: premium,
+        total_coverage: coverage,
+        covered_lives: current_scope.joins(:customer).distinct.count('customers.id')
+      }
     end
+
+    @dhanvantri_count = stats[:dhanvantri_count]
+    @non_dhanvantri_count = stats[:non_dhanvantri_count]
+    @total_premium_amount = stats[:total_premium]
+    @total_coverage_amount = stats[:total_coverage]
+    @covered_lives_count = stats[:covered_lives]
+    @total_policies_count = @current_tab == 'dhanvantri' ? @dhanvantri_count : @non_dhanvantri_count
   end
 end

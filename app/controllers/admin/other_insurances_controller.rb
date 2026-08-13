@@ -1,9 +1,13 @@
 class Admin::OtherInsurancesController < Admin::ApplicationController
+  include ConfigurablePagination
   before_action :set_other_insurance, only: [:show, :edit, :update, :destroy]
 
   def index
     @other_insurances = Policy.where(insurance_type: 'other').includes(:customer, :insurance_company)
-    @other_insurances = @other_insurances.order(created_at: :desc).page(params[:page])
+
+    calculate_stats
+
+    @other_insurances = paginate_records(@other_insurances.order(created_at: :desc))
   end
 
   def show
@@ -53,6 +57,18 @@ class Admin::OtherInsurancesController < Admin::ApplicationController
 
   def load_form_data
     @customers = Customer.active.order(:first_name)
+  end
+
+  # Stat cards must be computed on the pre-pagination, filtered relation:
+  # calling .count/.sum on an already-paginated (LIMIT/OFFSET) relation only
+  # reflects the current page, not the full filtered set (Rails wraps such
+  # calls in a subquery). This also replaces the old .sum(&:total_premium)
+  # block form, which forced loading every matching row into Ruby objects
+  # just to add them up, with a single SQL SUM.
+  def calculate_stats
+    @stats_total_count, @stats_total_premium, @stats_total_coverage =
+      @other_insurances.pick(Arel.sql('COUNT(*), COALESCE(SUM(total_premium), 0), COALESCE(SUM(sum_insured), 0)'))
+    @stats_active_count = @other_insurances.where(status: 'active').count
   end
 
   def other_insurance_params

@@ -29,7 +29,7 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="text-muted mb-2">Total Health Policies</h6>
-            <h3 class="mb-0 text-primary"><%= number_with_delimiter(@health_insurances.count) %></h3>
+            <h3 class="mb-0 text-primary"><%= number_with_delimiter(@stats_total_count) %></h3>
           </div>
           <div class="bg-primary bg-opacity-10 rounded p-3">
             <i class="bi bi-hospital text-primary fs-4"></i>
@@ -45,7 +45,7 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="text-muted mb-2">Total Premium</h6>
-            <h3 class="mb-0 text-success">₹<%= number_with_delimiter(@health_insurances.sum(&:total_premium).to_i) %></h3>
+            <h3 class="mb-0 text-success">₹<%= number_with_delimiter(@stats_total_premium.to_i) %></h3>
           </div>
           <div class="bg-success bg-opacity-10 rounded p-3">
             <i class="bi bi-currency-rupee text-success fs-4"></i>
@@ -61,7 +61,7 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="text-muted mb-2">Total Coverage</h6>
-            <h3 class="mb-0 text-info">₹<%= number_with_delimiter(@health_insurances.sum(&:sum_insured).to_i) %></h3>
+            <h3 class="mb-0 text-info">₹<%= number_with_delimiter(@stats_total_coverage.to_i) %></h3>
           </div>
           <div class="bg-info bg-opacity-10 rounded p-3">
             <i class="bi bi-shield-check text-info fs-4"></i>
@@ -77,7 +77,7 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="text-muted mb-2">Expiring Soon</h6>
-            <h3 class="mb-0 text-warning"><%= number_with_delimiter(@health_insurances.where('policy_end_date <= ?', 30.days.from_now).count) %></h3>
+            <h3 class="mb-0 text-warning"><%= number_with_delimiter(@stats_expiring_soon_count) %></h3>
           </div>
           <div class="bg-warning bg-opacity-10 rounded p-3">
             <i class="bi bi-clock-history text-warning fs-4"></i>

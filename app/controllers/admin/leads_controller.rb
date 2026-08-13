@@ -37,7 +37,7 @@ class Admin::LeadsController < Admin::ApplicationController
       @leads = @leads.where("referred_by ILIKE ?", "%#{params[:referred_by]}%")
     end
 
-    @leads = paginate_records(@leads.order(created_at: :desc).includes(:converted_customer, :created_policy))
+    @leads = paginate_leads_single_query(@leads.order(created_at: :desc).includes(:converted_customer, :created_policy))
 
     # Statistics for dashboard — one grouped query instead of 8 separate
     # COUNT(*) round trips (was Lead.count + 7x Lead.<stage>.count).
@@ -700,6 +700,28 @@ class Admin::LeadsController < Admin::ApplicationController
   end
 
   private
+
+  # Kaminari's #page/#per normally needs a *second* round trip the first time
+  # something reads total_count (e.g. should_show_pagination? below) — one
+  # query for the page of rows, one COUNT(*) for the total. Folding the total
+  # into the same query as a window function and handing it to Kaminari
+  # directly collapses that back to a single round trip. Verified against
+  # live data (a different table, since this environment's `leads` table is
+  # missing columns the Lead model expects) that COUNT(*) OVER() exactly
+  # matches a plain COUNT(*), including combined with pg_search's join.
+  def paginate_leads_single_query(records)
+    per_page = per_page_param
+    paginated = records.select("leads.*, COUNT(*) OVER() AS full_count")
+                        .page(params[:page]).per(per_page)
+    rows = paginated.to_a
+    total_count = rows.first&.full_count.to_i
+    paginated.define_singleton_method(:total_count) { total_count }
+
+    @total_record_count = total_count
+    @items_per_page = per_page
+    @show_pagination = total_count > per_page
+    paginated
+  end
 
   # JSON response helper method
   def json_response(object, status = :ok)

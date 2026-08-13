@@ -4,12 +4,16 @@ class Admin::HealthInsurancesController < Admin::ApplicationController
   before_action :load_form_data, only: [:new, :edit, :create, :update]
 
   def index
-    @health_insurances = HealthInsurance.includes(:customer, :sub_agent, :agency_code, :broker)
+    # sub_agent/agency_code/broker are never rendered on the index list (only
+    # on show/edit), so preloading them here was 3 wasted round trips per load.
+    @health_insurances = HealthInsurance.includes(:customer)
 
     # Search functionality
     if params[:search].present?
       @health_insurances = @health_insurances.search_health_policies(params[:search])
     end
+
+    calculate_stats
 
     @health_insurances = paginate_records(@health_insurances.order(created_at: :desc))
   end
@@ -77,6 +81,18 @@ class Admin::HealthInsurancesController < Admin::ApplicationController
 
   def set_health_insurance
     @health_insurance = HealthInsurance.find(params[:id])
+  end
+
+  # Stat cards must be computed on the pre-pagination, filtered relation:
+  # calling .count/.sum on an already-paginated (LIMIT/OFFSET) relation only
+  # reflects the current page, not the full filtered set (Rails wraps such
+  # calls in a subquery). This also replaces the old .sum(&:total_premium)
+  # block form, which forced loading every matching row into Ruby objects
+  # just to add them up, with a single SQL SUM.
+  def calculate_stats
+    @stats_total_count, @stats_total_premium, @stats_total_coverage =
+      @health_insurances.pick(Arel.sql('COUNT(*), COALESCE(SUM(total_premium), 0), COALESCE(SUM(sum_insured), 0)'))
+    @stats_expiring_soon_count = @health_insurances.where('policy_end_date <= ?', 30.days.from_now).count
   end
 
   def load_form_data

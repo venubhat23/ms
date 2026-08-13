@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -81,6 +81,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["affiliate_id"], name: "index_affiliate_withdrawal_requests_on_affiliate_id"
+    t.index ["approved_by_user_id"], name: "index_affiliate_withdrawal_requests_on_approved_by_user_id"
     t.index ["status"], name: "index_affiliate_withdrawal_requests_on_status"
   end
 
@@ -173,6 +174,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.datetime "updated_at", null: false
     t.bigint "product_variant_id"
     t.index ["booking_id"], name: "index_booking_items_on_booking_id"
+    t.index ["product_id"], name: "index_booking_items_on_product_id"
     t.index ["product_variant_id"], name: "index_booking_items_on_product_variant_id"
   end
 
@@ -618,6 +620,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["approved_by_user_id"], name: "index_franchise_withdrawal_requests_on_approved_by_user_id"
     t.index ["franchise_id"], name: "index_franchise_withdrawal_requests_on_franchise_id"
     t.index ["status"], name: "index_franchise_withdrawal_requests_on_status"
   end
@@ -695,6 +698,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.index ["invoice_date"], name: "index_invoices_on_invoice_date"
     t.index ["invoice_number"], name: "index_invoices_on_invoice_number", unique: true
     t.index ["payment_status"], name: "index_invoices_on_payment_status"
+    t.index ["payout_id"], name: "index_invoices_on_payout_id"
     t.index ["share_token"], name: "index_invoices_on_share_token", unique: true
   end
 
@@ -824,6 +828,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "product_variant_id"
+    t.index ["order_id"], name: "index_order_items_on_order_id"
+    t.index ["product_id"], name: "index_order_items_on_product_id"
     t.index ["product_variant_id"], name: "index_order_items_on_product_variant_id"
   end
 
@@ -879,6 +885,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.datetime "booking_date"
     t.integer "booking_id"
     t.index ["booking_id"], name: "index_orders_on_booking_id"
+    t.index ["created_at"], name: "index_orders_on_created_at"
+    t.index ["customer_id"], name: "index_orders_on_customer_id"
+    t.index ["order_stage"], name: "index_orders_on_order_stage"
+    t.index ["payment_status"], name: "index_orders_on_payment_status"
+    t.index ["status"], name: "index_orders_on_status"
+    t.index ["user_id"], name: "index_orders_on_user_id"
   end
 
   create_table "otp_verifications", force: :cascade do |t|
@@ -1337,6 +1349,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.index ["created_at"], name: "index_stock_transfers_on_created_at"
     t.index ["from_store_id"], name: "index_stock_transfers_on_from_store_id"
     t.index ["product_id"], name: "index_stock_transfers_on_product_id"
+    t.index ["product_variant_id"], name: "index_stock_transfers_on_product_variant_id"
     t.index ["requested_by_id"], name: "index_stock_transfers_on_requested_by_id"
     t.index ["status"], name: "index_stock_transfers_on_status"
     t.index ["to_store_id"], name: "index_stock_transfers_on_to_store_id"
@@ -1404,9 +1417,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.datetime "updated_at", null: false
     t.index ["aadhar_no"], name: "index_sub_agents_on_aadhar_no", unique: true
     t.index ["created_at"], name: "index_sub_agents_on_created_at"
+    t.index ["distributor_id"], name: "index_sub_agents_on_distributor_id"
     t.index ["email"], name: "index_sub_agents_on_email", unique: true
     t.index ["mobile"], name: "index_sub_agents_on_mobile", unique: true
     t.index ["pan_no"], name: "index_sub_agents_on_pan_no", unique: true
+    t.index ["role_id"], name: "index_sub_agents_on_role_id"
     t.index ["status"], name: "index_sub_agents_on_status"
   end
 
@@ -1557,8 +1572,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_13_073907) do
     t.index ["is_active"], name: "index_users_on_is_active"
     t.index ["mobile"], name: "index_users_on_mobile", unique: true
     t.index ["pan_no"], name: "index_users_on_pan_no", unique: true
+    t.index ["reporting_manager_id"], name: "index_users_on_reporting_manager_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["role"], name: "index_users_on_role"
+    t.index ["role_id"], name: "index_users_on_role_id"
     t.index ["status"], name: "index_users_on_status"
     t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
     t.index ["user_type"], name: "index_users_on_user_type"

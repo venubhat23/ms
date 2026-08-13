@@ -22,7 +22,7 @@ module ConfigurablePagination
     [[per_page, 5].max, 100].min
   end
 
-  def paginate_records(records)
+  def paginate_records(records, total_count: nil)
     per_page = per_page_param
 
     # Paginate first and read total_count off the SAME relation, instead of
@@ -31,7 +31,16 @@ module ConfigurablePagination
     # for both @total_record_count here and any later `paginate`/total_count
     # calls in the view, cutting a redundant round trip to the (remote) DB.
     paginated = records.page(params[:page]).per(per_page)
-    total_count = paginated.total_count
+
+    if total_count
+      # Caller already computed COUNT(*) for this exact filtered scope (e.g.
+      # bundled into a stats aggregate query it needed anyway) — seed
+      # Kaminari's memo so neither this method nor the view's `paginate`
+      # helper issues its own COUNT query for the same number.
+      paginated.instance_variable_set(:@total_count, total_count)
+    else
+      total_count = paginated.total_count
+    end
 
     # Store total count and per_page for view access
     @total_record_count = total_count

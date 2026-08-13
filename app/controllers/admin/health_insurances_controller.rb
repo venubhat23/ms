@@ -3,10 +3,19 @@ class Admin::HealthInsurancesController < Admin::ApplicationController
   before_action :set_health_insurance, only: [:show, :edit, :update, :destroy]
   before_action :load_form_data, only: [:new, :edit, :create, :update]
 
+  # Stat cards for the default (no search) view are read on almost every
+  # /admin/insurance/health request. Rails.cache here is Solid Cache, backed
+  # by the same cross-region Postgres as the primary DB, so a Rails.cache
+  # "hit" still pays a full network round trip — no faster than an uncached
+  # query. This in-process cache (see lib/local_ttl_cache.rb, same pattern
+  # already used for the sidebar badge counts) makes a hit a plain Ruby hash
+  # read. Only usable for the unfiltered case — the key space is unbounded
+  # once a search term is involved, so filtered stats are always computed live.
+  STATS_LOCAL_CACHE = LocalTtlCache.new
+  STATS_LOCAL_TTL = 1.minute
+
   def index
-    # sub_agent/agency_code/broker are never rendered on the index list (only
-    # on show/edit), so preloading them here was 3 wasted round trips per load.
-    @health_insurances = HealthInsurance.includes(:customer)
+    @health_insurances = HealthInsurance.all
 
     # Search functionality
     if params[:search].present?
@@ -15,7 +24,17 @@ class Admin::HealthInsurancesController < Admin::ApplicationController
 
     calculate_stats
 
-    @health_insurances = paginate_records(@health_insurances.order(created_at: :desc))
+    # sub_agent/agency_code/broker are never rendered on the index list (only
+    # on show/edit), so preloading them was 3 wasted round trips per load —
+    # dropped entirely. For :customer: no search means a single JOIN query
+    # beats a separate preload round trip (customer is belongs_to, so the
+    # JOIN can't fan out rows even with LIMIT/OFFSET applied). With search,
+    # pg_search's own join against customers can't safely share the query
+    # with a second eager_load join to the same table, so fall back to a
+    # preload there.
+    @health_insurances = params[:search].present? ? @health_insurances.includes(:customer) : @health_insurances.eager_load(:customer)
+
+    @health_insurances = paginate_records(@health_insurances.order(created_at: :desc), total_count: @stats_total_count)
   end
 
   def show
@@ -86,13 +105,26 @@ class Admin::HealthInsurancesController < Admin::ApplicationController
   # Stat cards must be computed on the pre-pagination, filtered relation:
   # calling .count/.sum on an already-paginated (LIMIT/OFFSET) relation only
   # reflects the current page, not the full filtered set (Rails wraps such
-  # calls in a subquery). This also replaces the old .sum(&:total_premium)
-  # block form, which forced loading every matching row into Ruby objects
-  # just to add them up, with a single SQL SUM.
+  # calls in a subquery). All four numbers (including the old separate
+  # .sum(&:total_premium) Ruby-side block and the "expiring soon" .where.count)
+  # are collapsed into ONE query using Postgres's FILTER clause, and computed
+  # before any customer join is added so the aggregate query stays a
+  # single-table scan.
   def calculate_stats
-    @stats_total_count, @stats_total_premium, @stats_total_coverage =
-      @health_insurances.pick(Arel.sql('COUNT(*), COALESCE(SUM(total_premium), 0), COALESCE(SUM(sum_insured), 0)'))
-    @stats_expiring_soon_count = @health_insurances.where('policy_end_date <= ?', 30.days.from_now).count
+    cutoff = HealthInsurance.sanitize_sql_array(['?', 30.days.from_now])
+    sql = <<~SQL.squish
+      COUNT(*),
+      COALESCE(SUM(total_premium), 0),
+      COALESCE(SUM(sum_insured), 0),
+      COUNT(*) FILTER (WHERE policy_end_date <= #{cutoff})
+    SQL
+
+    @stats_total_count, @stats_total_premium, @stats_total_coverage, @stats_expiring_soon_count =
+      if params[:search].present?
+        @health_insurances.pick(Arel.sql(sql))
+      else
+        STATS_LOCAL_CACHE.fetch('stats/unfiltered', STATS_LOCAL_TTL) { @health_insurances.pick(Arel.sql(sql)) }
+      end
   end
 
   def load_form_data

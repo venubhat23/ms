@@ -2,11 +2,20 @@ class Admin::LifeInsurancesController < Admin::ApplicationController
   include ConfigurablePagination
   before_action :set_life_insurance, only: [:show, :edit, :update, :destroy, :remove_rider, :commission_details]
 
+  # Tab stats are read on every /admin/insurance/life request. Rails.cache
+  # here is Solid Cache, backed by the same cross-region Postgres as the
+  # primary DB (config/database.yml `cache:` uses the same remote host as
+  # `primary:`), so a Rails.cache "hit" still pays a full network round trip
+  # — no faster than an uncached query. This in-process cache (see
+  # lib/local_ttl_cache.rb, same pattern already used for the sidebar badge
+  # counts) makes a hit a plain Ruby hash read. Safe here specifically
+  # because the key space is exactly 2 values (one per tab).
+  TAB_STATS_LOCAL_CACHE = LocalTtlCache.new
+  TAB_STATS_LOCAL_TTL = 1.minute
+
   # GET /admin/insurance/life
   def index
-    # sub_agent/agency_code/broker are never rendered on the index list (only
-    # on show/edit), so preloading them here was 3 wasted round trips per load.
-    @life_insurances = LifeInsurance.includes(:customer)
+    @life_insurances = LifeInsurance.all
 
     # Tab-based filtering for Dhanvantari Farm vs Non-Dhanvantari Farm policies
     @current_tab = params[:tab] || 'dhanvantri'
@@ -60,7 +69,24 @@ class Admin::LifeInsurancesController < Admin::ApplicationController
     # Calculate statistics for current tab (before pagination)
     calculate_tab_statistics
 
-    @life_insurances = paginate_records(@life_insurances.order(created_at: :desc))
+    # sub_agent/agency_code/broker are never rendered on the index list (only
+    # on show/edit), so preloading them was 3 wasted round trips per load —
+    # dropped entirely. For :customer: no search means a single JOIN query
+    # beats a separate preload round trip (customer is belongs_to, so the
+    # JOIN can't fan out rows even with LIMIT/OFFSET applied). With search,
+    # pg_search's own join against customers can't safely share the query
+    # with a second eager_load join to the same table, so fall back to a
+    # preload there.
+    @life_insurances = params[:search].present? ? @life_insurances.includes(:customer) : @life_insurances.eager_load(:customer)
+
+    # When no filter besides the tab itself is applied, the filtered result
+    # count IS the cached tab count calculate_tab_statistics already computed
+    # — reuse it so pagination skips its own COUNT(*) round trip entirely.
+    extra_filters_present = params[:search].present? || params[:payment_mode].present? ||
+                             params[:status].present? || params[:policy_type].present? || params[:company].present?
+    total_count_hint = extra_filters_present ? nil : @total_policies_count
+
+    @life_insurances = paginate_records(@life_insurances.order(created_at: :desc), total_count: total_count_hint)
   end
 
   # GET /admin/insurance/life/1
@@ -348,7 +374,7 @@ class Admin::LifeInsurancesController < Admin::ApplicationController
   # cached per tab for 1 minute — same TTL already used for the leads/
   # sub_agents/distributors dashboard stat cards.
   def calculate_tab_statistics
-    stats = Rails.cache.fetch("admin_life_insurances/tab_stats/#{@current_tab}", expires_in: 1.minute) do
+    stats = TAB_STATS_LOCAL_CACHE.fetch("tab_stats/#{@current_tab}", TAB_STATS_LOCAL_TTL) do
       dhanvantri_scope = LifeInsurance.where(
         is_admin_added: true,
         is_customer_added: false,

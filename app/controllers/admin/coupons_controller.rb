@@ -14,12 +14,33 @@ class Admin::CouponsController < Admin::ApplicationController
                end
     @coupons = paginate_records(@coupons.order(created_at: :desc))
 
-    @stats = {
-      total: Coupon.count,
-      active: Coupon.active.count,
-      expired: Coupon.expired.count,
-      upcoming: Coupon.upcoming.count
-    }
+    # active/expired/upcoming aren't a single-column partition (a coupon can
+    # be both active and expired at once), so this can't collapse to
+    # .group(:status).count like leads/sub_agents/orders — but the 4 counts
+    # can still fold into 1 query via conditional aggregation instead of 4
+    # separate COUNT(*) round trips.
+    begin
+      now = Coupon.connection.quote(Time.current)
+      row = Coupon.select(
+        "COUNT(*) AS total_count, " \
+        "COUNT(CASE WHEN status = true THEN 1 END) AS active_count, " \
+        "COUNT(CASE WHEN valid_until < #{now} THEN 1 END) AS expired_count, " \
+        "COUNT(CASE WHEN valid_from > #{now} THEN 1 END) AS upcoming_count"
+      ).take
+      @stats = {
+        total: row.total_count.to_i,
+        active: row.active_count.to_i,
+        expired: row.expired_count.to_i,
+        upcoming: row.upcoming_count.to_i
+      }
+    rescue
+      @stats = {
+        total: Coupon.count,
+        active: Coupon.active.count,
+        expired: Coupon.expired.count,
+        upcoming: Coupon.upcoming.count
+      }
+    end
   end
 
   def show

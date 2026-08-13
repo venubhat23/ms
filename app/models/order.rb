@@ -37,7 +37,12 @@ class Order < ApplicationRecord
   }, prefix: true
 
   # Validations
-  validates :order_number, presence: true, uniqueness: true
+  validates :order_number, presence: true
+  # Uniqueness only re-checked when the field actually changes — every
+  # stage-transition bang method calls update!, and without this guard each
+  # of those round-trips to the DB re-validates uniqueness for a value that
+  # was never touched.
+  validates :order_number, uniqueness: true, if: :will_save_change_to_order_number?
   validates :total_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
 
   scope :recent, -> { order(created_at: :desc) }

@@ -56,7 +56,12 @@ class Booking < ApplicationRecord
   }, prefix: true
 
   # Validations
-  validates :booking_number, presence: true, uniqueness: true
+  validates :booking_number, presence: true
+  # Uniqueness only re-checked when the field actually changes — every
+  # stage-transition bang method (mark_as_X!, cancel_order!, ...) calls
+  # update!, and without this guard each of those round-trips to the DB
+  # re-validates uniqueness for a value that was never touched.
+  validates :booking_number, uniqueness: true, if: :will_save_change_to_booking_number?
   validates :total_amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
   before_validation :generate_booking_number, on: :create

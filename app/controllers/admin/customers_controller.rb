@@ -118,34 +118,38 @@ class Admin::CustomersController < Admin::ApplicationController
 
   # GET /admin/customers/:id/trace_commission
   def trace_commission
-    # Get all policy types and their status for this customer
+    # Load each insurance type once and derive opted/count/total_premium/
+    # latest_policy from the loaded array, instead of 5 separate queries
+    # (exists?, count, sum, order+last, and an unused `policies` relation)
+    # per type — 3 types x 5 queries down to 3 queries total.
+    health_policies = HealthInsurance.where(customer_id: @customer.id).to_a
+    life_policies = LifeInsurance.where(customer_id: @customer.id).to_a
+    motor_policies = MotorInsurance.where(customer_id: @customer.id).to_a
+
     @policy_status = {
       'Health Insurance' => {
-        opted: HealthInsurance.exists?(customer_id: @customer.id),
-        count: HealthInsurance.where(customer_id: @customer.id).count,
+        opted: health_policies.any?,
+        count: health_policies.size,
         icon: 'bi-heart-pulse',
         color: 'success',
-        policies: HealthInsurance.where(customer_id: @customer.id),
-        total_premium: HealthInsurance.where(customer_id: @customer.id).sum(:total_premium) || 0,
-        latest_policy: HealthInsurance.where(customer_id: @customer.id).order(:created_at).last
+        total_premium: health_policies.sum { |p| p.total_premium || 0 },
+        latest_policy: health_policies.max_by(&:created_at)
       },
       'Life Insurance' => {
-        opted: LifeInsurance.exists?(customer_id: @customer.id),
-        count: LifeInsurance.where(customer_id: @customer.id).count,
+        opted: life_policies.any?,
+        count: life_policies.size,
         icon: 'bi-shield-check',
         color: 'primary',
-        policies: LifeInsurance.where(customer_id: @customer.id),
-        total_premium: LifeInsurance.where(customer_id: @customer.id).sum(:total_premium) || 0,
-        latest_policy: LifeInsurance.where(customer_id: @customer.id).order(:created_at).last
+        total_premium: life_policies.sum { |p| p.total_premium || 0 },
+        latest_policy: life_policies.max_by(&:created_at)
       },
       'Motor Insurance' => {
-        opted: MotorInsurance.exists?(customer_id: @customer.id),
-        count: MotorInsurance.where(customer_id: @customer.id).count,
+        opted: motor_policies.any?,
+        count: motor_policies.size,
         icon: 'bi-car-front',
         color: 'warning',
-        policies: MotorInsurance.where(customer_id: @customer.id),
-        total_premium: MotorInsurance.where(customer_id: @customer.id).sum(:total_premium) || 0,
-        latest_policy: MotorInsurance.where(customer_id: @customer.id).order(:created_at).last
+        total_premium: motor_policies.sum { |p| p.total_premium || 0 },
+        latest_policy: motor_policies.max_by(&:created_at)
       }
     }
 
@@ -159,55 +163,49 @@ class Admin::CustomersController < Admin::ApplicationController
     @product_status['General'] = false # Placeholder for General Insurance
     @product_status['Travel Insurance'] = false # Placeholder for Travel Insurance
 
-    # Investment Products (check if tables exist)
+    # Investment Products (check if tables exist) — load the association once
+    # and derive each type's existence in Ruby, instead of one .exists? query
+    # per type (4 queries -> 1).
+    investments = []
     begin
-      @product_status['Mutual Fund'] = @customer.respond_to?(:investments) ?
-        @customer.investments.where(investment_type: 'Mutual Fund').exists? : false
-      @product_status['Gold'] = @customer.respond_to?(:investments) ?
-        @customer.investments.where(investment_type: 'Gold').exists? : false
-      @product_status['NPS'] = @customer.respond_to?(:investments) ?
-        @customer.investments.where(investment_type: 'NPS').exists? : false
-      @product_status['Bonds'] = @customer.respond_to?(:investments) ?
-        @customer.investments.where(investment_type: 'Bonds').exists? : false
+      investments = @customer.respond_to?(:investments) ? @customer.investments.to_a : []
     rescue
-      @product_status['Mutual Fund'] = false
-      @product_status['Gold'] = false
-      @product_status['NPS'] = false
-      @product_status['Bonds'] = false
+      investments = []
     end
+    @product_status['Mutual Fund'] = investments.any? { |i| i.investment_type == 'Mutual Fund' }
+    @product_status['Gold'] = investments.any? { |i| i.investment_type == 'Gold' }
+    @product_status['NPS'] = investments.any? { |i| i.investment_type == 'NPS' }
+    @product_status['Bonds'] = investments.any? { |i| i.investment_type == 'Bonds' }
 
-    # Loan Products
+    # Loan Products (3 queries -> 1)
+    loans = []
     begin
-      @product_status['Personal'] = @customer.respond_to?(:loans) ?
-        @customer.loans.where(loan_type: 'Personal').exists? : false
-      @product_status['Home'] = @customer.respond_to?(:loans) ?
-        @customer.loans.where(loan_type: 'Home').exists? : false
-      @product_status['Business'] = @customer.respond_to?(:loans) ?
-        @customer.loans.where(loan_type: 'Business').exists? : false
+      loans = @customer.respond_to?(:loans) ? @customer.loans.to_a : []
     rescue
-      @product_status['Personal'] = false
-      @product_status['Home'] = false
-      @product_status['Business'] = false
+      loans = []
     end
+    @product_status['Personal'] = loans.any? { |l| l.loan_type == 'Personal' }
+    @product_status['Home'] = loans.any? { |l| l.loan_type == 'Home' }
+    @product_status['Business'] = loans.any? { |l| l.loan_type == 'Business' }
 
     # Tax Services
+    tax_services = []
     begin
-      @product_status['ITR'] = @customer.respond_to?(:tax_services) ?
-        @customer.tax_services.where(service_type: 'ITR Filing').exists? : false
+      tax_services = @customer.respond_to?(:tax_services) ? @customer.tax_services.to_a : []
     rescue
-      @product_status['ITR'] = false
+      tax_services = []
     end
+    @product_status['ITR'] = tax_services.any? { |t| t.service_type == 'ITR Filing' }
 
-    # Travel Services
+    # Travel Services (2 queries -> 1)
+    travel_packages = []
     begin
-      @product_status['Domestic'] = @customer.respond_to?(:travel_packages) ?
-        @customer.travel_packages.where(travel_type: 'Domestic').exists? : false
-      @product_status['International'] = @customer.respond_to?(:travel_packages) ?
-        @customer.travel_packages.where(travel_type: 'International').exists? : false
+      travel_packages = @customer.respond_to?(:travel_packages) ? @customer.travel_packages.to_a : []
     rescue
-      @product_status['Domestic'] = false
-      @product_status['International'] = false
+      travel_packages = []
     end
+    @product_status['Domestic'] = travel_packages.any? { |t| t.travel_type == 'Domestic' }
+    @product_status['International'] = travel_packages.any? { |t| t.travel_type == 'International' }
 
     # Additional placeholder products for future expansion
     @product_status['Additional 1'] = false
@@ -222,30 +220,19 @@ class Admin::CustomersController < Admin::ApplicationController
     total_policies += @policy_status.values.sum { |policy| policy[:count] }
     total_premium += @policy_status.values.sum { |policy| policy[:total_premium] }
 
-    # Add counts from other product types (when they have data)
-    begin
-      if @customer.respond_to?(:investments)
-        total_policies += @customer.investments.count
-        total_premium += @customer.investments.sum(:investment_amount) || 0
-      end
+    # Add counts from other product types (when they have data) — reuse the
+    # arrays already loaded above instead of re-querying count/sum per type.
+    total_policies += investments.size
+    total_premium += investments.sum { |i| i.investment_amount || 0 }
 
-      if @customer.respond_to?(:loans)
-        total_policies += @customer.loans.count
-        total_premium += @customer.loans.sum(:loan_amount) || 0
-      end
+    total_policies += loans.size
+    total_premium += loans.sum { |l| l.loan_amount || 0 }
 
-      if @customer.respond_to?(:tax_services)
-        total_policies += @customer.tax_services.count
-        total_premium += @customer.tax_services.sum(:amount) || 0
-      end
+    total_policies += tax_services.size
+    total_premium += tax_services.sum { |t| t.amount || 0 }
 
-      if @customer.respond_to?(:travel_packages)
-        total_policies += @customer.travel_packages.count
-        total_premium += @customer.travel_packages.sum(:package_amount) || 0
-      end
-    rescue
-      # Handle cases where tables don't exist yet
-    end
+    total_policies += travel_packages.size
+    total_premium += travel_packages.sum { |t| t.package_amount || 0 }
 
     @commission_summary = {
       total_premium: total_premium,
@@ -255,7 +242,10 @@ class Admin::CustomersController < Admin::ApplicationController
       coverage_percentage: (opted_count.to_f / 17 * 100).round(1)
     }
 
-    # Get commission payouts for this customer's policies
+    # Get commission payouts for this customer's policies — loaded once
+    # (.to_a) so the view's .any?/.each don't each re-issue their own query,
+    # and the paid subset/total are precomputed here instead of the view
+    # calling .where(status: 'paid') three separate times.
     @commission_payouts = CommissionPayout.joins(
       "LEFT JOIN health_insurances ON commission_payouts.policy_type = 'health' AND commission_payouts.policy_id = health_insurances.id
        LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
@@ -265,7 +255,10 @@ class Admin::CustomersController < Admin::ApplicationController
        (commission_payouts.policy_type = 'life' AND life_insurances.customer_id = ?) OR
        (commission_payouts.policy_type = 'motor' AND motor_insurances.customer_id = ?)",
       @customer.id, @customer.id, @customer.id
-    ).includes(:payout_audit_logs)
+    ).includes(:payout_audit_logs).to_a
+
+    @paid_commission_payouts = @commission_payouts.select(&:paid?)
+    @paid_commission_total = @paid_commission_payouts.sum { |p| p.payout_amount || 0 }
   end
 
   # GET /admin/customers/new

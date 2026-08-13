@@ -238,10 +238,27 @@ class Admin::ReportsController < Admin::ApplicationController
     end
 
     if defined?(Product)
-      @total_products = Product.count
-      @active_products = Product.where(status: 'active').count rescue Product.count
-      @out_of_stock = Product.where('stock <= ?', 0).count rescue 0
-      @low_stock = Product.where('stock > 0 AND stock <= ?', 10).count rescue 0
+      # 4 separate COUNT(*) round trips -> 1, via conditional aggregation
+      # (same technique already used in dashboard_controller#compute_dashboard_counters).
+      # Falls back to the original per-field queries (each with its own
+      # existing rescue) if the combined query itself fails for any reason.
+      begin
+        stats = Product.select(
+          'COUNT(*) AS total_count, ' \
+          "COUNT(CASE WHEN status = 'active' THEN 1 END) AS active_count, " \
+          'COUNT(CASE WHEN stock <= 0 THEN 1 END) AS out_of_stock_count, ' \
+          'COUNT(CASE WHEN stock > 0 AND stock <= 10 THEN 1 END) AS low_stock_count'
+        ).take
+        @total_products = stats.total_count.to_i
+        @active_products = stats.active_count.to_i
+        @out_of_stock = stats.out_of_stock_count.to_i
+        @low_stock = stats.low_stock_count.to_i
+      rescue
+        @total_products = Product.count
+        @active_products = Product.where(status: 'active').count rescue Product.count
+        @out_of_stock = Product.where('stock <= ?', 0).count rescue 0
+        @low_stock = Product.where('stock > 0 AND stock <= ?', 10).count rescue 0
+      end
 
       @top_products = Product.joins(:order_items)
                              .where(order_items: { created_at: start_date..Time.current })
@@ -352,10 +369,25 @@ class Admin::ReportsController < Admin::ApplicationController
   # GET /admin/reports/inventory
   def inventory
     if defined?(Product)
-      @total_products = Product.count
-      @total_stock_value = Product.sum('stock * price') rescue 0
-      @out_of_stock = Product.where('stock <= ?', 0).count rescue 0
-      @low_stock = Product.where('stock > 0 AND stock <= ?', 10).count rescue 0
+      # 4 separate round trips -> 1, same conditional-aggregation technique
+      # as reports#products / dashboard_controller#compute_dashboard_counters.
+      begin
+        stats = Product.select(
+          'COUNT(*) AS total_count, ' \
+          'COALESCE(SUM(stock * price), 0) AS total_stock_value, ' \
+          'COUNT(CASE WHEN stock <= 0 THEN 1 END) AS out_of_stock_count, ' \
+          'COUNT(CASE WHEN stock > 0 AND stock <= 10 THEN 1 END) AS low_stock_count'
+        ).take
+        @total_products = stats.total_count.to_i
+        @total_stock_value = stats.total_stock_value.to_f
+        @out_of_stock = stats.out_of_stock_count.to_i
+        @low_stock = stats.low_stock_count.to_i
+      rescue
+        @total_products = Product.count
+        @total_stock_value = Product.sum('stock * price') rescue 0
+        @out_of_stock = Product.where('stock <= ?', 0).count rescue 0
+        @low_stock = Product.where('stock > 0 AND stock <= ?', 10).count rescue 0
+      end
 
       @low_stock_products = Product.where('stock > 0 AND stock <= ?', 10)
                                    .order(:stock)
@@ -398,36 +430,42 @@ class Admin::ReportsController < Admin::ApplicationController
       start_date = 30.days.ago
     end
 
+    # @total_orders/@pending_orders/@processing_orders/@completed_orders/
+    # @cancelled_orders are all derivable from @orders_by_status (one grouped
+    # query) instead of 5 separate COUNT(*) round trips. Note 'pending' isn't
+    # a valid status value on either Order or Booking, so @pending_orders was
+    # always 0 via the rescue below even before this change — preserved as-is
+    # rather than guessing at an intended fix out of scope for a perf pass.
     if defined?(Order)
-      @total_orders = Order.where(created_at: start_date..Time.current).count
-      @pending_orders = Order.where(created_at: start_date..Time.current, status: 'pending').count rescue 0
-      @processing_orders = Order.where(created_at: start_date..Time.current, status: 'processing').count rescue 0
-      @completed_orders = Order.where(created_at: start_date..Time.current, status: ['completed', 'delivered']).count rescue 0
-      @cancelled_orders = Order.where(created_at: start_date..Time.current, status: 'cancelled').count rescue 0
+      @orders_by_status = Order.where(created_at: start_date..Time.current)
+                               .group(:status)
+                               .count rescue {}
 
       @recent_orders = Order.where(created_at: start_date..Time.current)
                            .includes(:customer)
                            .order(created_at: :desc)
                            .limit(20) rescue []
 
-      @orders_by_status = Order.where(created_at: start_date..Time.current)
-                               .group(:status)
-                               .count rescue {}
+      @total_orders = @orders_by_status.values.sum
+      @pending_orders = @orders_by_status['pending'] || 0
+      @processing_orders = @orders_by_status['processing'] || 0
+      @completed_orders = (@orders_by_status['completed'] || 0) + (@orders_by_status['delivered'] || 0)
+      @cancelled_orders = @orders_by_status['cancelled'] || 0
     elsif defined?(Booking)
-      @total_orders = Booking.where(created_at: start_date..Time.current).count
-      @pending_orders = Booking.where(created_at: start_date..Time.current, status: 'pending').count rescue 0
-      @processing_orders = Booking.where(created_at: start_date..Time.current, status: 'processing').count rescue 0
-      @completed_orders = Booking.where(created_at: start_date..Time.current, status: ['completed', 'confirmed']).count rescue 0
-      @cancelled_orders = Booking.where(created_at: start_date..Time.current, status: 'cancelled').count rescue 0
+      @orders_by_status = Booking.where(created_at: start_date..Time.current)
+                                .group(:status)
+                                .count rescue {}
 
       @recent_orders = Booking.where(created_at: start_date..Time.current)
                              .includes(:customer)
                              .order(created_at: :desc)
                              .limit(20) rescue []
 
-      @orders_by_status = Booking.where(created_at: start_date..Time.current)
-                                .group(:status)
-                                .count rescue {}
+      @total_orders = @orders_by_status.values.sum
+      @pending_orders = @orders_by_status['pending'] || 0
+      @processing_orders = @orders_by_status['processing'] || 0
+      @completed_orders = (@orders_by_status['completed'] || 0) + (@orders_by_status['confirmed'] || 0)
+      @cancelled_orders = @orders_by_status['cancelled'] || 0
     else
       @total_orders = 0
       @pending_orders = 0

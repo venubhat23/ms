@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -82,6 +82,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.datetime "updated_at", null: false
     t.index ["affiliate_id"], name: "index_affiliate_withdrawal_requests_on_affiliate_id"
     t.index ["approved_by_user_id"], name: "index_affiliate_withdrawal_requests_on_approved_by_user_id"
+    t.index ["created_at"], name: "index_affiliate_withdrawal_requests_on_created_at"
     t.index ["status"], name: "index_affiliate_withdrawal_requests_on_status"
   end
 
@@ -161,6 +162,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.index ["customer_id"], name: "index_booking_invoices_on_customer_id"
     t.index ["invoice_date"], name: "index_booking_invoices_on_invoice_date"
     t.index ["invoice_number"], name: "index_booking_invoices_on_invoice_number", unique: true
+    t.index ["payment_status"], name: "index_booking_invoices_on_payment_status"
     t.index ["share_token"], name: "index_booking_invoices_on_share_token", unique: true
   end
 
@@ -284,6 +286,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_date"], name: "index_bookings_on_booking_date"
+    t.index ["booking_number"], name: "index_bookings_on_booking_number", unique: true
     t.index ["booking_schedule_id"], name: "index_bookings_on_booking_schedule_id"
     t.index ["cashfree_order_id"], name: "index_bookings_on_cashfree_order_id"
     t.index ["cashfree_payment_id"], name: "index_bookings_on_cashfree_payment_id"
@@ -348,9 +351,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.index ["customer_id"], name: "index_client_requests_on_customer_id"
     t.index ["department"], name: "index_client_requests_on_department"
     t.index ["estimated_resolution_time"], name: "index_client_requests_on_estimated_resolution_time"
+    t.index ["priority"], name: "index_client_requests_on_priority"
     t.index ["resolved_by_id"], name: "index_client_requests_on_resolved_by_id"
     t.index ["stage"], name: "index_client_requests_on_stage"
     t.index ["status"], name: "index_client_requests_on_status"
+    t.index ["submitted_at"], name: "index_client_requests_on_submitted_at"
     t.index ["ticket_number"], name: "index_client_requests_on_ticket_number", unique: true
   end
 
@@ -456,7 +461,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.string "location_link"
     t.bigint "referred_by_affiliate_id"
     t.index ["created_at"], name: "index_customers_on_created_at"
+    t.index ["email"], name: "index_customers_on_email"
     t.index ["latitude", "longitude"], name: "index_customers_on_location"
+    t.index ["mobile"], name: "index_customers_on_mobile"
     t.index ["referred_by_affiliate_id"], name: "index_customers_on_referred_by_affiliate_id"
     t.index ["status"], name: "index_customers_on_status"
     t.index ["whatsapp_number"], name: "index_customers_on_whatsapp_number"
@@ -621,6 +628,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["approved_by_user_id"], name: "index_franchise_withdrawal_requests_on_approved_by_user_id"
+    t.index ["created_at"], name: "index_franchise_withdrawal_requests_on_created_at"
     t.index ["franchise_id"], name: "index_franchise_withdrawal_requests_on_franchise_id"
     t.index ["status"], name: "index_franchise_withdrawal_requests_on_status"
   end
@@ -728,10 +736,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.decimal "annual_income"
     t.string "business_job"
     t.index ["affiliate_id"], name: "index_leads_on_affiliate_id"
+    t.index ["contact_number"], name: "index_leads_on_contact_number"
     t.index ["created_at"], name: "index_leads_on_created_at"
     t.index ["current_stage"], name: "index_leads_on_current_stage"
+    t.index ["email"], name: "index_leads_on_email"
     t.index ["lead_source"], name: "index_leads_on_lead_source"
     t.index ["product_category"], name: "index_leads_on_product_category"
+    t.index ["product_subcategory"], name: "index_leads_on_product_subcategory"
   end
 
   create_table "milk_delivery_tasks", force: :cascade do |t|
@@ -887,6 +898,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.index ["booking_id"], name: "index_orders_on_booking_id"
     t.index ["created_at"], name: "index_orders_on_created_at"
     t.index ["customer_id"], name: "index_orders_on_customer_id"
+    t.index ["order_number"], name: "index_orders_on_order_number", unique: true
     t.index ["order_stage"], name: "index_orders_on_order_stage"
     t.index ["payment_status"], name: "index_orders_on_payment_status"
     t.index ["status"], name: "index_orders_on_status"
@@ -915,7 +927,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_pending_amounts_on_created_at"
     t.index ["customer_id"], name: "index_pending_amounts_on_customer_id"
+    t.index ["pending_date"], name: "index_pending_amounts_on_pending_date"
   end
 
   create_table "permissions", force: :cascade do |t|
@@ -1086,8 +1100,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.bigint "referring_customer_id"
     t.string "referral_source", default: "affiliate"
     t.index ["affiliate_id"], name: "index_referrals_on_affiliate_id"
+    t.index ["created_at"], name: "index_referrals_on_created_at"
     t.index ["customer_id"], name: "index_referrals_on_customer_id"
     t.index ["referral_source"], name: "index_referrals_on_referral_source"
+    t.index ["referred_email"], name: "index_referrals_on_referred_email", unique: true
+    t.index ["referred_mobile"], name: "index_referrals_on_referred_mobile", unique: true
     t.index ["referring_customer_id"], name: "index_referrals_on_referring_customer_id"
     t.index ["status"], name: "index_referrals_on_status"
   end
@@ -1305,6 +1322,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.bigint "store_id"
     t.index ["product_id", "store_id"], name: "index_stock_batches_on_product_id_and_store_id"
     t.index ["product_id"], name: "index_stock_batches_on_product_id"
+    t.index ["store_id", "status"], name: "index_stock_batches_on_store_id_and_status"
     t.index ["store_id"], name: "index_stock_batches_on_store_id"
     t.index ["vendor_id"], name: "index_stock_batches_on_vendor_id"
     t.index ["vendor_purchase_id"], name: "index_stock_batches_on_vendor_purchase_id"
@@ -1375,6 +1393,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.integer "auto_transfer_threshold", default: 10
     t.boolean "is_main_inventory", default: false
     t.decimal "commission_percentage", precision: 5, scale: 2, default: "0.0"
+    t.index ["status"], name: "index_stores_on_status"
     t.index ["store_admin_user_id"], name: "index_stores_on_store_admin_user_id"
   end
 
@@ -1440,6 +1459,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.datetime "updated_at", null: false
     t.index ["customer_id"], name: "index_subscription_templates_on_customer_id"
     t.index ["delivery_person_id"], name: "index_subscription_templates_on_delivery_person_id"
+    t.index ["is_active"], name: "index_subscription_templates_on_is_active"
     t.index ["product_id"], name: "index_subscription_templates_on_product_id"
   end
 
@@ -1631,6 +1651,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_vendor_purchases_on_created_at"
+    t.index ["status"], name: "index_vendor_purchases_on_status"
     t.index ["vendor_id"], name: "index_vendor_purchases_on_vendor_id"
   end
 
@@ -1644,6 +1666,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_000000) do
     t.boolean "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_vendors_on_created_at"
+    t.index ["name"], name: "index_vendors_on_name"
+    t.index ["status"], name: "index_vendors_on_status"
   end
 
   create_table "wallet_transactions", force: :cascade do |t|

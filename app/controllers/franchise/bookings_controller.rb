@@ -51,11 +51,20 @@ class Franchise::BookingsController < Franchise::BaseController
     # unindexed LIKE query against invoice_items (mirrors Admin::BookingsController#index).
     @bookings.each { |b| b.instance_variable_set(:@associated_invoice, nil) }
 
-    @bookings_for_stats = @all_bookings
+    # Source-tab counts and status-tab counts (2 + 6 separate COUNT(*) round
+    # trips, the latter issued from the view via @bookings_for_stats.where(...))
+    # collapsed into 2 grouped queries.
+    booked_by_counts = @all_bookings.group(:booked_by).count
+    @franchise_bookings_count = booked_by_counts['franchise'] || 0
+    @online_orders_count = booked_by_counts['customer'] || 0
 
-    # Counts for source tabs
-    @franchise_bookings_count = franchise_bookings.count
-    @online_orders_count = online_orders.count
+    status_counts = @all_bookings.group(:status).count
+    @stats_draft_count = status_counts['draft'] || 0
+    @stats_pending_count = status_counts['pending'] || 0
+    @stats_active_count = (status_counts['confirmed'] || 0) + (status_counts['processing'] || 0) + (status_counts['packed'] || 0)
+    @stats_shipping_count = (status_counts['shipped'] || 0) + (status_counts['out_for_delivery'] || 0)
+    @stats_completed_count = status_counts['completed'] || 0
+    @stats_cancelled_count = (status_counts['cancelled'] || 0) + (status_counts['returned'] || 0)
 
     @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
                         .order(:first_name, :last_name)

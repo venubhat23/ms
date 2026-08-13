@@ -23,19 +23,24 @@ class Admin::OrdersController < Admin::ApplicationController
       @orders = @orders.where(created_at: params[:date_from]..params[:date_to])
     end
 
+    # One grouped query instead of 12 separate COUNT(*) round trips, cached
+    # for 1 minute like the leads/sub_agents/distributors dashboards.
+    grouped_status_counts = Rails.cache.fetch('admin_orders/status_counts', expires_in: 1.minute) do
+      Order.group(:status).count
+    end
     @status_counts = {
-      all: Order.count,
-      draft: Order.draft.count,
-      ordered_and_delivery_pending: Order.ordered_and_delivery_pending.count,
-      confirmed: Order.confirmed.count,
-      processing: Order.processing.count,
-      packed: Order.packed.count,
-      shipped: Order.shipped.count,
-      out_for_delivery: Order.out_for_delivery.count,
-      delivered: Order.delivered.count,
-      completed: Order.completed.count,
-      cancelled: Order.cancelled.count,
-      returned: Order.returned.count
+      all: grouped_status_counts.values.sum,
+      draft: grouped_status_counts['draft'] || 0,
+      ordered_and_delivery_pending: grouped_status_counts['ordered_and_delivery_pending'] || 0,
+      confirmed: grouped_status_counts['confirmed'] || 0,
+      processing: grouped_status_counts['processing'] || 0,
+      packed: grouped_status_counts['packed'] || 0,
+      shipped: grouped_status_counts['shipped'] || 0,
+      out_for_delivery: grouped_status_counts['out_for_delivery'] || 0,
+      delivered: grouped_status_counts['delivered'] || 0,
+      completed: grouped_status_counts['completed'] || 0,
+      cancelled: grouped_status_counts['cancelled'] || 0,
+      returned: grouped_status_counts['returned'] || 0
     }
   end
 

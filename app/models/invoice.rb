@@ -8,7 +8,10 @@ class Invoice < ApplicationRecord
   enum :status, { draft: 'draft', sent: 'sent', paid: 'paid', overdue: 'overdue', cancelled: 'cancelled' }
   enum :payment_status, { unpaid: 0, partially_paid: 1, fully_paid: 2 }
 
-  validates :invoice_number, presence: true, uniqueness: true
+  # Guarded like the lead.rb/booking.rb uniqueness fixes: invoice_number is
+  # set once at creation and never changes, so re-checking uniqueness on every
+  # update (payment recording, status changes, etc.) was a needless query.
+  validates :invoice_number, presence: true, uniqueness: true, if: :will_save_change_to_invoice_number?
   validates :total_amount, presence: true, numericality: { greater_than: 0 }
   validates :invoice_date, presence: true
 

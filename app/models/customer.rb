@@ -81,8 +81,12 @@ has_many :pending_amounts, dependent: :destroy
 
   # Validations
   validates :first_name, presence: true
-  validates :email, uniqueness: { allow_blank: true }, format: { with: URI::MailTo::EMAIL_REGEXP, allow_blank: true }
-  validates :mobile, presence: true, uniqueness: true
+  # Guarded like the lead.rb uniqueness fix: only re-check uniqueness when
+  # email/mobile actually changed, not on every profile/order/booking-related
+  # save of a Customer record.
+  validates :email, uniqueness: { allow_blank: true }, format: { with: URI::MailTo::EMAIL_REGEXP, allow_blank: true }, if: :will_save_change_to_email?
+  validates :mobile, presence: true
+  validates :mobile, uniqueness: true, if: :will_save_change_to_mobile?
   validate :valid_mobile_format
   validates :whatsapp_number, format: { with: /\A[+]?[\d\s\-\(\)]{7,15}\z/ }, allow_blank: true
   validates :longitude, numericality: { greater_than_or_equal_to: -180, less_than_or_equal_to: 180 }, allow_blank: true

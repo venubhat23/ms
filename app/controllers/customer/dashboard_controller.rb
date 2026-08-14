@@ -63,12 +63,17 @@ class Customer::DashboardController < Customer::BaseController
     # For debugging - temporarily disable session check
     # return [] if session[:dashboard_banners_shown]
 
-    # Fetch active, current, dashboard banners
+    # Fetch active, current, dashboard banners — load once (.to_a) and reuse
+    # the loaded array for size/any? below instead of re-querying; .count
+    # always issues a fresh SQL COUNT even when the relation was already
+    # loaded, so calling it twice here was 2 extra round trips on every
+    # dashboard visit.
     banners = Banner.where(status: true, display_location: 'dashboard')
                     .where('display_start_date <= ? AND display_end_date >= ?', Date.current, Date.current)
                     .order(:display_order)
+                    .to_a
 
-    Rails.logger.debug "🎯 Banner Debug: Found #{banners.count} banners"
+    Rails.logger.debug "🎯 Banner Debug: Found #{banners.size} banners"
     banners.each do |banner|
       Rails.logger.debug "🎯 Banner: ID=#{banner.id}, Title='#{banner.title}', Status=#{banner.status}, Location=#{banner.display_location}"
       Rails.logger.debug "🎯 Banner Dates: Start=#{banner.display_start_date}, End=#{banner.display_end_date}, Current=#{Date.current}"
@@ -78,7 +83,7 @@ class Customer::DashboardController < Customer::BaseController
     # If banners exist, mark them as shown for this session (disabled for debugging)
     if banners.any?
       # session[:dashboard_banners_shown] = true
-      Rails.logger.debug "🎯 Banner Debug: Returning #{banners.count} banners to view"
+      Rails.logger.debug "🎯 Banner Debug: Returning #{banners.size} banners to view"
       banners
     else
       Rails.logger.debug "🎯 Banner Debug: No banners found"
@@ -87,18 +92,19 @@ class Customer::DashboardController < Customer::BaseController
   end
 
   def build_order_activity_data
-    # Get order counts for last 7 days
-    order_data = []
+    # Get order counts for last 7 days — one grouped query instead of 8
+    # separate .count round trips (one per day).
     labels = []
+    range_start = 7.days.ago.beginning_of_day
+    counts_by_date = current_customer&.bookings
+                                    &.where(booking_date: range_start..Date.current.end_of_day)
+                                    &.group("DATE(booking_date)")
+                                    &.count || {}
 
-    7.downto(0) do |days_ago|
+    order_data = 7.downto(0).map do |days_ago|
       date = Date.current - days_ago.days
       labels << date.strftime('%a')
-
-      orders_count = current_customer&.bookings
-                                   &.where(booking_date: date.beginning_of_day..date.end_of_day)
-                                   &.count || 0
-      order_data << orders_count
+      counts_by_date[date] || counts_by_date[date.to_s] || 0
     end
 
     # If no data exists, provide sample data with message
@@ -120,24 +126,21 @@ class Customer::DashboardController < Customer::BaseController
   end
 
   def build_monthly_spending_data
-    # Get spending data for current year by month
-    spending_data = []
+    # Get spending data for current year by month — one grouped query instead
+    # of 12 separate .sum round trips (one per month).
     labels = []
     current_year = Date.current.year
+    year_start = Date.new(current_year, 1, 1)
+    year_end = year_start.end_of_year
+    sums_by_month = current_customer&.bookings
+                                   &.where(booking_date: year_start..year_end)
+                                   &.where.not(total_amount: nil)
+                                   &.group("EXTRACT(MONTH FROM booking_date)")
+                                   &.sum(:total_amount) || {}
 
-    (1..12).each do |month|
+    spending_data = (1..12).map do |month|
       labels << Date::MONTHNAMES[month][0, 3] # Jan, Feb, etc.
-
-      month_start = Date.new(current_year, month, 1)
-      month_end = month_start.end_of_month
-
-      # Calculate total spending for this month
-      monthly_total = current_customer&.bookings
-                                    &.where(booking_date: month_start..month_end)
-                                    &.where.not(total_amount: nil)
-                                    &.sum(:total_amount) || 0
-
-      spending_data << monthly_total.to_f
+      (sums_by_month[month] || sums_by_month[month.to_f] || sums_by_month[month.to_s] || 0).to_f
     end
 
     # If no data exists, provide sample data with message

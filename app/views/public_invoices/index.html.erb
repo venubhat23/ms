@@ -1276,6 +1276,12 @@
         </div>
       <% end %>
     </div>
+
+    <% if @invoices.respond_to?(:total_pages) && @invoices.total_pages > 1 %>
+      <div class="d-flex justify-content-center my-4">
+        <%= paginate @invoices %>
+      </div>
+    <% end %>
   </div>
 
   <!-- Delete Confirmation Modal -->

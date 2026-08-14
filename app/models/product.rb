@@ -58,7 +58,10 @@ class Product < ApplicationRecord
   has_many_attached :additional_images
 
   validates :name, presence: true
-  validates :sku, presence: true, uniqueness: { case_sensitive: false }
+  # Guarded like the lead.rb uniqueness fix: only re-check uniqueness when sku
+  # actually changed, not on every stock/price update to a Product record.
+  validates :sku, presence: true
+  validates :sku, uniqueness: { case_sensitive: false }, if: :will_save_change_to_sku?
   validates :price, presence: true, numericality: { greater_than: 0 }, unless: :has_multiple_quantities?
   validates :discount_price, numericality: { greater_than_or_equal_to: 0 }, allow_blank: true
   validates :stock, presence: true, numericality: { greater_than_or_equal_to: 0 }, unless: :has_multiple_quantities?

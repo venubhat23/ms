@@ -1006,9 +1006,16 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   def get_customer_portfolio_stats(customer)
     # This is an ecommerce application, so return ecommerce-related stats
     begin
-      total_orders = customer.orders.count
-      total_bookings = customer.bookings.count
-      total_spent = customer.orders.where.not(status: ['cancelled', 'returned']).sum(:total_amount)
+      # Called on every customer login — collapsed from 5 separate round
+      # trips (orders: count/sum/maximum, bookings: count/maximum) into 2,
+      # one per table, using Postgres FILTER/aggregate combos via .pick.
+      total_orders, total_spent, last_order_date = customer.orders.pick(Arel.sql(<<~SQL.squish))
+        COUNT(*),
+        COALESCE(SUM(total_amount) FILTER (WHERE status NOT IN ('cancelled', 'returned')), 0),
+        MAX(created_at)
+      SQL
+
+      total_bookings, last_booking_date = customer.bookings.pick(Arel.sql('COUNT(*), MAX(created_at)'))
 
       {
         total_orders: total_orders,
@@ -1016,8 +1023,8 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
         total_spent: total_spent.to_f,
         member_since: customer.created_at,
         recent_activity: {
-          last_order_date: customer.orders.maximum(:created_at),
-          last_booking_date: customer.bookings.maximum(:created_at)
+          last_order_date: last_order_date,
+          last_booking_date: last_booking_date
         }
       }
     rescue => e

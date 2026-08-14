@@ -61,7 +61,9 @@ class Customer::ShopController < Customer::BaseController
   end
 
   def product
-    @product = Product.includes(:category, image_attachment: :blob).find(params[:id])
+    # :approved_reviews preloaded so total_reviews (used in the view) hits
+    # the model's "loaded?" fast path instead of a fresh COUNT query.
+    @product = Product.includes(:category, :approved_reviews, image_attachment: :blob).find(params[:id])
     @available_stock = @product.total_batch_stock
     @related_products = Product.where(category_id: @product.category_id)
                                .where.not(id: @product.id)

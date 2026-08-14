@@ -21,7 +21,10 @@ class HealthInsurance < ApplicationRecord
   validates :insurance_company_name, presence: true
   validates :policy_type, presence: true, inclusion: { in: ['New', 'Renewal', 'Porting', 'Migration'] }
   validates :insurance_type, presence: true, inclusion: { in: ['Individual', 'Family Floater', 'Group'] }
-  validates :policy_number, presence: true, uniqueness: true
+  # Guarded like the lead.rb uniqueness fix: only re-check uniqueness when
+  # policy_number actually changed, not on every save.
+  validates :policy_number, presence: true
+  validates :policy_number, uniqueness: true, if: :will_save_change_to_policy_number?
   validates :policy_booking_date, presence: true
   validates :policy_start_date, presence: true
   validates :policy_end_date, presence: true

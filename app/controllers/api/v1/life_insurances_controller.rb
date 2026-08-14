@@ -3,7 +3,11 @@ class Api::V1::LifeInsurancesController < Api::V1::ApplicationController
 
   # GET /api/v1/life_insurances
   def index
-    @life_insurances = LifeInsurance.includes(:customer, :sub_agent, :agency_code, :broker)
+    # sub_agent/agency_code/broker are only used by policy_detail_json (the
+    # #show action, which does its own separate find below) — policy_json
+    # (used here) only touches :customer, so preloading the rest was 3
+    # wasted round trips on every index request.
+    @life_insurances = LifeInsurance.includes(:customer)
 
     # Search functionality
     if params[:search].present?
@@ -37,18 +41,24 @@ class Api::V1::LifeInsurancesController < Api::V1::ApplicationController
       )
     end
 
-    # Pagination
+    # total_count must come from the filtered relation BEFORE limit/offset
+    # are applied — calling .count afterward wraps the query in a subquery
+    # scoped to just the current page, so total_pages was silently wrong
+    # (and computed via a second, separate .count call on top of that).
+    total_count = @life_insurances.count
+    per_page = (params[:limit] || 20).to_i
+
     @life_insurances = @life_insurances.order(created_at: :desc)
-    @life_insurances = @life_insurances.limit(params[:limit] || 20)
+    @life_insurances = @life_insurances.limit(per_page)
     @life_insurances = @life_insurances.offset(params[:offset] || 0)
 
     render json: {
       success: true,
       data: @life_insurances.map { |policy| policy_json(policy) },
       meta: {
-        total_count: @life_insurances.count,
-        current_page: (params[:offset].to_i / (params[:limit] || 20).to_i) + 1,
-        total_pages: (@life_insurances.count / (params[:limit] || 20).to_f).ceil
+        total_count: total_count,
+        current_page: (params[:offset].to_i / per_page) + 1,
+        total_pages: (total_count / per_page.to_f).ceil
       }
     }
   end
@@ -210,7 +220,7 @@ class Api::V1::LifeInsurancesController < Api::V1::ApplicationController
   private
 
   def set_life_insurance
-    @life_insurance = LifeInsurance.find(params[:id])
+    @life_insurance = LifeInsurance.includes(:customer, :sub_agent, :agency_code, :broker).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     render json: {
       success: false,

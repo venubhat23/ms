@@ -3,7 +3,11 @@ class Api::V1::HealthInsurancesController < Api::V1::ApplicationController
 
   # GET /api/v1/health_insurances
   def index
-    @health_insurances = HealthInsurance.includes(:customer, :sub_agent, :agency_code, :broker, :health_insurance_members)
+    # sub_agent/agency_code/broker/health_insurance_members are only used by
+    # policy_detail_json (the #show action, which does its own separate
+    # find below) — policy_json (used here) only touches :customer, so
+    # preloading the rest was 4 wasted round trips on every index request.
+    @health_insurances = HealthInsurance.includes(:customer)
 
     # Search functionality
     if params[:search].present?
@@ -37,18 +41,24 @@ class Api::V1::HealthInsurancesController < Api::V1::ApplicationController
       )
     end
 
-    # Pagination
+    # total_count must come from the filtered relation BEFORE limit/offset
+    # are applied — calling .count afterward wraps the query in a subquery
+    # scoped to just the current page, so total_pages was silently wrong
+    # (and computed via a second, separate .count call on top of that).
+    total_count = @health_insurances.count
+    per_page = (params[:limit] || 20).to_i
+
     @health_insurances = @health_insurances.order(created_at: :desc)
-    @health_insurances = @health_insurances.limit(params[:limit] || 20)
+    @health_insurances = @health_insurances.limit(per_page)
     @health_insurances = @health_insurances.offset(params[:offset] || 0)
 
     render json: {
       success: true,
       data: @health_insurances.map { |policy| policy_json(policy) },
       meta: {
-        total_count: @health_insurances.count,
-        current_page: (params[:offset].to_i / (params[:limit] || 20).to_i) + 1,
-        total_pages: (@health_insurances.count / (params[:limit] || 20).to_f).ceil
+        total_count: total_count,
+        current_page: (params[:offset].to_i / per_page) + 1,
+        total_pages: (total_count / per_page.to_f).ceil
       }
     }
   end
@@ -204,7 +214,7 @@ class Api::V1::HealthInsurancesController < Api::V1::ApplicationController
   private
 
   def set_health_insurance
-    @health_insurance = HealthInsurance.find(params[:id])
+    @health_insurance = HealthInsurance.includes(:customer, :sub_agent, :agency_code, :broker, :health_insurance_members).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     render json: {
       success: false,

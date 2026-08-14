@@ -38,8 +38,17 @@ class Customer::InvoicesController < Customer::BaseController
     # Paginate the filtered results
     @invoices = @invoices.page(params[:page]).per(@per_page)
 
-    # Use all_invoices for statistics
+    # Use all_invoices for statistics — one combined query instead of the
+    # view's old 5 separate .count/.sum calls against the same relation.
     @invoices_for_stats = @all_invoices
+    @invoices_stats_total, @invoices_stats_paid, @invoices_stats_unpaid, @invoices_stats_overdue, @invoices_stats_amount =
+      @invoices_for_stats.pick(Arel.sql(<<~SQL.squish))
+        COUNT(*),
+        COUNT(*) FILTER (WHERE payment_status = 'paid'),
+        COUNT(*) FILTER (WHERE payment_status = 'unpaid' OR payment_status IS NULL),
+        COUNT(*) FILTER (WHERE payment_status = 'overdue'),
+        COALESCE(SUM(total_amount), 0)
+      SQL
   end
 
   def show

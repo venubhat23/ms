@@ -5,7 +5,10 @@ class BookingItem < ApplicationRecord
 
   validates :quantity, presence: true, numericality: { greater_than: 0 }
   validates :price, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  validate :check_stock_availability
+  # Guarded like the lead.rb uniqueness fix: this fires an extra SUM query
+  # against stock_batches, so only run it when quantity/product actually
+  # changed (including on create) instead of on every save.
+  validate :check_stock_availability, if: -> { will_save_change_to_quantity? || will_save_change_to_product_id? }
 
   before_save :calculate_total
   after_create :reduce_product_stock
@@ -38,6 +41,7 @@ class BookingItem < ApplicationRecord
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     remaining_to_allocate = quantity.to_f
+    total_allocated = 0.0
 
     stock_batches_scope.each do |batch|
       break if remaining_to_allocate <= 0
@@ -46,6 +50,7 @@ class BookingItem < ApplicationRecord
         allocation = [remaining_to_allocate, batch.quantity_remaining].min
         batch.quantity_remaining -= allocation
         remaining_to_allocate -= allocation
+        total_allocated += allocation
         batch.status = 'exhausted' if batch.quantity_remaining <= 0
         batch.save!
 
@@ -53,8 +58,16 @@ class BookingItem < ApplicationRecord
       end
     end
 
-    new_stock = stock_batches_scope.reload.sum(:quantity_remaining)
-    product.update_column(:stock, product.total_batch_stock)
+    # new_stock is the post-allocation total for this same (possibly
+    # store-scoped) query — computable in Ruby from what was just allocated
+    # instead of re-querying with .reload.sum. product.total_batch_stock is a
+    # DIFFERENT (always all-store) aggregate used for the denormalized
+    # products.stock column; when this allocation wasn't store-scoped to
+    # begin with, the two are the same number and total_batch_stock's own
+    # query can be skipped too.
+    new_stock = current_stock - total_allocated
+    new_total_batch_stock = booking_store_id.present? ? product.total_batch_stock : new_stock
+    product.update_column(:stock, new_total_batch_stock)
 
     store_note = booking_store_id.present? ? " at #{booking.store.name}" : ''
     product.stock_movements.create!(
@@ -77,6 +90,7 @@ class BookingItem < ApplicationRecord
     new_quantity = quantity
     quantity_difference = new_quantity - old_quantity
     current_stock = stock_batches_scope.sum(:quantity_remaining)
+    net_change = 0.0
 
     if quantity_difference > 0
       remaining_to_allocate = quantity_difference.to_f
@@ -88,6 +102,7 @@ class BookingItem < ApplicationRecord
           allocation = [remaining_to_allocate, batch.quantity_remaining].min
           batch.quantity_remaining -= allocation
           remaining_to_allocate -= allocation
+          net_change -= allocation
           batch.status = 'exhausted' if batch.quantity_remaining <= 0
           batch.save!
         end
@@ -106,17 +121,21 @@ class BookingItem < ApplicationRecord
           batch.quantity_remaining += quantity_to_restore
           batch.status = 'active'
           batch.save!
+          net_change += quantity_to_restore
           break
         elsif batch.status == 'active'
           batch.quantity_remaining += quantity_to_restore
           batch.save!
+          net_change += quantity_to_restore
           break
         end
       end
     end
 
-    new_stock = stock_batches_scope.reload.sum(:quantity_remaining)
-    product.update_column(:stock, product.total_batch_stock)
+    # See reduce_product_stock for why this avoids a .reload.sum round trip.
+    new_stock = current_stock + net_change
+    new_total_batch_stock = booking_store_id.present? ? product.total_batch_stock : new_stock
+    product.update_column(:stock, new_total_batch_stock)
 
     # Create stock movement record for the change
     if quantity_difference != 0
@@ -140,6 +159,7 @@ class BookingItem < ApplicationRecord
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     quantity_to_restore = quantity.to_f
+    net_change = 0.0
 
     restore_scope = booking_store_id.present? \
       ? product.stock_batches.where(store_id: booking_store_id).order(:batch_date, :created_at) \
@@ -152,16 +172,20 @@ class BookingItem < ApplicationRecord
         batch.quantity_remaining += quantity_to_restore
         batch.status = 'active'
         batch.save!
+        net_change += quantity_to_restore
         break
       elsif batch.status == 'active'
         batch.quantity_remaining += quantity_to_restore
         batch.save!
+        net_change += quantity_to_restore
         break
       end
     end
 
-    new_stock = stock_batches_scope.reload.sum(:quantity_remaining)
-    product.update_column(:stock, product.total_batch_stock)
+    # See reduce_product_stock for why this avoids a .reload.sum round trip.
+    new_stock = current_stock + net_change
+    new_total_batch_stock = booking_store_id.present? ? product.total_batch_stock : new_stock
+    product.update_column(:stock, new_total_batch_stock)
 
     product.stock_movements.create!(
       reference_type: 'booking',

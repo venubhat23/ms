@@ -104,21 +104,20 @@ class PublicInvoicesController < ApplicationController
       @invoices = @invoices.order(total_amount: :desc, created_at: :desc)
     end
 
-    # Execute query and get results
-    @invoices = @invoices.to_a
+    # Previously loaded the entire invoices table into memory on every hit —
+    # paginate instead. The view (app/views/public_invoices/index.html.erb)
+    # renders a `paginate @invoices` control so pages beyond the first stay
+    # reachable rather than silently disappearing. total_count comes off the
+    # same paginated relation (Kaminari memoizes it) so this stays a single
+    # COUNT round trip rather than an extra one.
+    per_page = SystemSetting.default_pagination_per_page || 20
+    @invoices = @invoices.page(params[:page]).per(per_page)
+    @total_invoice_count = @invoices.total_count
 
-    # Batch update share tokens for invoices that don't have them
-    invoices_without_tokens = @invoices.select { |invoice| invoice.share_token.blank? }
-    if invoices_without_tokens.any?
-      Invoice.transaction do
-        invoices_without_tokens.each do |invoice|
-          invoice.generate_share_token!
-        end
-      end
-    end
-
-    # Cache total count to avoid repeated queries
-    @total_invoice_count = @invoices.size
+    # The view backfills a blank share_token per invoice as it renders each
+    # one (generate_share_token + save!) — that loop is now bounded to this
+    # page's rows instead of the whole table, simply by virtue of @invoices
+    # itself being paginated above. Nothing further to do here.
   end
 
   def complete

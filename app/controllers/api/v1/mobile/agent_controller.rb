@@ -380,10 +380,21 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # Get agent's policies using the helper method
     agent_health_policies, agent_life_policies, _ = get_agent_policies(agent)
 
+    # Cap on the admin ("see everything") branches below: this method sorts
+    # all matching policies in Ruby and paginates by slicing the array
+    # afterward (true cross-table DB-level pagination isn't straightforward
+    # since results are merged across 4 separate tables), so an admin
+    # request previously loaded literally every row of every policy table
+    # into memory on every call. Capping to the most recent N per type keeps
+    # normal pagination depths correct while removing the unbounded-memory
+    # risk. Agent-scoped branches don't need this — they're already bounded
+    # to one agent's own policies.
+    admin_policy_load_cap = 2000
+
     # Get health insurance policies
     if policy_type.blank? || policy_type == 'health' || policy_type == 'all'
       health_policies = if is_admin?(agent)
-                         HealthInsurance.all
+                         HealthInsurance.order(created_at: :desc).limit(admin_policy_load_cap)
                        else
                          agent_health_policies
                        end
@@ -396,7 +407,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # Get life insurance policies
     if policy_type.blank? || policy_type == 'life' || policy_type == 'all'
       life_policies = if is_admin?(agent)
-                       LifeInsurance.all
+                       LifeInsurance.order(created_at: :desc).limit(admin_policy_load_cap)
                      else
                        agent_life_policies
                      end
@@ -409,7 +420,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # Get motor insurance policies
     if policy_type.blank? || policy_type == 'motor' || policy_type == 'all'
       motor_policies = if is_admin?(agent)
-                         Policy.where(insurance_type: 'motor')
+                         Policy.where(insurance_type: 'motor').order(created_at: :desc).limit(admin_policy_load_cap)
                        else
                          Policy.where(insurance_type: 'motor', user: agent)
                        end
@@ -422,7 +433,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # Get other insurance policies
     if policy_type.blank? || policy_type == 'other' || policy_type == 'all'
       other_policies = if is_admin?(agent)
-                         Policy.where(insurance_type: 'other')
+                         Policy.where(insurance_type: 'other').order(created_at: :desc).limit(admin_policy_load_cap)
                        else
                          Policy.where(insurance_type: 'other', user: agent)
                        end

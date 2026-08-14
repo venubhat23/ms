@@ -2,7 +2,10 @@ class Customer::ProductsController < Customer::BaseController
   before_action :find_product, only: [:show]
 
   def index
-    @products = Product.active.includes(:category, :approved_reviews, image_attachment: :blob)
+    # :stock_batches preloaded so in_stock?/available_quantity (called per
+    # card in the view) use Product#cached_total_batch_stock's already-built
+    # "loaded?" fast path instead of a fresh SUM query per product.
+    @products = Product.active.includes(:category, :approved_reviews, :stock_batches, image_attachment: :blob)
 
     # Apply filters
     @products = @products.by_category(params[:category_id]) if params[:category_id].present?
@@ -78,7 +81,11 @@ class Customer::ProductsController < Customer::BaseController
   private
 
   def find_product
-    @product = Product.active.find(params[:id])
+    # :approved_reviews/:stock_batches preloaded so average_rating (called 3x
+    # in show.html.erb), total_reviews (2x), and in_stock?/available_quantity
+    # (2x each) all hit their model-level "loaded?" fast paths instead of a
+    # fresh query per call — was ~9-10 extra round trips per product page.
+    @product = Product.active.includes(:category, :approved_reviews, :stock_batches, image_attachment: :blob).find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to customer_products_path, alert: 'Product not found.'
   end

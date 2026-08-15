@@ -309,7 +309,10 @@ class Admin::DistributorPayoutsController < Admin::ApplicationController
   end
 
   def fetch_distributor_detailed_payouts(distributor_id)
-    distributor_payouts = DistributorPayout.where(distributor_id: distributor_id)
+    distributor_payouts = DistributorPayout.where(distributor_id: distributor_id).to_a
+    # Batch-load the policy (and its customer) behind each payout instead of
+    # firing 2 round trips per payout (#policy + #customer) in the map below.
+    DistributorPayout.preload_policies(distributor_payouts)
 
     lead_wise_commissions = distributor_payouts.map do |payout|
       policy = payout.policy

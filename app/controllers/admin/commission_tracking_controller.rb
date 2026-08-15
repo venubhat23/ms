@@ -19,10 +19,11 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
       # @total_policies_count, @total_pages, @has_next_page, @has_prev_page are set by the fetch method
 
       # Real calculations based on payout data
-      @total_commission_generated = calculate_total_commission_generated
-      @total_transferred = calculate_total_transferred
-      @pending_transfers = calculate_pending_transfers
-      @company_expenses = calculate_company_expenses
+      totals = commission_tracking_totals
+      @total_commission_generated = totals[:total_commission_generated]
+      @total_transferred = totals[:total_transferred]
+      @pending_transfers = totals[:pending_transfers]
+      @company_expenses = totals[:company_expenses]
     rescue => e
       Rails.logger.error "Commission tracking failed: #{e.message}"
 
@@ -35,10 +36,11 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
       @has_prev_page = false
 
       # Use same calculation methods even in fallback
-      @total_commission_generated = calculate_total_commission_generated
-      @total_transferred = calculate_total_transferred
-      @pending_transfers = calculate_pending_transfers
-      @company_expenses = calculate_company_expenses
+      totals = commission_tracking_totals
+      @total_commission_generated = totals[:total_commission_generated]
+      @total_transferred = totals[:total_transferred]
+      @pending_transfers = totals[:pending_transfers]
+      @company_expenses = totals[:company_expenses]
 
       @policies_with_commission = create_sample_policies
     end
@@ -314,11 +316,12 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
 
   def dashboard
     begin
+      totals = commission_tracking_totals
       @commission_summary = {
-        total_generated: calculate_total_commission_generated || 0,
-        total_transferred: calculate_total_transferred || 0,
-        pending_transfers: calculate_pending_transfers || 0,
-        company_expenses: calculate_company_expenses || 0
+        total_generated: totals[:total_commission_generated] || 0,
+        total_transferred: totals[:total_transferred] || 0,
+        pending_transfers: totals[:pending_transfers] || 0,
+        company_expenses: totals[:company_expenses] || 0
       }
 
       @recent_policies = fetch_recent_policies_with_commission || []
@@ -353,11 +356,12 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
 
     begin
       # Calculate commission summary
+      totals = commission_tracking_totals
       @commission_summary = {
-        total_generated: calculate_total_commission_generated || 0,
-        total_transferred: calculate_total_transferred || 0,
-        pending_transfers: calculate_pending_transfers || 0,
-        company_expenses: calculate_company_expenses || 0
+        total_generated: totals[:total_commission_generated] || 0,
+        total_transferred: totals[:total_transferred] || 0,
+        pending_transfers: totals[:pending_transfers] || 0,
+        company_expenses: totals[:company_expenses] || 0
       }
 
       # Fetch related data
@@ -595,24 +599,42 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
     }
   end
 
+  # Combines what used to be 4 separate round trips (total_commission_generated,
+  # total_transferred, pending_transfers, company_expenses) into 2: one grouped
+  # conditional-aggregation query on commission_payouts, plus the Payout sum
+  # (different table, kept separate). Cached briefly since these are dashboard
+  # aggregates, not per-transaction data that needs to be instantly fresh.
+  def commission_tracking_totals
+    Rails.cache.fetch('admin/commission_tracking/totals', expires_in: 1.minute) do
+      totals = CommissionPayout.where(payout_to: %w[main_agent company_expense]).pick(
+        Arel.sql("COALESCE(SUM(CASE WHEN payout_to = 'main_agent' AND status <> 'pending' THEN payout_amount ELSE 0 END), 0)"),
+        Arel.sql("COALESCE(SUM(CASE WHEN payout_to = 'main_agent' AND status = 'pending' THEN payout_amount ELSE 0 END), 0)"),
+        Arel.sql("COALESCE(SUM(CASE WHEN payout_to = 'company_expense' AND status <> 'pending' THEN payout_amount ELSE 0 END), 0)")
+      ) || [0, 0, 0]
+
+      {
+        total_commission_generated: Payout.sum(:main_agent_commission_amount) || 0,
+        total_transferred: totals[0],
+        pending_transfers: totals[1],
+        company_expenses: totals[2]
+      }
+    end
+  end
+
   def calculate_total_commission_generated
-    # Sum of main_agent_commission_amount from all payouts
-    Payout.sum(:main_agent_commission_amount) || 0
+    commission_tracking_totals[:total_commission_generated]
   end
 
   def calculate_total_transferred
-    # Sum of non-pending main_agent_commission_amount from commission_payouts for main agent
-    CommissionPayout.where(payout_to: 'main_agent').where.not(status: 'pending').sum(:payout_amount) || 0
+    commission_tracking_totals[:total_transferred]
   end
 
   def calculate_pending_transfers
-    # Sum of pending main_agent_commission_amount from commission_payouts for main agent
-    CommissionPayout.where(payout_to: 'main_agent', status: 'pending').sum(:payout_amount) || 0
+    commission_tracking_totals[:pending_transfers]
   end
 
   def calculate_company_expenses
-    # Sum of non-pending payout_amount from commission_payouts where payout_to = "company_expense"
-    CommissionPayout.where(payout_to: 'company_expense').where.not(status: 'pending').sum(:payout_amount) || 0
+    commission_tracking_totals[:company_expenses]
   end
 
   def fetch_recent_policies_with_commission

@@ -203,8 +203,12 @@ class Admin::ProductsController < Admin::ApplicationController
     # Comprehensive product detail page with all e-commerce features
     @related_products = Product.where(category: @product.category).where.not(id: @product.id).limit(4)
 
-    # Real reviews from database
-    @reviews = @product.approved_reviews.recent.limit(10)
+    # Real reviews from database. Loading the association once (instead of
+    # a separate .recent.limit(10) query) lets average_rating/total_reviews/
+    # review_percentage_distribution below reuse it via their loaded? check
+    # (see Product model) instead of firing ~5 more queries each.
+    @product.approved_reviews.load
+    @reviews = @product.approved_reviews.sort_by(&:created_at).reverse.first(10)
     @review_summary = {
       average_rating: @product.average_rating,
       total_reviews: @product.total_reviews,
@@ -562,23 +566,32 @@ class Admin::ProductsController < Admin::ApplicationController
   def calculate_market_stats
     products_with_prices = Product.active.where.not(today_price: nil, yesterday_price: nil)
 
-    return {} if products_with_prices.empty?
+    # total/increases/decreases/stable/avg used to be 5 separate round trips
+    # (plus a 6th .empty? check) — one conditional-aggregation query instead,
+    # same pattern used for admin/coupons#index stats.
+    row = products_with_prices.select(
+      "COUNT(*) AS total_count, " \
+      "COUNT(CASE WHEN price_change_percentage > 0 THEN 1 END) AS increases_count, " \
+      "COUNT(CASE WHEN price_change_percentage < 0 THEN 1 END) AS decreases_count, " \
+      "COUNT(CASE WHEN price_change_percentage = 0 THEN 1 END) AS stable_count, " \
+      "AVG(price_change_percentage) AS avg_change"
+    ).take
 
-    price_increases = products_with_prices.where('price_change_percentage > 0').count
-    price_decreases = products_with_prices.where('price_change_percentage < 0').count
-    price_stable = products_with_prices.where('price_change_percentage = 0').count
+    total_products = row.total_count.to_i
+    return {} if total_products.zero?
 
-    total_products = products_with_prices.count
-    avg_change = products_with_prices.average(:price_change_percentage)&.round(2) || 0
+    avg_change = row.avg_change ? row.avg_change.to_f.round(2) : 0
 
+    # Gainer/loser still need their own ORDER BY queries — not foldable into
+    # the aggregate above without a window-function rewrite.
     biggest_gainer = products_with_prices.order(price_change_percentage: :desc).first
     biggest_loser = products_with_prices.order(price_change_percentage: :asc).first
 
     {
       total_products: total_products,
-      price_increases: price_increases,
-      price_decreases: price_decreases,
-      price_stable: price_stable,
+      price_increases: row.increases_count.to_i,
+      price_decreases: row.decreases_count.to_i,
+      price_stable: row.stable_count.to_i,
       avg_change: avg_change,
       biggest_gainer: biggest_gainer,
       biggest_loser: biggest_loser,

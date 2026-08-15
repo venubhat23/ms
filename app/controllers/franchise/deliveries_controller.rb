@@ -4,7 +4,7 @@ class Franchise::DeliveriesController < Franchise::BaseController
 
   def index
     @deliveries = Booking.where(delivery_franchise_id: current_franchise.id)
-                         .includes(:booking_items)
+                         .includes(:customer, :booking_items)
                          .order(created_at: :desc)
                          .page(params[:page]).per(SystemSetting.default_pagination_per_page)
   end

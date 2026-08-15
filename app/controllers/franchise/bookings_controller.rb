@@ -520,25 +520,28 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   def realtime_data
-    # Calculate statistics
-    total_count = @all_bookings.count
-    pending_count = @all_bookings.where(status: 'pending').count
-    processing_count = @all_bookings.where(status: 'processing').count
-    delivered_count = @all_bookings.where(status: 'delivered').count
+    # This action is routed separately from #index (which is the only place
+    # @all_bookings gets set), so it was raising NoMethodError on nil here —
+    # silently swallowed by the rescue below. Rebuild the same scope #index
+    # uses instead of relying on that instance variable.
+    all_bookings = Booking.where(franchise_id: current_franchise.id)
+
+    # One grouped count instead of 4 separate COUNT(*) round trips
+    status_counts = all_bookings.group(:status).count
 
     stats = {
-      total: total_count,
-      pending: pending_count,
-      processing: processing_count,
-      delivered: delivered_count
+      total: status_counts.values.sum,
+      pending: status_counts['pending'] || 0,
+      processing: status_counts['processing'] || 0,
+      delivered: status_counts['delivered'] || 0
     }
 
     # Get recent bookings
-    recent_bookings = @all_bookings.recent.limit(5).map do |booking|
+    recent_bookings = all_bookings.recent.includes(:customer).limit(5).map do |booking|
       {
         id: booking.id,
         booking_number: booking.booking_number,
-        customer_name: booking.customer_name,
+        customer_name: booking.customer&.display_name,
         status: booking.status,
         total_amount: booking.total_amount,
         created_at: booking.created_at.strftime('%b %d, %Y')

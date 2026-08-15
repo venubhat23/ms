@@ -26,7 +26,7 @@
               <% @deliveries.each do |booking| %>
                 <tr>
                   <td><%= booking.booking_number %></td>
-                  <td><%= booking.customer_name %></td>
+                  <td><%= booking.customer&.display_name %></td>
                   <td>₹<%= number_with_delimiter(booking.total_amount.to_f) %></td>
                   <td>
                     <span class="badge bg-<%= booking.status == 'completed' ? 'success' : booking.status == 'delivered' ? 'info' : 'warning' %>-subtle text-<%= booking.status == 'completed' ? 'success' : booking.status == 'delivered' ? 'info' : 'warning' %>">

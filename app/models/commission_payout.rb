@@ -75,13 +75,13 @@ class CommissionPayout < ApplicationRecord
     policies_by_type_and_id = {}
 
     if (ids = ids_by_type['health'])
-      HealthInsurance.where(id: ids).each { |p| policies_by_type_and_id[['health', p.id]] = p }
+      HealthInsurance.includes(:customer).where(id: ids).each { |p| policies_by_type_and_id[['health', p.id]] = p }
     end
     if (ids = ids_by_type['life'])
-      LifeInsurance.where(id: ids).each { |p| policies_by_type_and_id[['life', p.id]] = p }
+      LifeInsurance.includes(:customer).where(id: ids).each { |p| policies_by_type_and_id[['life', p.id]] = p }
     end
     if (ids = ids_by_type['motor'])
-      MotorInsurance.where(id: ids).each { |p| policies_by_type_and_id[['motor', p.id]] = p }
+      MotorInsurance.includes(:customer).where(id: ids).each { |p| policies_by_type_and_id[['motor', p.id]] = p }
     end
     if (ids = ids_by_type['other'])
       OtherInsurance.where(id: ids).each { |p| policies_by_type_and_id[['other', p.id]] = p }

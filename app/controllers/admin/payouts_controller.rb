@@ -45,17 +45,9 @@ class Admin::PayoutsController < Admin::ApplicationController
     # LifeInsurance.find_by per policy group in the view).
     @policies_by_type_and_id = load_policies_for_payouts(@payouts)
 
-    # Summary statistics
-    @summary = {
-      total_payouts: CommissionPayout.count,
-      total_amount: CommissionPayout.sum(:payout_amount),
-      pending_amount: CommissionPayout.pending.sum(:payout_amount),
-      paid_amount: CommissionPayout.paid.sum(:payout_amount),
-      pending_count: CommissionPayout.pending.count,
-      paid_count: CommissionPayout.paid.count,
-      this_month: CommissionPayout.this_month.sum(:payout_amount),
-      last_month: CommissionPayout.last_month.sum(:payout_amount)
-    }
+    # Summary statistics — collapsed from 8 separate COUNT/SUM round trips
+    # into 1 grouped conditional-aggregation query.
+    @summary = payouts_summary_stats
 
     # Chart data for dashboard
     @chart_data = prepare_chart_data
@@ -359,6 +351,36 @@ class Admin::PayoutsController < Admin::ApplicationController
     result
   end
 
+  def payouts_summary_stats
+    conn = CommissionPayout.connection
+    this_month_start = conn.quote(Date.current.beginning_of_month)
+    this_month_end = conn.quote(Date.current.end_of_month)
+    last_month_start = conn.quote(1.month.ago.beginning_of_month)
+    last_month_end = conn.quote(1.month.ago.end_of_month)
+
+    row = CommissionPayout.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(payout_amount), 0)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN status = 'pending' THEN payout_amount ELSE 0 END), 0)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN status = 'paid' THEN payout_amount ELSE 0 END), 0)"),
+      Arel.sql("COUNT(CASE WHEN status = 'pending' THEN 1 END)"),
+      Arel.sql("COUNT(CASE WHEN status = 'paid' THEN 1 END)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN payout_date BETWEEN #{this_month_start} AND #{this_month_end} THEN payout_amount ELSE 0 END), 0)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN payout_date BETWEEN #{last_month_start} AND #{last_month_end} THEN payout_amount ELSE 0 END), 0)")
+    ) || [0, 0, 0, 0, 0, 0, 0, 0]
+
+    {
+      total_payouts: row[0],
+      total_amount: row[1],
+      pending_amount: row[2],
+      paid_amount: row[3],
+      pending_count: row[4],
+      paid_count: row[5],
+      this_month: row[6],
+      last_month: row[7]
+    }
+  end
+
   def payout_params
     params.require(:payout).permit(
       :policy_type, :policy_id, :payout_to, :payout_amount, :payout_date,
@@ -406,16 +428,24 @@ class Admin::PayoutsController < Admin::ApplicationController
     }
   end
 
+  # Was 12 round trips (one COMMISSION_PAYOUT sum per month) on every index
+  # page load — now 1 grouped query covering the whole 12-month window.
   def monthly_payout_data
+    range_start = 11.months.ago.beginning_of_month
+    range_end = Date.current.end_of_month
+
+    amounts_by_month = CommissionPayout.where(payout_date: range_start..range_end)
+                                        .group(Arel.sql("to_char(payout_date, 'YYYY-MM')"))
+                                        .sum(:payout_amount)
+
     12.times.map do |i|
-      month = i.months.ago.beginning_of_month
+      month = (11 - i).months.ago.beginning_of_month
+      key = month.strftime('%Y-%m')
       {
         month: month.strftime('%b %Y'),
-        amount: CommissionPayout.where(
-          payout_date: month..month.end_of_month
-        ).sum(:payout_amount)
+        amount: amounts_by_month[key] || 0
       }
-    end.reverse
+    end
   end
 
   def status_distribution_data
@@ -464,12 +494,20 @@ class Admin::PayoutsController < Admin::ApplicationController
   end
 
   def payout_overview
+    row = CommissionPayout.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(payout_amount), 0)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN status = 'pending' THEN payout_amount ELSE 0 END), 0)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN status = 'paid' THEN payout_amount ELSE 0 END), 0)"),
+      Arel.sql("COALESCE(SUM(CASE WHEN status = 'processing' THEN payout_amount ELSE 0 END), 0)")
+    ) || [0, 0, 0, 0, 0]
+
     {
-      total_payouts: CommissionPayout.count,
-      total_amount: CommissionPayout.sum(:payout_amount),
-      pending_amount: CommissionPayout.pending.sum(:payout_amount),
-      paid_amount: CommissionPayout.paid.sum(:payout_amount),
-      processing_amount: CommissionPayout.processing.sum(:payout_amount)
+      total_payouts: row[0],
+      total_amount: row[1],
+      pending_amount: row[2],
+      paid_amount: row[3],
+      processing_amount: row[4]
     }
   end
 
@@ -485,19 +523,32 @@ class Admin::PayoutsController < Admin::ApplicationController
                    .sum(:payout_amount)
   end
 
+  # Was 12 round trips (2 per month x 6 months) — now 2 grouped queries
+  # (one per date column, since paid uses payout_date and pending uses
+  # created_at) covering the whole 6-month window at once.
   def monthly_payout_trend
+    range_start = 5.months.ago.beginning_of_month
+    range_end = Date.current.end_of_month
+
+    paid_by_month = CommissionPayout.paid
+                                     .where(payout_date: range_start..range_end)
+                                     .group(Arel.sql("to_char(payout_date, 'YYYY-MM')"))
+                                     .sum(:payout_amount)
+
+    pending_by_month = CommissionPayout.pending
+                                        .where(created_at: range_start..range_end)
+                                        .group(Arel.sql("to_char(created_at, 'YYYY-MM')"))
+                                        .sum(:payout_amount)
+
     6.times.map do |i|
-      month = i.months.ago
+      month = (5 - i).months.ago
+      key = month.strftime('%Y-%m')
       {
         month: month.strftime('%b %Y'),
-        paid: CommissionPayout.paid.where(
-          payout_date: month.beginning_of_month..month.end_of_month
-        ).sum(:payout_amount),
-        pending: CommissionPayout.pending.where(
-          created_at: month.beginning_of_month..month.end_of_month
-        ).sum(:payout_amount)
+        paid: paid_by_month[key] || 0,
+        pending: pending_by_month[key] || 0
       }
-    end.reverse
+    end
   end
 
   def recent_payout_activities

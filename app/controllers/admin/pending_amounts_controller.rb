@@ -5,7 +5,6 @@ class Admin::PendingAmountsController < ApplicationController
   def index
     @pending_amounts = PendingAmount.includes(:customer)
                                    .order(created_at: :desc)
-                                   .page(params[:page]).per(20)
 
     # Filter by month if specified
     if params[:month].present? && params[:year].present?
@@ -14,7 +13,20 @@ class Admin::PendingAmountsController < ApplicationController
       @pending_amounts = @pending_amounts.where(pending_date: start_date..end_date)
     end
 
-    @customers = Customer.order(:first_name, :last_name)
+    # Stats must run on the pre-pagination scope — running them on the
+    # already-paginated relation (old code) both mis-reported totals (only
+    # counted the current page's 20 rows) and cost 4 extra queries per load.
+    status_counts = @pending_amounts.group(:status).count
+    @pending_status_count = status_counts['pending'] || 0
+    @resolved_status_count = status_counts['resolved'] || 0
+    @total_entries_count = status_counts.values.sum
+    @pending_amount_total = @pending_amounts.where(status: :pending).sum(:amount)
+
+    @pending_amounts = @pending_amounts.page(params[:page]).per(20)
+
+    @customers = Rails.cache.fetch('admin_pending_amounts/filter_customers', expires_in: 5.minutes) do
+      Customer.order(:first_name, :last_name).select(:id, :first_name, :middle_name, :last_name).to_a
+    end
     @new_pending_amount = PendingAmount.new
   end
 

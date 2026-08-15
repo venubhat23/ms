@@ -28,8 +28,19 @@ class DeliveryValidationService
     total_delivery_charge = 0
     max_delivery_days = 0
 
+    # Batch-load every hash-referenced product (with the associations
+    # #validate needs) in one query instead of a Product.find + a
+    # delivery_rules query per cart item.
+    hash_product_ids = cart_items.select { |i| i.is_a?(Hash) }.map { |i| i[:product_id] }.compact.uniq
+    products_by_id = hash_product_ids.any? ?
+      Product.where(id: hash_product_ids).includes(:stock_batches, :delivery_rules).index_by(&:id) : {}
+
     cart_items.each do |item|
-      product = item.is_a?(Hash) ? Product.find(item[:product_id]) : item.product
+      product = if item.is_a?(Hash)
+        products_by_id.fetch(item[:product_id].to_i) { raise ActiveRecord::RecordNotFound, "Couldn't find Product with 'id'=#{item[:product_id]}" }
+      else
+        item.product
+      end
       quantity = item.is_a?(Hash) ? item[:quantity] : item.quantity
 
       result = validate_product_delivery(product, pincode)
@@ -79,7 +90,11 @@ class DeliveryValidationService
   end
 
   def check_delivery_availability
-    delivery_rules = @product.delivery_rules.includes(:product)
+    # No use of rule.product below — includes(:product) here only forced a
+    # fresh query (CollectionProxy#includes always re-queries, even when the
+    # association is already loaded), on top of the one #delivery_rules
+    # itself lazy-loads or reuses if preloaded by the caller.
+    delivery_rules = @product.delivery_rules
 
     return default_delivery_info if delivery_rules.empty?
 

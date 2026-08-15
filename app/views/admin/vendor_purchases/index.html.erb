@@ -54,7 +54,7 @@
     <div class="col-md-3">
       <div class="card border-warning">
         <div class="card-body text-center">
-          <div class="h4 mb-1 text-warning"><%= @vendor_purchases.pending.count %></div>
+          <div class="h4 mb-1 text-warning"><%= @pending_count %></div>
           <div class="text-muted">Pending Orders</div>
         </div>
       </div>
@@ -62,7 +62,7 @@
     <div class="col-md-3">
       <div class="card border-success">
         <div class="card-body text-center">
-          <div class="h4 mb-1 text-success">₹<%= number_with_delimiter(@vendor_purchases.sum(:total_amount).to_i) %></div>
+          <div class="h4 mb-1 text-success">₹<%= number_with_delimiter(@total_value.to_i) %></div>
           <div class="text-muted">Total Value</div>
         </div>
       </div>
@@ -70,7 +70,7 @@
     <div class="col-md-3">
       <div class="card border-info">
         <div class="card-body text-center">
-          <div class="h4 mb-1 text-info">₹<%= number_with_delimiter(@vendor_purchases.sum(Arel.sql('vendor_purchases.total_amount - vendor_purchases.paid_amount')).to_i) %></div>
+          <div class="h4 mb-1 text-info">₹<%= number_with_delimiter(@outstanding_value.to_i) %></div>
           <div class="text-muted">Outstanding</div>
         </div>
       </div>

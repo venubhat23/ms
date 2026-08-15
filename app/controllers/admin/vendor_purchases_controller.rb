@@ -10,6 +10,13 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
     @vendor_purchases = @vendor_purchases.joins(:vendor).where('vendors.name ILIKE ?', "%#{params[:search]}%") if params[:search].present?
     @vendor_purchases = @vendor_purchases.where(vendor_id: params[:vendor_id]) if params[:vendor_id].present?
     @vendor_purchases = @vendor_purchases.where(status: params[:status]) if params[:status].present?
+
+    @pending_count, @total_value, @outstanding_value = @vendor_purchases.pick(
+      Arel.sql("COUNT(*) FILTER (WHERE status = 'pending')"),
+      Arel.sql("COALESCE(SUM(total_amount), 0)"),
+      Arel.sql("COALESCE(SUM(total_amount - paid_amount), 0)")
+    )
+
     @vendor_purchases = @vendor_purchases.page(params[:page]).per(20)
 
     @vendors = Vendor.active.order(:name)

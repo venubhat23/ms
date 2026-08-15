@@ -8,29 +8,39 @@ class Admin::StoreFinancialsController < Admin::ApplicationController
     @stores = Store.all.order(:name)
     @selected_store_id = params[:store_id].presence
 
-    batch_scope = StockBatch.where.not(store_id: nil).includes(:product, :vendor)
+    batch_scope = StockBatch.where.not(store_id: nil)
     batch_scope = batch_scope.where(store_id: @selected_store_id) if @selected_store_id.present?
 
-    grouped = batch_scope.group_by(&:store_id)
+    # SQL-side GROUP BY instead of loading every StockBatch row and
+    # group_by/sum-ing it in Ruby.
+    rows = batch_scope.group(:store_id, :vendor_id)
+                      .select(
+                        :store_id, :vendor_id,
+                        'COUNT(*) AS batches_count',
+                        'SUM(quantity_purchased) AS items_received',
+                        'SUM(quantity_purchased * purchase_price) AS total_cost'
+                      )
+
+    vendors_by_id = Vendor.where(id: rows.map(&:vendor_id).compact.uniq).index_by(&:id)
     stores_by_id = @stores.index_by(&:id)
 
-    @store_vendor_data = grouped.map do |store_id, batches|
+    @store_vendor_data = rows.group_by(&:store_id).map do |store_id, store_rows|
       store = stores_by_id[store_id]
       next unless store
 
-      vendor_breakdown = batches.group_by(&:vendor).map do |vendor, vb|
+      vendor_breakdown = store_rows.map do |r|
         {
-          vendor: vendor,
-          batches_count: vb.size,
-          items_received: vb.sum(&:quantity_purchased).to_f,
-          total_cost: vb.sum { |b| b.quantity_purchased.to_f * b.purchase_price.to_f }
+          vendor: vendors_by_id[r.vendor_id],
+          batches_count: r.batches_count,
+          items_received: r.items_received.to_f,
+          total_cost: r.total_cost.to_f
         }
       end.sort_by { |v| -v[:total_cost] }
 
       {
         store: store,
         vendor_breakdown: vendor_breakdown,
-        total_procurement: batches.sum { |b| b.quantity_purchased.to_f * b.purchase_price.to_f },
+        total_procurement: vendor_breakdown.sum { |v| v[:total_cost] },
         vendors_count: vendor_breakdown.size
       }
     end.compact.sort_by { |d| -d[:total_procurement] }

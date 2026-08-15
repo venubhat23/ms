@@ -8,11 +8,17 @@ class Admin::CustomerWalletsController < Admin::ApplicationController
                                                "%#{params[:search]}%", "%#{params[:search]}%", "%#{params[:search]}%") if params[:search].present?
     @customer_wallets = paginate_records(@customer_wallets.order('customers.first_name'))
 
+    total_wallets, active_wallets, total_balance, avg_balance = CustomerWallet.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COUNT(*) FILTER (WHERE status = true)"),
+      Arel.sql("COALESCE(SUM(balance), 0)"),
+      Arel.sql("COALESCE(AVG(balance), 0)")
+    )
     @stats = {
-      total_wallets: CustomerWallet.count,
-      active_wallets: CustomerWallet.where(status: true).count,
-      total_balance: CustomerWallet.sum(:balance),
-      avg_balance: CustomerWallet.average(:balance) || 0
+      total_wallets: total_wallets,
+      active_wallets: active_wallets,
+      total_balance: total_balance,
+      avg_balance: avg_balance
     }
   end
 

@@ -66,8 +66,7 @@ class Franchise::BookingsController < Franchise::BaseController
     @stats_completed_count = status_counts['completed'] || 0
     @stats_cancelled_count = (status_counts['cancelled'] || 0) + (status_counts['returned'] || 0)
 
-    @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
-                        .order(:first_name, :last_name)
+    @customers = cached_customers_picker
   end
 
   def new
@@ -92,8 +91,7 @@ class Franchise::BookingsController < Franchise::BaseController
                        .group("products.id")
                        .order(Arel.sql("CASE WHEN COALESCE(SUM(stock_batches.quantity_remaining), 0) > 0 THEN 0 ELSE 1 END ASC, products.name ASC"))
 
-    @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
-                        .order(:first_name, :last_name)
+    @customers = cached_customers_picker
     @categories = Category.where(status: true).order(:name).to_a
     @stores = Store.active.order(:name).to_a
   end
@@ -128,7 +126,7 @@ class Franchise::BookingsController < Franchise::BaseController
     # Validate stock availability before saving
     unless validate_stock_availability(@booking)
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
+      @customers = cached_customers_picker
       @categories = Category.where(status: true).order(:name).to_a
       @stores = Store.active.order(:name).to_a
       render :new, status: :unprocessable_entity
@@ -169,7 +167,7 @@ class Franchise::BookingsController < Franchise::BaseController
       Rails.logger.error "Booking items errors: #{@booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"
 
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
+      @customers = cached_customers_picker
       @categories = Category.where(status: true).order(:name).to_a
       @stores = Store.active.order(:name).to_a
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
@@ -183,14 +181,12 @@ class Franchise::BookingsController < Franchise::BaseController
 
   def edit
     @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-    @customers = Customer.all.order(:first_name, :last_name)
   end
 
   def update
     # Validate stock availability for updates
     unless validate_stock_availability(@booking, is_update: true)
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
       render :edit, status: :unprocessable_entity
       return
     end
@@ -199,7 +195,6 @@ class Franchise::BookingsController < Franchise::BaseController
       redirect_to franchise_booking_path(@booking), notice: 'Booking updated successfully!'
     else
       @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
-      @customers = Customer.all.order(:first_name, :last_name)
       render :edit
     end
   end
@@ -356,6 +351,16 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   private
+
+  # The customer picker (booking form JS search + index filter dropdown) needs
+  # every customer client-side, so it can't be paginated/limited — cache the
+  # list instead to avoid re-querying/sorting the full table on every load.
+  def cached_customers_picker
+    Rails.cache.fetch('franchise_bookings/customers_picker', expires_in: 5.minutes) do
+      Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
+              .order(:first_name, :last_name).to_a
+    end
+  end
 
   def set_booking
     # Preloading booking_items: :product here (not just in #show) also fixes

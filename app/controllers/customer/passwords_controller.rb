@@ -18,7 +18,7 @@ class Customer::PasswordsController < Customer::BaseController
         @customer.generate_password_reset_token!
 
         # Send password reset email
-        CustomerMailer.password_reset_instructions(@customer).deliver_now
+        CustomerMailer.password_reset_instructions(@customer).deliver_later
 
         flash[:notice] = 'Password reset instructions have been sent to your email address. Please check your inbox and spam folder.'
         Rails.logger.info "Password reset email sent to: #{@customer.email}"
@@ -99,7 +99,7 @@ class Customer::PasswordsController < Customer::BaseController
         sync_user_password(@customer.email, password)
 
         begin
-          CustomerMailer.password_changed_notification(@customer).deliver_now
+          CustomerMailer.password_changed_notification(@customer).deliver_later
         rescue => e
           Rails.logger.error "Failed to send password changed notification: #{e.message}"
         end

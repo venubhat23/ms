@@ -482,10 +482,14 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     customer = Customer.find_by(email: @current_user&.email) if @current_user
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
-    # Get statistics
-    total_orders = customer.orders.count
+    # Get statistics — collapsed from 3 round trips (orders count, bookings
+    # count, orders sum) into 2, one per table, matching the same fix in
+    # authentication_controller.rb#get_customer_portfolio_stats.
+    total_orders, total_spent = customer.orders.pick(Arel.sql(<<~SQL.squish))
+      COUNT(*),
+      COALESCE(SUM(total_amount) FILTER (WHERE status NOT IN ('cancelled', 'returned')), 0)
+    SQL
     total_bookings = customer.bookings.count
-    total_spent = customer.orders.where.not(status: ['cancelled', 'returned']).sum(:total_amount)
 
     # Get recent activity
     recent_orders = customer.orders.recent.limit(5)
@@ -793,13 +797,24 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   def product_details
     begin
       product_data = Rails.cache.fetch(MobileApiCache.product_detail_key(params[:id]), expires_in: MobileApiCache::PRODUCT_TTL) do
-        product = Product.active.includes(:category, :product_reviews, :product_variants, image_attachment: :blob, additional_images_attachments: :blob).find(params[:id])
+        # :approved_reviews included alongside :product_reviews — they're
+        # separate (differently-scoped) associations on Product, and
+        # format_product_data's average_rating/total_reviews read the
+        # former; without it those fired their own queries despite
+        # :product_reviews already being preloaded.
+        product = Product.active.includes(:category, :product_reviews, :approved_reviews, :product_variants, image_attachment: :blob, additional_images_attachments: :blob).find(params[:id])
 
-        related_products = Product.active.in_stock
-                                  .where(category_id: product.category_id)
-                                  .where.not(id: product.id)
-                                  .includes(:product_variants, :category)
-                                  .limit(5)
+        # Ids filtered/limited by the plain .in_stock scope first (its
+        # GROUP BY/HAVING can't coexist with with_product_listing_preloads'
+        # custom cached_stock SELECT in one query — same constraint as
+        # fetch_products_for_listing below), then re-fetched with the same
+        # cached_stock/rating/image preloads used by the listing endpoints
+        # so format_product_data doesn't fire 3+ queries per related product.
+        related_product_ids = Product.active.in_stock
+                                     .where(category_id: product.category_id)
+                                     .where.not(id: product.id)
+                                     .limit(5).pluck(:id)
+        related_products = with_product_listing_preloads(Product.where(id: related_product_ids))
 
         recent_reviews = product.product_reviews.approved.recent.limit(10).includes(:customer)
 
@@ -940,7 +955,11 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     per_page = params[:per_page]&.to_i || 20
     per_page = [per_page, 50].min
 
-    @subscriptions = MilkSubscription.where(customer: customer).includes(:product, :milk_delivery_tasks)
+    # :customer included even though every row belongs to the same already-
+    # loaded `customer` — format_milk_subscription_data reads
+    # subscription.customer per row, and without this Rails re-queries the
+    # same customer once per subscription on the page.
+    @subscriptions = MilkSubscription.where(customer: customer).includes(:customer, :product, :milk_delivery_tasks)
 
     # Filter by status if provided
     @subscriptions = @subscriptions.where(status: params[:status]) if params[:status].present?
@@ -972,10 +991,12 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     customer = @current_user if @current_user.is_a?(Customer)
     return render json: { success: false, message: 'Customer not found' }, status: :not_found unless customer
 
-    @subscription = MilkSubscription.where(customer: customer).includes(:product, :milk_delivery_tasks).find(params[:id])
+    @subscription = MilkSubscription.where(customer: customer).includes(:customer, :product, :milk_delivery_tasks).find(params[:id])
 
-    # Get recent delivery tasks from this subscription
-    recent_tasks = @subscription.milk_delivery_tasks.order(delivery_date: :desc).limit(10)
+    # Get recent delivery tasks from this subscription — includes
+    # delivery_person since it's re-queried below per task and was firing
+    # up to 10 extra round trips (one per task) without this.
+    recent_tasks = @subscription.milk_delivery_tasks.order(delivery_date: :desc).limit(10).includes(:delivery_person)
 
     subscription_data = format_milk_subscription_data(@subscription)
     subscription_data[:recent_delivery_tasks] = recent_tasks.map do |task|
@@ -1006,7 +1027,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     customer = @current_user if @current_user.is_a?(Customer)
     return render json: { success: false, message: 'Customer not found' }, status: :not_found unless customer
 
-    @subscription = MilkSubscription.where(customer: customer).find(params[:id])
+    @subscription = MilkSubscription.where(customer: customer).includes(:customer, :product).find(params[:id])
 
     if @subscription.status == 'active'
       @subscription.update!(status: 'paused')
@@ -1030,7 +1051,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     customer = @current_user if @current_user.is_a?(Customer)
     return render json: { success: false, message: 'Customer not found' }, status: :not_found unless customer
 
-    @subscription = MilkSubscription.where(customer: customer).find(params[:id])
+    @subscription = MilkSubscription.where(customer: customer).includes(:customer, :product).find(params[:id])
 
     if @subscription.status == 'paused'
       @subscription.update!(status: 'active')
@@ -1054,7 +1075,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     customer = @current_user if @current_user.is_a?(Customer)
     return render json: { success: false, message: 'Customer not found' }, status: :not_found unless customer
 
-    @subscription = MilkSubscription.where(customer: customer).find(params[:id])
+    @subscription = MilkSubscription.where(customer: customer).includes(:customer, :product).find(params[:id])
 
     unless @subscription.status == 'cancelled'
       @subscription.update!(status: 'cancelled')
@@ -1148,9 +1169,15 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       all_deliverable = true
       unavailable_products = []
 
+      # Batch-loaded once instead of one Product.find per id, and
+      # stock_batches preloaded so in_stock?/stock (via
+      # cached_total_batch_stock) don't each fire their own query per
+      # product below.
+      products_by_id = Product.where(id: product_ids).includes(:stock_batches).index_by(&:id)
+
       product_ids.each do |product_id|
         begin
-          product = Product.find(product_id)
+          product = products_by_id[product_id.to_i] || raise(ActiveRecord::RecordNotFound)
 
           # Check product availability and delivery rules
           delivery_info = product.delivery_info_for(pincode)

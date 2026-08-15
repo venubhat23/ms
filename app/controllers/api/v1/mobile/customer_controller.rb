@@ -576,7 +576,11 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
           # don't have it).
           policies = policies.includes(policy_documents_attachments: :blob) if model_class.reflect_on_attachment(:policy_documents)
 
-          Rails.logger.info "Processing #{policies.count} #{insurance_config[:type]} insurance policies"
+          # Loaded once into an array — logging policies.count here would fire
+          # a separate COUNT(*) round trip on top of the SELECT that .each
+          # below fires anyway.
+          policies = policies.to_a
+          Rails.logger.info "Processing #{policies.size} #{insurance_config[:type]} insurance policies"
 
           policies.each do |policy|
             days_since_end = (Date.current - policy.policy_end_date).to_i

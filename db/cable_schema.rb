@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_15_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -164,6 +164,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
     t.index ["invoice_number"], name: "index_booking_invoices_on_invoice_number", unique: true
     t.index ["payment_status"], name: "index_booking_invoices_on_payment_status"
     t.index ["share_token"], name: "index_booking_invoices_on_share_token", unique: true
+    t.index ["status"], name: "index_booking_invoices_on_status"
   end
 
   create_table "booking_items", force: :cascade do |t|
@@ -376,6 +377,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_coupons_on_code", unique: true
+    t.index ["status"], name: "index_coupons_on_status"
   end
 
   create_table "customer_addresses", force: :cascade do |t|
@@ -708,6 +710,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
     t.index ["payment_status"], name: "index_invoices_on_payment_status"
     t.index ["payout_id"], name: "index_invoices_on_payout_id"
     t.index ["share_token"], name: "index_invoices_on_share_token", unique: true
+    t.index ["status"], name: "index_invoices_on_status"
   end
 
   create_table "leads", force: :cascade do |t|
@@ -930,6 +933,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
     t.index ["created_at"], name: "index_pending_amounts_on_created_at"
     t.index ["customer_id"], name: "index_pending_amounts_on_customer_id"
     t.index ["pending_date"], name: "index_pending_amounts_on_pending_date"
+    t.index ["status"], name: "index_pending_amounts_on_status"
   end
 
   create_table "permissions", force: :cascade do |t|
@@ -1117,6 +1121,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["name"], name: "index_roles_on_name", unique: true
+    t.index ["status"], name: "index_roles_on_status"
   end
 
   create_table "sale_items", force: :cascade do |t|

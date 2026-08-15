@@ -238,9 +238,13 @@ module Api
           # Get all bookings/orders assigned to current delivery person for today
           begin
             if defined?(Booking) && Booking.column_names.include?('delivery_person_id')
+              # booking_items: :product preloaded — format_booking_task below
+              # reads item.product per booking_item, which without this fires
+              # a query per item across every booking in the day's list.
               bookings = Booking.where(delivery_person_id: current_delivery_person_id)
                               .where('DATE(created_at) = ?', Date.current)
                               .where.not(status: ['delivered', 'cancelled'])
+                              .includes(booking_items: :product)
             else
               bookings = []
             end
@@ -252,10 +256,13 @@ module Api
           # Also get subscription deliveries for today (including completed ones)
           begin
             if defined?(MilkDeliveryTask) && MilkDeliveryTask.column_names.include?('delivery_person_id')
+              # :customer/:product preloaded — format_subscription_task below
+              # reads both per task, which without this fires 2 queries per
+              # task across every subscription delivery in the day's list.
               subscription_tasks = MilkDeliveryTask.where(
                 delivery_person_id: current_delivery_person_id,
                 delivery_date: Date.current
-              )
+              ).includes(:customer, :product)
             else
               subscription_tasks = []
             end
@@ -505,14 +512,19 @@ module Api
           failed_ids = []
           errors = []
 
+          # Batch-loaded once instead of a Booking.find_by + MilkDeliveryTask.find_by
+          # per id (up to 2 round trips per delivery in the batch, previously).
+          bookings_by_id = Booking.where(id: delivery_ids).index_by(&:id)
+          tasks_by_id = MilkDeliveryTask.where(id: delivery_ids).index_by(&:id)
+
           delivery_ids.each do |id|
             begin
               # Try to find and update booking
-              booking = Booking.find_by(id: id)
+              booking = bookings_by_id[id]
 
               if booking.nil?
                 # Try subscription task
-                task = MilkDeliveryTask.find_by(id: id)
+                task = tasks_by_id[id]
 
                 if task.nil?
                   failed_ids << id
@@ -560,9 +572,13 @@ module Api
           delivered_count = 0
           failed_delivery_count = 0
 
+          # Batch-loaded once instead of a Booking.find_by per update (up to
+          # one round trip per item in the batch, previously).
+          bookings_by_id = Booking.where(id: updates.map { |u| u[:booking_id] }).index_by(&:id)
+
           updates.each do |update|
             booking_id = update[:booking_id]
-            booking = Booking.find_by(id: booking_id)
+            booking = bookings_by_id[booking_id.to_i]
 
             if booking.nil?
               results << {

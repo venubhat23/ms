@@ -62,13 +62,22 @@ class Admin::MobileUiController < ActionController::Base
     today_end   = Time.current.end_of_day
     today_scope = Booking.where(created_at: today_start..today_end)
 
-    @today_count         = today_scope.count
-    @today_paid_revenue  = today_scope.where(payment_status: 'paid').sum(:total_amount).to_f
-    @today_unpaid_amount = today_scope.where.not(payment_status: 'paid').sum(:total_amount).to_f
-    @today_unpaid_count  = today_scope.where.not(payment_status: 'paid').count
+    # One pick (count + 2 filtered sums + filtered count) instead of 4
+    # separate round trips on the same scope.
+    @today_count, @today_paid_revenue, @today_unpaid_amount, @today_unpaid_count = today_scope.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_amount) FILTER (WHERE payment_status = 'paid'), 0)"),
+      Arel.sql("COALESCE(SUM(total_amount) FILTER (WHERE payment_status <> 'paid'), 0)"),
+      Arel.sql("COUNT(*) FILTER (WHERE payment_status <> 'paid')")
+    )
+    @today_paid_revenue = @today_paid_revenue.to_f
+    @today_unpaid_amount = @today_unpaid_amount.to_f
 
-    @pending_count  = Booking.where(status: 'ordered_and_delivery_pending').count
-    @pending_amount = Booking.where(status: 'ordered_and_delivery_pending').sum(:total_amount).to_f
+    pending_scope = Booking.where(status: 'ordered_and_delivery_pending')
+    @pending_count, @pending_amount = pending_scope.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_amount), 0)")
+    )
+    @pending_amount = @pending_amount.to_f
 
     @recent_bookings = Booking.includes(:customer, :booking_items)
                               .order(created_at: :desc)
@@ -174,14 +183,16 @@ class Admin::MobileUiController < ActionController::Base
     @vendors = @vendors.where('name ILIKE ?', "%#{params[:search]}%") if params[:search].present?
     @vendors = @vendors.where(status: params[:status]) if params[:status].present?
 
-    @total_vendors  = Vendor.count
-    @active_vendors = Vendor.active.count
-    # Same figure as summing every Vendor#outstanding_balance, computed as three
+    @total_vendors, @active_vendors = Vendor.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COUNT(*) FILTER (WHERE status = true)")
+    )
+    # Same figure as summing every Vendor#outstanding_balance, computed as
     # DB-side aggregates instead of instantiating and querying purchases for
     # every vendor row in the table.
-    @total_outstanding = (Vendor.sum(:opening_balance) || 0) +
-                          (VendorPurchase.sum(:total_amount) || 0) -
-                          (VendorPurchase.sum(:paid_amount) || 0)
+    purchase_total, purchase_paid = VendorPurchase.pick(
+      Arel.sql("COALESCE(SUM(total_amount), 0)"), Arel.sql("COALESCE(SUM(paid_amount), 0)")
+    )
+    @total_outstanding = (Vendor.sum(:opening_balance) || 0) + purchase_total - purchase_paid
 
     @vendors = @vendors.page(params[:page]).per(15)
   end

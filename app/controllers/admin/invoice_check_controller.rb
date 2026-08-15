@@ -260,12 +260,13 @@ class Admin::InvoiceCheckController < ApplicationController
       booking_invoices = booking_invoices.where(customer_id: customer_ids)
     end
 
-    # Calculate totals
-    regular_count = regular_invoices.count
-    regular_amount = regular_invoices.sum(:total_amount)
-
-    booking_count = booking_invoices.count
-    booking_amount = booking_invoices.sum(:total_amount)
+    # Calculate totals — one pick per set instead of a separate count + sum
+    regular_count, regular_amount = regular_invoices.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_amount), 0)")
+    )
+    booking_count, booking_amount = booking_invoices.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_amount), 0)")
+    )
 
     {
       total_count: regular_count + booking_count,

@@ -33,11 +33,13 @@ class Admin::AgencyCodesController < Admin::ApplicationController
         # For filters
         @insurance_companies = insurance_companies_list
 
-        # Statistics (use unfiltered counts for stats cards)
-        @total_codes = AgencyCode.count
-        @health_codes = AgencyCode.where(insurance_type: 'Health').count
-        @motor_codes = AgencyCode.where(insurance_type: 'Motor').count
-        @life_codes = AgencyCode.where(insurance_type: 'Life').count
+        # Statistics (use unfiltered counts for stats cards) — one grouped
+        # count instead of 4 separate COUNT(*) round trips
+        insurance_type_counts = AgencyCode.group(:insurance_type).count
+        @total_codes = insurance_type_counts.values.sum
+        @health_codes = insurance_type_counts['Health'] || 0
+        @motor_codes = insurance_type_counts['Motor'] || 0
+        @life_codes = insurance_type_counts['Life'] || 0
       end
 
       format.json do

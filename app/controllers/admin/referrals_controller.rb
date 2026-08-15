@@ -127,12 +127,17 @@ class Admin::ReferralsController < ApplicationController
       start_date = 30.days.ago
     end
 
+    # total_in_period/conversions_in_period reused for the rate below instead
+    # of calculate_conversion_rate(start_date) re-running the same 2 queries.
+    total_in_period = Referral.where(created_at: start_date..).count
+    conversions_in_period = Referral.converted.where(created_at: start_date..).count
+
     @referrals_data = {
-      total_in_period: Referral.where(created_at: start_date..).count,
+      total_in_period: total_in_period,
       customer_referrals_in_period: Referral.customer_referrals.where(created_at: start_date..).count,
       affiliate_referrals_in_period: Referral.affiliate_referrals.where(created_at: start_date..).count,
-      conversions_in_period: Referral.converted.where(created_at: start_date..).count,
-      conversion_rate_in_period: calculate_conversion_rate(start_date)
+      conversions_in_period: conversions_in_period,
+      conversion_rate_in_period: total_in_period > 0 ? ((conversions_in_period.to_f / total_in_period) * 100).round(2) : 0
     }
 
     # Daily breakdown for charts

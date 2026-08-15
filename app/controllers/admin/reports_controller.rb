@@ -331,8 +331,9 @@ class Admin::ReportsController < Admin::ApplicationController
     end
 
     if defined?(Order)
-      @total_revenue = Order.where(created_at: start_date..Time.current).sum(:total_amount)
-      @total_orders = Order.where(created_at: start_date..Time.current).count
+      @total_revenue, @total_orders = Order.where(created_at: start_date..Time.current).pick(
+        Arel.sql("COALESCE(SUM(total_amount), 0)"), Arel.sql("COUNT(*)")
+      )
       @average_order_value = @total_orders > 0 ? (@total_revenue / @total_orders).round(2) : 0
 
       # One grouped query for the whole 7-day window instead of one .sum per day.
@@ -345,8 +346,9 @@ class Admin::ReportsController < Admin::ApplicationController
         { date: date.strftime('%b %d'), revenue: revenue_by_date[date] || 0 }
       end
     elsif defined?(Booking)
-      @total_revenue = Booking.where(created_at: start_date..Time.current).sum(:total_amount)
-      @total_orders = Booking.where(created_at: start_date..Time.current).count
+      @total_revenue, @total_orders = Booking.where(created_at: start_date..Time.current).pick(
+        Arel.sql("COALESCE(SUM(total_amount), 0)"), Arel.sql("COUNT(*)")
+      )
       @average_order_value = @total_orders > 0 ? (@total_revenue / @total_orders).round(2) : 0
 
       # One grouped query for the whole 7-day window instead of one .sum per day.
@@ -498,14 +500,14 @@ class Admin::ReportsController < Admin::ApplicationController
 
     # Revenue calculations
     if defined?(Order)
-      @total_revenue = Order.where(created_at: start_date..Time.current).sum(:total_amount)
-      @total_tax = Order.where(created_at: start_date..Time.current).sum(:tax_amount)
-      @total_discount = Order.where(created_at: start_date..Time.current).sum(:discount_amount)
+      @total_revenue, @total_tax, @total_discount = Order.where(created_at: start_date..Time.current).pick(
+        Arel.sql("COALESCE(SUM(total_amount), 0)"), Arel.sql("COALESCE(SUM(tax_amount), 0)"), Arel.sql("COALESCE(SUM(discount_amount), 0)")
+      )
       @net_revenue = @total_revenue - @total_tax - @total_discount
     elsif defined?(Booking)
-      @total_revenue = Booking.where(created_at: start_date..Time.current).sum(:total_amount)
-      @total_tax = Booking.where(created_at: start_date..Time.current).sum(:tax_amount)
-      @total_discount = Booking.where(created_at: start_date..Time.current).sum(:discount_amount)
+      @total_revenue, @total_tax, @total_discount = Booking.where(created_at: start_date..Time.current).pick(
+        Arel.sql("COALESCE(SUM(total_amount), 0)"), Arel.sql("COALESCE(SUM(tax_amount), 0)"), Arel.sql("COALESCE(SUM(discount_amount), 0)")
+      )
       @net_revenue = @total_revenue - @total_tax - @total_discount
     else
       @total_revenue = 0
@@ -551,12 +553,14 @@ class Admin::ReportsController < Admin::ApplicationController
 
     # Sales performance
     if defined?(Order)
-      @total_sales = Order.where(created_at: start_date..Time.current).count
-      @avg_order_value = Order.where(created_at: start_date..Time.current).average(:total_amount) || 0
+      @total_sales, @avg_order_value = Order.where(created_at: start_date..Time.current).pick(
+        Arel.sql("COUNT(*)"), Arel.sql("COALESCE(AVG(total_amount), 0)")
+      )
       @conversion_rate = 0  # Would need visitor tracking to calculate
     elsif defined?(Booking)
-      @total_sales = Booking.where(created_at: start_date..Time.current).count
-      @avg_order_value = Booking.where(created_at: start_date..Time.current).average(:total_amount) || 0
+      @total_sales, @avg_order_value = Booking.where(created_at: start_date..Time.current).pick(
+        Arel.sql("COUNT(*)"), Arel.sql("COALESCE(AVG(total_amount), 0)")
+      )
       @conversion_rate = 0
     else
       @total_sales = 0

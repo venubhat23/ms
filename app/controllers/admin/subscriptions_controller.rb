@@ -228,10 +228,11 @@ class Admin::SubscriptionsController < Admin::ApplicationController
       end_date: @subscription.end_date.strftime('%d %b %Y')
     }
 
-    # Calculate summary
-    total_tasks = @delivery_tasks.count
-    completed_tasks = @delivery_tasks.where(status: 'completed').count
-    pending_tasks = @delivery_tasks.where(status: 'pending').count
+    # Calculate summary — one grouped count instead of 3 separate COUNT(*)
+    task_status_counts = @delivery_tasks.group(:status).count
+    total_tasks = task_status_counts.values.sum
+    completed_tasks = task_status_counts['completed'] || 0
+    pending_tasks = task_status_counts['pending'] || 0
     completion_rate = total_tasks > 0 ? (completed_tasks.to_f / total_tasks * 100).round(1) : 0
 
     summary_data = {

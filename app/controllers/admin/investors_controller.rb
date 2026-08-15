@@ -53,10 +53,11 @@ class Admin::InvestorsController < Admin::ApplicationController
       stats_scope = stats_scope.inactive
     end
 
-    # Statistics
-    @total_investors = stats_scope.count
-    @active_investors = stats_scope.active.count
-    @inactive_investors = stats_scope.inactive.count
+    # Statistics — one grouped count instead of 3 separate COUNT(*) round trips
+    investor_status_counts = stats_scope.group(:status).count
+    @total_investors = investor_status_counts.values.sum
+    @active_investors = investor_status_counts['active'] || 0
+    @inactive_investors = investor_status_counts['inactive'] || 0
   end
 
   # GET /admin/investors/1

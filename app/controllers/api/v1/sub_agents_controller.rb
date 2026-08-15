@@ -24,6 +24,9 @@ class Api::V1::SubAgentsController < Api::V1::ApplicationController
     per_page = params[:per_page] || 20
     sub_agents = sub_agents.page(page).per(per_page)
 
+    # One grouped count instead of 3 separate COUNT(*) round trips
+    status_counts = SubAgent.group(:status).count
+
     render_success({
       sub_agents: sub_agents.map { |sub_agent| sub_agent_response(sub_agent) },
       pagination: {
@@ -33,9 +36,9 @@ class Api::V1::SubAgentsController < Api::V1::ApplicationController
         per_page: sub_agents.limit_value
       },
       statistics: {
-        total_sub_agents: SubAgent.count,
-        active_sub_agents: SubAgent.active.count,
-        inactive_sub_agents: SubAgent.inactive.count
+        total_sub_agents: status_counts.values.sum,
+        active_sub_agents: status_counts['active'] || 0,
+        inactive_sub_agents: status_counts['inactive'] || 0
       }
     })
   end

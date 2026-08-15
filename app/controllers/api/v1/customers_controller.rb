@@ -3,7 +3,11 @@ class Api::V1::CustomersController < Api::V1::ApplicationController
 
   # GET /api/v1/customers
   def index
-    @customers = Customer.includes(:family_members, :corporate_members, :documents)
+    # customer_summary below doesn't touch family_members/corporate_members/
+    # documents (only customer_details, used by show/update, needs those —
+    # preloaded there instead), so including them here was 3 wasted round
+    # trips per index page load.
+    @customers = Customer.all
 
     # Search functionality
     if params[:search].present?
@@ -23,13 +27,15 @@ class Api::V1::CustomersController < Api::V1::ApplicationController
       @customers = @customers.inactive
     end
 
+    filtered_count = @customers.count
+
     @customers = @customers.order(created_at: :desc)
                           .limit(params[:limit] || 50)
                           .offset(params[:offset] || 0)
 
     render_success(
       customers: @customers.map { |customer| customer_summary(customer) },
-      total_count: Customer.count,
+      total_count: filtered_count,
       message: 'Customers retrieved successfully'
     )
   end
@@ -95,7 +101,10 @@ class Api::V1::CustomersController < Api::V1::ApplicationController
   private
 
   def set_customer
-    @customer = Customer.find(params[:id])
+    # customer_details (show/update) walks documents + each family/corporate
+    # member's own documents — preload here instead of per-member N+1 queries.
+    @customer = Customer.includes(:documents, family_members: :documents, corporate_members: :documents)
+                         .find(params[:id])
   rescue ActiveRecord::RecordNotFound
     render_error('Customer not found', nil, :not_found)
   end

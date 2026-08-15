@@ -58,8 +58,11 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
       data[:whatsapp_number] = customer.whatsapp_number
       data[:address] = customer.address
       data[:bookings_count] = customer.bookings.count
-      data[:orders_count] = customer.orders.count
-      data[:total_spent] = customer.orders.sum(:total_amount).to_f
+      orders_count, total_spent = customer.orders.pick(
+        Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_amount), 0)")
+      )
+      data[:orders_count] = orders_count
+      data[:total_spent] = total_spent.to_f
     end
 
     data

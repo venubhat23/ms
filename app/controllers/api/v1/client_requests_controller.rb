@@ -17,6 +17,8 @@ class Api::V1::ClientRequestsController < ApplicationController
       @client_requests = @client_requests.search_requests(params[:search])
     end
 
+    filtered_count = @client_requests.count
+
     # Pagination
     page = params[:page]&.to_i || 1
     per_page = params[:per_page]&.to_i || 25
@@ -28,7 +30,7 @@ class Api::V1::ClientRequestsController < ApplicationController
       pagination: {
         current_page: page,
         per_page: per_page,
-        total_count: ClientRequest.count
+        total_count: filtered_count
       }
     }
   end
@@ -216,23 +218,20 @@ class Api::V1::ClientRequestsController < ApplicationController
 
   # GET /api/v1/client_requests/stage_statistics
   def stage_statistics
-    stats = {}
+    # One grouped count per dimension instead of one COUNT(*) query per
+    # stage/priority value (10 + 4 = 14 round trips before).
+    stage_counts_from_db = ClientRequest.group(:stage).count
+    stats = ClientRequest::STAGES.index_with { |stage| stage_counts_from_db[stage] || 0 }
 
-    ClientRequest::STAGES.each do |stage|
-      stats[stage] = ClientRequest.by_stage(stage).count
-    end
-
-    priority_stats = {}
-    ClientRequest::PRIORITIES.each do |priority|
-      priority_stats[priority] = ClientRequest.by_priority(priority).count
-    end
+    priority_counts_from_db = ClientRequest.group(:priority).count
+    priority_stats = ClientRequest::PRIORITIES.index_with { |priority| priority_counts_from_db[priority] || 0 }
 
     render json: {
       success: true,
       data: {
         stage_counts: stats,
         priority_counts: priority_stats,
-        total_requests: ClientRequest.count,
+        total_requests: stage_counts_from_db.values.sum,
         overdue_count: ClientRequest.overdue.count,
         unassigned_count: ClientRequest.unassigned.count,
         average_resolution_time_hours: calculate_average_resolution_time

@@ -23,11 +23,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       formatted_mobile = format_mobile_number(login_field)
       if formatted_mobile
         # Try to find user with multiple mobile format variations
-        user = User.find_by(mobile: formatted_mobile) ||
-               User.find_by(mobile: "+91#{formatted_mobile}") ||
-               User.find_by(mobile: "+91 #{formatted_mobile}") ||
-               User.find_by(mobile: "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}") ||
-               User.find_by(mobile: "+91 #{formatted_mobile[0..4]} #{formatted_mobile[5..9]}")
+        user = find_by_mobile_variants(User, formatted_mobile)
       else
         # If format_mobile_number returns nil, try direct mobile search as fallback
         user = User.find_by(mobile: login_field)
@@ -41,11 +37,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
         unless customer
           formatted_mobile = format_mobile_number(user.mobile)
           if formatted_mobile
-            customer = Customer.find_by(mobile: formatted_mobile) ||
-                      Customer.find_by(mobile: "+91#{formatted_mobile}") ||
-                      Customer.find_by(mobile: "+91 #{formatted_mobile}") ||
-                      Customer.find_by(mobile: "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}") ||
-                      Customer.find_by(mobile: "+91 #{formatted_mobile[0..4]} #{formatted_mobile[5..9]}")
+            customer = find_by_mobile_variants(Customer, formatted_mobile)
           else
             customer = Customer.find_by(mobile: user.mobile)
           end
@@ -110,11 +102,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     unless customer
       formatted_mobile = format_mobile_number(login_field)
       if formatted_mobile
-        customer = Customer.find_by(mobile: formatted_mobile) ||
-                  Customer.find_by(mobile: "+91#{formatted_mobile}") ||
-                  Customer.find_by(mobile: "+91 #{formatted_mobile}") ||
-                  Customer.find_by(mobile: "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}") ||
-                  Customer.find_by(mobile: "+91 #{formatted_mobile[0..4]} #{formatted_mobile[5..9]}")
+        customer = find_by_mobile_variants(Customer, formatted_mobile)
       else
         customer = Customer.find_by(mobile: login_field)
       end
@@ -164,11 +152,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       unless delivery_person
         formatted_mobile = format_mobile_number(login_field)
         if formatted_mobile
-          delivery_person = DeliveryPerson.find_by(mobile: formatted_mobile) ||
-                           DeliveryPerson.find_by(mobile: "+91#{formatted_mobile}") ||
-                           DeliveryPerson.find_by(mobile: "+91 #{formatted_mobile}") ||
-                           DeliveryPerson.find_by(mobile: "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}") ||
-                           DeliveryPerson.find_by(mobile: "+91 #{formatted_mobile[0..4]} #{formatted_mobile[5..9]}")
+          delivery_person = find_by_mobile_variants(DeliveryPerson, formatted_mobile)
         end
       end
     end
@@ -218,11 +202,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     unless sub_agent
       formatted_mobile = format_mobile_number(login_field)
       if formatted_mobile
-        sub_agent = SubAgent.find_by(mobile: formatted_mobile) ||
-                   SubAgent.find_by(mobile: "+91#{formatted_mobile}") ||
-                   SubAgent.find_by(mobile: "+91 #{formatted_mobile}") ||
-                   SubAgent.find_by(mobile: "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}") ||
-                   SubAgent.find_by(mobile: "+91 #{formatted_mobile[0..4]} #{formatted_mobile[5..9]}")
+        sub_agent = find_by_mobile_variants(SubAgent, formatted_mobile)
       else
         sub_agent = SubAgent.find_by(mobile: login_field)
       end
@@ -814,6 +794,20 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     name.match?(/\A[a-zA-Z\s]{2,50}\z/)
   end
 
+  # One query across all mobile format variants instead of up to 5 chained
+  # sequential find_by calls per login stage (User/Customer/DeliveryPerson/
+  # SubAgent) — matches the same variant list each of those used.
+  def find_by_mobile_variants(klass, formatted_mobile)
+    variants = [
+      formatted_mobile,
+      "+91#{formatted_mobile}",
+      "+91 #{formatted_mobile}",
+      "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}",
+      "+91 #{formatted_mobile[0..4]} #{formatted_mobile[5..9]}"
+    ]
+    klass.where(mobile: variants).first
+  end
+
   def format_mobile_number(mobile)
     return nil if mobile.blank?
     # Remove all non-digit characters
@@ -835,10 +829,14 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   end
 
   def get_agent_statistics(user)
-    # Calculate real commission from policies where agent is involved
-    health_policies = HealthInsurance.where(sub_agent: user)
-    life_policies = LifeInsurance.where(sub_agent: user)
-    motor_policies = MotorInsurance.where(sub_agent: user) if defined?(MotorInsurance)
+    # Calculate real commission from policies where agent is involved.
+    # Load each relation once via .to_a and reuse it in memory for the
+    # commission sum, customer_ids, and count below — previously each of
+    # those re-queried the same rows (up to 9 round trips instead of 3),
+    # same fix already applied to get_sub_agent_statistics below.
+    health_policies = HealthInsurance.where(sub_agent: user).to_a
+    life_policies = LifeInsurance.where(sub_agent: user).to_a
+    motor_policies = defined?(MotorInsurance) ? MotorInsurance.where(sub_agent: user).to_a : []
 
     # Calculate commission earned from different policy types
     health_commission = health_policies.sum do |policy|
@@ -849,22 +847,18 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       policy.sub_agent_commission_amount || calculate_life_commission(policy)
     end
 
-    motor_commission = 0
-    if defined?(MotorInsurance) && motor_policies
-      motor_commission = motor_policies.sum do |policy|
-        policy.main_agent_commission_amount || calculate_motor_commission(policy)
-      end
+    motor_commission = motor_policies.sum do |policy|
+      policy.main_agent_commission_amount || calculate_motor_commission(policy)
     end
 
     total_commission = health_commission + life_commission + motor_commission
 
     # Get unique customers associated with this agent's policies
-    customer_ids = (health_policies.pluck(:customer_id) +
-                   life_policies.pluck(:customer_id))
-    customer_ids += motor_policies.pluck(:customer_id) if defined?(MotorInsurance) && motor_policies
+    customer_ids = health_policies.map(&:customer_id) +
+                   life_policies.map(&:customer_id) +
+                   motor_policies.map(&:customer_id)
 
-    total_policies = health_policies.count + life_policies.count
-    total_policies += motor_policies.count if defined?(MotorInsurance) && motor_policies
+    total_policies = health_policies.size + life_policies.size + motor_policies.size
 
     # If no real data, provide realistic mock data
     if total_commission == 0 && total_policies == 0

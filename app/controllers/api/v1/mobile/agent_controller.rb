@@ -1200,6 +1200,12 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     companies = companies.order(:name).page(page).per(per_page)
 
+    # One grouped count instead of 3 separate COUNT(*) round trips
+    status_counts = InsuranceCompany.group(:status).count
+    total_companies_count = status_counts.values.sum
+    active_companies_count = status_counts[true] || 0
+    inactive_companies_count = status_counts[false] || 0
+
     companies_data = companies.map do |company|
       {
         id: company.id,
@@ -1220,9 +1226,9 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       data: {
         insurance_companies: companies_data,
         statistics: {
-          total_companies: InsuranceCompany.count,
-          active_companies: InsuranceCompany.where(status: true).count,
-          inactive_companies: InsuranceCompany.where(status: false).count
+          total_companies: total_companies_count,
+          active_companies: active_companies_count,
+          inactive_companies: inactive_companies_count
         },
         pagination: {
           current_page: page.to_i,
@@ -1413,15 +1419,18 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         payout_date: last_month_start..last_month_end
       ).sum(:payout_amount)
     else
-      # For admin/agent, show all sub-agent commission data
-      summary[:total_earnings] = CommissionPayout.where(payout_to: 'sub_agent').sum(:payout_amount)
-      summary[:paid_earnings] = CommissionPayout.where(payout_to: 'sub_agent', status: 'paid').sum(:payout_amount)
-      summary[:pending_earnings] = CommissionPayout.where(payout_to: 'sub_agent', status: 'pending').sum(:payout_amount)
+      # For admin/agent, show all sub-agent commission data — one grouped
+      # sum instead of 9 separate SUM(...) round trips.
+      grouped = CommissionPayout.where(payout_to: 'sub_agent').group(:policy_type, :status).sum(:payout_amount)
+
+      summary[:total_earnings] = grouped.values.sum
+      summary[:paid_earnings] = grouped.sum { |(_, status), amount| status == 'paid' ? amount : 0 }
+      summary[:pending_earnings] = grouped.sum { |(_, status), amount| status == 'pending' ? amount : 0 }
 
       # By policy type
       ['health', 'life', 'motor'].each do |type|
-        total = CommissionPayout.where(payout_to: 'sub_agent', policy_type: type).sum(:payout_amount)
-        paid = CommissionPayout.where(payout_to: 'sub_agent', policy_type: type, status: 'paid').sum(:payout_amount)
+        total = grouped.sum { |(policy_type, _), amount| policy_type == type ? amount : 0 }
+        paid = grouped[[type, 'paid']] || 0
 
         summary[:by_policy_type][type.to_sym] = {
           total: total,
@@ -2445,46 +2454,42 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     current_month_start = Date.current.beginning_of_month
     current_month_end = Date.current.end_of_month
 
-    # Basic counts
-    health_count = HealthInsurance.count
-    life_count = LifeInsurance.count
-    motor_count = begin
-      MotorInsurance.count
+    # One pick per table (count + all sums together) instead of a separate
+    # query for each stat.
+    health_count, health_premium, health_sum, health_commission = HealthInsurance.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_premium), 0)"),
+      Arel.sql("COALESCE(SUM(sum_insured), 0)"),
+      Arel.sql("COALESCE(SUM(commission_amount), 0)")
+    )
+    life_count, life_premium, life_sum, life_commission = LifeInsurance.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_premium), 0)"),
+      Arel.sql("COALESCE(SUM(sum_insured), 0)"),
+      Arel.sql("COALESCE(SUM(commission_amount), 0)")
+    )
+    motor_count, motor_premium, motor_sum = begin
+      MotorInsurance.pick(
+        Arel.sql("COUNT(*)"),
+        Arel.sql("COALESCE(SUM(total_premium), 0)"),
+        Arel.sql("COALESCE(SUM(sum_insured), 0)")
+      )
     rescue
-      0
+      [0, 0, 0]
     end
 
     total_policies = health_count + life_count + motor_count
 
-    # Basic sums
-    health_premium = HealthInsurance.sum(:total_premium) || 0
-    life_premium = LifeInsurance.sum(:total_premium) || 0
-    motor_premium = begin
-      MotorInsurance.sum(:total_premium) || 0
-    rescue
-      0
-    end
-
-    health_sum = HealthInsurance.sum(:sum_insured) || 0
-    life_sum = LifeInsurance.sum(:sum_insured) || 0
-    motor_sum = begin
-      MotorInsurance.sum(:sum_insured) || 0
-    rescue
-      0
-    end
-
-    health_commission = HealthInsurance.sum(:commission_amount) || 0
-    life_commission = LifeInsurance.sum(:commission_amount) || 0
-
-    # Monthly counts
-    monthly_health = HealthInsurance.where(created_at: current_month_start..current_month_end).count
-    monthly_life = LifeInsurance.where(created_at: current_month_start..current_month_end).count
-    monthly_health_premium = HealthInsurance.where(created_at: current_month_start..current_month_end).sum(:total_premium) || 0
-    monthly_life_premium = LifeInsurance.where(created_at: current_month_start..current_month_end).sum(:total_premium) || 0
+    # Monthly counts (count + premium sum together per table)
+    monthly_health, monthly_health_premium = HealthInsurance.where(created_at: current_month_start..current_month_end)
+                                                              .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"))
+    monthly_life, monthly_life_premium = LifeInsurance.where(created_at: current_month_start..current_month_end)
+                                                        .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"))
 
     # Customer counts
-    total_customers = Customer.count
-    active_customers = Customer.where(status: true).count
+    total_customers, active_customers = Customer.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COUNT(*) FILTER (WHERE status = true)")
+    )
     monthly_customers = Customer.where(created_at: current_month_start..current_month_end).count
 
     # Renewal and expiry data
@@ -2525,29 +2530,31 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     health_policies = HealthInsurance.where(sub_agent_id: agent.id)
     life_policies = LifeInsurance.where(sub_agent_id: agent.id)
 
-    # Get counts
-    health_count = health_policies.count
-    life_count = life_policies.count
+    # One pick per relation (count + all sums together) instead of 4
+    # separate count/sum round trips each.
+    health_count, health_premium, health_sum_insured, health_commission = health_policies.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_premium), 0)"),
+      Arel.sql("COALESCE(SUM(sum_insured), 0)"),
+      Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)")
+    )
+    life_count, life_premium, life_sum_insured, life_commission = life_policies.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_premium), 0)"),
+      Arel.sql("COALESCE(SUM(sum_insured), 0)"),
+      Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)")
+    )
     total_policies = health_count + life_count
-
-    # Get sums
-    health_premium = health_policies.sum(:total_premium) || 0
-    life_premium = life_policies.sum(:total_premium) || 0
-    health_sum_insured = health_policies.sum(:sum_insured) || 0
-    life_sum_insured = life_policies.sum(:sum_insured) || 0
-
-    # Commission
-    health_commission = health_policies.sum(:sub_agent_commission_amount) || 0
-    life_commission = life_policies.sum(:sub_agent_commission_amount) || 0
     total_commission = health_commission + life_commission
 
-    # Monthly data
-    monthly_health_count = health_policies.where(created_at: current_month_start..current_month_end).count
-    monthly_life_count = life_policies.where(created_at: current_month_start..current_month_end).count
-    monthly_health_premium = health_policies.where(created_at: current_month_start..current_month_end).sum(:total_premium) || 0
-    monthly_life_premium = life_policies.where(created_at: current_month_start..current_month_end).sum(:total_premium) || 0
-    monthly_commission = (health_policies.where(created_at: current_month_start..current_month_end).sum(:sub_agent_commission_amount) || 0) +
-                        (life_policies.where(created_at: current_month_start..current_month_end).sum(:sub_agent_commission_amount) || 0)
+    # Monthly data — count + premium + commission together per table
+    monthly_health_count, monthly_health_premium, monthly_health_commission =
+      health_policies.where(created_at: current_month_start..current_month_end)
+                      .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"), Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)"))
+    monthly_life_count, monthly_life_premium, monthly_life_commission =
+      life_policies.where(created_at: current_month_start..current_month_end)
+                    .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"), Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)"))
+    monthly_commission = monthly_health_commission + monthly_life_commission
 
     # Get unique customer IDs for real-time count
     customer_ids = (health_policies.pluck(:customer_id) + life_policies.pluck(:customer_id)).uniq
@@ -2592,19 +2599,38 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     monthly_health = agent_health_policies.where(created_at: current_month_start..current_month_end)
     monthly_life = agent_life_policies.where(created_at: current_month_start..current_month_end)
 
-    total_policies = agent_health_policies.count + agent_life_policies.count
+    # One pick per relation (count + sums together) instead of calling
+    # .count/.sum repeatedly on the same relation — was ~15 round trips, now 5.
+    health_count, health_premium, health_commission = agent_health_policies.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_premium), 0)"),
+      Arel.sql("COALESCE(SUM(sub_agent_after_tds_value), 0)")
+    )
+    life_count, life_premium, life_commission = agent_life_policies.pick(
+      Arel.sql("COUNT(*)"),
+      Arel.sql("COALESCE(SUM(total_premium), 0)"),
+      Arel.sql("COALESCE(SUM(sub_agent_after_tds_value), 0)")
+    )
+    monthly_health_count, monthly_health_premium = monthly_health.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)")
+    )
+    monthly_life_count, monthly_life_premium = monthly_life.pick(
+      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)")
+    )
+
+    total_policies = health_count + life_count
 
     {
       customers_count: all_agent_customers.active.count,
-      health_count: agent_health_policies.count,
-      life_count: agent_life_policies.count,
+      health_count: health_count,
+      life_count: life_count,
       total_policies: total_policies,
-      total_premium: agent_health_policies.sum(:total_premium) + agent_life_policies.sum(:total_premium),
-      commission_earned: (agent_health_policies.sum(:sub_agent_after_tds_value) + agent_life_policies.sum(:sub_agent_after_tds_value)),
-      monthly_policies: monthly_health.count + monthly_life.count,
-      monthly_premium: monthly_health.sum(:total_premium) + monthly_life.sum(:total_premium),
-      health_percentage: total_policies > 0 ? ((agent_health_policies.count.to_f / total_policies) * 100).round(2) : 0,
-      life_percentage: total_policies > 0 ? ((agent_life_policies.count.to_f / total_policies) * 100).round(2) : 0
+      total_premium: health_premium + life_premium,
+      commission_earned: health_commission + life_commission,
+      monthly_policies: monthly_health_count + monthly_life_count,
+      monthly_premium: monthly_health_premium + monthly_life_premium,
+      health_percentage: total_policies > 0 ? ((health_count.to_f / total_policies) * 100).round(2) : 0,
+      life_percentage: total_policies > 0 ? ((life_count.to_f / total_policies) * 100).round(2) : 0
     }
   end
 end

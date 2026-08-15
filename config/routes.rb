@@ -858,6 +858,10 @@ Rails.application.routes.draw do
       put :system, to: 'system#update'
       get :preview_invoice_template, to: 'system#preview_invoice_template'
       post 'system/upload_logo', to: 'system#upload_logo', as: :system_upload_logo
+      post 'system/upload_home_page_image', to: 'system#upload_home_page_image', as: :system_upload_home_page_image
+      delete 'system/delete_home_page_image', to: 'system#delete_home_page_image', as: :system_delete_home_page_image
+      post 'system/upload_gallery_image', to: 'system#upload_gallery_image', as: :system_upload_gallery_image
+      delete 'system/delete_gallery_image', to: 'system#delete_gallery_image', as: :system_delete_gallery_image
     end
 
     # Mobile UI — lightweight mobile admin portal for phones

@@ -224,16 +224,25 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px
 .feat-qty button:hover{background:var(--green-light)}
 .feat-qty span{width:48px;text-align:center;font-weight:600;font-size:14px;border-left:1px solid #ddd;border-right:1px solid #ddd;height:40px;display:flex;align-items:center;justify-content:center}
 
-/* ── MAILING LIST ── */
-.mailing{background:var(--dark);padding:60px 40px;display:flex;align-items:center;justify-content:space-between;gap:40px;flex-wrap:wrap}
-.mailing-left h3{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;color:var(--white);margin-bottom:6px}
-.mailing-left p{font-size:13px;color:rgba(255,255,255,.5);letter-spacing:.4px}
-.mailing-form{display:flex;flex:1;max-width:520px;min-width:260px}
-.mailing-form input{flex:1;padding:14px 18px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:var(--white);font-family:'Jost',sans-serif;font-size:13px;outline:none;border-radius:2px 0 0 2px;transition:border-color .2s}
-.mailing-form input::placeholder{color:rgba(255,255,255,.35)}
+/* ── MAILING LIST (sits inside the green footer, Organic-India style) ── */
+.mailing{padding:36px 52px;display:flex;align-items:center;justify-content:space-between;gap:40px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,.18)}
+.mailing-left h3{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--white);margin-bottom:4px}
+.mailing-left p{font-size:13px;color:rgba(255,255,255,.65);letter-spacing:.4px}
+.mailing-form{display:flex;flex:1;max-width:480px;min-width:260px}
+.mailing-form input{flex:1;padding:14px 20px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:var(--white);font-family:'Jost',sans-serif;font-size:13px;outline:none;border-radius:30px 0 0 30px;transition:border-color .2s}
+.mailing-form input::placeholder{color:rgba(255,255,255,.55)}
 .mailing-form input:focus{border-color:var(--gold)}
-.mailing-form button{padding:14px 24px;background:var(--gold);color:var(--dark);border:none;cursor:pointer;font-family:'Jost',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;border-radius:0 2px 2px 0;transition:background .2s}
+.mailing-form button{padding:14px 28px;background:var(--gold);color:var(--dark);border:none;cursor:pointer;font-family:'Jost',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;border-radius:0 30px 30px 0;transition:background .2s}
 .mailing-form button:hover{background:var(--gold-light)}
+
+/* ── CATEGORY PILL NAV ── */
+.cat-pill-row{display:flex;gap:12px;overflow-x:auto;padding:4px 28px 40px;max-width:1280px;margin:0 auto;scrollbar-width:thin}
+.cat-pill{flex:0 0 auto;padding:10px 22px;border-radius:30px;border:1.5px solid var(--green-mid);color:var(--green-dark);font-size:12.5px;font-weight:600;text-decoration:none;letter-spacing:.3px;white-space:nowrap;transition:background .2s,color .2s}
+.cat-pill:hover{background:var(--green-light)}
+.cat-pill.active{background:var(--green-dark);border-color:var(--green-dark);color:var(--white)}
+
+/* ── TORN PAPER EDGE (below footer) ── */
+.torn-edge{height:44px;background-color:#cdb491;background-repeat:repeat-x;background-position:top;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='44'%3E%3Cpolygon points='0,0 12,44 24,0 36,44 48,0' fill='%231b5e20'/%3E%3C/svg%3E");display:flex;align-items:flex-end;justify-content:center;font-size:22px;padding-bottom:6px}
 
 /* ── BLOG STRIP ── */
 .blog-section{padding:72px 28px;background:var(--white)}
@@ -248,23 +257,23 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px
 .bcard-body p{font-size:13px;color:var(--muted);line-height:1.7}
 
 /* ── FOOTER ── */
-footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px}
-.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:52px}
+footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;padding:52px 52px 0;margin-bottom:36px}
 .fbrand-name{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;color:var(--gold);margin-bottom:12px}
 .fbrand p{font-size:13px;line-height:1.9;max-width:280px;margin-top:8px}
 .fcol h5{color:var(--white);font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:20px}
 .fcol ul{list-style:none}
 .fcol ul li{margin-bottom:11px}
-.fcol ul li a{text-decoration:none;color:rgba(255,255,255,.52);font-size:13px;transition:color .2s}
+.fcol ul li a{text-decoration:none;color:rgba(255,255,255,.75);font-size:13px;transition:color .2s}
 .fcol ul li a:hover{color:var(--gold)}
-.footer-contact{font-size:13px;color:rgba(255,255,255,.45);line-height:1.8;margin-top:16px}
-.footer-contact b{color:rgba(255,255,255,.7)}
-.footer-bottom{border-top:1px solid rgba(255,255,255,.1);padding-top:26px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.28);flex-wrap:wrap;gap:12px}
+.footer-contact{font-size:13px;color:rgba(255,255,255,.75);line-height:1.8;margin-top:16px}
+.footer-contact b{color:var(--white)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.18);padding:26px 52px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.55);flex-wrap:wrap;gap:12px}
 .footer-policy-links{display:flex;gap:20px}
-.footer-policy-links a{color:rgba(255,255,255,.45);text-decoration:none;font-size:12px;letter-spacing:.3px;transition:color .2s}
+.footer-policy-links a{color:rgba(255,255,255,.75);text-decoration:none;font-size:12px;letter-spacing:.3px;transition:color .2s}
 .footer-policy-links a:hover{color:var(--gold)}
 .socials{display:flex;gap:18px}
-.socials a{color:rgba(255,255,255,.38);text-decoration:none;font-size:13px;transition:color .2s}
+.socials a{color:rgba(255,255,255,.7);text-decoration:none;font-size:13px;transition:color .2s}
 .socials a:hover{color:var(--gold)}
 
 /* ── POPUP ── */
@@ -342,7 +351,9 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
   .why-strip{grid-template-columns:1fr}
   .why-item{padding:32px 16px}
   .reviews{padding:40px 16px}
-  footer{padding:40px 24px 24px}
+  .mailing{padding:28px 24px}
+  .footer-grid{padding:40px 24px 0}
+  .footer-bottom{padding:20px 24px}
 }
 
 /* ── ADDITIONAL HOVER EFFECTS ── */
@@ -466,8 +477,16 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
   <% end %>
 </p>
 
+<% if @products_by_category.present? %>
+  <div class="cat-pill-row">
+    <% @products_by_category.keys.each_with_index do |cat_name, idx| %>
+      <a href="#cat-<%= cat_name.parameterize %>" class="cat-pill<%= ' active' if idx == 0 %>"><%= cat_name %></a>
+    <% end %>
+  </div>
+<% end %>
+
 <% @products_by_category.each do |category_name, products| %>
-  <h2 class="sec-title" style="padding:28px 20px 4px;font-size:24px"><%= category_name %><span class="sec-line"></span></h2>
+  <h2 class="sec-title" id="cat-<%= category_name.parameterize %>" style="padding:28px 20px 4px;font-size:24px"><%= category_name %><span class="sec-line"></span></h2>
   <p class="sec-sub" style="padding-bottom:28px"><%= pluralize(products.size, 'item') %></p>
   <div class="pgrid">
     <% products.each do |product| %>
@@ -485,7 +504,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
           <% elsif @new_arrival_ids.include?(product.id) %>
             <span class="ptag super">🆕 New Arrival</span>
           <% elsif product.discounted? %>
-            <span class="ptag new">Sale</span>
+            <span class="ptag new"><%= product.discount_percentage.to_i %>% OFF</span>
           <% end %>
         </div>
         <div class="pcard-body">
@@ -714,6 +733,16 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
 
 <!-- FOOTER -->
 <footer>
+  <div class="mailing">
+    <div class="mailing-left">
+      <h3>Sign Up To Get Updates</h3>
+      <p>Offers, new arrivals and organic living tips — straight to your inbox.</p>
+    </div>
+    <form class="mailing-form" onsubmit="event.preventDefault();document.getElementById('toast').textContent='✓ Subscribed! Thank you.';document.getElementById('toast').classList.add('show');setTimeout(()=>document.getElementById('toast').classList.remove('show'),2200);this.reset();">
+      <input type="email" placeholder="Enter Your Email Address..." required>
+      <button type="submit">Subscribe</button>
+    </form>
+  </div>
   <div class="footer-grid">
     <div class="fbrand">
       <div class="fbrand-name">Marali Santhe</div>
@@ -765,6 +794,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:64px 52px 32px
     </div>
   </div>
 </footer>
+<div class="torn-edge">🌿</div>
 
 <script>
   // Mobile menu toggle

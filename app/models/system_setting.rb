@@ -449,4 +449,87 @@ class SystemSetting < ApplicationRecord
     LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
     setting
   end
+
+  # Website Images
+  #
+  # Two independent image pools stored as JSON arrays of R2 URLs on the
+  # system_config row: `home_page_images` for the storefront homepage
+  # hero/banner strip, and `site_gallery_images` for a general-purpose
+  # gallery. Each image is uploaded and appended one at a time (see
+  # Admin::Settings::SystemController#upload_home_page_image /
+  # #upload_gallery_image), so these caps are enforced on add rather than
+  # on a bulk save.
+
+  HOME_PAGE_IMAGES_MAX = 10
+  SITE_GALLERY_IMAGES_MAX = 20
+
+  def self.home_page_images
+    images_for(:home_page_images)
+  end
+
+  def self.add_home_page_image(url)
+    add_image(:home_page_images, url, HOME_PAGE_IMAGES_MAX)
+  end
+
+  def self.remove_home_page_image(url)
+    remove_image(:home_page_images, url)
+  end
+
+  def self.site_gallery_images
+    images_for(:site_gallery_images)
+  end
+
+  def self.add_site_gallery_image(url)
+    add_image(:site_gallery_images, url, SITE_GALLERY_IMAGES_MAX)
+  end
+
+  def self.remove_site_gallery_image(url)
+    remove_image(:site_gallery_images, url)
+  end
+
+  def self.images_for(column)
+    value = cached_system_config&.public_send(column)
+    return [] if value.blank?
+    JSON.parse(value)
+  rescue JSON::ParserError
+    []
+  end
+  private_class_method :images_for
+
+  def self.add_image(column, url, max)
+    setting = find_or_create_by(key: SYSTEM_CONFIG_KEY) do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    images = begin
+      JSON.parse(setting.public_send(column).presence || '[]')
+    rescue JSON::ParserError
+      []
+    end
+    raise "Maximum of #{max} images allowed" if images.size >= max
+
+    images << url
+    setting.update!(column => images.to_json)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    images
+  end
+  private_class_method :add_image
+
+  def self.remove_image(column, url)
+    setting = find_by(key: SYSTEM_CONFIG_KEY)
+    return [] unless setting
+
+    images = begin
+      JSON.parse(setting.public_send(column).presence || '[]')
+    rescue JSON::ParserError
+      []
+    end
+    images.delete(url)
+    setting.update!(column => images.to_json)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    images
+  end
+  private_class_method :remove_image
 end

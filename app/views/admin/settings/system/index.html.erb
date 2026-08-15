@@ -44,6 +44,12 @@
       <i class="bi bi-globe me-2"></i>Website Theme
     </button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="website-images-tab" data-bs-toggle="pill" data-bs-target="#website-images"
+            type="button" role="tab" aria-controls="website-images" aria-selected="false">
+      <i class="bi bi-images me-2"></i>Website Images
+    </button>
+  </li>
 </ul>
 
 <!-- Statistics Cards -->
@@ -1269,6 +1275,45 @@
     <% end %>
   </div> <!-- End of Website Theme Tab -->
 
+  <!-- Website Images Tab -->
+  <div class="tab-pane fade" id="website-images" role="tabpanel" aria-labelledby="website-images-tab">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header">
+        <h4><i class="bi bi-image me-2"></i>Home Page Images</h4>
+        <p class="text-muted mb-0 small">Images shown on the storefront homepage. Recommended 5&ndash;10 images, up to <%= SystemSetting::HOME_PAGE_IMAGES_MAX %> maximum. Each image saves and appears below as soon as it uploads.</p>
+      </div>
+      <div class="card-body">
+        <div id="home_page_images_grid" class="row g-3 mb-3">
+          <%= render 'website_image_thumbnails', images: @home_page_images, gallery: 'home_page' %>
+        </div>
+        <div id="home_page_images_error" class="text-danger small mb-2" style="display: none;"></div>
+        <label for="home_page_images_input" class="btn btn-outline-primary btn-sm mb-0">
+          <i class="bi bi-upload me-1"></i>Upload Images
+        </label>
+        <input type="file" id="home_page_images_input" accept="image/*" multiple class="d-none">
+        <span id="home_page_images_count" class="text-muted small ms-2"><%= @home_page_images.size %> / <%= SystemSetting::HOME_PAGE_IMAGES_MAX %> uploaded</span>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header">
+        <h4><i class="bi bi-images me-2"></i>Additional Images</h4>
+        <p class="text-muted mb-0 small">A general-purpose image gallery. Recommended 10&ndash;20 images, up to <%= SystemSetting::SITE_GALLERY_IMAGES_MAX %> maximum. Each image saves and appears below as soon as it uploads.</p>
+      </div>
+      <div class="card-body">
+        <div id="site_gallery_images_grid" class="row g-3 mb-3">
+          <%= render 'website_image_thumbnails', images: @site_gallery_images, gallery: 'site_gallery' %>
+        </div>
+        <div id="site_gallery_images_error" class="text-danger small mb-2" style="display: none;"></div>
+        <label for="site_gallery_images_input" class="btn btn-outline-primary btn-sm mb-0">
+          <i class="bi bi-upload me-1"></i>Upload Images
+        </label>
+        <input type="file" id="site_gallery_images_input" accept="image/*" multiple class="d-none">
+        <span id="site_gallery_images_count" class="text-muted small ms-2"><%= @site_gallery_images.size %> / <%= SystemSetting::SITE_GALLERY_IMAGES_MAX %> uploaded</span>
+      </div>
+    </div>
+  </div> <!-- End of Website Images Tab -->
+
 </div> <!-- End of Tab Content -->
 
 <!-- Invoice Template Preview Modal — placed outside tab-content to avoid stacking context issues -->
@@ -1407,6 +1452,117 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
       errorDiv.style.display = 'block';
     });
 });
+
+// Website Images: multi-file upload with immediate save-and-display, plus
+// per-thumbnail delete. Each selected file uploads one at a time so the
+// server-side max-images cap (enforced in SystemSetting.add_image) rejects
+// cleanly file-by-file instead of failing a whole batch.
+(function() {
+  function setupGallery(config) {
+    const input = document.getElementById(config.inputId);
+    const grid = document.getElementById(config.gridId);
+    const errorDiv = document.getElementById(config.errorId);
+    const countSpan = document.getElementById(config.countId);
+    if (!input) return;
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+    input.addEventListener('change', function() {
+      const files = Array.from(input.files || []);
+      input.value = '';
+      if (!files.length) return;
+      errorDiv.style.display = 'none';
+      uploadNext(files, 0);
+    });
+
+    function uploadNext(files, index) {
+      if (index >= files.length) return;
+
+      const formData = new FormData();
+      formData.append('image', files[index]);
+
+      fetch(config.uploadUrl, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            errorDiv.textContent = data.error;
+            errorDiv.style.display = 'block';
+            return;
+          }
+          addThumbnail(data.public_url);
+          countSpan.textContent = data.images.length + ' / ' + config.max + ' uploaded';
+        })
+        .catch(function() {
+          errorDiv.textContent = 'Failed to upload image. Please try again.';
+          errorDiv.style.display = 'block';
+        })
+        .finally(function() {
+          uploadNext(files, index + 1);
+        });
+    }
+
+    function addThumbnail(url) {
+      const col = document.createElement('div');
+      col.className = 'col-auto website-image-thumb';
+      col.dataset.url = url;
+      col.innerHTML = '<div class="position-relative border rounded" style="width:120px;height:120px;">' +
+        '<img src="' + url + '" alt="" class="w-100 h-100 rounded" style="object-fit: cover;">' +
+        '<button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-0 website-image-remove" ' +
+        'style="width:24px;height:24px;line-height:1;"><i class="bi bi-x"></i></button></div>';
+      grid.appendChild(col);
+    }
+
+    grid.addEventListener('click', function(e) {
+      const btn = e.target.closest('.website-image-remove');
+      if (!btn) return;
+      const thumb = btn.closest('.website-image-thumb');
+      const url = thumb.dataset.url;
+
+      fetch(config.deleteUrl + '?image_url=' + encodeURIComponent(url), {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': csrfToken }
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            errorDiv.textContent = data.error;
+            errorDiv.style.display = 'block';
+            return;
+          }
+          thumb.remove();
+          countSpan.textContent = data.images.length + ' / ' + config.max + ' uploaded';
+        })
+        .catch(function() {
+          errorDiv.textContent = 'Failed to delete image. Please try again.';
+          errorDiv.style.display = 'block';
+        });
+    });
+  }
+
+  setupGallery({
+    inputId: 'home_page_images_input',
+    gridId: 'home_page_images_grid',
+    errorId: 'home_page_images_error',
+    countId: 'home_page_images_count',
+    uploadUrl: '<%= admin_settings_system_upload_home_page_image_path %>',
+    deleteUrl: '<%= admin_settings_system_delete_home_page_image_path %>',
+    max: <%= SystemSetting::HOME_PAGE_IMAGES_MAX %>
+  });
+
+  setupGallery({
+    inputId: 'site_gallery_images_input',
+    gridId: 'site_gallery_images_grid',
+    errorId: 'site_gallery_images_error',
+    countId: 'site_gallery_images_count',
+    uploadUrl: '<%= admin_settings_system_upload_gallery_image_path %>',
+    deleteUrl: '<%= admin_settings_system_delete_gallery_image_path %>',
+    max: <%= SystemSetting::SITE_GALLERY_IMAGES_MAX %>
+  });
+})();
 
 // Tab Management - Manual implementation to ensure it works
 document.addEventListener('DOMContentLoaded', function() {

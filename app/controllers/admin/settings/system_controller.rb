@@ -69,6 +69,10 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
+
+    # Website Images (home page + general gallery)
+    @home_page_images  = SystemSetting.home_page_images
+    @site_gallery_images = SystemSetting.site_gallery_images
   end
 
   def update
@@ -316,6 +320,26 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     end
   end
 
+  # POST /admin/settings/system/upload_home_page_image
+  def upload_home_page_image
+    upload_website_image(:add_home_page_image, param_key: :image, max: SystemSetting::HOME_PAGE_IMAGES_MAX, folder: 'home_page_images')
+  end
+
+  # DELETE /admin/settings/system/delete_home_page_image
+  def delete_home_page_image
+    delete_website_image(:remove_home_page_image)
+  end
+
+  # POST /admin/settings/system/upload_gallery_image
+  def upload_gallery_image
+    upload_website_image(:add_site_gallery_image, param_key: :image, max: SystemSetting::SITE_GALLERY_IMAGES_MAX, folder: 'site_gallery')
+  end
+
+  # DELETE /admin/settings/system/delete_gallery_image
+  def delete_gallery_image
+    delete_website_image(:remove_site_gallery_image)
+  end
+
   def preview_invoice_template
     allowed = %w[classic tally modern corporate saffron minimal proforma]
     @preview_template = allowed.include?(params[:template]) ? params[:template] : 'classic'
@@ -330,6 +354,58 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
   end
 
   private
+
+  def upload_website_image(add_method, param_key:, max:, folder:)
+    respond_to do |format|
+      if params[param_key].blank?
+        format.json { render json: { error: "No image file provided" }, status: :bad_request }
+        return
+      end
+
+      result = R2Service.upload(params[param_key], folder: folder)
+
+      if result[:error]
+        format.json { render json: { error: result[:error] }, status: :unprocessable_entity }
+        return
+      end
+
+      begin
+        images = SystemSetting.public_send(add_method, result[:public_url])
+        Rails.cache.delete('admin_settings/system_index_settings')
+        format.json { render json: { public_url: result[:public_url], images: images } }
+      rescue => e
+        R2Service.delete(result[:key])
+        format.json { render json: { error: e.message }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  def delete_website_image(remove_method)
+    respond_to do |format|
+      image_url = params[:image_url]
+
+      if image_url.blank?
+        format.json { render json: { error: "Image URL is required" }, status: :bad_request }
+        return
+      end
+
+      images = SystemSetting.public_send(remove_method, image_url)
+      Rails.cache.delete('admin_settings/system_index_settings')
+
+      key = extract_r2_key_from_url(image_url)
+      R2Service.delete(key) if key
+
+      format.json { render json: { images: images } }
+    end
+  end
+
+  def extract_r2_key_from_url(image_url)
+    uri = URI.parse(image_url)
+    uri.path[1..-1] if uri.path
+  rescue => e
+    Rails.logger.error "Failed to parse website image URL: #{image_url} - #{e.message}"
+    nil
+  end
 
   # Busted in #update whenever any settings branch succeeds.
   def cached_system_settings_by_key

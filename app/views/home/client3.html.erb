@@ -38,7 +38,7 @@ nav{display:flex;align-items:center;gap:28px;padding:16px 48px;background:var(--
 .nav-search input{width:100%;padding:13px 50px 13px 22px;border-radius:30px;border:1px solid var(--cream-dark);background:var(--white);font-family:'Poppins',sans-serif;font-size:13.5px;outline:none;color:var(--text)}
 .nav-search input:focus{border-color:var(--green-mid)}
 .nav-search .si{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
-.nav-icons{display:flex;align-items:center;gap:20px;flex-shrink:0}
+.nav-icons{display:flex;align-items:center;gap:20px;flex-shrink:0;margin-left:auto}
 .nicon{position:relative;color:var(--dark);text-decoration:none;font-size:19px;display:flex;align-items:center}
 .nicon .cart-badge{position:absolute;top:-8px;right:-10px;background:var(--red);color:var(--white);font-size:10px;font-weight:700;border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center}
 .mobile-menu-toggle{display:none;background:none;border:none;font-size:22px;color:var(--dark);cursor:pointer}
@@ -230,8 +230,8 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     <div class="brand-ring"><div class="bi"><img src="logo.jpeg" alt="Marali Santhe"></div></div>
     <div class="brand-word"><b>Marali Santhe</b><span>Herbal Wellness</span></div>
   </a>
-  <form class="nav-search" onsubmit="return false;">
-    <input type="text" placeholder="Search for herbal &amp; organic products…">
+  <form class="nav-search" id="searchForm" onsubmit="return submitSearch(event);">
+    <input type="text" id="searchInput" placeholder="Search for herbal &amp; organic products…" autocomplete="off">
     <span class="si">🔍</span>
   </form>
   <div class="nav-icons">
@@ -257,6 +257,13 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
   <a href="<%= storefront_cart_path %>">Cart (<%= cart_count %>)</a>
   <a href="/customer/login">Login</a>
 </div>
+
+<!-- SEARCH RESULTS BANNER -->
+<div id="searchBanner" style="display:none;background:var(--green-pale);text-align:center;padding:14px 20px;font-size:13.5px;color:var(--green-dark);font-weight:600">
+  <span id="searchBannerText"></span>
+  <a href="#" onclick="clearSearch();return false;" style="margin-left:14px;color:var(--red);text-decoration:underline;font-weight:700">Clear search</a>
+</div>
+<p id="searchNoResults" class="sec-sub" style="display:none;padding:32px 20px">No products matched your search. Try a different keyword.</p>
 
 <!-- HERO -->
 <section class="hero">
@@ -302,7 +309,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
         <h4><%= category_name %></h4>
       </div>
       <% products.each do |product| %>
-        <div class="pcard">
+        <div class="pcard" data-name="<%= j product.name.downcase %>">
           <div class="pcard-img">
             <% if product.main_image_url %>
               <%= image_tag product.main_image_url, alt: product.name %>
@@ -351,7 +358,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     <button class="carousel-arrow prev" onclick="scrollRow('row-bestsellers',-1)" aria-label="Scroll left">‹</button>
     <div class="carousel-row" id="row-bestsellers">
       <% best_sellers.each do |product| %>
-        <div class="pcard">
+        <div class="pcard" data-name="<%= j product.name.downcase %>">
           <div class="pcard-img">
             <% if product.main_image_url %>
               <%= image_tag product.main_image_url, alt: product.name %>
@@ -427,7 +434,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
   <button class="carousel-arrow prev" onclick="scrollRow('row-all',-1)" aria-label="Scroll left">‹</button>
   <div class="carousel-row" id="row-all">
     <% @products_by_category.values.flatten.first(16).each do |product| %>
-      <div class="pcard">
+      <div class="pcard" data-name="<%= j product.name.downcase %>">
         <div class="pcard-img">
           <% if product.main_image_url %>
             <%= image_tag product.main_image_url, alt: product.name %>
@@ -470,7 +477,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     <button class="carousel-arrow prev" onclick="scrollRow('row-new',-1)" aria-label="Scroll left">‹</button>
     <div class="carousel-row" id="row-new">
       <% @new_arrivals.first(10).each do |product| %>
-        <div class="pcard">
+        <div class="pcard" data-name="<%= j product.name.downcase %>">
           <div class="pcard-img">
             <% if product.main_image_url %>
               <%= image_tag product.main_image_url, alt: product.name %>
@@ -605,6 +612,70 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     const row = document.getElementById(id);
     if (row) row.scrollBy({ left: dir * 320, behavior: 'smooth' });
   }
+
+  // ── PRODUCT SEARCH (client-side filter over every product already
+  // rendered on the homepage — the theme has no dedicated search route) ──
+  let searchDebounce;
+  function filterProducts(rawQuery){
+    const query = rawQuery.trim().toLowerCase();
+    const banner = document.getElementById('searchBanner');
+    const bannerText = document.getElementById('searchBannerText');
+    const noResults = document.getElementById('searchNoResults');
+    const cards = document.querySelectorAll('.pcard[data-name]');
+
+    if (!query) {
+      cards.forEach(c => { c.style.display = ''; });
+      document.querySelectorAll('.carousel-wrap').forEach(w => { w.style.display = ''; });
+      banner.style.display = 'none';
+      noResults.style.display = 'none';
+      return 0;
+    }
+
+    let matchCount = 0;
+    cards.forEach(c => {
+      const match = c.dataset.name.includes(query);
+      c.style.display = match ? '' : 'none';
+      if (match) matchCount++;
+    });
+
+    document.querySelectorAll('.carousel-wrap').forEach(w => {
+      const anyVisible = Array.from(w.querySelectorAll('.pcard')).some(c => c.style.display !== 'none');
+      w.style.display = anyVisible ? '' : 'none';
+    });
+
+    banner.style.display = 'block';
+    bannerText.textContent = matchCount > 0
+      ? `Showing ${matchCount} result${matchCount === 1 ? '' : 's'} for "${rawQuery.trim()}"`
+      : `No results for "${rawQuery.trim()}"`;
+    noResults.style.display = matchCount === 0 ? 'block' : 'none';
+    return matchCount;
+  }
+
+  function submitSearch(event){
+    event.preventDefault();
+    const input = document.getElementById('searchInput');
+    const matchCount = filterProducts(input.value);
+    const target = matchCount > 0 ? document.querySelector('.pcard:not([style*="display: none"])') : document.getElementById('searchNoResults');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return false;
+  }
+
+  function clearSearch(){
+    const input = document.getElementById('searchInput');
+    input.value = '';
+    filterProducts('');
+    input.focus();
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const input = document.getElementById('searchInput');
+    if (!input) return;
+    input.addEventListener('input', function(){
+      clearTimeout(searchDebounce);
+      const value = this.value;
+      searchDebounce = setTimeout(() => filterProducts(value), 200);
+    });
+  });
 
   async function addToCart(productId, name, btn) {
     const orig = btn.textContent;

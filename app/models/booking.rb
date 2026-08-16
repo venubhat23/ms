@@ -77,6 +77,17 @@ class Booking < ApplicationRecord
   after_commit :bust_mobile_customer_cache
 
   # Covers every booking-creation path (customer checkout, admin, franchise,
+  # mobile API, affiliate, subscriptions, ...) in one place instead of each
+  # controller remembering to call generate_quick_invoice! itself — several
+  # of them didn't, which is why bookings created outside the admin panel
+  # kept landing on their detail page still showing "Generate Invoice".
+  # after_create_commit (not after_create) so booking_items built via
+  # accepts_nested_attributes_for are guaranteed to be persisted first.
+  # generate_quick_invoice! already no-ops safely for empty-item bookings
+  # and rescues its own errors, so this can't fail the booking itself.
+  after_create_commit :generate_quick_invoice!
+
+  # Covers every booking-creation path (customer checkout, admin, franchise,
   # affiliate portal, mobile API, ...) from one place instead of needing each
   # controller to remember to set affiliate_id when the customer was referred.
   def attribute_to_referring_affiliate

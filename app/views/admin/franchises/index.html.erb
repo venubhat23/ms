@@ -184,10 +184,10 @@
                 </td>
                 <td class="align-middle">
                   <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-strategy="fixed" aria-expanded="false">
                       <i class="bi bi-three-dots"></i>
                     </button>
-                    <ul class="dropdown-menu">
+                    <ul class="dropdown-menu dropdown-menu-end">
                       <li>
                         <%= link_to admin_franchise_path(franchise), class: "dropdown-item" do %>
                           <i class="bi bi-eye me-2"></i>
@@ -308,22 +308,12 @@ document.addEventListener('DOMContentLoaded', function() {
   color: #0d6efd !important;
 }
 
-/* Fix dropdown menu visibility */
-.dropdown {
-  position: relative;
-}
-
+/* Actions dropdown uses Popper's `fixed` positioning strategy (via
+   data-bs-strategy="fixed" on the toggle) so it escapes the table-responsive
+   wrapper's overflow-x:auto clipping and Popper can auto-flip it upward near
+   the bottom of the table instead of being cut off/overlapping the row. */
 .dropdown-menu {
-  position: absolute !important;
-  z-index: 1050 !important;
   min-width: 150px;
-}
-
-/* Ensure the last row's dropdown opens upward if needed */
-tbody tr:last-child .dropdown-menu,
-tbody tr:nth-last-child(2) .dropdown-menu {
-  bottom: 100%;
-  top: auto;
 }
 
 /* Make the credentials column more compact but readable */

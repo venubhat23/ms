@@ -34,6 +34,12 @@ class SystemSetting < ApplicationRecord
       file: 'marali-santhe.html',
       swatch: %w[#2e7d32 #c9a535 #faf7f2]
     },
+    'classic-green-organic' => {
+      name: 'Classic Green Organic',
+      description: 'Forest green & gold, warm farm photography — same as Organic Classic.',
+      file: 'websites/classic-green-organic.html',
+      swatch: %w[#2e7d32 #c9a535 #faf7f2]
+    },
     'modern-minimal' => {
       name: 'Modern Minimal',
       description: 'Black, white & sage — clean, editorial, lots of whitespace.',

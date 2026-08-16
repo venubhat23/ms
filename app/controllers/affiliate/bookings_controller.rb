@@ -67,7 +67,7 @@ class Affiliate::BookingsController < Affiliate::ApplicationController
     end.to_json
 
     @customers = Rails.cache.fetch('affiliate_bookings/customers_picker', expires_in: 5.minutes) do
-      Customer.order(:first_name).select(:id, :first_name, :last_name, :mobile).to_a
+      Customer.order(:first_name).select(:id, :first_name, :middle_name, :last_name, :mobile).to_a
     end
   end
 

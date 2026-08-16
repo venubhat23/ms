@@ -108,6 +108,8 @@ Rails.application.routes.draw do
   get '/track-order', to: 'order_tracking#index', as: 'track_order'
   get '/track-order/:booking_number', to: 'order_tracking#show', as: 'track_order_show',
       constraints: { booking_number: /[^\/]+/ }
+  get '/track-order/:booking_number/invoice', to: 'order_tracking#invoice', as: 'track_order_invoice',
+      constraints: { booking_number: /[^\/]+/ }
 
   # Dashboard
   get 'dashboard', to: 'dashboard#index'

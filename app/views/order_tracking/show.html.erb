@@ -147,9 +147,9 @@
       </div>
 
       <div class="ot-cta-row no-print">
-        <% if @invoice&.share_token.present? %>
-          <%= link_to "🧾 View Full Invoice", public_invoice_path(@invoice.share_token), class: "ot-btn", target: "_blank", rel: "noopener" %>
-          <%= link_to "⬇️ Download PDF", public_invoice_download_path(@invoice.share_token, format: :pdf), class: "ot-btn ot-btn-outline" %>
+        <% if @booking.invoice_number.present? %>
+          <%= link_to "🧾 View Full Invoice", track_order_invoice_path(booking_number: @booking.booking_number), class: "ot-btn", target: "_blank", rel: "noopener" %>
+          <%= link_to "⬇️ Download PDF", track_order_invoice_path(booking_number: @booking.booking_number, format: :pdf), class: "ot-btn ot-btn-outline" %>
         <% else %>
           <button class="ot-btn ot-btn-outline" disabled style="opacity:.6;cursor:not-allowed;">🧾 Invoice not generated yet</button>
         <% end %>

@@ -45,7 +45,6 @@ class OrderTrackingController < ActionController::Base
     end
 
     @booking_items = @booking.booking_items
-    @invoice = @booking.invoice_number.present? ? BookingInvoice.find_by(invoice_number: @booking.invoice_number) : nil
 
     @terminal_state =
       if @booking.status == 'cancelled'
@@ -64,5 +63,44 @@ class OrderTrackingController < ActionController::Base
       else
         0 # draft or any unmapped pre-processing status
       end
+  end
+
+  # Renders the same invoice template the admin invoice page uses
+  # (admin/bookings/invoice.html.erb picks the business's chosen template
+  # partial), looked up here by booking_number instead of an authenticated
+  # admin session. Deliberately does NOT depend on a BookingInvoice record —
+  # most bookings only ever get `Booking#invoice_number` set (quick
+  # invoices), with no matching BookingInvoice row ever created, so gating
+  # on that model would hide invoices that the admin page happily renders.
+  def invoice
+    query = params[:booking_number].to_s.strip
+    @booking = Booking.includes(booking_items: :product).find_by('booking_number ILIKE ?', query)
+
+    if @booking.nil? || @booking.invoice_number.blank?
+      redirect_to track_order_show_path(booking_number: query) and return
+    end
+
+    @booking_items = @booking.booking_items
+
+    respond_to do |format|
+      format.html { render template: 'admin/bookings/invoice', layout: 'invoice' }
+      format.pdf do
+        pdf = WickedPdf.new.pdf_from_string(
+          render_to_string('admin/bookings/invoice', formats: [:html], layout: 'invoice_pdf'),
+          page_size: 'A4',
+          margin: { top: '0.75in', bottom: '0.75in', left: '0.75in', right: '0.75in' },
+          dpi: 300,
+          encoding: 'UTF-8',
+          disable_smart_shrinking: true,
+          print_media_type: true,
+          orientation: 'Portrait',
+          header: { html: { template: 'shared/pdf_header' } },
+          footer: { html: { template: 'shared/pdf_footer' } }
+        )
+
+        invoice_filename = "invoice-#{@booking.invoice_number || @booking.booking_number}-#{Date.current.strftime('%Y%m%d')}.pdf"
+        send_data pdf, filename: invoice_filename, type: 'application/pdf', disposition: 'attachment'
+      end
+    end
   end
 end

@@ -74,22 +74,7 @@ class Franchise::BookingsController < Franchise::BaseController
     @booking.booking_items.build
 
     # Eager load all necessary associations and precompute stock data
-    @products = Product.active
-                       .includes(
-                         :category,
-                         :stock_batches,
-                         image_attachment: :blob,
-                         additional_images_attachments: :blob
-                       )
-                       .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0")
-                       .select(
-                         "products.*,
-                          COALESCE(SUM(stock_batches.quantity_remaining), 0) as cached_stock,
-                          MIN(stock_batches.batch_date) as first_batch_date,
-                          (SELECT quantity_purchased FROM stock_batches sb2 WHERE sb2.product_id = products.id ORDER BY sb2.batch_date ASC, sb2.created_at ASC LIMIT 1) as initial_stock_value"
-                       )
-                       .group("products.id")
-                       .order(Arel.sql("CASE WHEN COALESCE(SUM(stock_batches.quantity_remaining), 0) > 0 THEN 0 ELSE 1 END ASC, products.name ASC"))
+    @products = sellable_products_scope
 
     @customers = cached_customers_picker
     @categories = Category.where(status: true).order(:name).to_a
@@ -125,7 +110,7 @@ class Franchise::BookingsController < Franchise::BaseController
 
     # Validate stock availability before saving
     unless validate_stock_availability(@booking)
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+      @products = sellable_products_scope
       @customers = cached_customers_picker
       @categories = Category.where(status: true).order(:name).to_a
       @stores = Store.active.order(:name).to_a
@@ -166,7 +151,7 @@ class Franchise::BookingsController < Franchise::BaseController
       Rails.logger.error "Booking creation failed: #{@booking.errors.full_messages.join(', ')}"
       Rails.logger.error "Booking items errors: #{@booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"
 
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+      @products = sellable_products_scope
       @customers = cached_customers_picker
       @categories = Category.where(status: true).order(:name).to_a
       @stores = Store.active.order(:name).to_a
@@ -180,13 +165,13 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   def edit
-    @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+    @products = sellable_products_scope
   end
 
   def update
     # Validate stock availability for updates
     unless validate_stock_availability(@booking, is_update: true)
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+      @products = sellable_products_scope
       render :edit, status: :unprocessable_entity
       return
     end
@@ -194,7 +179,7 @@ class Franchise::BookingsController < Franchise::BaseController
     if @booking.update(booking_params)
       redirect_to franchise_booking_path(@booking), notice: 'Booking updated successfully!'
     else
-      @products = Product.active.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+      @products = sellable_products_scope
       render :edit
     end
   end
@@ -351,6 +336,34 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   private
+
+  # Once the Franchise Commission feature is on, a franchise only sells what's
+  # actually in their own credited inventory (see FranchiseInventory —
+  # populated by admin/franchise-approved wholesale bookings), not the shared
+  # central warehouse stock. `cached_stock` is aliased the same way in both
+  # branches so Product#cached_total_batch_stock (and therefore out_of_stock?/
+  # low_stock? used by the product cards) works unchanged either way.
+  def sellable_products_scope
+    if SystemSetting.franchise_commission_enabled?
+      Product.active
+             .includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+             .joins("INNER JOIN franchise_inventories fi ON fi.product_id = products.id AND fi.franchise_id = #{current_franchise.id.to_i} AND fi.quantity > 0")
+             .select("products.*, fi.quantity AS cached_stock")
+             .order(:name)
+    else
+      Product.active
+             .includes(:category, :stock_batches, image_attachment: :blob, additional_images_attachments: :blob)
+             .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0")
+             .select(
+               "products.*,
+                COALESCE(SUM(stock_batches.quantity_remaining), 0) as cached_stock,
+                MIN(stock_batches.batch_date) as first_batch_date,
+                (SELECT quantity_purchased FROM stock_batches sb2 WHERE sb2.product_id = products.id ORDER BY sb2.batch_date ASC, sb2.created_at ASC LIMIT 1) as initial_stock_value"
+             )
+             .group("products.id")
+             .order(Arel.sql("CASE WHEN COALESCE(SUM(stock_batches.quantity_remaining), 0) > 0 THEN 0 ELSE 1 END ASC, products.name ASC"))
+    end
+  end
 
   # The customer picker (booking form JS search + index filter dropdown) needs
   # every customer client-side, so it can't be paginated/limited — cache the

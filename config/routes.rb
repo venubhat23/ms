@@ -817,6 +817,16 @@ Rails.application.routes.draw do
       end
     end
 
+    # Franchise stock (product) requests — franchise asks for stock, admin
+    # approves at a discount, which converts it into a wholesale Franchise
+    # Booking and credits the franchise's own inventory ledger.
+    resources :franchise_stock_requests, only: [:index, :show] do
+      member do
+        patch :approve
+        patch :reject
+      end
+    end
+
     # Stock Movements Management
     resources :stock_movements, only: [:index, :show] do
       collection do
@@ -1157,6 +1167,10 @@ Rails.application.routes.draw do
     # Wallet and withdrawals
     get '/wallet', to: 'wallet#show'
     resources :withdrawal_requests, only: [:index, :new, :create]
+
+    # Stock requests — franchise requests products from HQ; admin approval
+    # credits them into this franchise's own inventory (see /inventory above).
+    resources :stock_requests, only: [:index, :new, :create, :show]
   end
 
   # Affiliate routes

@@ -886,6 +886,21 @@
                 <div class="nav-indicator"></div>
               <% end %>
             </li>
+            <li class="nav-item">
+              <%= link_to admin_franchise_stock_requests_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/franchise_stock_requests')}" do %>
+                <div class="nav-icon-modern">
+                  <div class="icon-bg gradient-indigo">
+                    <i class="bi bi-send-check"></i>
+                  </div>
+                </div>
+                <span class="nav-text">Franchise Stock Requests</span>
+                <% pending_stock_requests = FranchiseStockRequest.admin_pending_count %>
+                <% if pending_stock_requests > 0 %>
+                  <span class="badge bg-warning text-dark rounded-pill ms-auto"><%= pending_stock_requests %></span>
+                <% end %>
+                <div class="nav-indicator"></div>
+              <% end %>
+            </li>
           <% end %>
         <% end %>
 

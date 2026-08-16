@@ -5,6 +5,12 @@
       <h2 class="mb-1">Inventory</h2>
       <p class="text-muted mb-0">Stock credited to you by HQ via wholesale bookings, minus what you've sold to your own customers.</p>
     </div>
+    <div>
+      <%= link_to new_franchise_stock_request_path, class: "btn btn-primary" do %>
+        <i class="bi bi-plus-lg me-1"></i>
+        Request Stock
+      <% end %>
+    </div>
   </div>
 
   <div class="card border-0 shadow-sm">
@@ -36,7 +42,8 @@
         <div class="text-center py-5">
           <i class="bi bi-boxes fs-1 text-muted d-block mb-3"></i>
           <h5 class="text-muted">No stock credited yet</h5>
-          <p class="text-muted mb-0">Stock appears here once HQ creates a wholesale Franchise Booking for you.</p>
+          <p class="text-muted mb-3">Stock appears here once HQ approves a stock request or creates a wholesale Franchise Booking for you.</p>
+          <%= link_to "Request Stock", new_franchise_stock_request_path, class: "btn btn-primary" %>
         </div>
       <% end %>
     </div>

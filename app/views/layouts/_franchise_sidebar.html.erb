@@ -373,6 +373,23 @@
             <% end %>
           </li>
 
+          <!-- Stock Requests -->
+          <li class="nav-item">
+            <%= link_to franchise_stock_requests_path, class: "nav-link-modern #{'active' if request.path.include?('/franchise/stock_requests')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg gradient-orange">
+                  <i class="bi bi-send-check"></i>
+                </div>
+              </div>
+              <span class="nav-text">Stock Requests</span>
+              <% pending_requests = FranchiseStockRequest.pending_count_for(current_franchise.id) %>
+              <% if pending_requests > 0 %>
+                <span class="badge bg-warning text-dark rounded-pill ms-auto"><%= pending_requests %></span>
+              <% end %>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+
           <!-- Deliveries -->
           <li class="nav-item">
             <%= link_to franchise_deliveries_path, class: "nav-link-modern #{'active' if request.path.include?('/franchise/deliveries')}" do %>

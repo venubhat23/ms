@@ -1,0 +1,231 @@
+<% content_for :page_title, "Request Stock" %>
+
+<script>const FSR_PRODUCTS = <%= raw json_escape(@products_json) %>;</script>
+
+<style>
+.fsr-hover { transition:transform 0.15s,box-shadow 0.15s; }
+.fsr-hover:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.12)!important; }
+.fsr-cart-item { background:#f9fafb; border-radius:10px; padding:0.75rem 1rem; margin-bottom:0.5rem; position:relative; }
+.fsr-cart-remove { position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem; }
+.fsr-cart-remove:hover { color:#dc3545; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-box-seam me-2 text-primary"></i>Request Stock</h4>
+    <small class="text-muted">Pick products &amp; quantities to request from HQ. All catalog items are shown here.</small>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm position-relative" id="fsrCartBtn" onclick="fsrShowCart()">
+      <i class="bi bi-cart-check me-1"></i>Review Request
+      <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="fsrCartBadge">0</span>
+    </button>
+    <%= link_to franchise_stock_requests_path, class: "btn btn-outline-secondary btn-sm" do %>
+      <i class="bi bi-arrow-left me-1"></i>My Requests
+    <% end %>
+  </div>
+</div>
+
+<%# Search/filter bar %>
+<div class="card border-0 shadow-sm mb-3" id="fsrSearchSection">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <input type="text" class="form-control form-control-sm" id="fsrSearch" placeholder="Search products…" oninput="fsrFilter()">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select form-select-sm" id="fsrCatFilter" onchange="fsrFilter()">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# Product grid %>
+<div id="fsrProductsView">
+  <div class="card border-0 shadow-sm">
+    <div class="card-body pt-3">
+      <div class="row g-3" id="fsrGrid"></div>
+      <div id="fsrNoResults" class="text-center py-5 d-none">
+        <i class="bi bi-search fs-1 text-muted mb-2 d-block"></i>
+        <p class="text-muted">No products match your search.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# Review/submit view %>
+<div id="fsrCartView" style="display:none;">
+  <%= form_tag franchise_stock_requests_path, method: :post, id: "fsrForm" do %>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card border-0 shadow-sm mb-3" style="border-radius:14px;">
+          <div class="card-header bg-white py-3 px-4">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-cart3 me-2 text-muted"></i>Requested Items</h6>
+          </div>
+          <div class="card-body px-4 py-3">
+            <div id="fsrCartItems"></div>
+            <div id="fsrCartEmpty" class="text-center py-4 text-muted small">
+              <i class="bi bi-cart" style="font-size:2rem;opacity:0.3;"></i>
+              <p class="mt-2 mb-0">No items — go back to add products</p>
+            </div>
+            <div id="fsrHiddenFields"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm" style="border-radius:14px;">
+          <div class="card-header bg-white py-3 px-4">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-muted"></i>Notes</h6>
+          </div>
+          <div class="card-body px-4 py-3">
+            <textarea name="franchise_stock_request[notes]" class="form-control form-control-sm" rows="4" placeholder="Optional note for the admin reviewing this request…"></textarea>
+            <div class="d-grid mt-4">
+              <button type="submit" class="btn btn-primary fw-semibold" style="border-radius:10px;">
+                <i class="bi bi-send-check me-1"></i>Submit Request
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<script>
+const FSR_MAP = Object.fromEntries(FSR_PRODUCTS.map(p => [p.id, p]));
+let fsrCart = [], fsrIdx = 0;
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function fsrRenderCard(p) {
+  const img = p.image_url
+    ? `<img src="${esc(p.image_url)}" class="card-img-top" loading="lazy" style="height:150px;object-fit:cover;" alt="${esc(p.name)}">`
+    : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:150px;"><i class="bi bi-box-seam fs-1 text-muted"></i></div>`;
+  const varSel = p.has_variants && p.variants.length
+    ? `<select class="form-select form-select-sm mb-2" id="fsr-variant-${p.id}"><option value="">— Select variant —</option>${p.variants.map(v=>`<option value="${v.id}" data-price="${v.price}">${esc(v.label)} — ₹${v.price}</option>`).join('')}</select>`
+    : '';
+  return `<div class="col-md-4 col-lg-3 fsr-item"
+    data-id="${p.id}" data-name="${esc(p.name.toLowerCase())}" data-sku="${esc(p.sku.toLowerCase())}"
+    data-category="${esc(p.category_id)}">
+    <div class="card h-100 border-0 shadow-sm fsr-hover">
+      <div class="position-relative">${img}</div>
+      <div class="card-body d-flex flex-column p-3">
+        <small class="text-muted mb-1">${esc(p.category_name)}</small>
+        <h6 class="fw-bold mb-1" style="font-size:0.9rem;min-height:36px;">${esc(p.name)}</h6>
+        <small class="text-muted mb-2">SKU: ${esc(p.sku)}</small>
+        <div class="fw-bold text-primary mb-2">₹${p.price}</div>
+        ${varSel}
+        <div class="mt-auto">
+          <div class="input-group input-group-sm mb-2">
+            <button class="btn btn-outline-secondary" type="button" onclick="fsrDec(${p.id})" style="border-radius:6px 0 0 6px;"><i class="bi bi-dash"></i></button>
+            <input type="number" id="fsr-qty-${p.id}" value="1" min="1" step="1" class="form-control text-center fw-bold" style="max-width:54px;">
+            <button class="btn btn-outline-secondary" type="button" onclick="fsrInc(${p.id})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
+          </div>
+          <button class="btn btn-primary btn-sm w-100" onclick="fsrAdd(${p.id})"><i class="bi bi-plus-lg me-1"></i>Add to Request</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+(function init(){
+  const cats={};
+  FSR_PRODUCTS.forEach(p=>{ if(p.category_id) cats[p.category_id]=p.category_name; });
+  const sel=document.getElementById('fsrCatFilter');
+  Object.entries(cats).sort((a,b)=>a[1].localeCompare(b[1])).forEach(([id,name])=>{ const o=document.createElement('option');o.value=id;o.textContent=name;sel.appendChild(o); });
+  const grid=document.getElementById('fsrGrid');
+  grid.innerHTML = FSR_PRODUCTS.length ? FSR_PRODUCTS.map(fsrRenderCard).join('') : '<div class="col-12 text-center py-5"><h5 class="text-muted">No products available</h5></div>';
+})();
+
+function fsrShowCart(){
+  document.getElementById('fsrProductsView').style.display='none';
+  document.getElementById('fsrSearchSection').style.display='none';
+  document.getElementById('fsrCartView').style.display='';
+  fsrRenderCart();
+}
+function fsrShowProducts(){
+  document.getElementById('fsrCartView').style.display='none';
+  document.getElementById('fsrProductsView').style.display='';
+  document.getElementById('fsrSearchSection').style.display='';
+}
+
+function fsrInc(id){ const i=document.getElementById('fsr-qty-'+id); i.value=parseInt(i.value||1)+1; }
+function fsrDec(id){ const i=document.getElementById('fsr-qty-'+id); if(parseInt(i.value)>1) i.value=parseInt(i.value)-1; }
+
+function fsrAdd(id){
+  const p=FSR_MAP[id]; if(!p) return;
+  let name=p.name, variantId=null;
+  if(p.has_variants){
+    const sel=document.getElementById('fsr-variant-'+id);
+    if(!sel||!sel.value){ alert('Please select a variant first.'); return; }
+    const opt=sel.options[sel.selectedIndex];
+    name=p.name+' ('+opt.text.split('—')[0].trim()+')';
+    variantId=sel.value;
+  }
+  const qty=parseInt(document.getElementById('fsr-qty-'+id).value)||1;
+  const key=`${id}-${variantId||''}`;
+  const ex=fsrCart.find(i=>i.key===key);
+  if(ex){ ex.qty+=qty; }
+  else { fsrCart.push({key,idx:fsrIdx++,productId:id,variantId,name,qty}); }
+  fsrUpdateBadge();
+}
+
+function fsrRemove(idx){ fsrCart=fsrCart.filter(i=>i.idx!==idx); fsrRenderCart(); fsrUpdateBadge(); }
+function fsrQtyChange(idx,val){ const i=fsrCart.find(i=>i.idx===idx); if(i){i.qty=Math.max(1,parseInt(val)||1);} fsrRenderHiddenFields(); }
+
+function fsrRenderCart(){
+  const items=document.getElementById('fsrCartItems');
+  const empty=document.getElementById('fsrCartEmpty');
+  if(!fsrCart.length){ items.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  items.innerHTML=fsrCart.map(item=>`
+    <div class="fsr-cart-item">
+      <button class="fsr-cart-remove" type="button" onclick="fsrRemove(${item.idx})"><i class="bi bi-x"></i></button>
+      <div class="d-flex align-items-center gap-3">
+        <div class="flex-grow-1">
+          <div class="fw-semibold small">${esc(item.name)}</div>
+        </div>
+        <div style="width:90px;">
+          <input type="number" value="${item.qty}" min="1" step="1"
+                 class="form-control form-control-sm text-center" onchange="fsrQtyChange(${item.idx},this.value)">
+        </div>
+      </div>
+    </div>`).join('');
+  fsrRenderHiddenFields();
+}
+
+function fsrRenderHiddenFields(){
+  document.getElementById('fsrHiddenFields').innerHTML=fsrCart.map((item,i)=>
+    `<input type="hidden" name="franchise_stock_request[items_attributes][${i}][product_id]" value="${item.productId}">` +
+    `<input type="hidden" name="franchise_stock_request[items_attributes][${i}][quantity]" value="${item.qty}">` +
+    (item.variantId?`<input type="hidden" name="franchise_stock_request[items_attributes][${i}][product_variant_id]" value="${item.variantId}">`:'')
+  ).join('');
+}
+
+function fsrUpdateBadge(){
+  const badge=document.getElementById('fsrCartBadge');
+  const count=fsrCart.reduce((s,i)=>s+i.qty,0);
+  badge.textContent=count;
+  badge.classList.toggle('d-none',count===0);
+}
+
+function fsrFilter(){
+  const q=document.getElementById('fsrSearch').value.toLowerCase();
+  const cat=document.getElementById('fsrCatFilter').value;
+  let vis=0;
+  document.querySelectorAll('.fsr-item').forEach(item=>{
+    const show=(!q||item.dataset.name.includes(q)||item.dataset.sku.includes(q))&&(!cat||item.dataset.category===cat);
+    item.style.display=show?'':'none';
+    if(show) vis++;
+  });
+  document.getElementById('fsrNoResults').classList.toggle('d-none',vis>0);
+}
+
+document.getElementById('fsrForm')?.addEventListener('submit',function(e){
+  if(!fsrCart.length){ e.preventDefault(); alert('Please add at least one product.'); return; }
+  fsrRenderHiddenFields();
+});
+</script>

@@ -1,0 +1,78 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Stock Request #<%= @stock_request.id %></h2>
+    <p class="text-muted mb-0">Requested on <%= @stock_request.created_at.strftime("%b %d, %Y %I:%M %p") %></p>
+  </div>
+  <% status_color = { 'pending' => 'warning', 'approved' => 'success', 'rejected' => 'danger' }[@stock_request.status] %>
+  <span class="badge bg-<%= status_color %> fs-6"><%= @stock_request.status.capitalize %></span>
+</div>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Requested Items</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="border-0">Product</th>
+                <th class="border-0">Variant</th>
+                <th class="border-0 text-end">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @stock_request.items.each do |item| %>
+                <tr>
+                  <td><%= item.product&.name || 'Deleted product' %></td>
+                  <td class="text-muted small"><%= item.product_variant&.label || '—' %></td>
+                  <td class="text-end fw-semibold"><%= item.quantity.to_f.round(2) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <% if @stock_request.notes.present? %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="mb-0">Your Note</h5>
+        </div>
+        <div class="card-body">
+          <%= simple_format(@stock_request.notes) %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Review Status</h5>
+      </div>
+      <div class="card-body">
+        <% if @stock_request.pending? %>
+          <p class="text-muted mb-0"><i class="bi bi-hourglass-split me-1"></i>Waiting for admin review.</p>
+        <% elsif @stock_request.approved? %>
+          <p class="text-success mb-2"><i class="bi bi-check-circle-fill me-1"></i>Approved on <%= @stock_request.reviewed_at&.strftime("%b %d, %Y") %></p>
+          <% if @stock_request.discount_amount.to_f > 0 %>
+            <p class="text-muted small mb-2">Discount applied: ₹<%= @stock_request.discount_amount.to_f.round(2) %></p>
+          <% end %>
+          <% if @stock_request.booking.present? %>
+            <%= link_to "View Booking", franchise_booking_path(@stock_request.booking), class: "btn btn-outline-primary btn-sm" %>
+          <% end %>
+          <p class="text-muted small mt-2 mb-0">The requested quantities have been credited to your <%= link_to "inventory", franchise_inventory_path %>.</p>
+        <% elsif @stock_request.rejected? %>
+          <p class="text-danger mb-2"><i class="bi bi-x-circle-fill me-1"></i>Rejected on <%= @stock_request.reviewed_at&.strftime("%b %d, %Y") %></p>
+          <% if @stock_request.rejection_reason.present? %>
+            <p class="text-muted small mb-0">Reason: <%= @stock_request.rejection_reason %></p>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

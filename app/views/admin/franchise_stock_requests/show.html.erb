@@ -1,0 +1,151 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Stock Request #<%= @stock_request.id %></h2>
+    <p class="text-muted mb-0">
+      <%= link_to @stock_request.franchise.display_name, admin_franchise_path(@stock_request.franchise) %>
+      &middot; requested <%= @stock_request.created_at.strftime("%b %d, %Y %I:%M %p") %>
+    </p>
+  </div>
+  <% status_color = { 'pending' => 'warning', 'approved' => 'success', 'rejected' => 'danger' }[@stock_request.status] %>
+  <span class="badge bg-<%= status_color %> fs-6"><%= @stock_request.status.capitalize %></span>
+</div>
+
+<% if @stock_request.errors.any? %>
+  <div class="alert alert-danger">
+    <%= @stock_request.errors.full_messages.to_sentence %>
+  </div>
+<% end %>
+
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Requested Items</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="border-0">Product</th>
+                <th class="border-0">Variant</th>
+                <th class="border-0 text-end">Quantity</th>
+                <th class="border-0 text-end">Central Stock</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @stock_request.items.each do |item| %>
+                <tr>
+                  <td><%= item.product&.name || 'Deleted product' %></td>
+                  <td class="text-muted small"><%= item.product_variant&.label || '—' %></td>
+                  <td class="text-end fw-semibold"><%= item.quantity.to_f.round(2) %></td>
+                  <td class="text-end small text-muted">
+                    <% if item.product_variant_id.present? %>
+                      <%= @central_stock_by_variant[item.product_variant_id].to_f.round(2) %>
+                    <% else %>
+                      <%= @central_stock_by_product[item.product_id].to_f.round(2) %>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <% if @stock_request.notes.present? %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="mb-0">Franchise Note</h5>
+        </div>
+        <div class="card-body">
+          <%= simple_format(@stock_request.notes) %>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Franchise Details</h5>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4">Mobile</dt>
+          <dd class="col-sm-8"><%= @stock_request.franchise.mobile.presence || '—' %></dd>
+
+          <dt class="col-sm-4">Email</dt>
+          <dd class="col-sm-8"><%= @stock_request.franchise.email.presence || '—' %></dd>
+
+          <dt class="col-sm-4">Address</dt>
+          <dd class="col-sm-8"><%= @stock_request.franchise.address.presence || '—' %></dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Actions</h5>
+      </div>
+      <div class="card-body">
+        <% if @stock_request.pending? %>
+          <%= form_with url: approve_admin_franchise_stock_request_path(@stock_request), method: :patch, local: true do |f| %>
+            <h6 class="mb-3"><i class="bi bi-percent me-2"></i>Wholesale Discount for Franchise</h6>
+            <div class="mb-3">
+              <label class="form-label small">Discount Type</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input type="radio" name="discount_type" value="" id="discount_type_none" class="form-check-input" checked>
+                  <label class="form-check-label" for="discount_type_none">No Discount</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" name="discount_type" value="fixed" id="discount_type_fixed" class="form-check-input">
+                  <label class="form-check-label" for="discount_type_fixed">Fixed Amount</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" name="discount_type" value="percentage" id="discount_type_percentage" class="form-check-input">
+                  <label class="form-check-label" for="discount_type_percentage">Percentage</label>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small">Discount Value</label>
+              <input type="number" name="discount_value" class="form-control" min="0" step="0.01" placeholder="0.00">
+              <div class="form-text small">Applied to the wholesale booking's bill total.</div>
+            </div>
+
+            <%= f.submit "Approve & Create Booking", class: "btn btn-success w-100 mb-3",
+                data: { confirm: "Approve this request? A Franchise Booking will be created and the quantities credited to the franchise's inventory." } %>
+          <% end %>
+
+          <%= form_with url: reject_admin_franchise_stock_request_path(@stock_request), method: :patch, local: true do |f| %>
+            <div class="mb-2">
+              <%= f.text_field :reason, class: "form-control", placeholder: "Reason for rejection (optional)" %>
+            </div>
+            <%= f.submit "Reject", class: "btn btn-outline-danger w-100",
+                data: { confirm: "Reject this stock request?" } %>
+          <% end %>
+        <% elsif @stock_request.approved? %>
+          <p class="text-success mb-2"><i class="bi bi-check-circle-fill me-1"></i>Approved on <%= @stock_request.reviewed_at&.strftime("%b %d, %Y") %> by <%= @stock_request.reviewed_by&.email %></p>
+          <% if @stock_request.discount_amount.to_f > 0 %>
+            <p class="text-muted small mb-2">
+              Discount: <%= @stock_request.discount_type&.humanize %>
+              (<%= @stock_request.discount_type == 'percentage' ? "#{@stock_request.discount_value.to_f}%" : "₹#{@stock_request.discount_value.to_f}" %>)
+              &rarr; ₹<%= @stock_request.discount_amount.to_f.round(2) %> off
+            </p>
+          <% end %>
+          <% if @stock_request.booking.present? %>
+            <%= link_to "View Franchise Booking", admin_booking_path(@stock_request.booking), class: "btn btn-outline-primary btn-sm" %>
+          <% end %>
+        <% else %>
+          <p class="text-danger mb-2"><i class="bi bi-x-circle-fill me-1"></i>Rejected on <%= @stock_request.reviewed_at&.strftime("%b %d, %Y") %></p>
+          <% if @stock_request.rejection_reason.present? %>
+            <p class="text-muted small mb-0">Reason: <%= @stock_request.rejection_reason %></p>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

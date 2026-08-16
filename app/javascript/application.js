@@ -278,6 +278,25 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+// Table action-column "3-dot" dropdowns (admin index pages): Bootstrap's
+// default Popper strategy positions the menu relative to its offset parent,
+// which gets clipped by the `.table-responsive` wrapper's `overflow-x: auto`
+// (that implicitly clips the y-axis too, per the CSS overflow spec). Menus
+// then open but render invisible/cut off, which looks like the button does
+// nothing. `strategy: 'fixed'` positions the menu against the viewport
+// instead, sidestepping the ancestor's overflow entirely. Pre-creating the
+// Dropdown instance here (before Bootstrap's own click handler would lazily
+// create a default one) makes this config stick for every toggle.
+function initTableActionDropdowns() {
+  document.querySelectorAll('.table [data-bs-toggle="dropdown"]').forEach((el) => {
+    bootstrap.Dropdown.getOrCreateInstance(el, {
+      popperConfig: (defaultConfig) => ({ ...defaultConfig, strategy: 'fixed' })
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', initTableActionDropdowns);
+document.addEventListener('turbo:load', initTableActionDropdowns);
+
 // Add ripple and spin animation keyframes
 const style = document.createElement('style');
 style.textContent = `

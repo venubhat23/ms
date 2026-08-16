@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marali Santhe – Herbal & Organic Wellness</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1f7d3f;--green-dark:#134f27;--green-mid:#2e9350;--green-pale:#e9f4ec;
+  --gold:#f0b923;--gold-dark:#c99a12;--gold-pale:#fbe8b0;
+  --cream:#f7f1e3;--cream-dark:#efe1c4;--white:#fff;
+  --dark:#1c1c14;--muted:#726f5f;--text:#26261c;--red:#c0392b;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',sans-serif;color:var(--text);overflow-x:hidden;background:var(--cream)}
+h1,h2,h3,h4{font-family:'Playfair Display',serif}
+img{max-width:100%}
+
+/* ── MARQUEE TOP BAR ── */
+.marquee-bar{background:var(--green-dark);color:var(--white);overflow:hidden;white-space:nowrap;padding:9px 0}
+.marquee-track{display:inline-block;white-space:nowrap;animation:marquee 26s linear infinite;font-size:12.5px;font-weight:500;letter-spacing:.3px}
+.marquee-track span{margin:0 28px;color:rgba(255,255,255,.92)}
+.marquee-track b{color:var(--gold-pale)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ── NAV ── */
+nav{display:flex;align-items:center;gap:28px;padding:16px 48px;background:var(--cream);position:sticky;top:0;z-index:300;border-bottom:1px solid rgba(0,0,0,.06)}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;flex-shrink:0}
+.brand-ring{width:58px;height:58px;border-radius:50%;border:2px solid var(--gold);padding:3px;flex-shrink:0}
+.brand-ring .bi{width:100%;height:100%;border-radius:50%;overflow:hidden;background:var(--green);display:flex;align-items:center;justify-content:center}
+.brand-ring img{width:100%;height:100%;object-fit:cover}
+.brand-word{display:flex;flex-direction:column;line-height:1.1}
+.brand-word b{font-family:'Playfair Display',serif;font-size:19px;font-weight:800;color:var(--green-dark)}
+.brand-word span{font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-dark);font-weight:700}
+.nav-search{flex:1;display:flex;position:relative;max-width:640px}
+.nav-search input{width:100%;padding:13px 50px 13px 22px;border-radius:30px;border:1px solid var(--cream-dark);background:var(--white);font-family:'Poppins',sans-serif;font-size:13.5px;outline:none;color:var(--text)}
+.nav-search input:focus{border-color:var(--green-mid)}
+.nav-search .si{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.nav-icons{display:flex;align-items:center;gap:20px;flex-shrink:0}
+.nicon{position:relative;color:var(--dark);text-decoration:none;font-size:19px;display:flex;align-items:center}
+.nicon .cart-badge{position:absolute;top:-8px;right:-10px;background:var(--red);color:var(--white);font-size:10px;font-weight:700;border-radius:50%;width:17px;height:17px;display:flex;align-items:center;justify-content:center}
+.mobile-menu-toggle{display:none;background:none;border:none;font-size:22px;color:var(--dark);cursor:pointer}
+
+.subnav{display:flex;justify-content:center;gap:38px;padding:12px 20px;background:var(--cream);border-bottom:1px solid rgba(0,0,0,.06);flex-wrap:wrap}
+.subnav a{text-decoration:none;font-size:13px;font-weight:600;color:var(--text)}
+.subnav a.active{color:var(--green);text-decoration:underline;text-underline-offset:5px}
+.subnav a:hover{color:var(--green)}
+.mobile-nav-links{display:none;position:absolute;top:100%;left:0;width:100%;background:var(--white);box-shadow:0 8px 20px rgba(0,0,0,.12);flex-direction:column;z-index:200}
+.mobile-nav-links.mobile-open{display:flex}
+.mobile-nav-links a{display:block;padding:15px 22px;text-decoration:none;color:var(--dark);font-size:13px;font-weight:600;border-bottom:1px solid #eee}
+
+/* ── BUTTONS ── */
+.btn{display:inline-block;background:var(--green);color:var(--white);padding:14px 34px;text-decoration:none;font-size:13px;font-weight:700;border:none;cursor:pointer;font-family:'Poppins',sans-serif;border-radius:30px;transition:background .2s,transform .15s}
+.btn:hover{background:var(--green-dark);transform:translateY(-2px)}
+.btn-gold{display:inline-block;background:var(--gold);color:var(--dark);padding:14px 36px;text-decoration:none;font-size:13px;font-weight:700;border-radius:30px;transition:background .2s;border:none;cursor:pointer;font-family:'Poppins',sans-serif}
+.btn-gold:hover{background:var(--gold-dark);color:var(--white)}
+.btn-outline-w{padding:13px 32px;border:2px solid rgba(255,255,255,.8);background:transparent;color:var(--white);font-family:'Poppins',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:30px;text-decoration:none;display:inline-block;transition:all .2s}
+.btn-outline-w:hover{background:var(--white);color:var(--green-dark)}
+
+/* ── HERO ── */
+.hero{position:relative;min-height:78vh;display:flex;align-items:center;overflow:hidden;background:var(--green-dark)}
+.hero-bg{position:absolute;inset:0;background:url('https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1800') center/cover}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(100deg,rgba(19,79,39,.88) 0%,rgba(19,79,39,.55) 42%,rgba(19,79,39,.15) 100%)}
+.hero-body{position:relative;z-index:2;max-width:620px;padding:0 60px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--white);color:var(--green-dark);font-size:11.5px;font-weight:700;letter-spacing:.4px;padding:8px 18px;border-radius:30px;margin-bottom:22px}
+.hero h1{font-size:clamp(36px,5.5vw,62px);font-weight:800;color:var(--white);line-height:1.08;margin-bottom:18px}
+.hero p{font-size:15px;color:rgba(255,255,255,.86);line-height:1.85;margin-bottom:32px;max-width:460px}
+.hero-ctas{display:flex;gap:14px;flex-wrap:wrap}
+.hero-torn{position:absolute;left:0;right:0;bottom:0;height:52px;background-color:var(--cream);background-repeat:repeat-x;background-position:top;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='52'%3E%3Cpolygon points='0,0 13,52 26,0 39,52 52,0' fill='%23134f27'/%3E%3C/svg%3E");z-index:3}
+
+/* ── TRUST STRIP ── */
+.trust{display:flex;justify-content:center;background:var(--cream);flex-wrap:wrap;padding-top:14px}
+.trust-item{flex:1;min-width:170px;display:flex;align-items:center;gap:10px;padding:16px 20px;justify-content:center}
+.trust-item .ti{font-size:22px}
+.trust-item p{font-size:12px;font-weight:600;color:var(--green-dark)}
+
+/* ── SECTION LABELS ── */
+.sec-title{text-align:center;padding:56px 20px 8px;font-family:'Playfair Display',serif;font-size:clamp(28px,3.4vw,42px);font-weight:800;color:var(--green-dark)}
+.sec-sub{text-align:center;font-size:13.5px;color:var(--muted);padding:0 20px 32px;line-height:1.7}
+
+/* ── CATEGORY PILLS ── */
+.pill-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;padding:0 20px 36px;max-width:1200px;margin:0 auto}
+.pill-btn{flex:0 0 auto;padding:11px 24px;border-radius:30px;border:1.5px solid var(--green);color:var(--green-dark);font-size:13px;font-weight:600;text-decoration:none;background:var(--white);transition:background .2s,color .2s}
+.pill-btn:hover{background:var(--green-pale)}
+.pill-btn.active{background:var(--green);border-color:var(--green);color:var(--white)}
+
+/* ── CAROUSEL ROW ── */
+.carousel-wrap{position:relative;max-width:1280px;margin:0 auto 26px;padding:0 60px}
+.carousel-row{display:flex;gap:20px;overflow-x:auto;scroll-behavior:smooth;padding:6px 4px 14px;scrollbar-width:none}
+.carousel-row::-webkit-scrollbar{display:none}
+.carousel-arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;font-size:16px;font-weight:700;color:var(--dark);z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.carousel-arrow:hover{background:var(--gold-dark);color:var(--white)}
+.carousel-arrow.prev{left:8px}
+.carousel-arrow.next{right:8px}
+
+/* ── PRODUCT CARDS ── */
+.pcard{flex:0 0 250px;background:var(--white);border:1px solid #ece4d2;border-radius:16px;overflow:hidden;transition:box-shadow .25s,transform .22s;cursor:pointer;position:relative}
+.pcard:hover{box-shadow:0 16px 34px rgba(19,79,39,.14);transform:translateY(-4px)}
+.pcard-img{position:relative;height:200px;overflow:hidden;background:var(--cream);display:flex;align-items:center;justify-content:center}
+.pcard-img img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.pcard-img .no-image{font-size:30px;opacity:.3}
+.pcard:hover .pcard-img img{transform:scale(1.08)}
+.ptag{position:absolute;top:12px;left:12px;font-size:10.5px;font-weight:700;padding:6px 12px;text-transform:uppercase;border-radius:20px;letter-spacing:.3px}
+.ptag.discount{background:var(--gold);color:var(--dark)}
+.ptag.new{background:var(--green);color:var(--white)}
+.ptag.oos{background:#999;color:var(--white)}
+.ptag.best{background:var(--dark);color:var(--gold-pale)}
+.pcard-body{padding:16px 15px 18px}
+.pcard h4{font-size:14px;font-weight:600;margin-bottom:4px;line-height:1.4;color:var(--text)}
+.pcard .psub{font-size:11px;color:var(--muted);margin-bottom:10px}
+.pcard .pprice{font-size:16px;font-weight:800;margin-bottom:13px;color:var(--green-dark);font-family:'Playfair Display',serif}
+.pcard .pprice s{font-weight:400;color:#bbb;font-size:12px;margin-right:6px;font-family:'Poppins',sans-serif}
+.btn-add{width:100%;padding:10px;background:var(--green);color:var(--white);border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;transition:background .2s;border-radius:30px}
+.btn-add:hover{background:var(--green-dark)}
+.btn-add.out{background:#e2e2de;color:#999;cursor:not-allowed}
+
+/* ── CATEGORY INTRO TILE (first card in each carousel) ── */
+.cintro{flex:0 0 190px;border-radius:16px;background:var(--green-pale);display:flex;flex-direction:column;justify-content:center;padding:24px;position:relative;overflow:hidden}
+.cintro h4{font-family:'Playfair Display',serif;font-size:20px;color:var(--green-dark);font-weight:800;line-height:1.2}
+.cintro .cleaf{font-size:30px;margin-bottom:10px;display:block}
+
+/* ── CERTIFICATIONS ── */
+.certs{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;max-width:1200px;margin:0 auto 20px;padding:0 28px}
+.cert-tile{width:118px;height:88px;background:var(--white);border:1px solid var(--cream-dark);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:8px}
+.cert-tile .ci{font-size:24px}
+.cert-tile span{font-size:9.5px;font-weight:700;color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
+
+/* ── SPLIT BANNER (family / stats) ── */
+.split-banner{display:flex;min-height:420px;max-width:1240px;margin:70px auto;border-radius:24px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.08)}
+.split-banner-img{flex:1;overflow:hidden}
+.split-banner-img img{width:100%;height:100%;object-fit:cover;display:block}
+.split-banner-stats{flex:1;background:var(--green);display:grid;grid-template-columns:1fr 1fr;gap:0}
+.stat-box{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 20px;border-right:1px solid rgba(255,255,255,.14);border-bottom:1px solid rgba(255,255,255,.14)}
+.stat-box:nth-child(2n){border-right:none}
+.stat-icon{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:12px}
+.stat-box h4{color:var(--white);font-size:14px;font-weight:700;line-height:1.35}
+
+/* ── TESTIMONIALS ── */
+.testi-wrap{background:var(--green-pale);padding:70px 28px;margin-bottom:0}
+.testi-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;max-width:1200px;margin:0 auto}
+.testi-photo{border-radius:16px;overflow:hidden;min-height:220px}
+.testi-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.testi-card{background:var(--cream);border-radius:16px;padding:28px 24px;display:flex;flex-direction:column;justify-content:center}
+.testi-card p{font-size:13.5px;line-height:1.85;color:var(--text);margin-bottom:14px}
+.testi-card b{font-size:12.5px;color:var(--green-dark)}
+
+/* ── NEWSLETTER (top of footer) ── */
+.mailing{background:var(--green-dark);padding:38px 52px;display:flex;align-items:center;justify-content:space-between;gap:36px;flex-wrap:wrap}
+.mailing-left h3{font-size:24px;font-weight:800;color:var(--white);margin-bottom:4px;font-family:'Playfair Display',serif}
+.mailing-left p{font-size:13px;color:rgba(255,255,255,.6)}
+.mailing-form{display:flex;flex:1;max-width:460px;min-width:260px}
+.mailing-form input{flex:1;padding:14px 20px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:var(--white);font-family:'Poppins',sans-serif;font-size:13px;outline:none;border-radius:30px 0 0 30px}
+.mailing-form input::placeholder{color:rgba(255,255,255,.55)}
+.mailing-form button{padding:14px 26px;background:var(--gold);color:var(--dark);border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-weight:700;font-size:12.5px;border-radius:0 30px 30px 0}
+.mailing-form button:hover{background:var(--gold-dark);color:var(--white)}
+
+/* ── FOOTER ── */
+.footer-torn{height:44px;background-color:var(--green-dark);background-repeat:repeat-x;background-position:top;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='44'%3E%3Cpolygon points='0,0 12,44 24,0 36,44 48,0' fill='%23f7f1e3'/%3E%3C/svg%3E")}
+footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1.3fr;gap:44px;padding:44px 52px 0;margin-bottom:36px}
+.fbrand-name{font-family:'Playfair Display',serif;font-size:26px;font-weight:800;color:var(--gold-pale);margin-bottom:10px}
+.fbrand p{font-size:13px;line-height:1.85;max-width:280px}
+.fcol h5{color:var(--white);font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:16px}
+.fcol ul{list-style:none}
+.fcol ul li{margin-bottom:10px}
+.fcol ul li a{text-decoration:none;color:rgba(255,255,255,.65);font-size:13px}
+.fcol ul li a:hover{color:var(--gold-pale)}
+.footer-contact{font-size:12.5px;color:rgba(255,255,255,.6);line-height:1.8}
+.footer-contact b{color:var(--white)}
+.socials{display:flex;gap:12px;margin-top:16px}
+.socials a{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.1);color:var(--white);text-decoration:none;font-size:13px;display:flex;align-items:center;justify-content:center}
+.socials a:hover{background:var(--gold)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.14);padding:22px 52px;display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.45);flex-wrap:wrap;gap:12px}
+.footer-policy-links{display:flex;gap:20px}
+.footer-policy-links a{color:rgba(255,255,255,.6);text-decoration:none;font-size:12px}
+.footer-policy-links a:hover{color:var(--gold-pale)}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green-dark);color:var(--white);padding:14px 28px;border-radius:30px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:960px){
+  nav{padding:14px 16px;flex-wrap:wrap}
+  .mobile-menu-toggle{display:block}
+  .nav-search{order:3;flex-basis:100%;max-width:none}
+  .subnav{display:none}
+  .hero-body{padding:0 24px}
+  .split-banner{flex-direction:column;margin:40px 16px}
+  .testi-grid{grid-template-columns:1fr 1fr}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .carousel-wrap{padding:0 44px}
+}
+@media(max-width:600px){
+  .testi-grid,.footer-grid{grid-template-columns:1fr}
+  .hero{min-height:66vh}
+  .hero h1{font-size:30px}
+  .sec-title{font-size:24px}
+  .split-banner-stats{grid-template-columns:1fr 1fr}
+  footer{padding-bottom:8px}
+  .mailing{padding:30px 24px;flex-direction:column;align-items:flex-start}
+  .footer-grid{padding:36px 24px 0}
+  .footer-bottom{padding:20px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✓ Added to cart!</div>
+
+<!-- MARQUEE TOP BAR -->
+<div class="marquee-bar">
+  <div class="marquee-track">
+    <span>🌿 <b>100% Certified Organic &amp; Ayurvedic</b> — Sourced From Trusted Farms</span>
+    <span>🚚 Free Delivery On Orders Above ₹499</span>
+    <span>💳 Cash On Delivery Available</span>
+    <span>🎁 Free Gift On Orders Above ₹999</span>
+    <span>🌿 <b>100% Certified Organic &amp; Ayurvedic</b> — Sourced From Trusted Farms</span>
+    <span>🚚 Free Delivery On Orders Above ₹499</span>
+    <span>💳 Cash On Delivery Available</span>
+    <span>🎁 Free Gift On Orders Above ₹999</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <a class="brand" href="/">
+    <div class="brand-ring"><div class="bi"><img src="logo.jpeg" alt="Marali Santhe"></div></div>
+    <div class="brand-word"><b>Marali Santhe</b><span>Herbal Wellness</span></div>
+  </a>
+  <form class="nav-search" onsubmit="return false;">
+    <input type="text" placeholder="Search for herbal &amp; organic products…">
+    <span class="si">🔍</span>
+  </form>
+  <div class="nav-icons">
+    <a href="/customer/login" class="nicon" aria-label="Account" title="Account">👤</a>
+    <a href="<%= track_order_path %>" class="nicon" aria-label="Track Order" title="Track Order">📦</a>
+    <a href="<%= storefront_cart_path %>" class="nicon" aria-label="Cart" title="Cart">🛒<% if cart_count > 0 %><span class="cart-badge"><%= cart_count %></span><% end %></a>
+    <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+  </div>
+</nav>
+<div class="subnav">
+  <a href="#bestsellers" class="active">🎉 Special Offers</a>
+  <a href="#categories">Shop By Category</a>
+  <a href="#collection">Full Collection</a>
+  <a href="#new-arrivals">New Arrivals</a>
+  <a href="<%= track_order_path %>">Track Order</a>
+</div>
+<div class="mobile-nav-links" id="mobileNav">
+  <a href="#bestsellers">Special Offers</a>
+  <a href="#categories">Shop By Category</a>
+  <a href="#collection">Full Collection</a>
+  <a href="#new-arrivals">New Arrivals</a>
+  <a href="<%= track_order_path %>">📦 Track Order</a>
+  <a href="<%= storefront_cart_path %>">Cart (<%= cart_count %>)</a>
+  <a href="/customer/login">Login</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-body">
+    <span class="hero-badge">🌱 Whole-Herb, Whole-Farm Wellness</span>
+    <h1>Nourish Naturally,<br>Live Well Every Day</h1>
+    <p>Pure, chemical-free organic foods and Ayurvedic wellness essentials — grown on certified farms and delivered straight to your doorstep.</p>
+    <div class="hero-ctas">
+      <a href="#collection" class="btn">Shop Collection</a>
+      <a href="#bestsellers" class="btn-outline-w">Our Bestsellers</a>
+    </div>
+  </div>
+  <div class="hero-torn"></div>
+</section>
+
+<!-- TRUST STRIP -->
+<div class="trust">
+  <div class="trust-item"><span class="ti">🌿</span><p>100% Organic Certified</p></div>
+  <div class="trust-item"><span class="ti">🧪</span><p>Lab Tested Purity</p></div>
+  <div class="trust-item"><span class="ti">🚚</span><p>Free Shipping ₹499+</p></div>
+  <div class="trust-item"><span class="ti">💳</span><p>Cash On Delivery</p></div>
+</div>
+
+<!-- SHOP BY CATEGORY -->
+<h2 class="sec-title" id="categories">Our Range Of Categories</h2>
+<p class="sec-sub">Find exactly what your wellness routine needs</p>
+<% if @products_by_category.present? %>
+  <div class="pill-row">
+    <% @products_by_category.keys.each_with_index do |cat_name, idx| %>
+      <a href="#cat-<%= cat_name.parameterize %>" class="pill-btn<%= ' active' if idx == 0 %>"><%= cat_name %></a>
+    <% end %>
+  </div>
+<% end %>
+
+<% @products_by_category.each do |category_name, products| %>
+  <div id="cat-<%= category_name.parameterize %>" class="carousel-wrap">
+    <button class="carousel-arrow prev" onclick="scrollRow('row-<%= category_name.parameterize %>',-1)" aria-label="Scroll left">‹</button>
+    <div class="carousel-row" id="row-<%= category_name.parameterize %>">
+      <div class="cintro">
+        <span class="cleaf">🌿</span>
+        <h4><%= category_name %></h4>
+      </div>
+      <% products.each do |product| %>
+        <div class="pcard">
+          <div class="pcard-img">
+            <% if product.main_image_url %>
+              <%= image_tag product.main_image_url, alt: product.name %>
+            <% else %>
+              <span class="no-image">🌿</span>
+            <% end %>
+            <% if !product.in_stock? %>
+              <span class="ptag oos">Out of Stock</span>
+            <% elsif @best_seller_ids.include?(product.id) %>
+              <span class="ptag best">★ Bestseller</span>
+            <% elsif @new_arrival_ids.include?(product.id) %>
+              <span class="ptag new">🆕 New</span>
+            <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
+              <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
+            <% end %>
+          </div>
+          <div class="pcard-body">
+            <h4><%= product.name %></h4>
+            <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+            <div class="pprice">
+              <% if product.discounted? %>
+                <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+              <% else %>
+                ₹<%= product.selling_price %>
+              <% end %>
+            </div>
+            <% if product.in_stock? %>
+              <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+            <% else %>
+              <button class="btn-add out" disabled>Out of Stock</button>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <button class="carousel-arrow next" onclick="scrollRow('row-<%= category_name.parameterize %>',1)" aria-label="Scroll right">›</button>
+  </div>
+<% end %>
+
+<!-- BEST SELLERS -->
+<% best_sellers = @products_by_category.values.flatten.select { |p| @best_seller_ids.include?(p.id) }.first(10) %>
+<% if best_sellers.any? %>
+  <h2 class="sec-title" id="bestsellers">Our Best Sellers</h2>
+  <p class="sec-sub">The wellness essentials our customers keep coming back for</p>
+  <div class="carousel-wrap">
+    <button class="carousel-arrow prev" onclick="scrollRow('row-bestsellers',-1)" aria-label="Scroll left">‹</button>
+    <div class="carousel-row" id="row-bestsellers">
+      <% best_sellers.each do |product| %>
+        <div class="pcard">
+          <div class="pcard-img">
+            <% if product.main_image_url %>
+              <%= image_tag product.main_image_url, alt: product.name %>
+            <% else %>
+              <span class="no-image">🌿</span>
+            <% end %>
+            <% if !product.in_stock? %>
+              <span class="ptag oos">Out of Stock</span>
+            <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
+              <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
+            <% else %>
+              <span class="ptag best">★ Bestseller</span>
+            <% end %>
+          </div>
+          <div class="pcard-body">
+            <h4><%= product.name %></h4>
+            <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+            <div class="pprice">
+              <% if product.discounted? %>
+                <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+              <% else %>
+                ₹<%= product.selling_price %>
+              <% end %>
+            </div>
+            <% if product.in_stock? %>
+              <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+            <% else %>
+              <button class="btn-add out" disabled>Out of Stock</button>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <button class="carousel-arrow next" onclick="scrollRow('row-bestsellers',1)" aria-label="Scroll right">›</button>
+  </div>
+<% end %>
+
+<!-- CERTIFICATIONS -->
+<h2 class="sec-title">Our Certifications</h2>
+<p class="sec-sub">Every product is tested and verified for purity</p>
+<div class="certs">
+  <div class="cert-tile"><span class="ci">🌿</span><span>Certified Organic</span></div>
+  <div class="cert-tile"><span class="ci">🧪</span><span>Lab Tested</span></div>
+  <div class="cert-tile"><span class="ci">🚫</span><span>Non-GMO</span></div>
+  <div class="cert-tile"><span class="ci">♻️</span><span>Eco Certified</span></div>
+  <div class="cert-tile"><span class="ci">✅</span><span>Quality Assured</span></div>
+  <div class="cert-tile"><span class="ci">🇮🇳</span><span>Made In India</span></div>
+</div>
+
+<!-- SPLIT BANNER: STORY + STATS -->
+<div class="split-banner">
+  <div class="split-banner-img">
+    <img src="https://images.pexels.com/photos/3823207/pexels-photo-3823207.jpeg?auto=compress&cs=tinysrgb&w=1000" alt="Wellness family">
+  </div>
+  <div class="split-banner-stats">
+    <div class="stat-box"><div class="stat-icon">🌾</div><h4>25+ Years of<br>Herbal Wellness</h4></div>
+    <div class="stat-box"><div class="stat-icon">🧪</div><h4>Triple-Tested for<br>Quality &amp; Safety</h4></div>
+    <div class="stat-box"><div class="stat-icon">🕉️</div><h4>Ayurveda Backed<br>By Tradition</h4></div>
+    <div class="stat-box"><div class="stat-icon">🤝</div><h4>Direct From<br>Certified Farmers</h4></div>
+  </div>
+</div>
+
+<!-- FULL COLLECTION -->
+<h2 class="sec-title" id="collection">Shop Our Full Collection</h2>
+<p class="sec-sub">
+  <% if @products_by_category.present? %>
+    <%= pluralize(@total_products, 'item') %> across <%= pluralize(@products_by_category.size, 'category') %>
+  <% else %>
+    Our catalog is being restocked — please check back shortly
+  <% end %>
+</p>
+<div class="carousel-wrap" style="margin-bottom:56px">
+  <button class="carousel-arrow prev" onclick="scrollRow('row-all',-1)" aria-label="Scroll left">‹</button>
+  <div class="carousel-row" id="row-all">
+    <% @products_by_category.values.flatten.first(16).each do |product| %>
+      <div class="pcard">
+        <div class="pcard-img">
+          <% if product.main_image_url %>
+            <%= image_tag product.main_image_url, alt: product.name %>
+          <% else %>
+            <span class="no-image">🌿</span>
+          <% end %>
+          <% if !product.in_stock? %>
+            <span class="ptag oos">Out of Stock</span>
+          <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
+            <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
+          <% end %>
+        </div>
+        <div class="pcard-body">
+          <h4><%= product.name %></h4>
+          <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+          <div class="pprice">
+            <% if product.discounted? %>
+              <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+            <% else %>
+              ₹<%= product.selling_price %>
+            <% end %>
+          </div>
+          <% if product.in_stock? %>
+            <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+          <% else %>
+            <button class="btn-add out" disabled>Out of Stock</button>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+  <button class="carousel-arrow next" onclick="scrollRow('row-all',1)" aria-label="Scroll right">›</button>
+</div>
+
+<!-- NEW ARRIVALS -->
+<% if @new_arrivals.present? %>
+  <h2 class="sec-title" id="new-arrivals">New Arrivals</h2>
+  <p class="sec-sub">Fresh additions to the Marali Santhe family</p>
+  <div class="carousel-wrap" style="margin-bottom:56px">
+    <button class="carousel-arrow prev" onclick="scrollRow('row-new',-1)" aria-label="Scroll left">‹</button>
+    <div class="carousel-row" id="row-new">
+      <% @new_arrivals.first(10).each do |product| %>
+        <div class="pcard">
+          <div class="pcard-img">
+            <% if product.main_image_url %>
+              <%= image_tag product.main_image_url, alt: product.name %>
+            <% else %>
+              <span class="no-image">🌿</span>
+            <% end %>
+            <span class="ptag new">🆕 New</span>
+          </div>
+          <div class="pcard-body">
+            <h4><%= product.name %></h4>
+            <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+            <div class="pprice">₹<%= product.selling_price %></div>
+            <% if product.in_stock? %>
+              <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+            <% else %>
+              <button class="btn-add out" disabled>Out of Stock</button>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    <button class="carousel-arrow next" onclick="scrollRow('row-new',1)" aria-label="Scroll right">›</button>
+  </div>
+<% end %>
+
+<!-- TESTIMONIALS -->
+<div class="testi-wrap">
+  <h2 class="sec-title" style="padding-top:0">500+ Happy Clients</h2>
+  <p class="sec-sub">Loved by wellness-focused families across India</p>
+  <div class="testi-grid">
+    <div class="testi-photo">
+      <img src="https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=700" alt="Happy customer">
+    </div>
+    <div class="testi-card">
+      <p>"The purity is unmatched — you can genuinely taste and feel the difference. My whole family switched over."</p>
+      <b>Priya Sharma, Bengaluru</b>
+    </div>
+    <div class="testi-card">
+      <p>"Finally an organic brand that delivers on its promise. Lab-tested quality with fast, reliable delivery."</p>
+      <b>Rahul Mehta, Mysuru</b>
+    </div>
+  </div>
+  <div class="testi-grid" style="margin-top:24px">
+    <div class="testi-card">
+      <p>"Their Ayurvedic wellness range genuinely helped my digestion. Great packaging and honest pricing too."</p>
+      <b>Ananya Nair, Surat</b>
+    </div>
+    <div class="testi-card">
+      <p>"Easy to order, easy to pay on delivery, and everything arrived fresh and well packed. Highly recommend."</p>
+      <b>Kavya Reddy, Mysuru</b>
+    </div>
+    <div class="testi-photo">
+      <img src="https://images.pexels.com/photos/4113889/pexels-photo-4113889.jpeg?auto=compress&cs=tinysrgb&w=700" alt="Happy customer">
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer-torn"></div>
+<footer>
+  <div class="mailing">
+    <div class="mailing-left">
+      <h3>Sign Up To Get Updates</h3>
+      <p>Offers, new arrivals and herbal wellness tips — straight to your inbox.</p>
+    </div>
+    <form class="mailing-form" onsubmit="event.preventDefault();document.getElementById('toast').textContent='✓ Subscribed! Thank you.';document.getElementById('toast').classList.add('show');setTimeout(()=>document.getElementById('toast').classList.remove('show'),2200);this.reset();">
+      <input type="email" placeholder="Enter Your Email Address…" required>
+      <button type="submit">Subscribe</button>
+    </form>
+  </div>
+  <div class="footer-grid">
+    <div class="fbrand">
+      <div class="fbrand-name">Marali Santhe</div>
+      <p>Bringing the goodness of certified organic farms and Ayurvedic tradition directly to your table. Pure, natural, full of wellness.</p>
+      <div class="footer-contact" style="margin-top:16px">
+        <b>Marali Santhe</b><br>
+        Owner: Raghunandan<br><br>
+        #64, Ground Floor,<br>
+        7th Cross, 24th Main,<br>
+        RK Colony, JP Nagar 2nd Phase,<br>
+        Bengaluru - 560078<br><br>
+        Contact: 9035408833<br>
+        Email: maralisanthe@gmail.com<br>
+        GSTIN: 29AWEPR9293C1Z0
+      </div>
+      <div class="socials">
+        <a href="#" aria-label="Instagram">📷</a>
+        <a href="#" aria-label="Facebook">📘</a>
+        <a href="#" aria-label="YouTube">▶️</a>
+      </div>
+    </div>
+    <div class="fcol">
+      <h5>Shop</h5>
+      <ul>
+        <li><a href="#collection">All Products</a></li>
+        <li><a href="#bestsellers">Bestsellers</a></li>
+        <li><a href="#new-arrivals">New Arrivals</a></li>
+        <li><a href="#categories">Categories</a></li>
+      </ul>
+    </div>
+    <div class="fcol">
+      <h5>Customer Support</h5>
+      <ul>
+        <li><a href="#">FAQs</a></li>
+        <li><a href="#">About Us</a></li>
+        <li><a href="#">Contact Us</a></li>
+        <li><a href="<%= track_order_path %>">Track Order</a></li>
+      </ul>
+    </div>
+    <div class="fcol">
+      <h5>Partner With Us</h5>
+      <ul>
+        <li><a href="<%= affiliate_register_path %>">Become an Affiliate</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© <%= Date.current.year %> Marali Santhe. All rights reserved.</span>
+    <div class="footer-policy-links">
+      <a href="/terms-and-conditions.html" target="_blank">Terms &amp; Conditions</a>
+      <a href="/privacy-policy.html" target="_blank">Privacy Policy</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggleMobileMenu(){
+    document.getElementById('mobileNav').classList.toggle('mobile-open');
+  }
+
+  function scrollRow(id, dir){
+    const row = document.getElementById(id);
+    if (row) row.scrollBy({ left: dir * 320, behavior: 'smooth' });
+  }
+
+  async function addToCart(productId, name, btn) {
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    try {
+      const res = await fetch('<%= add_item_storefront_cart_path %>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId, quantity: 1 })
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Could not add item to cart.');
+        btn.disabled = false;
+        btn.textContent = orig;
+        return;
+      }
+      const t = document.getElementById('toast');
+      t.textContent = '✓ ' + (name || 'Item') + ' added to cart!';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+      btn.textContent = '✓ Added!';
+      setTimeout(() => { btn.disabled = false; btn.textContent = orig; }, 1600);
+
+      const badge = document.querySelector('.cart-badge');
+      if (badge) {
+        badge.textContent = data.cart_count;
+      } else if (data.cart_count > 0) {
+        const cartLink = document.querySelector('.nicon[aria-label="Cart"]');
+        const span = document.createElement('span');
+        span.className = 'cart-badge';
+        span.textContent = data.cart_count;
+        cartLink.appendChild(span);
+      }
+    } catch (e) {
+      alert('Could not add item to cart.');
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  }
+</script>
+</body>
+</html>

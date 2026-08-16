@@ -235,6 +235,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:60px 52px 30px
   <div class="nav-right">
     <ul class="nav-links">
       <li><a href="#new-arrivals">New</a></li>
+      <li><a href="<%= track_order_path %>" class="track-order-link" aria-label="Track Order" title="Track Order" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:1.5px solid currentColor;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;color:inherit;white-space:nowrap;">📦 Track</a></li>
       <li><a href="<%= storefront_cart_path %>" class="cart-link" aria-label="Cart">🛒<% if cart_count > 0 %><span class="cart-badge"><%= cart_count %></span><% end %></a></li>
       <li><a href="/customer/login" class="btn-pill-login">Login</a></li>
     </ul>
@@ -245,6 +246,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:60px 52px 30px
     <a href="#bestsellers">Bestsellers</a>
     <a href="#categories">Categories</a>
     <a href="#new-arrivals">New Arrivals</a>
+    <a href="<%= track_order_path %>">📦 Track Order</a>
     <a href="<%= storefront_cart_path %>">Cart (<%= cart_count %>)</a>
     <a href="/customer/login">Login</a>
   </div>

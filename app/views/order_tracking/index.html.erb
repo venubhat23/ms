@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track Your Order<%= " - #{@business_settings&.business_name}" if @business_settings&.business_name.present? %></title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <%= render 'order_tracking/styles' %>
+</head>
+<body>
+  <div class="ot-page">
+    <a class="ot-brand" href="/">
+      <img src="<%= @business_settings&.logo_display_url || '/logo.jpeg' %>" alt="<%= @business_settings&.business_name || 'Store' %>">
+      <span class="ot-brand-name"><%= @business_settings&.business_name.presence || 'Our Store' %></span>
+    </a>
+
+    <div class="ot-hero">
+      <span class="ot-eyebrow">Order Tracking</span>
+      <h1>Track Your Order</h1>
+      <p>Enter your Booking ID to see live status and your invoice.</p>
+    </div>
+
+    <% if @not_found %>
+      <div class="ot-alert ot-alert-error">
+        <span>⚠️</span>
+        <span>We couldn't find any order matching <strong>"<%= @searched_number %>"</strong>. Please double-check the Booking ID from your order confirmation email/SMS and try again.</span>
+      </div>
+    <% end %>
+
+    <div class="ot-card">
+      <%= form_with url: track_order_path, method: :get, local: true, class: "ot-search-form" do %>
+        <input type="text" name="booking_number" placeholder="e.g. BK20260816AB12CD" required
+               value="<%= @searched_number %>" autofocus autocomplete="off">
+        <button type="submit" class="ot-btn">🔍 Track Order</button>
+      <% end %>
+      <p class="ot-hint">Your Booking ID is printed on your order confirmation, invoice and shipment SMS/email.</p>
+    </div>
+
+    <p class="ot-footer">
+      <a href="/">← Back to Store</a>
+      <% if @business_settings&.mobile.present? %>
+        &nbsp;·&nbsp; Need help? Call <%= @business_settings.mobile %>
+      <% end %>
+    </p>
+  </div>
+</body>
+</html>

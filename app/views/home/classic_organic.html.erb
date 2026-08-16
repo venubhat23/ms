@@ -391,6 +391,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
     <ul class="nav-links right-links">
       <li><a href="#">Combos</a></li>
       <li><a href="#">Blogs</a></li>
+      <li><a href="<%= track_order_path %>" class="track-order-link" aria-label="Track Order" title="Track Order" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:1.5px solid currentColor;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;color:inherit;white-space:nowrap;">📦 Track</a></li>
       <li><a href="<%= storefront_cart_path %>" class="cart-link" aria-label="Cart">🛒<% if cart_count > 0 %><span class="cart-badge"><%= cart_count %></span><% end %></a></li>
       <li><a href="/customer/login" class="btn btn-login">Login</a></li>
     </ul>
@@ -402,6 +403,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
     <a href="#">Wellness</a>
     <a href="#">Combos</a>
     <a href="#">Blogs</a>
+    <a href="<%= track_order_path %>">📦 Track Order</a>
     <a href="<%= storefront_cart_path %>">Cart (<%= cart_count %>)</a>
     <a href="/customer/login">Login</a>
   </div>

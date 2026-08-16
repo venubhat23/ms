@@ -102,6 +102,13 @@ Rails.application.routes.draw do
   get '/invoice/:token', to: 'booking_invoices#public_view', as: 'public_invoice'
   get '/invoice/:token/download', to: 'booking_invoices#public_download_pdf', as: 'public_invoice_download', defaults: { format: :pdf }
 
+  # Public order tracking (no authentication required) — search a booking by its
+  # booking ID and view status + invoice details. Linked from the "Track Order"
+  # button on every public storefront theme.
+  get '/track-order', to: 'order_tracking#index', as: 'track_order'
+  get '/track-order/:booking_number', to: 'order_tracking#show', as: 'track_order_show',
+      constraints: { booking_number: /[^\/]+/ }
+
   # Dashboard
   get 'dashboard', to: 'dashboard#index'
   get 'dashboard/beautiful', to: 'dashboard#beautiful'

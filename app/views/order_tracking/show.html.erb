@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order #<%= @booking.booking_number %><%= " - #{@business_settings&.business_name}" if @business_settings&.business_name.present? %></title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <%= render 'order_tracking/styles' %>
+</head>
+<body>
+  <div class="ot-page">
+    <a class="ot-brand" href="/">
+      <img src="<%= @business_settings&.logo_display_url || '/logo.jpeg' %>" alt="<%= @business_settings&.business_name || 'Store' %>">
+      <span class="ot-brand-name"><%= @business_settings&.business_name.presence || 'Our Store' %></span>
+    </a>
+
+    <div class="ot-hero">
+      <span class="ot-eyebrow">Order Tracking</span>
+      <h1>Order #<%= @booking.booking_number %></h1>
+      <p>Placed on <%= (@booking.booking_date || @booking.created_at)&.strftime('%d %b %Y, %I:%M %p') %></p>
+    </div>
+
+    <!-- Search again -->
+    <div class="ot-card no-print">
+      <%= form_with url: track_order_path, method: :get, local: true, class: "ot-search-form" do %>
+        <input type="text" name="booking_number" placeholder="e.g. BK20260816AB12CD" required
+               value="<%= @booking.booking_number %>" autocomplete="off">
+        <button type="submit" class="ot-btn">🔍 Track Another Order</button>
+      <% end %>
+    </div>
+
+    <!-- Status -->
+    <div class="ot-card">
+      <p class="ot-section-title">Order Status</p>
+
+      <% if @terminal_state == :cancelled %>
+        <div class="ot-terminal-banner cancelled">
+          <span class="icon">✕</span>
+          <div>
+            This order was cancelled<% if @booking.cancellation_reason.present? %> — <%= @booking.cancellation_reason %><% end %>.
+          </div>
+        </div>
+      <% elsif @terminal_state == :returned %>
+        <div class="ot-terminal-banner returned">
+          <span class="icon">↩︎</span>
+          <div>
+            This order was returned<% if @booking.return_reason.present? %> — <%= @booking.return_reason %><% end %>.
+          </div>
+        </div>
+      <% else %>
+        <div class="ot-stepper">
+          <% @steps.each_with_index do |step, i| %>
+            <div class="ot-step <%= i < @current_step_index ? 'done' : (i == @current_step_index ? 'current' : '') %>">
+              <div class="ot-step-dot"><%= i <= @current_step_index ? step[:icon] : '' %></div>
+              <div class="ot-step-label"><%= step[:label] %></div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+
+      <div class="ot-meta-grid">
+        <div class="ot-meta-item">
+          <div class="label">Payment Status</div>
+          <div class="value">
+            <span class="ot-badge <%= @booking.payment_status_paid? ? 'ot-badge-green' : (@booking.payment_status == 'partially_paid' ? 'ot-badge-amber' : 'ot-badge-red') %>">
+              <%= @booking.payment_status&.titleize || 'Unpaid' %>
+            </span>
+          </div>
+        </div>
+        <% if @booking.tracking_number.present? %>
+          <div class="ot-meta-item">
+            <div class="label">Tracking Number</div>
+            <div class="value"><%= @booking.tracking_number %></div>
+          </div>
+        <% end %>
+        <% if @booking.courier_service.present? %>
+          <div class="ot-meta-item">
+            <div class="label">Courier</div>
+            <div class="value"><%= @booking.courier_service %></div>
+          </div>
+        <% end %>
+        <% if @booking.expected_delivery_date.present? %>
+          <div class="ot-meta-item">
+            <div class="label">Expected Delivery</div>
+            <div class="value"><%= @booking.expected_delivery_date.strftime('%d %b %Y') %></div>
+          </div>
+        <% end %>
+        <% if @booking.delivery_time.present? %>
+          <div class="ot-meta-item">
+            <div class="label">Delivered On</div>
+            <div class="value"><%= @booking.delivery_time.strftime('%d %b %Y, %I:%M %p') %></div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Delivery address -->
+    <% if @booking.delivery_address.present? %>
+      <div class="ot-card">
+        <p class="ot-section-title">Delivery Address</p>
+        <div class="ot-address-box">
+          <strong><%= @booking.customer_name %></strong><br>
+          <%= @booking.delivery_address %>
+          <% if @booking.customer_phone.present? %><br>📞 <%= @booking.customer_phone %><% end %>
+        </div>
+      </div>
+    <% end %>
+
+    <!-- Items -->
+    <div class="ot-card">
+      <p class="ot-section-title">Order Items</p>
+      <table class="ot-items">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="num">Qty</th>
+            <th class="num">Price</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @booking_items.each do |item| %>
+            <tr>
+              <td class="ot-item-name"><%= item.product&.name || 'Product' %></td>
+              <td class="num"><%= number_with_precision(item.quantity, precision: 2, strip_insignificant_zeros: true) %></td>
+              <td class="num">₹<%= number_with_delimiter(item.price || 0) %></td>
+              <td class="num">₹<%= number_with_delimiter(((item.price || 0) * item.quantity).round(2)) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+
+      <div class="ot-totals">
+        <% if @booking.subtotal.present? %>
+          <div class="row"><span>Subtotal</span><span>₹<%= number_with_delimiter(@booking.subtotal) %></span></div>
+        <% end %>
+        <% if @booking.tax_amount.to_f > 0 %>
+          <div class="row"><span>Tax</span><span>₹<%= number_with_delimiter(@booking.tax_amount) %></span></div>
+        <% end %>
+        <% if @booking.shipping_charges.to_f > 0 %>
+          <div class="row"><span>Delivery Charges</span><span>₹<%= number_with_delimiter(@booking.shipping_charges) %></span></div>
+        <% end %>
+        <% if @booking.discount_amount.to_f > 0 %>
+          <div class="row"><span>Discount</span><span>- ₹<%= number_with_delimiter(@booking.discount_amount) %></span></div>
+        <% end %>
+        <div class="row grand"><span>Total</span><span>₹<%= number_with_delimiter(@booking.final_amount_after_discount || @booking.total_amount || 0) %></span></div>
+      </div>
+
+      <div class="ot-cta-row no-print">
+        <% if @invoice&.share_token.present? %>
+          <%= link_to "🧾 View Full Invoice", public_invoice_path(@invoice.share_token), class: "ot-btn", target: "_blank", rel: "noopener" %>
+          <%= link_to "⬇️ Download PDF", public_invoice_download_path(@invoice.share_token, format: :pdf), class: "ot-btn ot-btn-outline" %>
+        <% else %>
+          <button class="ot-btn ot-btn-outline" disabled style="opacity:.6;cursor:not-allowed;">🧾 Invoice not generated yet</button>
+        <% end %>
+      </div>
+    </div>
+
+    <p class="ot-footer">
+      <a href="/">← Back to Store</a>
+      <% if @business_settings&.mobile.present? %>
+        &nbsp;·&nbsp; Need help? Call <%= @business_settings.mobile %>
+      <% end %>
+    </p>
+  </div>
+</body>
+</html>

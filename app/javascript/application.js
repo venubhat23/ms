@@ -4,6 +4,25 @@ import "controllers"
 import * as bootstrap from "bootstrap"
 window.bootstrap = bootstrap
 
+// layout_fix.css forces `overflow: hidden !important` on every .card (and
+// `overflow-x: auto !important` on .table-responsive), which clips any
+// Bootstrap dropdown-menu ("3-dot" action menu) opened inside a table —
+// layout_fix.css has a :has() rule that frees this for browsers that
+// support it; this is the fallback for browsers that don't, and forces
+// the same override via inline `!important` so it beats the stylesheet.
+document.addEventListener('show.bs.dropdown', (event) => {
+  const card = event.target.closest('.card');
+  const tableResponsive = event.target.closest('.table-responsive');
+  if (card) card.style.setProperty('overflow', 'visible', 'important');
+  if (tableResponsive) tableResponsive.style.setProperty('overflow', 'visible', 'important');
+});
+document.addEventListener('hide.bs.dropdown', (event) => {
+  const card = event.target.closest('.card');
+  const tableResponsive = event.target.closest('.table-responsive');
+  if (card) card.style.removeProperty('overflow');
+  if (tableResponsive) tableResponsive.style.removeProperty('overflow');
+});
+
 // Premium DemoFarm Admin JavaScript
 window.DemoFarmAdmin = {
 

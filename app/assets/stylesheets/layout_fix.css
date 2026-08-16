@@ -253,6 +253,17 @@ div.main-content,
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12) !important;
 }
 
+/* Bootstrap "3-dot" action dropdowns (.dropdown-menu) inside a table are
+   position:absolute, so the overflow:hidden above (and .table-responsive's
+   overflow-x:auto, which forces overflow-y to clip too per the CSS spec)
+   was cutting them off/hiding them entirely on every admin index page that
+   wraps its table in a .card — not just one page. Free the overflow only
+   while a dropdown inside that card/table is actually open. */
+.main-content .card:has(.dropdown-menu.show),
+.main-content .table-responsive:has(.dropdown-menu.show) {
+  overflow: visible !important;
+}
+
 .main-content .card-header {
   background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%) !important;
   border-bottom: 1px solid #e2e8f0 !important;

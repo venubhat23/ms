@@ -221,21 +221,14 @@
 </div>
 
 <style>
-/* Fix dropdown menu visibility */
-.dropdown {
-  position: relative;
-}
-
+/* Actions dropdown uses Popper's `fixed` positioning strategy (set via
+   popperConfig in app/javascript/application.js) so it escapes the
+   table-responsive wrapper's overflow clipping and Popper can auto-flip it
+   upward near the bottom of the table. Forcing `position: absolute` here
+   (the old fix attempt) overrides that inline style via `!important` and
+   breaks it again — don't re-add it. */
 .dropdown-menu {
-  position: absolute !important;
   z-index: 1050 !important;
   min-width: 150px;
-}
-
-/* Ensure the last row's dropdown opens upward if needed */
-tbody tr:last-child .dropdown-menu,
-tbody tr:nth-last-child(2) .dropdown-menu {
-  bottom: 100%;
-  top: auto;
 }
 </style>

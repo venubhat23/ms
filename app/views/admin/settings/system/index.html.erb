@@ -148,7 +148,7 @@
                 <label class="form-label">Business Logo</label>
                 <div class="d-flex align-items-center gap-3 mb-2">
                   <img id="logo_preview_img" src="<%= @business_setting.logo_display_url %>" alt="Business Logo"
-                       class="border rounded" style="max-width: 100px; max-height: 100px; object-fit: contain; <%= 'display: none;' unless @business_setting.logo_url.present? %>">
+                       class="border rounded" style="max-width: 100px; max-height: 100px; object-fit: contain; cursor: zoom-in; <%= 'display: none;' unless @business_setting.logo_url.present? %>">
                   <div>
                     <input type="file" id="logo_file_input" accept="image/*" class="form-control form-control-sm">
                     <small class="form-text text-muted">Uploaded logo is used on all invoices and documents</small>
@@ -1347,6 +1347,21 @@
   </div>
 </div>
 
+<!-- Image Preview Modal — shared by business logo + website image thumbnails -->
+<div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true" style="z-index:9999;">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content" style="background:#fff;">
+      <div class="modal-header py-2">
+        <h5 class="modal-title" id="imagePreviewModalLabel">Image Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center" style="background:#f5f7fa;">
+        <img id="imagePreviewModalImg" src="" alt="Preview" class="img-fluid rounded" style="max-height:75vh;">
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
   .template-card input[type="radio"]:checked + .card,
   .template-card.selected .card { border-color: #0d6efd !important; box-shadow: 0 0 0 3px rgba(13,110,253,0.15); }
@@ -1412,6 +1427,19 @@
     });
   }, false);
 })();
+
+// Shared image preview modal, used by the business logo and the website image thumbnails below.
+const imagePreviewModalEl = document.getElementById('imagePreviewModal');
+const imagePreviewModalImg = document.getElementById('imagePreviewModalImg');
+function openImagePreview(url) {
+  if (!url || !imagePreviewModalEl) return;
+  imagePreviewModalImg.src = url;
+  bootstrap.Modal.getOrCreateInstance(imagePreviewModalEl).show();
+}
+
+document.getElementById('logo_preview_img')?.addEventListener('click', function() {
+  if (this.style.display !== 'none') openImagePreview(this.src);
+});
 
 // Upload business logo to R2 via AJAX as soon as a file is picked
 document.getElementById('logo_file_input')?.addEventListener('change', function() {
@@ -1510,13 +1538,19 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
       col.className = 'col-auto website-image-thumb';
       col.dataset.url = url;
       col.innerHTML = '<div class="position-relative border rounded" style="width:120px;height:120px;">' +
-        '<img src="' + url + '" alt="" class="w-100 h-100 rounded" style="object-fit: cover;">' +
+        '<img src="' + url + '" alt="" class="w-100 h-100 rounded website-image-preview" style="object-fit: cover; cursor: zoom-in;">' +
         '<button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-0 website-image-remove" ' +
         'style="width:24px;height:24px;line-height:1;"><i class="bi bi-x"></i></button></div>';
       grid.appendChild(col);
     }
 
     grid.addEventListener('click', function(e) {
+      const previewImg = e.target.closest('.website-image-preview');
+      if (previewImg) {
+        openImagePreview(previewImg.src);
+        return;
+      }
+
       const btn = e.target.closest('.website-image-remove');
       if (!btn) return;
       const thumb = btn.closest('.website-image-thumb');

@@ -1,7 +1,7 @@
 <% images.each do |url| %>
   <div class="col-auto website-image-thumb" data-url="<%= url %>">
     <div class="position-relative border rounded" style="width:120px;height:120px;">
-      <img src="<%= url %>" alt="" class="w-100 h-100 rounded" style="object-fit: cover;">
+      <img src="<%= url %>" alt="" class="w-100 h-100 rounded website-image-preview" style="object-fit: cover; cursor: zoom-in;">
       <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 p-0 website-image-remove"
               data-gallery="<%= gallery %>" data-url="<%= url %>" style="width:24px;height:24px;line-height:1;">
         <i class="bi bi-x"></i>

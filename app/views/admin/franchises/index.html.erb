@@ -184,7 +184,7 @@
                 </td>
                 <td class="align-middle">
                   <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-strategy="fixed" aria-expanded="false">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                       <i class="bi bi-three-dots"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -274,6 +274,24 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('No password set for this franchise.');
     }
   };
+
+  // Fix dropdown positioning for table-responsive containers
+  const dropdownButtons = document.querySelectorAll('.table .dropdown-toggle');
+  dropdownButtons.forEach(button => {
+    button.addEventListener('show.bs.dropdown', function() {
+      const tableResponsive = this.closest('.table-responsive');
+      if (tableResponsive) {
+        tableResponsive.style.overflow = 'visible';
+      }
+    });
+
+    button.addEventListener('hide.bs.dropdown', function() {
+      const tableResponsive = this.closest('.table-responsive');
+      if (tableResponsive) {
+        tableResponsive.style.overflow = 'auto';
+      }
+    });
+  });
 });
 </script>
 
@@ -308,12 +326,23 @@ document.addEventListener('DOMContentLoaded', function() {
   color: #0d6efd !important;
 }
 
-/* Actions dropdown uses Popper's `fixed` positioning strategy (via
-   data-bs-strategy="fixed" on the toggle) so it escapes the table-responsive
-   wrapper's overflow-x:auto clipping and Popper can auto-flip it upward near
-   the bottom of the table instead of being cut off/overlapping the row. */
 .dropdown-menu {
   min-width: 150px;
+  z-index: 1050 !important;
+}
+
+/* Fix Bootstrap dropdown getting clipped by the table-responsive wrapper's
+   overflow-x:auto (which also clips the y-axis per the CSS overflow spec).
+   `data-bs-strategy="fixed"` on the toggle is NOT a real Bootstrap Dropdown
+   option (see Dropdown.DefaultType in bootstrap/js/src/dropdown.js), so it
+   was a no-op and the menu stayed hidden/clipped, making the 3-dot button
+   look unclickable. Free the wrapper's overflow while the menu is open. */
+.table-responsive .dropdown {
+  position: static;
+}
+
+.table-responsive:has(.dropdown-menu.show) {
+  overflow: visible !important;
 }
 
 /* Make the credentials column more compact but readable */

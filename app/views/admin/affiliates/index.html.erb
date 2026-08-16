@@ -96,14 +96,11 @@
           <thead class="table-light">
             <tr>
               <th class="border-0 fw-semibold">Affiliate</th>
-              <th class="border-0 fw-semibold">Company</th>
-              <th class="border-0 fw-semibold">Contact Info</th>
-              <th class="border-0 fw-semibold">Login Credentials</th>
-              <th class="border-0 fw-semibold">Commission</th>
-              <th class="border-0 fw-semibold">Referred</th>
+              <th class="border-0 fw-semibold">Contact &amp; Login</th>
+              <th class="border-0 fw-semibold">Commission / Referred</th>
               <th class="border-0 fw-semibold">Status</th>
               <th class="border-0 fw-semibold">Joined</th>
-              <th class="border-0 fw-semibold">Actions</th>
+              <th class="border-0 fw-semibold text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -117,16 +114,10 @@
                     <div>
                       <h6 class="mb-0"><%= affiliate.display_name %></h6>
                       <small class="text-muted">ID: #<%= affiliate.id %></small>
+                      <% if affiliate.company_name.present? %>
+                        <div class="small text-muted"><%= affiliate.company_name %></div>
+                      <% end %>
                     </div>
-                  </div>
-                </td>
-                <td class="align-middle">
-                  <div>
-                    <% if affiliate.company_name.present? %>
-                      <div class="fw-semibold"><%= affiliate.company_name %></div>
-                    <% else %>
-                      <span class="text-muted">-</span>
-                    <% end %>
                   </div>
                 </td>
                 <td class="align-middle">
@@ -143,17 +134,8 @@
                         <%= affiliate.mobile %>
                       </div>
                     <% end %>
-                  </div>
-                </td>
-                <td class="align-middle">
-                  <div class="login-credentials">
-                    <div class="small">
-                      <i class="bi bi-person-circle text-muted me-1"></i>
-                      <strong>Username:</strong> <%= affiliate.username || affiliate.email %>
-                    </div>
                     <div class="small mt-1">
                       <i class="bi bi-key text-muted me-1"></i>
-                      <strong>Password:</strong>
                       <span class="password-display" onclick="showPassword('<%= affiliate.auto_generated_password %>')">
                         <span class="password-hidden">••••••••</span>
                         <button type="button" class="btn btn-link btn-sm p-0 ms-1" title="Click to view password">
@@ -168,8 +150,6 @@
                     <i class="bi bi-percent me-1"></i>
                     <%= affiliate.formatted_commission %>
                   </span>
-                </td>
-                <td class="align-middle">
                   <span class="badge bg-primary-subtle text-primary">
                     <i class="bi bi-people me-1"></i>
                     <%= @referred_counts[affiliate.id] || 0 %>
@@ -184,51 +164,21 @@
                 <td class="align-middle">
                   <%= affiliate.created_at.strftime("%b %d, %Y") %>
                 </td>
-                <td class="align-middle">
-                  <div class="dropdown">
-                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                      <i class="bi bi-three-dots"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      <li>
-                        <%= link_to admin_affiliate_path(affiliate), class: "dropdown-item" do %>
-                          <i class="bi bi-eye me-2"></i>
-                          View Details
-                        <% end %>
-                      </li>
-                      <li>
-                        <%= link_to edit_admin_affiliate_path(affiliate), class: "dropdown-item" do %>
-                          <i class="bi bi-pencil me-2"></i>
-                          Edit Affiliate
-                        <% end %>
-                      </li>
-                      <li>
-                        <%= link_to toggle_status_admin_affiliate_path(affiliate), method: :patch,
-                            class: "dropdown-item" do %>
-                          <i class="bi bi-<%= affiliate.status? ? 'x-circle' : 'check-circle' %> me-2"></i>
-                          <%= affiliate.status? ? 'Deactivate' : 'Activate' %>
-                        <% end %>
-                      </li>
-                      <li>
-                        <%= link_to reset_password_admin_affiliate_path(affiliate), method: :patch,
-                            class: "dropdown-item" do %>
-                          <i class="bi bi-key me-2"></i>
-                          Reset Password
-                        <% end %>
-                      </li>
-                      <li><hr class="dropdown-divider"></li>
-                      <li>
-                        <%= link_to admin_affiliate_path(affiliate), method: :delete,
-                            class: "dropdown-item text-danger",
-                            confirm: "Are you sure you want to delete this affiliate?",
-                            data: {
-                              confirm: "Are you sure you want to delete #{affiliate.display_name}? This action cannot be undone."
-                            } do %>
-                          <i class="bi bi-trash me-2"></i>
-                          Delete Affiliate
-                        <% end %>
-                      </li>
-                    </ul>
+                <td class="align-middle text-end">
+                  <div class="d-flex gap-1 justify-content-end action-icons">
+                    <%= link_to admin_affiliate_path(affiliate), class: "btn btn-sm btn-outline-primary", title: "View" do %>
+                      <i class="bi bi-eye"></i>
+                    <% end %>
+                    <%= link_to edit_admin_affiliate_path(affiliate), class: "btn btn-sm btn-outline-secondary", title: "Edit" do %>
+                      <i class="bi bi-pencil"></i>
+                    <% end %>
+                    <%= link_to admin_affiliate_path(affiliate), method: :delete,
+                        class: "btn btn-sm btn-outline-danger", title: "Delete",
+                        data: {
+                          confirm: "Are you sure you want to delete #{affiliate.display_name}? This action cannot be undone."
+                        } do %>
+                      <i class="bi bi-trash"></i>
+                    <% end %>
                   </div>
                 </td>
               </tr>
@@ -268,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
     tableRows.forEach(row => {
       const affiliateName = row.cells[0]?.textContent.toLowerCase() || '';
       const contactInfo = row.cells[1]?.textContent.toLowerCase() || '';
-      const commission = row.cells[3]?.textContent.toLowerCase() || '';
+      const commission = row.cells[2]?.textContent.toLowerCase() || '';
 
       if (affiliateName.includes(searchTerm) ||
           contactInfo.includes(searchTerm) ||
@@ -322,15 +272,19 @@ document.addEventListener('DOMContentLoaded', function() {
   color: #0d6efd !important;
 }
 
-/* Actions dropdown uses Popper's `fixed` positioning strategy (set via
-   popperConfig in app/javascript/application.js) so it escapes the
-   table-responsive wrapper's overflow clipping and Popper can auto-flip it
-   upward near the bottom of the table. Forcing `position: absolute` here
-   (the old fix attempt) overrides that inline style via `!important` and
-   breaks it again — don't re-add it. */
-.dropdown-menu {
-  z-index: 1050 !important;
-  min-width: 150px;
+/* Action icon buttons */
+.action-icons .btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.action-icons .btn i {
+  font-size: 0.85rem;
 }
 
 /* Make the credentials column more compact but readable */

@@ -259,12 +259,12 @@ class Franchise::BookingsController < Franchise::BaseController
           orientation: 'Portrait',
           header: {
             html: {
-              template: 'shared/pdf_header'
+              content: render_to_string(partial: 'shared/pdf_header', formats: [:html])
             }
           },
           footer: {
             html: {
-              template: 'shared/pdf_footer'
+              content: render_to_string(partial: 'shared/pdf_footer', formats: [:html])
             }
           }
         )

@@ -94,8 +94,8 @@ class OrderTrackingController < ActionController::Base
           disable_smart_shrinking: true,
           print_media_type: true,
           orientation: 'Portrait',
-          header: { html: { template: 'shared/pdf_header' } },
-          footer: { html: { template: 'shared/pdf_footer' } }
+          header: { html: { content: render_to_string(partial: 'shared/pdf_header', formats: [:html]) } },
+          footer: { html: { content: render_to_string(partial: 'shared/pdf_footer', formats: [:html]) } }
         )
 
         invoice_filename = "invoice-#{@booking.invoice_number || @booking.booking_number}-#{Date.current.strftime('%Y%m%d')}.pdf"

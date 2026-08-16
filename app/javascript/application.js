@@ -6,22 +6,26 @@ window.bootstrap = bootstrap
 
 // layout_fix.css forces `overflow: hidden !important` on every .card (and
 // `overflow-x: auto !important` on .table-responsive), which clips any
-// Bootstrap dropdown-menu ("3-dot" action menu) opened inside a table —
-// layout_fix.css has a :has() rule that frees this for browsers that
-// support it; this is the fallback for browsers that don't, and forces
-// the same override via inline `!important` so it beats the stylesheet.
-document.addEventListener('show.bs.dropdown', (event) => {
-  const card = event.target.closest('.card');
-  const tableResponsive = event.target.closest('.table-responsive');
-  if (card) card.style.setProperty('overflow', 'visible', 'important');
-  if (tableResponsive) tableResponsive.style.setProperty('overflow', 'visible', 'important');
-});
-document.addEventListener('hide.bs.dropdown', (event) => {
-  const card = event.target.closest('.card');
-  const tableResponsive = event.target.closest('.table-responsive');
-  if (card) card.style.removeProperty('overflow');
-  if (tableResponsive) tableResponsive.style.removeProperty('overflow');
-});
+// Bootstrap dropdown-menu ("3-dot" action menu) opened inside a table on
+// every admin index page. Freeing that overflow via CSS/JS on show/hide is
+// fragile (depends on cascade specificity and exact ancestor structure).
+// The robust fix: tell Popper (which Bootstrap's Dropdown wraps) to
+// position the menu with `strategy: 'fixed'` — i.e. relative to the
+// viewport, not the nearest scroll/overflow ancestor — so it's never
+// clipped by an ancestor's overflow at all, regardless of markup. This is
+// the real option a previous, non-functional `data-bs-strategy="fixed"`
+// attribute in some views was trying (and failing) to set — Bootstrap's
+// Dropdown only reads `popperConfig` from JS init, not a data attribute.
+function fixDropdownPositioning() {
+  document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((toggle) => {
+    if (bootstrap.Dropdown.getInstance(toggle)) return;
+    new bootstrap.Dropdown(toggle, {
+      popperConfig: (defaultConfig) => ({ ...defaultConfig, strategy: 'fixed' })
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', fixDropdownPositioning);
+document.addEventListener('turbo:load', fixDropdownPositioning);
 
 // Premium DemoFarm Admin JavaScript
 window.DemoFarmAdmin = {

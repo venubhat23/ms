@@ -208,8 +208,6 @@
 
     # Get the actual policy for context
     policy = case policy_type
-             when 'health'
-               HealthInsurance.find_by(id: policy_id)
              when 'life'
                LifeInsurance.find_by(id: policy_id)
              else

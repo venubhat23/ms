@@ -5,8 +5,6 @@ namespace :mobile_api do
 
     # Clean existing test data
     puts "🧹 Cleaning existing test data..."
-    HealthInsuranceMember.where("member_name LIKE ?", "%Customer%").destroy_all
-    HealthInsurance.where("policy_number LIKE ?", "HLT%TEST%").destroy_all
     LifeInsurance.where("policy_number LIKE ?", "LIF%TEST%").destroy_all
     Customer.where("email LIKE ?", "%@example.com").destroy_all
 
@@ -58,57 +56,6 @@ namespace :mobile_api do
       mobile: "9876543212"
     )
 
-    # Create Health Insurance with upcoming monthly installments
-    puts "🏥 Creating Health Insurance with upcoming installments..."
-    health_policy = HealthInsurance.create!(
-      customer: test_customer,
-      policy_holder: test_customer.display_name,
-      insurance_company_name: "Star Health Allied Insurance Co Ltd",
-      plan_name: "Family Health Protection Plan",
-      policy_number: "HLT_MONTHLY_TEST_#{Time.current.to_i}",
-      insurance_type: 'Individual',
-      policy_type: 'New',
-      policy_booking_date: 6.months.ago,
-      policy_start_date: 6.months.ago,
-      policy_end_date: 6.months.from_now,
-      payment_mode: 'Monthly',
-      sum_insured: 500000,
-      net_premium: 24000,
-      gst_percentage: 18,
-      total_premium: 28320,
-      main_agent_commission_percentage: 20,
-      commission_amount: 4800,
-      tds_percentage: 10,
-      tds_amount: 480,
-      after_tds_value: 4320,
-      # Key field for upcoming installments
-      installment_autopay_start_date: 5.days.from_now,
-      installment_autopay_end_date: 6.months.from_now
-    )
-
-    # Create Health Insurance with quarterly installments
-    HealthInsurance.create!(
-      customer: test_customer,
-      policy_holder: test_customer.display_name,
-      insurance_company_name: "Care Health Insurance Ltd",
-      plan_name: "Quarterly Health Plan",
-      policy_number: "HLT_QUARTERLY_TEST_#{Time.current.to_i}",
-      insurance_type: 'Family Floater',
-      policy_type: 'Renewal',
-      policy_booking_date: 8.months.ago,
-      policy_start_date: 8.months.ago,
-      policy_end_date: 4.months.from_now,
-      payment_mode: 'Quarterly',
-      sum_insured: 1000000,
-      net_premium: 36000,
-      gst_percentage: 18,
-      total_premium: 42480,
-      main_agent_commission_percentage: 22,
-      commission_amount: 7920,
-      installment_autopay_start_date: 10.days.from_now,
-      installment_autopay_end_date: 4.months.from_now
-    )
-
     # Create Life Insurance with upcoming monthly installments
     puts "👨‍👩‍👧‍👦 Creating Life Insurance with upcoming installments..."
     LifeInsurance.create!(
@@ -148,27 +95,6 @@ namespace :mobile_api do
     # Create policies for upcoming renewals
     puts "🔄 Creating policies for upcoming renewals..."
 
-    # Health insurance expiring in 15 days
-    HealthInsurance.create!(
-      customer: test_customer,
-      policy_holder: test_customer.display_name,
-      insurance_company_name: "HDFC ERGO General Insurance Co Ltd",
-      plan_name: "Health Plan Expiring Soon",
-      policy_number: "HLT_EXPIRING_TEST_#{Time.current.to_i}",
-      insurance_type: 'Individual',
-      policy_type: 'Renewal',
-      policy_booking_date: 11.months.ago,
-      policy_start_date: 11.months.ago,
-      policy_end_date: 15.days.from_now, # Expiring soon for renewals API
-      payment_mode: 'Yearly',
-      sum_insured: 750000,
-      net_premium: 30000,
-      gst_percentage: 18,
-      total_premium: 35400,
-      main_agent_commission_percentage: 18,
-      commission_amount: 5400
-    )
-
     # Life insurance expiring in 45 days
     LifeInsurance.create!(
       customer: test_customer,
@@ -198,27 +124,6 @@ namespace :mobile_api do
 
     # Create some active policies for portfolio
     puts "📋 Creating active policies for portfolio..."
-
-    # Active Health Insurance
-    HealthInsurance.create!(
-      customer: test_customer,
-      policy_holder: test_customer.display_name,
-      insurance_company_name: "Niva Bupa Health Insurance Co Ltd",
-      plan_name: "Active Family Health Plan",
-      policy_number: "HLT_ACTIVE_TEST_#{Time.current.to_i}",
-      insurance_type: 'Family Floater',
-      policy_type: 'New',
-      policy_booking_date: 3.months.ago,
-      policy_start_date: 3.months.ago,
-      policy_end_date: 9.months.from_now,
-      payment_mode: 'Yearly',
-      sum_insured: 800000,
-      net_premium: 32000,
-      gst_percentage: 18,
-      total_premium: 37760,
-      main_agent_commission_percentage: 20,
-      commission_amount: 6400
-    )
 
     # Active Life Insurance
     LifeInsurance.create!(
@@ -252,7 +157,6 @@ namespace :mobile_api do
     puts "📊 Summary:"
     puts "- Created #{Customer.where(email: 'installment.test@example.com').count} test customer"
     puts "- Created #{FamilyMember.joins(:customer).where(customers: {email: 'installment.test@example.com'}).count} family members"
-    puts "- Created #{HealthInsurance.where('policy_number LIKE ?', '%TEST%').count} health insurance policies"
     puts "- Created #{LifeInsurance.where('policy_number LIKE ?', '%TEST%').count} life insurance policies"
     puts ""
     puts "🎯 Test Scenarios Available:"

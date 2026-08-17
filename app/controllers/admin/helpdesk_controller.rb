@@ -47,7 +47,7 @@ class Admin::HelpdeskController < Admin::ApplicationController
       {
         id: "HD-005",
         customer: "Robert Chen",
-        subject: "Health Insurance Query",
+        subject: "Life Insurance Query",
         status: "Escalated",
         priority: "High",
         created_at: Time.current - 10.hours,

@@ -39,27 +39,11 @@ class Admin::SubAgentsController < Admin::ApplicationController
     @distributor_assignment = @sub_agent.distributor_assignment
 
     # Get policies handled by this sub agent
-    @health_policies = HealthInsurance.where(sub_agent_id: @sub_agent.id).includes(:customer).order(:created_at => :desc)
     @life_policies = LifeInsurance.where(sub_agent_id: @sub_agent.id).includes(:customer).order(:created_at => :desc)
     @motor_policies = MotorInsurance.where(sub_agent_id: @sub_agent.id).includes(:customer).order(:created_at => :desc)
 
     # Combine all policies for summary
     @all_policies = []
-
-    @health_policies.each do |policy|
-      @all_policies << {
-        type: 'Health Insurance',
-        policy: policy,
-        policy_number: policy.policy_number,
-        customer_name: policy.customer.display_name,
-        company_name: policy.insurance_company_name,
-        premium: policy.total_premium,
-        start_date: policy.policy_start_date,
-        end_date: policy.policy_end_date,
-        status: policy.active? ? 'Active' : 'Expired',
-        created_at: policy.created_at
-      }
-    end
 
     @life_policies.each do |policy|
       @all_policies << {
@@ -96,14 +80,12 @@ class Admin::SubAgentsController < Admin::ApplicationController
 
     # Get commission payouts for this sub agent (check both 'sub_agent' and 'affiliate')
     @commission_payouts = CommissionPayout.where(payout_to: ['sub_agent', 'affiliate'])
-                                         .joins("LEFT JOIN health_insurances ON commission_payouts.policy_type = 'health' AND commission_payouts.policy_id = health_insurances.id
-                                                 LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
+                                         .joins("LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
                                                  LEFT JOIN motor_insurances ON commission_payouts.policy_type = 'motor' AND commission_payouts.policy_id = motor_insurances.id")
                                          .where(
-                                           "(commission_payouts.policy_type = 'health' AND health_insurances.sub_agent_id = ?) OR
-                                            (commission_payouts.policy_type = 'life' AND life_insurances.sub_agent_id = ?) OR
+                                           "(commission_payouts.policy_type = 'life' AND life_insurances.sub_agent_id = ?) OR
                                             (commission_payouts.policy_type = 'motor' AND motor_insurances.sub_agent_id = ?)",
-                                           @sub_agent.id, @sub_agent.id, @sub_agent.id
+                                           @sub_agent.id, @sub_agent.id
                                          ).order(:payout_date => :desc)
 
     # Commission summary calculations
@@ -139,19 +121,16 @@ class Admin::SubAgentsController < Admin::ApplicationController
     @available_distributors = Distributor.active.order(:first_name, :last_name)
 
     # Get basic policy and commission summary for quick reference
-    @total_policies = HealthInsurance.where(sub_agent_id: @sub_agent.id).count +
-                     LifeInsurance.where(sub_agent_id: @sub_agent.id).count +
+    @total_policies = LifeInsurance.where(sub_agent_id: @sub_agent.id).count +
                      MotorInsurance.where(sub_agent_id: @sub_agent.id).count
 
     @total_commission = CommissionPayout.where(payout_to: ['sub_agent', 'affiliate'])
-                                       .joins("LEFT JOIN health_insurances ON commission_payouts.policy_type = 'health' AND commission_payouts.policy_id = health_insurances.id
-                                               LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
+                                       .joins("LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
                                                LEFT JOIN motor_insurances ON commission_payouts.policy_type = 'motor' AND commission_payouts.policy_id = motor_insurances.id")
                                        .where(
-                                         "(commission_payouts.policy_type = 'health' AND health_insurances.sub_agent_id = ?) OR
-                                          (commission_payouts.policy_type = 'life' AND life_insurances.sub_agent_id = ?) OR
+                                         "(commission_payouts.policy_type = 'life' AND life_insurances.sub_agent_id = ?) OR
                                           (commission_payouts.policy_type = 'motor' AND motor_insurances.sub_agent_id = ?)",
-                                         @sub_agent.id, @sub_agent.id, @sub_agent.id
+                                         @sub_agent.id, @sub_agent.id
                                        ).sum(:payout_amount)
   end
 
@@ -198,7 +177,6 @@ class Admin::SubAgentsController < Admin::ApplicationController
     has_distributor_assignment = @sub_agent.distributor_assignment.present?
 
     # Check for insurance policies linked to this sub_agent
-    has_health_policies = HealthInsurance.where(sub_agent_id: @sub_agent.id).exists? rescue false
     has_life_policies = LifeInsurance.where(sub_agent_id: @sub_agent.id).exists? rescue false
     has_motor_policies = MotorInsurance.where(sub_agent_id: @sub_agent.id).exists? rescue false
     has_other_policies = defined?(OtherInsurance) && OtherInsurance.where(sub_agent_id: @sub_agent.id).exists? rescue false
@@ -209,7 +187,7 @@ class Admin::SubAgentsController < Admin::ApplicationController
     # Check for corresponding User account
     has_user_account = User.where(email: @sub_agent.email).exists? rescue false
 
-    if has_customers || has_health_policies || has_life_policies || has_motor_policies || has_other_policies || has_leads
+    if has_customers || has_life_policies || has_motor_policies || has_other_policies || has_leads
       error_messages = []
 
       if has_customers
@@ -218,7 +196,6 @@ class Admin::SubAgentsController < Admin::ApplicationController
       end
 
       policy_count = 0
-      policy_count += HealthInsurance.where(sub_agent_id: @sub_agent.id).count rescue 0
       policy_count += LifeInsurance.where(sub_agent_id: @sub_agent.id).count rescue 0
       policy_count += MotorInsurance.where(sub_agent_id: @sub_agent.id).count rescue 0
       policy_count += OtherInsurance.where(sub_agent_id: @sub_agent.id).count rescue 0 if defined?(OtherInsurance)

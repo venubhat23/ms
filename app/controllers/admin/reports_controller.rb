@@ -38,28 +38,24 @@ class Admin::ReportsController < Admin::ApplicationController
 
   # GET /admin/reports/expired_insurance
   def expired_insurance
-    @expired_health_insurances = HealthInsurance.expired.includes(:customer).order(:policy_end_date)
     @expired_life_insurances = LifeInsurance.expired.includes(:customer).order(:policy_end_date)
     @expired_motor_insurances = MotorInsurance.expired.includes(policy: :customer).order(:policy_end_date)
     @expired_other_insurances = OtherInsurance.expired.includes(policy: :customer).order(:policy_end_date)
 
     @stats = {
-      total_expired: @expired_health_insurances.count + @expired_life_insurances.count +
+      total_expired: @expired_life_insurances.count +
                     @expired_motor_insurances.count + @expired_other_insurances.count,
-      health_expired: @expired_health_insurances.count,
       life_expired: @expired_life_insurances.count,
       motor_expired: @expired_motor_insurances.count,
       other_expired: @expired_other_insurances.count
     }
   rescue => e
     Rails.logger.error "Error in expired_insurance: #{e.message}"
-    @expired_health_insurances = HealthInsurance.none
     @expired_life_insurances = LifeInsurance.none
     @expired_motor_insurances = MotorInsurance.none
     @expired_other_insurances = OtherInsurance.none
     @stats = {
       total_expired: 0,
-      health_expired: 0,
       life_expired: 0,
       motor_expired: 0,
       other_expired: 0
@@ -81,10 +77,6 @@ class Admin::ReportsController < Admin::ApplicationController
     start_date = Date.current
     end_date = 60.days.from_now
 
-    @renewal_health_insurances = HealthInsurance.where(policy_end_date: start_date..end_date)
-                                               .includes(:customer)
-                                               .order(:policy_end_date)
-
     @renewal_life_insurances = LifeInsurance.where(policy_end_date: start_date..end_date)
                                            .includes(:customer)
                                            .order(:policy_end_date)
@@ -98,22 +90,19 @@ class Admin::ReportsController < Admin::ApplicationController
                                              .order(:policy_end_date)
 
     @stats = {
-      total_renewals: @renewal_health_insurances.count + @renewal_life_insurances.count +
+      total_renewals: @renewal_life_insurances.count +
                      @renewal_motor_insurances.count + @renewal_other_insurances.count,
-      health_renewals: @renewal_health_insurances.count,
       life_renewals: @renewal_life_insurances.count,
       motor_renewals: @renewal_motor_insurances.count,
       other_renewals: @renewal_other_insurances.count
     }
   rescue => e
     Rails.logger.error "Error in upcoming_renewal: #{e.message}"
-    @renewal_health_insurances = HealthInsurance.none
     @renewal_life_insurances = LifeInsurance.none
     @renewal_motor_insurances = MotorInsurance.none
     @renewal_other_insurances = OtherInsurance.none
     @stats = {
       total_renewals: 0,
-      health_renewals: 0,
       life_renewals: 0,
       motor_renewals: 0,
       other_renewals: 0
@@ -296,8 +285,8 @@ class Admin::ReportsController < Admin::ApplicationController
 
     @total_customers = Customer.count
     @new_customers = Customer.where(created_at: start_date..Time.current).count
-    @active_customers = Customer.joins(:health_insurances)
-                               .where(health_insurances: { created_at: start_date..Time.current })
+    @active_customers = Customer.joins(:life_insurances)
+                               .where(life_insurances: { created_at: start_date..Time.current })
                                .distinct.count rescue 0
 
     # One grouped query for the whole 7-day window instead of one .count per day.
@@ -522,10 +511,9 @@ class Admin::ReportsController < Admin::ApplicationController
     @paid_commissions = CommissionPayout.where(created_at: start_date..Time.current, status: 'paid').sum(:payout_amount) rescue 0
 
     # Insurance premium calculations
-    @health_premiums = HealthInsurance.where(created_at: start_date..Time.current).sum(:total_premium) rescue 0
     @life_premiums = LifeInsurance.where(created_at: start_date..Time.current).sum(:total_premium) rescue 0
     @motor_premiums = MotorInsurance.where(created_at: start_date..Time.current).sum(:total_premium) rescue 0
-    @total_premiums = @health_premiums + @life_premiums + @motor_premiums
+    @total_premiums = @life_premiums + @motor_premiums
 
     # Profit calculations
     @gross_profit = @net_revenue * 0.3 rescue 0  # Assuming 30% margin
@@ -591,10 +579,10 @@ class Admin::ReportsController < Admin::ApplicationController
 
     # Customer metrics
     @new_customers = Customer.where(created_at: start_date..Time.current).count
-    @repeat_customers = Customer.joins(:health_insurances)
-                               .where(health_insurances: { created_at: start_date..Time.current })
+    @repeat_customers = Customer.joins(:life_insurances)
+                               .where(life_insurances: { created_at: start_date..Time.current })
                                .group('customers.id')
-                               .having('COUNT(health_insurances.id) > 1')
+                               .having('COUNT(life_insurances.id) > 1')
                                .count.keys.count rescue 0
 
     @customer_retention_rate = @repeat_customers > 0 && @new_customers > 0 ?

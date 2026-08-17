@@ -11,7 +11,6 @@ def clear_test_data
   puts "🧹 Clearing existing test data..."
   # Be careful - this will delete data!
   # Uncomment if you want to reset data
-  # HealthInsurance.destroy_all
   # LifeInsurance.destroy_all
   # Customer.where("email LIKE '%test%' OR email LIKE '%mock%'").destroy_all
   # User.where("email LIKE '%test%' OR email LIKE '%mock%'").destroy_all
@@ -420,130 +419,6 @@ def create_family_members
   end
 end
 
-# 8. Create Health Insurance Policies
-def create_health_insurance_policies
-  puts "\n🏥 Creating Health Insurance Policies..."
-
-  customers = Customer.where(customer_type: 'individual').limit(5)
-  sub_agents = SubAgent.limit(3)
-  brokers = Broker.limit(3)
-  agency_codes = AgencyCode.where(insurance_type: 'Health')
-
-  health_policies_data = [
-    {
-      customer_email: "john.doe@test.com",
-      plan_name: "Star Family Health Optima",
-      insurance_company_name: "Star Health Insurance",
-      policy_type: "New",
-      insurance_type: "Family Floater",
-      policy_number: "SH#{rand(10000..99999)}",
-      sum_insured: 500000,
-      net_premium: 15000,
-      total_premium: 17700, # Including 18% GST
-      payment_mode: "Yearly",
-      policy_start_date: 2.months.ago,
-      policy_end_date: 10.months.from_now,
-      gst_percentage: 18
-    },
-    {
-      customer_email: "priya.sharma@test.com",
-      plan_name: "HDFC ERGO Health Suraksha",
-      insurance_company_name: "HDFC ERGO Health Insurance",
-      policy_type: "New",
-      insurance_type: "Individual",
-      policy_number: "HE#{rand(10000..99999)}",
-      sum_insured: 300000,
-      net_premium: 8500,
-      total_premium: 10030,
-      payment_mode: "Yearly",
-      policy_start_date: 1.month.ago,
-      policy_end_date: 11.months.from_now,
-      gst_percentage: 18
-    },
-    {
-      customer_email: "rajesh.kumar@test.com",
-      plan_name: "Care Health Insurance Supreme",
-      insurance_company_name: "Care Health Insurance",
-      policy_type: "Renewal",
-      insurance_type: "Family Floater",
-      policy_number: "CH#{rand(10000..99999)}",
-      sum_insured: 1000000,
-      net_premium: 25000,
-      total_premium: 29500,
-      payment_mode: "Yearly",
-      policy_start_date: 3.months.ago,
-      policy_end_date: 9.months.from_now,
-      gst_percentage: 18
-    },
-    {
-      customer_email: "sneha.patel@test.com",
-      plan_name: "Niva Bupa Health Companion",
-      insurance_company_name: "Niva Bupa Health Insurance",
-      policy_type: "New",
-      insurance_type: "Individual",
-      policy_number: "NB#{rand(10000..99999)}",
-      sum_insured: 200000,
-      net_premium: 6500,
-      total_premium: 7670,
-      payment_mode: "Half-Yearly",
-      policy_start_date: 15.days.ago,
-      policy_end_date: 350.days.from_now,
-      gst_percentage: 18
-    },
-    {
-      customer_email: "vikash.gupta@test.com",
-      plan_name: "Star Young Star Insurance",
-      insurance_company_name: "Star Health Insurance",
-      policy_type: "New",
-      insurance_type: "Individual",
-      policy_number: "SY#{rand(10000..99999)}",
-      sum_insured: 300000,
-      net_premium: 4500,
-      total_premium: 5310,
-      payment_mode: "Yearly",
-      policy_start_date: 45.days.ago,
-      policy_end_date: 320.days.from_now,
-      gst_percentage: 18
-    }
-  ]
-
-  health_policies_data.each_with_index do |policy_data, index|
-    customer = Customer.find_by(email: policy_data[:customer_email])
-    next unless customer
-
-    # Assign sub-agent and broker cyclically
-    sub_agent = sub_agents[index % sub_agents.count] if sub_agents.any?
-    broker = brokers[index % brokers.count] if brokers.any?
-    agency_code = agency_codes[index % agency_codes.count] if agency_codes.any?
-
-    policy = HealthInsurance.find_or_create_by(policy_number: policy_data[:policy_number]) do |hi|
-      hi.customer = customer
-      hi.sub_agent = sub_agent
-      hi.broker = broker
-      hi.agency_code = agency_code
-      hi.policy_holder = "Self"
-      hi.plan_name = policy_data[:plan_name]
-      hi.insurance_company_name = policy_data[:insurance_company_name]
-      hi.policy_type = policy_data[:policy_type]
-      hi.insurance_type = policy_data[:insurance_type]
-      hi.sum_insured = policy_data[:sum_insured]
-      hi.net_premium = policy_data[:net_premium]
-      hi.total_premium = policy_data[:total_premium]
-      hi.payment_mode = policy_data[:payment_mode]
-      hi.policy_booking_date = policy_data[:policy_start_date]
-      hi.policy_start_date = policy_data[:policy_start_date]
-      hi.policy_end_date = policy_data[:policy_end_date]
-      hi.gst_percentage = policy_data[:gst_percentage]
-      hi.main_agent_commission_percentage = 15.0
-      hi.commission_amount = policy_data[:net_premium] * 0.15
-      hi.tds_percentage = 5.0
-      hi.tds_amount = hi.commission_amount * 0.05
-      hi.after_tds_value = hi.commission_amount - hi.tds_amount
-    end
-    puts "  ✓ Created health policy: #{policy.policy_number} for #{customer.display_name}"
-  end
-end
-
 # 9. Create Life Insurance Policies
 def create_life_insurance_policies
   puts "\n🛡️ Creating Life Insurance Policies..."
@@ -689,17 +564,14 @@ def generate_summary
   puts "  - Family Members: #{FamilyMember.count}"
 
   puts "\n🏥 Insurance Policies:"
-  puts "  - Health Insurance Policies: #{HealthInsurance.count}"
   puts "  - Life Insurance Policies: #{LifeInsurance.count}"
-  puts "  - Total Policies: #{HealthInsurance.count + LifeInsurance.count}"
+  puts "  - Total Policies: #{LifeInsurance.count}"
 
   puts "\n💰 Financial Summary:"
-  total_health_premium = HealthInsurance.sum(:total_premium)
   total_life_premium = LifeInsurance.sum(:total_premium)
-  total_premium = total_health_premium + total_life_premium
-  total_commission = HealthInsurance.sum(:commission_amount) + LifeInsurance.sum(:commission_amount)
+  total_premium = total_life_premium
+  total_commission = LifeInsurance.sum(:commission_amount)
 
-  puts "  - Total Health Premium: ₹#{total_health_premium.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
   puts "  - Total Life Premium: ₹#{total_life_premium.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
   puts "  - Total Premium: ₹#{total_premium.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
   puts "  - Total Commission: ₹#{total_commission.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse}"
@@ -732,7 +604,6 @@ def run_mock_data_generation
     create_sub_agents
     create_customers
     create_family_members
-    create_health_insurance_policies
     create_life_insurance_policies
     generate_summary
 

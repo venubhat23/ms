@@ -29,11 +29,6 @@ class Permission < ApplicationRecord
     [
       { name: 'dashboard', display: 'Dashboard', description: 'Main dashboard and analytics overview' },
       { name: 'customers', display: 'Customers', description: 'Customer management and profiles' },
-      { name: 'policies', display: 'Policies', description: 'Policy management and tracking' },
-      { name: 'health_insurance', display: 'Health Insurance', description: 'Health insurance policies and claims' },
-      { name: 'life_insurance', display: 'Life Insurance', description: 'Life insurance policies and claims' },
-      { name: 'motor_insurance', display: 'Motor Insurance', description: 'Motor insurance policies and claims' },
-      { name: 'other_insurance', display: 'Other Insurance', description: 'Other types of insurance policies' },
       { name: 'leads', display: 'Leads', description: 'Lead management and conversion tracking' },
       { name: 'reports', display: 'Reports', description: 'Reporting and analytics features' },
       { name: 'analytics', display: 'Analytics', description: 'Advanced analytics and insights' },

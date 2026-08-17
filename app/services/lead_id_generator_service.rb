@@ -30,8 +30,6 @@ class LeadIdGeneratorService
 
     # Add policy type suffix
     policy_suffix = case policy_type.to_s.downcase
-                   when 'health', 'healthinsurance'
-                     'HLT'
                    when 'life', 'lifeinsurance'
                      'LIF'
                    when 'motor', 'motorinsurance'
@@ -72,7 +70,6 @@ class LeadIdGeneratorService
     return true if Customer.exists?(lead_id: lead_id)
 
     # Check in insurance models
-    return true if HealthInsurance.exists?(lead_id: lead_id)
     return true if LifeInsurance.exists?(lead_id: lead_id)
     return true if MotorInsurance.exists?(lead_id: lead_id)
 

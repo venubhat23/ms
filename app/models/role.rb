@@ -23,8 +23,7 @@ class Role < ApplicationRecord
   end
 
   def self.module_names
-    %w[dashboard customers policies health_insurance life_insurance motor_insurance other_insurance
-       leads reports analytics users roles permissions settings import_export helpdesk]
+    %w[dashboard customers leads reports analytics users roles permissions settings import_export helpdesk]
   end
 
   def self.action_types

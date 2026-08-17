@@ -44,10 +44,6 @@ module InsuranceCompanyConstants
       INSURANCE_COMPANIES
     end
 
-    def health_insurance_companies
-      INSURANCE_COMPANIES.select { |company| company[:type] == "HEALTH" }
-    end
-
     def general_insurance_companies
       INSURANCE_COMPANIES.select { |company| company[:type] == "GENERAL" }
     end

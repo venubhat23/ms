@@ -12,13 +12,18 @@ class Admin::FranchisesController < Admin::ApplicationController
     # the view used to independently re-query @franchises 4 more times for
     # these same numbers (and disagreed with this controller's old unfiltered
     # @stats whenever a search/status filter was active).
-    status_counts = franchises_scope.group(:status).count
-    @stats = {
-      total: status_counts.values.sum,
-      active: status_counts[true] || 0,
-      inactive: status_counts[false] || 0,
-      this_month: franchises_scope.where('created_at >= ?', 1.month.ago).count
-    }
+    # Cached like admin_customers/admin_bookings stats — the DB is remote, so
+    # a cache hit skips a ~200-400ms round trip entirely.
+    stats_cache_key = "admin_franchises/stats/search=#{params[:search]}/status=#{params[:status]}"
+    @stats = Rails.cache.fetch(stats_cache_key, expires_in: 1.minute) do
+      status_counts = franchises_scope.group(:status).count
+      {
+        total: status_counts.values.sum,
+        active: status_counts[true] || 0,
+        inactive: status_counts[false] || 0,
+        this_month: franchises_scope.where('created_at >= ?', 1.month.ago).count
+      }
+    end
 
     @franchises = paginate_records(franchises_scope.order(:name))
   end

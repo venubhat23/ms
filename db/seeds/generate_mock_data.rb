@@ -129,71 +129,6 @@ job_titles = ['Software Engineer', 'Manager', 'Doctor', 'Teacher', 'Businessman'
   puts "✅ Customer #{i+1}: #{display_name} (#{customer.customer_type})"
 end
 
-# 4. Create Health Insurance Policies
-puts "\n4. Creating 35 Health Insurance Policies..."
-
-insurance_companies = [
-  'Bajaj Allianz General Insurance Company Limited',
-  'HDFC ERGO General Insurance Co Ltd',
-  'Care Health Insurance Ltd',
-  'Star Health Allied Insurance Co Ltd',
-  'Aditya Birla Health Insurance Co Ltd',
-  'Niva Bupa Health Insurance Co Ltd',
-  'Manipal Cigna Health Insurance Company Limited',
-  'National Insurance Co Ltd'
-]
-
-plan_names = [
-  'Family Health Plus',
-  'Individual Health Care',
-  'Senior Citizen Plan',
-  'Corporate Group Health',
-  'Critical Care Plus',
-  'Super Top Up',
-  'Personal Guard',
-  'Health Companion'
-]
-
-35.times do |i|
-  customer = customers.sample
-  sub_agent = sub_agents.sample
-
-  policy_start_date = Date.current - rand(365).days
-  policy_end_date = policy_start_date + 1.year
-
-  net_premium = [15000, 25000, 35000, 50000, 75000].sample
-  gst_percentage = 18.0
-  total_premium = net_premium + (net_premium * gst_percentage / 100.0)
-
-  health_insurance = HealthInsurance.create!(
-    customer: customer,
-    sub_agent: sub_agent,
-    policy_holder: customer.display_name,
-    insurance_company_name: insurance_companies.sample,
-    insurance_type: ['Individual', 'Family Floater', 'Group'].sample,
-    policy_type: ['New', 'Renewal'].sample,
-    policy_number: "HI#{Date.current.year}#{sprintf('%06d', rand(100000..999999))}",
-    policy_booking_date: policy_start_date - rand(1..30).days,
-    policy_start_date: policy_start_date,
-    policy_end_date: policy_end_date,
-    payment_mode: ['Yearly', 'Half-Yearly', 'Quarterly', 'Monthly'].sample,
-    sum_insured: [300000, 500000, 1000000, 1500000, 2000000].sample,
-    net_premium: net_premium,
-    gst_percentage: gst_percentage,
-    total_premium: total_premium,
-    plan_name: plan_names.sample,
-    commission_amount: (total_premium * 0.1), # 10% commission
-    tds_percentage: 10.0,
-    tds_amount: (total_premium * 0.1 * 0.1),
-    after_tds_value: (total_premium * 0.1 * 0.9),
-    is_agent_added: true,
-    is_customer_added: false,
-    is_admin_added: false
-  )
-
-  puts "✅ Health Insurance #{i+1}: #{health_insurance.policy_number} - #{customer.display_name}"
-end
-
 # 5. Create sample Distributors and Investors
 puts "\n5. Creating sample Distributors and Investors..."
 
@@ -300,24 +235,6 @@ end
 # 7. Create Commission Payouts
 puts "\n7. Creating Commission Payouts..."
 
-# Health insurance commission payouts
-HealthInsurance.includes(:customer, :sub_agent).each do |policy|
-  next unless policy.sub_agent
-
-  # Create random commission payouts (some paid, some pending)
-  status = ['paid', 'pending'].sample
-  payout_date = status == 'paid' ? (policy.policy_start_date + rand((Date.current - policy.policy_start_date).to_i).days) : nil
-
-  CommissionPayout.create!(
-    policy_type: 'health',
-    policy_id: policy.id,
-    payout_to: 'sub_agent',
-    payout_amount: policy.after_tds_value || 0,
-    payout_date: payout_date,
-    status: status
-  )
-end
-
 # Life insurance commission payouts
 LifeInsurance.includes(:customer, :sub_agent).each do |policy|
   next unless policy.sub_agent
@@ -367,8 +284,7 @@ end
 # 9. Update customer policies count
 puts "\n9. Updating customer policies count..."
 Customer.find_each do |customer|
-  policies_count = HealthInsurance.where(customer: customer).count +
-                   LifeInsurance.where(customer: customer).count
+  policies_count = LifeInsurance.where(customer: customer).count
   customer.update_column(:policies_count, policies_count)
 end
 
@@ -381,7 +297,6 @@ puts "\n📊 SUMMARY:"
 puts "👤 Admin Users: #{User.where(user_type: 'admin').count}"
 puts "🏢 Sub Agents: #{SubAgent.count}"
 puts "👥 Customers: #{Customer.count}"
-puts "🏥 Health Insurance Policies: #{HealthInsurance.count}"
 puts "💰 Life Insurance Policies: #{LifeInsurance.count}"
 puts "💳 Commission Payouts: #{CommissionPayout.count}"
 puts "🎯 Leads: #{Lead.count}"

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_15_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -962,7 +962,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_15_120000) do
     t.index ["customer_id"], name: "index_product_ratings_on_customer_id"
     t.index ["product_id", "rating"], name: "index_product_ratings_on_product_id_and_rating"
     t.index ["product_id", "status"], name: "index_product_ratings_on_product_id_and_status"
-    t.index ["product_id"], name: "index_product_ratings_on_product_id"
     t.index ["user_id"], name: "index_product_ratings_on_user_id"
   end
 
@@ -988,7 +987,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_15_120000) do
     t.index ["product_id", "created_at"], name: "index_product_reviews_on_product_id_and_created_at"
     t.index ["product_id", "rating"], name: "index_product_reviews_on_product_id_and_rating"
     t.index ["product_id", "status"], name: "index_product_reviews_on_product_id_and_status"
-    t.index ["product_id"], name: "index_product_reviews_on_product_id"
     t.index ["user_id"], name: "index_product_reviews_on_user_id"
   end
 
@@ -1326,7 +1324,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_15_120000) do
     t.datetime "updated_at", null: false
     t.bigint "store_id"
     t.index ["product_id", "store_id"], name: "index_stock_batches_on_product_id_and_store_id"
-    t.index ["product_id"], name: "index_stock_batches_on_product_id"
     t.index ["store_id", "status"], name: "index_stock_batches_on_store_id_and_status"
     t.index ["store_id"], name: "index_stock_batches_on_store_id"
     t.index ["vendor_id"], name: "index_stock_batches_on_vendor_id"
@@ -1347,8 +1344,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_15_120000) do
     t.index ["created_at"], name: "idx_stock_movements_created_at"
     t.index ["movement_type"], name: "idx_stock_movements_movement_type"
     t.index ["product_id", "created_at"], name: "idx_stock_movements_product_created"
-    t.index ["product_id"], name: "idx_stock_movements_product_id"
-    t.index ["product_id"], name: "index_stock_movements_on_product_id"
     t.index ["reference_type", "reference_id"], name: "idx_stock_movements_ref_type_id"
   end
 

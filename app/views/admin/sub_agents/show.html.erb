@@ -414,7 +414,6 @@
                 <td>
                   <span class="badge bg-<%=
                     case policy_data[:type]
-                    when 'Health Insurance' then 'info'
                     when 'Life Insurance' then 'primary'
                     when 'Motor Insurance' then 'warning'
                     else 'secondary'
@@ -440,10 +439,6 @@
                 </td>
                 <td>
                   <% case policy_data[:type] %>
-                  <% when 'Health Insurance' %>
-                    <%= link_to admin_health_insurance_path(policy_data[:policy]), class: "btn btn-sm btn-outline-primary" do %>
-                      <i class="bi bi-eye"></i>
-                    <% end %>
                   <% when 'Life Insurance' %>
                     <%= link_to admin_life_insurance_path(policy_data[:policy]), class: "btn btn-sm btn-outline-primary" do %>
                       <i class="bi bi-eye"></i>

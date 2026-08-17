@@ -229,7 +229,7 @@
     </div>
 
     <!-- Insurance Products Section -->
-    <% if show_sidebar_item?('life_insurance') || show_sidebar_item?('health_insurance') || show_sidebar_item?('motor_insurance') || show_sidebar_item?('other_insurance') %>
+    <% if show_sidebar_item?('life_insurance') || show_sidebar_item?('motor_insurance') || show_sidebar_item?('other_insurance') %>
       <div class="nav-section">
         <div class="nav-section-title">Insurance Products</div>
         <ul class="nav-menu">
@@ -243,21 +243,6 @@
                   </div>
                 </div>
                 <span class="nav-text">Life Insurance</span>
-                <div class="nav-indicator"></div>
-              <% end %>
-            </li>
-          <% end %>
-
-          <!-- Health Insurance -->
-          <% if show_sidebar_item?('health_insurance') %>
-            <li class="nav-item">
-              <%= link_to admin_health_insurances_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/health_insurances')}" do %>
-                <div class="nav-icon-modern">
-                  <div class="icon-bg gradient-cyan">
-                    <i class="bi bi-hospital"></i>
-                  </div>
-                </div>
-                <span class="nav-text">Health Insurance</span>
                 <div class="nav-indicator"></div>
               <% end %>
             </li>

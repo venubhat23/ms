@@ -151,18 +151,16 @@ class DashboardController < ApplicationController
       # beautiful_dashboard.html.erb or ultra_attractive_dashboard.html.erb),
       # so those ~55 round trips are dropped rather than optimized.
       thirty_days_from_now = 30.days.from_now.to_date
-      health = insurance_summary(HealthInsurance, thirty_days_from_now)
       life   = insurance_summary(LifeInsurance, thirty_days_from_now)
       motor  = insurance_summary(MotorInsurance, thirty_days_from_now)
       other  = insurance_summary(OtherInsurance, thirty_days_from_now)
 
-      @total_policies          = health[:count] + life[:count] + motor[:count] + other[:count]
-      @total_premium_collected = health[:premium] + life[:premium] + motor[:premium] + other[:premium]
-      @total_sum_insured       = health[:sum_insured] + life[:sum_insured] + motor[:sum_insured] + other[:sum_insured]
-      @renewal_due_count       = health[:renewal_due] + life[:renewal_due] + motor[:renewal_due] + other[:renewal_due]
+      @total_policies          = life[:count] + motor[:count] + other[:count]
+      @total_premium_collected = life[:premium] + motor[:premium] + other[:premium]
+      @total_sum_insured       = life[:sum_insured] + motor[:sum_insured] + other[:sum_insured]
+      @renewal_due_count       = life[:renewal_due] + motor[:renewal_due] + other[:renewal_due]
 
       @policy_type_distribution = {
-        'Health Insurance' => { count: health[:count], percentage: @total_policies > 0 ? (health[:count].to_f / @total_policies * 100).round(1) : 0 },
         'Life Insurance'   => { count: life[:count],   percentage: @total_policies > 0 ? (life[:count].to_f   / @total_policies * 100).round(1) : 0 },
         'Motor Insurance'  => { count: motor[:count],  percentage: @total_policies > 0 ? (motor[:count].to_f  / @total_policies * 100).round(1) : 0 },
         'Other Insurance'  => { count: other[:count],  percentage: @total_policies > 0 ? (other[:count].to_f  / @total_policies * 100).round(1) : 0 }
@@ -192,7 +190,6 @@ class DashboardController < ApplicationController
       @total_sum_insured           ||= 0
       @renewal_due_count           ||= 0
       @policy_type_distribution    ||= {
-        'Health Insurance' => { count: 0, percentage: 0 },
         'Life Insurance'   => { count: 0, percentage: 0 },
         'Motor Insurance'  => { count: 0, percentage: 0 },
         'Other Insurance'  => { count: 0, percentage: 0 }

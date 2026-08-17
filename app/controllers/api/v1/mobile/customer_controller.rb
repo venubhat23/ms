@@ -5,9 +5,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
   def portfolio
     customer_id = current_customer.id
 
-    # Get all health insurance policies
-    health_policies = HealthInsurance.where(customer_id: customer_id).includes(policy_documents_attachments: :blob)
-
     # Get all life insurance policies
     life_policies = LifeInsurance.where(customer_id: customer_id).includes(policy_documents_attachments: :blob)
 
@@ -22,26 +19,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     end
 
     portfolio = []
-
-    # Add health insurance policies
-    health_policies.each do |policy|
-      portfolio << {
-        id: policy.id,
-        insurance_name: policy.plan_name || "Health Insurance",
-        insurance_type: "Health",
-        policy_number: policy.policy_number,
-        policy_holder: policy.policy_holder,
-        start_date: policy.policy_start_date,
-        end_date: policy.policy_end_date,
-        total_premium: policy.total_premium,
-        sum_insured: policy.sum_insured,
-        insurance_company: policy.insurance_company_name,
-        payment_mode: policy.payment_mode,
-        status: policy.active? ? 'Active' : (policy.expired? ? 'Expired' : 'Expiring Soon'),
-        days_until_expiry: policy.days_until_expiry,
-        attachment: policy.policy_documents.attached? ? rails_blob_url(policy.policy_documents.first) : nil
-      }
-    end
 
     # Add life insurance policies
     life_policies.each do |policy|
@@ -126,96 +103,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
 
     # Get policies with upcoming installments (include active and recently expired policies)
     installments = []
-
-    # Health Insurance installments - include active and expired policies that might need renewal payments
-    health_policies = HealthInsurance.where(customer_id: customer_id)
-                                    .where('policy_end_date >= ? OR policy_start_date >= ?', 18.months.ago, Date.current)
-                                    .includes(policy_documents_attachments: :blob)
-
-    health_policies.each do |policy|
-      # Skip policies with missing critical data
-      next unless policy.policy_end_date.present? && policy.policy_start_date.present?
-      next unless policy.total_premium.present? && policy.total_premium > 0
-
-      # For expired policies, calculate installments based on renewal dates
-      if policy.policy_end_date < Date.current
-        # Policy is expired - calculate renewal installments if within renewal period
-        days_since_expiry = (Date.current - policy.policy_end_date).to_i
-
-        # Only show renewal installments if policy expired recently (within 18 months)
-        next if days_since_expiry > 540 # 18 months
-
-        # Use renewal date (day after policy end) as the base for installment calculations
-        renewal_date = policy.policy_end_date + 1.day
-        installment_type = 'renewal'
-        autopay_start = renewal_date
-      else
-        # Policy is active - use normal installment logic
-        autopay_start = if policy.respond_to?(:installment_autopay_start_date) && policy.installment_autopay_start_date.present?
-                          policy.installment_autopay_start_date
-                        else
-                          policy.policy_start_date
-                        end
-        installment_type = 'regular'
-      end
-
-      if autopay_start.present? && policy.payment_mode.present? &&
-         !['single', 'one time', 'lump sum'].include?(policy.payment_mode.downcase)
-
-        next_installment = calculate_next_installment_date(autopay_start, policy.payment_mode)
-
-        # If next_installment is in the past, keep adding payment cycle until we get a future date
-        safety_counter = 0
-        while next_installment && next_installment < Date.current && safety_counter < 10
-          next_installment = calculate_next_installment_date(next_installment, policy.payment_mode)
-          safety_counter += 1
-        end
-
-        # Show installments within appropriate time frame based on payment mode
-        # Show installments only within next 2 months (60 days)
-        if next_installment && next_installment <= 60.days.from_now
-          days_until_installment = (next_installment - Date.current).to_i
-          days_left_from_today = days_until_installment
-
-          # Generate label based on days left
-          label = if days_left_from_today <= 0
-                    "Expired"
-                  elsif days_left_from_today <= 7
-                    if days_left_from_today == 1
-                      "Expiring in 1 day"
-                    else
-                      "Expiring in #{days_left_from_today} days"
-                    end
-                  elsif days_left_from_today < 30
-                    "Coming soon"
-                  else
-                    "Upcoming"
-                  end
-
-          installments << {
-            id: policy.id,
-            insurance_name: policy.plan_name || "Health Insurance",
-            insurance_type: "Health",
-            policy_number: policy.policy_number || "N/A",
-            policy_holder: policy.policy_holder || "N/A",
-            insurance_company: policy.insurance_company_name || "N/A",
-            start_date: policy.policy_start_date,
-            end_date: policy.policy_end_date,
-            total_premium: policy.total_premium.to_f,
-            payment_mode: policy.payment_mode,
-            next_installment_date: next_installment,
-            installment_amount: calculate_installment_amount(policy.total_premium, policy.payment_mode),
-            days_until_installment: days_until_installment,
-            days_left_from_today: days_left_from_today,
-            label: label,
-            installment_type: installment_type, # 'regular' or 'renewal'
-            is_expired: policy.policy_end_date < Date.current,
-            is_overdue: installment_type == 'renewal' && days_until_installment < 0,
-            attachment: policy.policy_documents.attached? ? rails_blob_url(policy.policy_documents.first) : nil
-          }
-        end
-      end
-    end
 
     # Life Insurance installments - include active and expired policies that might need renewal payments
     life_policies = LifeInsurance.where(customer_id: customer_id)
@@ -441,57 +328,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
 
     # Debug info
     Rails.logger.info "Upcoming renewals for customer ID: #{customer_id}"
-
-    # Health Insurance renewals - show only policies with renewals within next 2 months
-    health_policies = HealthInsurance.where(customer_id: customer_id)
-                                    .where('policy_end_date BETWEEN ? AND ?', Date.current, 2.months.from_now)
-                                    .where.not(policy_end_date: nil)
-                                    .includes(policy_documents_attachments: :blob)
-
-    health_policies.each do |policy|
-      days_since_end = (Date.current - policy.policy_end_date).to_i
-
-      # Determine renewal status based on whether policy is expired or expiring
-      renewal_status = if policy.policy_end_date < Date.current
-                        # Policy is expired - need to renew soon
-                        'overdue'
-                      else
-                        # Policy is still active - categorize by time until expiry
-                        days_until_expiry = (policy.policy_end_date - Date.current).to_i
-                        if days_until_expiry <= 7
-                          'urgent' # Renewal in 7 days
-                        elsif days_until_expiry <= 30
-                          'due_soon' # Renewal in 30 days
-                        elsif days_until_expiry <= 60
-                          'approaching'
-                        else
-                          'upcoming'
-                        end
-                      end
-
-      # Calculate days until renewal (negative for overdue)
-      days_until_renewal = (policy.policy_end_date - Date.current).to_i
-
-      renewals << {
-        id: policy.id,
-        insurance_name: policy.plan_name || "Health Insurance",
-        insurance_type: "Health",
-        policy_number: policy.policy_number,
-        policy_holder: policy.policy_holder,
-        start_date: policy.policy_start_date,
-        end_date: policy.policy_end_date,
-        renewal_date: policy.policy_end_date + 1.day,
-        total_premium: policy.total_premium,
-        sum_insured: policy.sum_insured,
-        payment_mode: policy.payment_mode,
-        days_until_renewal: days_until_renewal,
-        renewal_status: renewal_status,
-        is_expired: policy.policy_end_date < Date.current,
-        days_since_expiry: policy.policy_end_date < Date.current ? days_since_end : nil,
-        insurance_company: policy.insurance_company_name,
-        attachment: policy.policy_documents.attached? ? rails_blob_url(policy.policy_documents.first) : nil
-      }
-    end
 
     # Life Insurance renewals - show only policies with renewals within next 2 months
     life_policies = LifeInsurance.where(customer_id: customer_id)
@@ -763,35 +599,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     # This is a simplified implementation - you might want to create a separate PolicyRequest model
 
     case policy_params[:insurance_type].downcase
-    when 'health'
-      policy = HealthInsurance.new(
-        customer_id: current_customer.id,
-        policy_holder: current_customer.display_name || 'Self',
-        plan_name: policy_params[:plan_name],
-        insurance_company_name: policy_params[:insurance_company] || 'To be assigned',
-        insurance_type: 'Individual',
-        policy_type: 'New',
-        policy_number: policy_params[:policy_number] || "REQ-#{Time.current.to_i}",
-        policy_booking_date: Date.current,
-        policy_start_date: Date.current,
-        policy_end_date: renewal_date.present? ? Date.parse(renewal_date.to_s) + 1.day : 1.year.from_now,  # Ensure end date is after start date
-        payment_mode: 'Yearly',
-        sum_insured: policy_params[:sum_insured].to_f,
-        net_premium: premium_amount&.to_f || 0,
-        total_premium: premium_amount&.to_f || 0,
-        gst_percentage: 18,
-        product_through_dr: product_through_dr || false,
-        is_customer_added: true,
-        is_agent_added: false,
-        is_admin_added: false
-      )
-
-      # Store additional info in a notes field or separate model
-      if policy_params[:family_members].present?
-        family_info = "Family members to be covered: #{policy_params[:family_members].join(', ')}"
-        # You might want to add this to a notes field or create family member records
-      end
-
     when 'life', 'lic'
       # Get default distributor and investor
       default_distributor = Distributor.first
@@ -830,6 +637,12 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
         is_admin_added: false
       )
 
+    when 'health'
+      return render json: {
+        success: false,
+        message: 'Health insurance requests are not available through customer portal. Please contact your agent.'
+      }, status: :unprocessable_entity
+
     when 'motor'
       return render json: {
         success: false,
@@ -845,7 +658,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     else
       return render json: {
         success: false,
-        message: 'Invalid insurance type. Supported types: health, life'
+        message: 'Invalid insurance type. Supported types: life'
       }, status: :unprocessable_entity
     end
 
@@ -900,7 +713,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
 
   def get_customer_portfolio_summary(customer)
     # Calculate total policies count
-    health_count = HealthInsurance.where(customer_id: customer.id).count
     life_count = LifeInsurance.where(customer_id: customer.id).count
     motor_count = 0
     other_count = 0
@@ -922,7 +734,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
       Rails.logger.warn "Other insurance count issue: #{e.message}"
     end
 
-    total_policies = health_count + life_count + motor_count + other_count
+    total_policies = life_count + motor_count + other_count
 
     # Calculate upcoming installments count (within next 2 months)
     upcoming_installments = count_upcoming_installments_for_customer(customer)
@@ -939,33 +751,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
 
   def count_upcoming_installments_for_customer(customer)
     count = 0
-
-    # Health insurance installments within 2 months
-    health_policies = HealthInsurance.where(customer_id: customer.id)
-    health_policies.each do |policy|
-      next unless policy.policy_end_date.present? && policy.policy_start_date.present?
-      next unless policy.total_premium.present? && policy.total_premium > 0
-      next if ['single', 'one time', 'lump sum'].include?(policy.payment_mode&.downcase)
-
-      autopay_start = policy.respond_to?(:installment_autopay_start_date) && policy.installment_autopay_start_date.present? ?
-                      policy.installment_autopay_start_date : policy.policy_start_date
-
-      if autopay_start.present? && policy.payment_mode.present?
-        next_installment = calculate_next_installment_date(autopay_start, policy.payment_mode)
-
-        # Find next future installment
-        safety_counter = 0
-        while next_installment && next_installment < Date.current && safety_counter < 10
-          next_installment = calculate_next_installment_date(next_installment, policy.payment_mode)
-          safety_counter += 1
-        end
-
-        # Count if installment is within next 2 months
-        if next_installment && next_installment <= 2.months.from_now
-          count += 1
-        end
-      end
-    end
 
     # Life insurance installments within 2 months
     life_policies = LifeInsurance.where(customer_id: customer.id)
@@ -1033,12 +818,6 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
 
   def count_upcoming_renewals_for_customer(customer)
     count = 0
-
-    # Health insurance renewals within 2 months
-    health_policies = HealthInsurance.where(customer_id: customer.id)
-                                    .where('policy_end_date BETWEEN ? AND ?', Date.current, 2.months.from_now)
-                                    .where.not(policy_end_date: nil)
-    count += health_policies.count
 
     # Life insurance renewals within 2 months
     life_policies = LifeInsurance.where(customer_id: customer.id)

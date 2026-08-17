@@ -67,7 +67,6 @@ module ApplicationHelper
       'agency_codes' => 'bi-code-slash',
       'leads' => 'bi-funnel-fill',
       'life_insurance' => 'bi-heart-fill',
-      'health_insurance' => 'bi-hospital',
       'motor_insurance' => 'bi-car-front',
       'other_insurance' => 'bi-shield-fill-check',
       'payouts' => 'bi-cash-coin',
@@ -94,7 +93,6 @@ module ApplicationHelper
       'agency_codes' => 'bi-code-slash',
       'leads' => 'bi-funnel-fill',
       'life_insurance' => 'bi-heart-fill',
-      'health_insurance' => 'bi-hospital-fill',
       'motor_insurance' => 'bi-car-front-fill',
       'other_insurance' => 'bi-shield-fill-check',
       'reports' => 'bi-graph-up',
@@ -138,13 +136,6 @@ module ApplicationHelper
     policies = []
 
     case policy_type
-    when 'health_insurance', 'health'
-      policies = HealthInsurance.includes(:customer)
-                                .select(:id, :policy_number, :customer_id, :total_premium)
-                                .map do |policy|
-        customer_name = policy.customer&.display_name || 'Unknown Customer'
-        ["#{policy.policy_number || "Policy ##{policy.id}"} - #{customer_name} - ₹#{policy.total_premium}", policy.id]
-      end
     when 'life_insurance', 'life'
       policies = LifeInsurance.includes(:customer)
                               .select(:id, :policy_number, :customer_id, :total_premium)
@@ -175,13 +166,6 @@ module ApplicationHelper
       end
     else
       # Return all policies if no type specified
-      health_policies = HealthInsurance.includes(:customer)
-                                       .select(:id, :policy_number, :customer_id, :total_premium)
-                                       .map do |policy|
-        customer_name = policy.customer&.display_name || 'Unknown Customer'
-        ["Health: #{policy.policy_number || "Policy ##{policy.id}"} - #{customer_name} - ₹#{policy.total_premium}", policy.id]
-      end
-
       life_policies = LifeInsurance.includes(:customer)
                                    .select(:id, :policy_number, :customer_id, :total_premium)
                                    .map do |policy|
@@ -190,7 +174,7 @@ module ApplicationHelper
         ["Life: #{policy.policy_number || "Policy ##{policy.id}"} - #{customer_name} - ₹#{premium}", policy.id]
       end
 
-      policies = health_policies + life_policies
+      policies = life_policies
     end
 
     policies
@@ -272,8 +256,6 @@ module ApplicationHelper
 
   def commission_flow_timeline_data(policy_id, policy_type)
     case policy_type
-    when 'health'
-      policy = HealthInsurance.find_by(id: policy_id)
     when 'life'
       policy = LifeInsurance.find_by(id: policy_id)
     else

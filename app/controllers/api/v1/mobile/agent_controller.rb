@@ -36,15 +36,14 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
                   Customer.all
                 elsif agent.is_a?(SubAgent)
                   # For SubAgents, show only customers from their policies (matching dashboard logic)
-                  sub_agent_health_policies = HealthInsurance.where(sub_agent_id: agent.id)
                   sub_agent_life_policies = LifeInsurance.where(sub_agent_id: agent.id)
-                  policy_customer_ids = (sub_agent_health_policies.pluck(:customer_id) + sub_agent_life_policies.pluck(:customer_id)).uniq
+                  policy_customer_ids = sub_agent_life_policies.pluck(:customer_id).uniq
 
                   # Only show customers with policies to match dashboard statistics
                   Customer.where(id: policy_customer_ids)
                 else
                   # For regular User agents, show only customers from their policies (matching dashboard logic)
-                  _, _, agent_customer_ids = get_agent_policies(agent)
+                  _, agent_customer_ids = get_agent_policies(agent)
                   Customer.where(id: agent_customer_ids)
                 end
 
@@ -63,9 +62,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # queries instead of 4 queries per customer (get_customer_policies_count /
     # get_customer_total_premium previously ran per row in the .map below).
     page_customer_ids   = customers.map(&:id)
-    health_policy_counts    = HealthInsurance.where(customer_id: page_customer_ids).group(:customer_id).count
     life_policy_counts      = LifeInsurance.where(customer_id: page_customer_ids).group(:customer_id).count
-    health_premiums_by_cust = HealthInsurance.where(customer_id: page_customer_ids).group(:customer_id).sum(:total_premium)
     life_premiums_by_cust   = LifeInsurance.where(customer_id: page_customer_ids).group(:customer_id).sum(:total_premium)
 
     customers_data = customers.map do |customer|
@@ -111,8 +108,8 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         password: generate_demo_password(customer), # Demo password for testing
         customer_type: customer.customer_type,
         status: customer.active? ? 'Active' : 'Inactive',
-        policies_count: (health_policy_counts[customer.id] || 0) + (life_policy_counts[customer.id] || 0),
-        total_premium: (health_premiums_by_cust[customer.id] || 0) + (life_premiums_by_cust[customer.id] || 0),
+        policies_count: (life_policy_counts[customer.id] || 0),
+        total_premium: (life_premiums_by_cust[customer.id] || 0),
         added_by: customer.added_by || 'system',
         added_via: determine_add_source(customer.added_by),
         created_at: customer.created_at,
@@ -378,7 +375,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     commission_payouts = CommissionPayout.where(payout_to: payout_to_value).index_by { |cp| "#{cp.policy_type}:#{cp.policy_id}" }
 
     # Get agent's policies using the helper method
-    agent_health_policies, agent_life_policies, _ = get_agent_policies(agent)
+    agent_life_policies, _ = get_agent_policies(agent)
 
     # Cap on the admin ("see everything") branches below: this method sorts
     # all matching policies in Ruby and paginates by slicing the array
@@ -390,19 +387,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # risk. Agent-scoped branches don't need this — they're already bounded
     # to one agent's own policies.
     admin_policy_load_cap = 2000
-
-    # Get health insurance policies
-    if policy_type.blank? || policy_type == 'health' || policy_type == 'all'
-      health_policies = if is_admin?(agent)
-                         HealthInsurance.order(created_at: :desc).limit(admin_policy_load_cap)
-                       else
-                         agent_health_policies
-                       end
-
-      health_policies.includes(:customer, documents_attachments: :blob, policy_documents_attachments: :blob).each do |policy|
-        policies << format_policy_data_with_commission(policy, 'Health', commission_payouts)
-      end
-    end
 
     # Get life insurance policies
     if policy_type.blank? || policy_type == 'life' || policy_type == 'all'
@@ -464,119 +448,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         }
       }
     }
-  end
-
-  # POST /api/v1/mobile/agent/policies/health
-  def add_health_policy
-    # Updated parameter structure based on your specification
-    policy_params = params.permit(
-      :client_id, :policy_holder, :insurance_company_id,:insurance_company_name, :policy_type, :insurance_type,
-      :plan_name, :policy_number, :policy_booking_date, :policy_start_date, :policy_end_date,
-      :policy_term_years, :payment_mode, :sum_insured, :net_premium, :gst_percentage, :total_premium,
-      :installment_autopay_start_date, :installment_autopay_end_date,
-      family_members: [:full_name, :age, :relationship, :sum_insured],
-      documents: [:document_type, :document_file]
-    )
-
-    # Validation: Check required fields
-    validation_errors = []
-    validation_errors << 'Client ID is required' if policy_params[:client_id].blank?
-    validation_errors << 'Policy holder is required' if policy_params[:policy_holder].blank?
-    validation_errors << 'Insurance company ID is required' if policy_params[:insurance_company_id].blank?
-    validation_errors << 'Plan name is required' if policy_params[:plan_name].blank?
-    validation_errors << 'Policy number is required' if policy_params[:policy_number].blank?
-    validation_errors << 'Net premium is required' if policy_params[:net_premium].blank?
-
-    if validation_errors.any?
-      return render json: {
-        status: false,
-        message: 'Validation failed',
-        errors: validation_errors
-      }, status: :unprocessable_entity
-    end
-
-    # Find customer (client)
-    customer = Customer.find_by(id: policy_params[:client_id])
-    unless customer
-      return render json: {
-        status: false,
-        message: 'Customer not found'
-      }, status: :not_found
-    end
-
-    # Check if policy number already exists
-    if HealthInsurance.exists?(policy_number: policy_params[:policy_number])
-      return render json: {
-        status: false,
-        message: 'Validation failed',
-        errors: {
-          policy_number: ['has already been taken']
-        }
-      }, status: :unprocessable_entity
-    end
-
-    # Calculate total premium if not provided
-    calculated_total_premium = if policy_params[:total_premium].present?
-                                policy_params[:total_premium].to_f
-                              else
-                                net_premium = policy_params[:net_premium].to_f
-                                gst_percentage = policy_params[:gst_percentage].to_f || 18.0
-                                net_premium + (net_premium * gst_percentage / 100.0)
-                              end
-
-    # Create health insurance policy
-    policy = HealthInsurance.new(
-      customer_id: policy_params[:client_id],
-      sub_agent_id: current_user.id, # Associate with the current agent
-      policy_holder: policy_params[:policy_holder],
-      insurance_company_name: policy_params[:insurance_company_name],
-      policy_type: policy_params[:policy_type],
-      insurance_type: policy_params[:insurance_type] || 'health',
-      plan_name: policy_params[:plan_name],
-      policy_number: policy_params[:policy_number],
-      policy_booking_date: parse_date(policy_params[:policy_booking_date]) || Date.current,
-      policy_start_date: parse_date(policy_params[:policy_start_date]),
-      policy_end_date: parse_date(policy_params[:policy_end_date]),
-      payment_mode: policy_params[:payment_mode],
-      sum_insured: policy_params[:sum_insured],
-      net_premium: policy_params[:net_premium],
-      gst_percentage: policy_params[:gst_percentage] || 18.0,
-      total_premium: calculated_total_premium,
-      is_agent_added: true,
-      is_admin_added: false
-    )
-
-    if policy.save
-      # Handle family members
-      if params[:family_members].present?
-        params[:family_members].each do |member_data|
-          create_family_member(policy, member_data)
-        end
-      end
-
-      # Handle document uploads
-      if params[:documents].present?
-        handle_document_uploads(policy, params[:documents])
-      end
-
-      render json: {
-        status: true,
-        message: 'Health policy created successfully',
-        data: {
-          policy_id: policy.id,
-          policy_number: policy.policy_number,
-          client_name: customer.display_name,
-          total_premium: policy.total_premium,
-          created_at: policy.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        }
-      }, status: :created
-    else
-      render json: {
-        status: false,
-        message: 'Validation failed',
-        errors: policy.errors.full_messages
-      }, status: :unprocessable_entity
-    end
   end
 
   # POST /api/v1/mobile/agent/policies/life
@@ -1254,16 +1125,13 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     # If agent is sub_agent type, filter by their records only
     if is_sub_agent?(agent)
       # Get policies associated with this sub-agent
-      health_policies = HealthInsurance.where(sub_agent_id: agent.id).pluck(:id)
       life_policies = LifeInsurance.where(sub_agent_id: agent.id).pluck(:id)
 
       policy_ids = []
-      policy_ids += health_policies if health_policies.any?
       policy_ids += life_policies if life_policies.any?
 
       commission_payouts = commission_payouts.where(
-        "(policy_type = 'health' AND policy_id IN (?)) OR (policy_type = 'life' AND policy_id IN (?))",
-        health_policies.any? ? health_policies : [0],
+        "policy_type = 'life' AND policy_id IN (?)",
         life_policies.any? ? life_policies : [0]
       )
     end
@@ -1344,7 +1212,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       this_month_earnings: 0.0,
       last_month_earnings: 0.0,
       by_policy_type: {
-        health: { total: 0.0, paid: 0.0, pending: 0.0 },
         life: { total: 0.0, paid: 0.0, pending: 0.0 },
         motor: { total: 0.0, paid: 0.0, pending: 0.0 }
       }
@@ -1352,29 +1219,16 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     if is_sub_agent?(agent)
       # Calculate from sub-agent commission fields in policies
-      health_policies = HealthInsurance.where(sub_agent_id: agent.id)
       life_policies = LifeInsurance.where(sub_agent_id: agent.id)
-
-      # Health insurance commissions
-      health_total = health_policies.sum(:sub_agent_after_tds_value) || 0.0
-      summary[:by_policy_type][:health][:total] = health_total
 
       # Life insurance commissions
       life_total = life_policies.sum(:sub_agent_after_tds_value) || 0.0
       summary[:by_policy_type][:life][:total] = life_total
 
-      summary[:total_earnings] = health_total + life_total
+      summary[:total_earnings] = life_total
 
       # Get paid/pending from commission payouts
-      health_policy_ids = health_policies.pluck(:id)
       life_policy_ids = life_policies.pluck(:id)
-
-      paid_health = CommissionPayout.where(
-        policy_type: 'health',
-        policy_id: health_policy_ids,
-        payout_to: 'sub_agent',
-        status: 'paid'
-      ).sum(:payout_amount)
 
       paid_life = CommissionPayout.where(
         policy_type: 'life',
@@ -1383,11 +1237,9 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         status: 'paid'
       ).sum(:payout_amount)
 
-      summary[:paid_earnings] = paid_health + paid_life
+      summary[:paid_earnings] = paid_life
       summary[:pending_earnings] = summary[:total_earnings] - summary[:paid_earnings]
 
-      summary[:by_policy_type][:health][:paid] = paid_health
-      summary[:by_policy_type][:health][:pending] = summary[:by_policy_type][:health][:total] - paid_health
       summary[:by_policy_type][:life][:paid] = paid_life
       summary[:by_policy_type][:life][:pending] = summary[:by_policy_type][:life][:total] - paid_life
 
@@ -1396,8 +1248,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       this_month_end = Date.current.end_of_month
 
       summary[:this_month_earnings] = CommissionPayout.where(
-        "(policy_type = 'health' AND policy_id IN (?)) OR (policy_type = 'life' AND policy_id IN (?))",
-        health_policy_ids.any? ? health_policy_ids : [0],
+        "policy_type = 'life' AND policy_id IN (?)",
         life_policy_ids.any? ? life_policy_ids : [0]
       ).where(
         payout_to: 'sub_agent',
@@ -1410,8 +1261,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       last_month_end = 1.month.ago.end_of_month
 
       summary[:last_month_earnings] = CommissionPayout.where(
-        "(policy_type = 'health' AND policy_id IN (?)) OR (policy_type = 'life' AND policy_id IN (?))",
-        health_policy_ids.any? ? health_policy_ids : [0],
+        "policy_type = 'life' AND policy_id IN (?)",
         life_policy_ids.any? ? life_policy_ids : [0]
       ).where(
         payout_to: 'sub_agent',
@@ -1428,7 +1278,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       summary[:pending_earnings] = grouped.sum { |(_, status), amount| status == 'pending' ? amount : 0 }
 
       # By policy type
-      ['health', 'life', 'motor'].each do |type|
+      ['life', 'motor'].each do |type|
         total = grouped.sum { |(policy_type, _), amount| policy_type == type ? amount : 0 }
         paid = grouped[[type, 'paid']] || 0
 
@@ -1510,7 +1360,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         active_customers: admin_stats[:active_customers],
         inactive_customers: admin_stats[:inactive_customers],
         policies_count: admin_stats[:total_policies],
-        health_policies_count: admin_stats[:health_count],
         life_policies_count: admin_stats[:life_count],
         motor_policies_count: admin_stats[:motor_count],
         total_premium: admin_stats[:total_premium],
@@ -1519,7 +1368,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         this_month_policies: admin_stats[:monthly_policies],
         this_month_premium: admin_stats[:monthly_premium],
         policy_distribution: {
-          health: { count: admin_stats[:health_count], percentage: admin_stats[:health_percentage] },
           life: { count: admin_stats[:life_count], percentage: admin_stats[:life_percentage] },
           motor: { count: admin_stats[:motor_count], percentage: admin_stats[:motor_percentage] }
         },
@@ -1536,7 +1384,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       {
         customers_count: sub_agent_stats[:customers_count],
         policies_count: sub_agent_stats[:total_policies],
-        health_policies_count: sub_agent_stats[:health_count],
         life_policies_count: sub_agent_stats[:life_count],
         total_premium: sub_agent_stats[:total_premium],
         total_sum_insured: sub_agent_stats[:total_sum_insured],
@@ -1545,7 +1392,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         this_month_premium: sub_agent_stats[:monthly_premium],
         this_month_customers: sub_agent_stats[:monthly_customers],
         policy_distribution: {
-          health: { count: sub_agent_stats[:health_count], percentage: sub_agent_stats[:health_percentage] },
           life: { count: sub_agent_stats[:life_count], percentage: sub_agent_stats[:life_percentage] }
         },
         performance_metrics: {
@@ -1561,14 +1407,12 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       {
         customers_count: agent_stats[:customers_count],
         policies_count: agent_stats[:total_policies],
-        health_policies_count: agent_stats[:health_count],
         life_policies_count: agent_stats[:life_count],
         total_premium: agent_stats[:total_premium],
         commission_earned: agent_stats[:commission_earned],
         this_month_policies: agent_stats[:monthly_policies],
         this_month_premium: agent_stats[:monthly_premium],
         policy_distribution: {
-          health: { count: agent_stats[:health_count], percentage: agent_stats[:health_percentage] },
           life: { count: agent_stats[:life_count], percentage: agent_stats[:life_percentage] }
         }
       }
@@ -1580,26 +1424,14 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     if is_admin?(agent)
       # Admin can see all recent policies
-      recent_health = HealthInsurance.includes(:customer).order(created_at: :desc).limit(5)
       recent_life = LifeInsurance.includes(:customer).order(created_at: :desc).limit(5)
     elsif agent.is_a?(SubAgent)
       # For SubAgents, get their policies directly
-      recent_health = HealthInsurance.where(sub_agent_id: agent.id).includes(:customer).order(created_at: :desc).limit(5)
       recent_life = LifeInsurance.where(sub_agent_id: agent.id).includes(:customer).order(created_at: :desc).limit(5)
     else
       # For User agents, use the cross-reference helper to get their policies
-      agent_health_policies, agent_life_policies, _ = get_agent_policies(agent)
-      recent_health = agent_health_policies.includes(:customer).order(created_at: :desc).limit(5)
+      agent_life_policies, _ = get_agent_policies(agent)
       recent_life = agent_life_policies.includes(:customer).order(created_at: :desc).limit(5)
-    end
-
-    recent_health.each do |policy|
-      activities << {
-        type: 'policy_created',
-        message: "Health insurance policy #{policy.policy_number} created for #{policy.customer&.display_name || 'Customer'}",
-        timestamp: policy.created_at,
-        policy_type: 'Health'
-      }
     end
 
     recent_life.each do |policy|
@@ -1790,7 +1622,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     start_date = Date.current.beginning_of_month
     end_date = Date.current.end_of_month
 
-    HealthInsurance.where(created_at: start_date..end_date).count +
     LifeInsurance.where(created_at: start_date..end_date).count
   end
 
@@ -1798,7 +1629,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     start_date = Date.current.beginning_of_month
     end_date = Date.current.end_of_month
 
-    HealthInsurance.where(created_at: start_date..end_date).sum(:total_premium) +
     LifeInsurance.where(created_at: start_date..end_date).sum(:total_premium)
   end
 
@@ -1806,9 +1636,8 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     start_date = Date.current.beginning_of_month
     end_date = Date.current.end_of_month
 
-    agent_health_policies, agent_life_policies, _ = get_agent_policies(agent)
+    agent_life_policies, _ = get_agent_policies(agent)
 
-    agent_health_policies.where(created_at: start_date..end_date).count +
     agent_life_policies.where(created_at: start_date..end_date).count
   end
 
@@ -1816,9 +1645,8 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     start_date = Date.current.beginning_of_month
     end_date = Date.current.end_of_month
 
-    agent_health_policies, agent_life_policies, _ = get_agent_policies(agent)
+    agent_life_policies, _ = get_agent_policies(agent)
 
-    agent_health_policies.where(created_at: start_date..end_date).sum(:total_premium) +
     agent_life_policies.where(created_at: start_date..end_date).sum(:total_premium)
   end
 
@@ -1826,10 +1654,8 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     start_date = Date.current.beginning_of_month
     end_date = Date.current.end_of_month
 
-    sub_agent_health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id)
     sub_agent_life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id)
 
-    sub_agent_health_policies.where(created_at: start_date..end_date).count +
     sub_agent_life_policies.where(created_at: start_date..end_date).count
   end
 
@@ -1837,10 +1663,8 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     start_date = Date.current.beginning_of_month
     end_date = Date.current.end_of_month
 
-    sub_agent_health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id)
     sub_agent_life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id)
 
-    sub_agent_health_policies.where(created_at: start_date..end_date).sum(:total_premium) +
     sub_agent_life_policies.where(created_at: start_date..end_date).sum(:total_premium)
   end
 
@@ -1851,26 +1675,22 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       sub_agent = SubAgent.find_by(email: agent.email)
       if sub_agent
         # If there's a matching SubAgent, use that for policy lookup
-        agent_health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id)
         agent_life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id)
       else
         # If no matching SubAgent, use the User ID directly
-        agent_health_policies = HealthInsurance.where(sub_agent_id: agent.id)
         agent_life_policies = LifeInsurance.where(sub_agent_id: agent.id)
       end
     elsif agent.is_a?(SubAgent)
       # For SubAgent model, use ID directly
-      agent_health_policies = HealthInsurance.where(sub_agent_id: agent.id)
       agent_life_policies = LifeInsurance.where(sub_agent_id: agent.id)
     else
       # Fallback: empty relations
-      agent_health_policies = HealthInsurance.none
       agent_life_policies = LifeInsurance.none
     end
 
-    agent_customer_ids = (agent_health_policies.pluck(:customer_id) + agent_life_policies.pluck(:customer_id)).uniq
+    agent_customer_ids = agent_life_policies.pluck(:customer_id).uniq
 
-    [agent_health_policies, agent_life_policies, agent_customer_ids]
+    [agent_life_policies, agent_customer_ids]
   end
 
   def generate_demo_password(customer)
@@ -1893,13 +1713,12 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
                       Customer.all
                     elsif agent.is_a?(SubAgent)
                       # For SubAgents, only count customers from their policies
-                      sub_agent_health_policies = HealthInsurance.where(sub_agent_id: agent.id)
                       sub_agent_life_policies = LifeInsurance.where(sub_agent_id: agent.id)
-                      policy_customer_ids = (sub_agent_health_policies.pluck(:customer_id) + sub_agent_life_policies.pluck(:customer_id)).uniq
+                      policy_customer_ids = sub_agent_life_policies.pluck(:customer_id).uniq
                       Customer.where(id: policy_customer_ids)
                     else
                       # For regular User agents, only count customers from their policies
-                      _, _, agent_customer_ids = get_agent_policies(agent)
+                      _, agent_customer_ids = get_agent_policies(agent)
                       Customer.where(id: agent_customer_ids)
                     end
 
@@ -1941,32 +1760,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       37 => 'Bajaj Allianz General Insurance Company Limited'
     }
     companies[company_id.to_i] || 'ICICI Prudential Life Insurance Co Ltd'
-  end
-
-  def create_family_member(policy, member_data)
-    # Use the existing HealthInsuranceMember model if it exists
-    if defined?(HealthInsuranceMember)
-      HealthInsuranceMember.create!(
-        health_insurance: policy,
-        member_name: member_data[:full_name],
-        age: member_data[:age],
-        relationship: member_data[:relationship],
-        sum_insured: member_data[:sum_insured]
-      )
-    else
-      # Store in notes field as JSON if no separate table exists
-      family_member = {
-        full_name: member_data[:full_name],
-        age: member_data[:age],
-        relationship: member_data[:relationship],
-        sum_insured: member_data[:sum_insured]
-      }
-
-      current_notes = policy.notes.present? ? JSON.parse(policy.notes) : {}
-      current_notes['family_members'] ||= []
-      current_notes['family_members'] << family_member
-      policy.update(notes: current_notes.to_json)
-    end
   end
 
   def handle_document_uploads(policy, documents_data)
@@ -2292,12 +2085,10 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     # Filter by agent if sub_agent
     if is_sub_agent?(agent)
-      health_policy_ids = HealthInsurance.where(sub_agent_id: agent.id).pluck(:id)
       life_policy_ids = LifeInsurance.where(sub_agent_id: agent.id).pluck(:id)
 
       base_query = base_query.where(
-        "(policy_type = 'health' AND policy_id IN (?)) OR (policy_type = 'life' AND policy_id IN (?))",
-        health_policy_ids.any? ? health_policy_ids : [0],
+        "policy_type = 'life' AND policy_id IN (?)",
         life_policy_ids.any? ? life_policy_ids : [0]
       )
     end
@@ -2324,10 +2115,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       paid_count: base_query.where(status: 'paid').count,
       pending_count: base_query.where(status: 'pending').count,
       by_policy_type: {
-        health: {
-          count: base_query.where(policy_type: 'health').count,
-          amount: base_query.where(policy_type: 'health').sum(:payout_amount)
-        },
         life: {
           count: base_query.where(policy_type: 'life').count,
           amount: base_query.where(policy_type: 'life').sum(:payout_amount)
@@ -2456,12 +2243,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     # One pick per table (count + all sums together) instead of a separate
     # query for each stat.
-    health_count, health_premium, health_sum, health_commission = HealthInsurance.pick(
-      Arel.sql("COUNT(*)"),
-      Arel.sql("COALESCE(SUM(total_premium), 0)"),
-      Arel.sql("COALESCE(SUM(sum_insured), 0)"),
-      Arel.sql("COALESCE(SUM(commission_amount), 0)")
-    )
     life_count, life_premium, life_sum, life_commission = LifeInsurance.pick(
       Arel.sql("COUNT(*)"),
       Arel.sql("COALESCE(SUM(total_premium), 0)"),
@@ -2478,11 +2259,9 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       [0, 0, 0]
     end
 
-    total_policies = health_count + life_count + motor_count
+    total_policies = life_count + motor_count
 
     # Monthly counts (count + premium sum together per table)
-    monthly_health, monthly_health_premium = HealthInsurance.where(created_at: current_month_start..current_month_end)
-                                                              .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"))
     monthly_life, monthly_life_premium = LifeInsurance.where(created_at: current_month_start..current_month_end)
                                                         .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"))
 
@@ -2494,29 +2273,25 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     # Renewal and expiry data
     thirty_days_from_now = Date.current + 30.days
-    renewal_due = HealthInsurance.where('policy_end_date BETWEEN ? AND ?', Date.current, thirty_days_from_now).count +
-                  LifeInsurance.where('policy_end_date BETWEEN ? AND ?', Date.current, thirty_days_from_now).count
+    renewal_due = LifeInsurance.where('policy_end_date BETWEEN ? AND ?', Date.current, thirty_days_from_now).count
 
-    expired_policies = HealthInsurance.where('policy_end_date < ?', Date.current).count +
-                      LifeInsurance.where('policy_end_date < ?', Date.current).count
+    expired_policies = LifeInsurance.where('policy_end_date < ?', Date.current).count
 
     {
       customers_count: total_customers,
       active_customers: active_customers,
       inactive_customers: total_customers - active_customers,
-      health_count: health_count,
       life_count: life_count,
       motor_count: motor_count,
       total_policies: total_policies,
-      total_premium: health_premium + life_premium + motor_premium,
-      total_sum_insured: health_sum + life_sum + motor_sum,
-      total_commission: health_commission + life_commission,
-      monthly_policies: monthly_health + monthly_life,
-      monthly_premium: monthly_health_premium + monthly_life_premium,
+      total_premium: life_premium + motor_premium,
+      total_sum_insured: life_sum + motor_sum,
+      total_commission: life_commission,
+      monthly_policies: monthly_life,
+      monthly_premium: monthly_life_premium,
       new_customers_month: monthly_customers,
       renewal_due: renewal_due,
       expired_policies: expired_policies,
-      health_percentage: total_policies > 0 ? ((health_count.to_f / total_policies) * 100).round(2) : 0,
       life_percentage: total_policies > 0 ? ((life_count.to_f / total_policies) * 100).round(2) : 0,
       motor_percentage: total_policies > 0 ? ((motor_count.to_f / total_policies) * 100).round(2) : 0
     }
@@ -2527,39 +2302,28 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     current_month_end = Date.current.end_of_month
 
     # Use simple queries like the original method
-    health_policies = HealthInsurance.where(sub_agent_id: agent.id)
     life_policies = LifeInsurance.where(sub_agent_id: agent.id)
 
     # One pick per relation (count + all sums together) instead of 4
     # separate count/sum round trips each.
-    health_count, health_premium, health_sum_insured, health_commission = health_policies.pick(
-      Arel.sql("COUNT(*)"),
-      Arel.sql("COALESCE(SUM(total_premium), 0)"),
-      Arel.sql("COALESCE(SUM(sum_insured), 0)"),
-      Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)")
-    )
     life_count, life_premium, life_sum_insured, life_commission = life_policies.pick(
       Arel.sql("COUNT(*)"),
       Arel.sql("COALESCE(SUM(total_premium), 0)"),
       Arel.sql("COALESCE(SUM(sum_insured), 0)"),
       Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)")
     )
-    total_policies = health_count + life_count
-    total_commission = health_commission + life_commission
+    total_policies = life_count
+    total_commission = life_commission
 
     # Monthly data — count + premium + commission together per table
-    monthly_health_count, monthly_health_premium, monthly_health_commission =
-      health_policies.where(created_at: current_month_start..current_month_end)
-                      .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"), Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)"))
     monthly_life_count, monthly_life_premium, monthly_life_commission =
       life_policies.where(created_at: current_month_start..current_month_end)
                     .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)"), Arel.sql("COALESCE(SUM(sub_agent_commission_amount), 0)"))
-    monthly_commission = monthly_health_commission + monthly_life_commission
+    monthly_commission = monthly_life_commission
 
     # Get unique customer IDs for real-time count
-    customer_ids = (health_policies.pluck(:customer_id) + life_policies.pluck(:customer_id)).uniq
-    monthly_customer_ids = (health_policies.where(created_at: current_month_start..current_month_end).pluck(:customer_id) +
-                           life_policies.where(created_at: current_month_start..current_month_end).pluck(:customer_id)).uniq
+    customer_ids = life_policies.pluck(:customer_id).uniq
+    monthly_customer_ids = life_policies.where(created_at: current_month_start..current_month_end).pluck(:customer_id).uniq
 
     # Calculate target achievement
     monthly_target = 50000.0
@@ -2567,26 +2331,24 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     {
       customers_count: customer_ids.count,
-      health_count: health_count,
       life_count: life_count,
       total_policies: total_policies,
-      total_premium: health_premium + life_premium,
-      total_sum_insured: health_sum_insured + life_sum_insured,
+      total_premium: life_premium,
+      total_sum_insured: life_sum_insured,
       commission_earned: total_commission,
-      monthly_policies: monthly_health_count + monthly_life_count,
-      monthly_premium: monthly_health_premium + monthly_life_premium,
+      monthly_policies: monthly_life_count,
+      monthly_premium: monthly_life_premium,
       monthly_customers: monthly_customer_ids.count,
       commission_this_month: monthly_commission,
       target_achievement: target_achievement,
       conversion_rate: customer_ids.count > 0 && total_policies > 0 ? ((total_policies.to_f / customer_ids.count) * 100).round(2) : 0,
-      health_percentage: total_policies > 0 ? ((health_count.to_f / total_policies) * 100).round(2) : 0,
       life_percentage: total_policies > 0 ? ((life_count.to_f / total_policies) * 100).round(2) : 0
     }
   end
 
   def get_optimized_agent_stats(agent)
     # Get agent policies using existing method but optimize queries
-    agent_health_policies, agent_life_policies, agent_customer_ids = get_agent_policies(agent)
+    agent_life_policies, agent_customer_ids = get_agent_policies(agent)
 
     # Also include customers added by the agent through mobile API
     agent_added_customers = Customer.where("added_by LIKE ?", "%agent_mobile_api_#{agent.id}%")
@@ -2596,40 +2358,29 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     current_month_start = Date.current.beginning_of_month
     current_month_end = Date.current.end_of_month
 
-    monthly_health = agent_health_policies.where(created_at: current_month_start..current_month_end)
     monthly_life = agent_life_policies.where(created_at: current_month_start..current_month_end)
 
     # One pick per relation (count + sums together) instead of calling
     # .count/.sum repeatedly on the same relation — was ~15 round trips, now 5.
-    health_count, health_premium, health_commission = agent_health_policies.pick(
-      Arel.sql("COUNT(*)"),
-      Arel.sql("COALESCE(SUM(total_premium), 0)"),
-      Arel.sql("COALESCE(SUM(sub_agent_after_tds_value), 0)")
-    )
     life_count, life_premium, life_commission = agent_life_policies.pick(
       Arel.sql("COUNT(*)"),
       Arel.sql("COALESCE(SUM(total_premium), 0)"),
       Arel.sql("COALESCE(SUM(sub_agent_after_tds_value), 0)")
     )
-    monthly_health_count, monthly_health_premium = monthly_health.pick(
-      Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)")
-    )
     monthly_life_count, monthly_life_premium = monthly_life.pick(
       Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_premium), 0)")
     )
 
-    total_policies = health_count + life_count
+    total_policies = life_count
 
     {
       customers_count: all_agent_customers.active.count,
-      health_count: health_count,
       life_count: life_count,
       total_policies: total_policies,
-      total_premium: health_premium + life_premium,
-      commission_earned: health_commission + life_commission,
-      monthly_policies: monthly_health_count + monthly_life_count,
-      monthly_premium: monthly_health_premium + monthly_life_premium,
-      health_percentage: total_policies > 0 ? ((health_count.to_f / total_policies) * 100).round(2) : 0,
+      total_premium: life_premium,
+      commission_earned: life_commission,
+      monthly_policies: monthly_life_count,
+      monthly_premium: monthly_life_premium,
       life_percentage: total_policies > 0 ? ((life_count.to_f / total_policies) * 100).round(2) : 0
     }
   end

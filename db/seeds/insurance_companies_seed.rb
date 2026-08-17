@@ -74,7 +74,6 @@ class InsuranceCompaniesSeeder
     puts "   • Companies created: #{companies_created}"
     puts "   • Companies skipped: #{companies_skipped}"
     puts "   • Total companies in DB: #{InsuranceCompany.count}"
-    puts "   • Health companies: #{health_insurance_companies.count}"
     puts "   • General companies: #{general_insurance_companies.count}"
 
     # Verify seeding
@@ -145,12 +144,6 @@ class InsuranceCompaniesSeeder
 
   def verify_seeding
     puts "\n🔍 Verification:"
-
-    # Check health insurance companies
-    health_companies = InsuranceCompany.where(
-      name: health_insurance_companies
-    ).count
-    puts "   • Health companies in DB: #{health_companies}/#{health_insurance_companies.count}"
 
     # Check general insurance companies
     general_companies = InsuranceCompany.where(

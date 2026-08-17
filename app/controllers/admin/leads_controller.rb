@@ -124,11 +124,10 @@ class Admin::LeadsController < Admin::ApplicationController
     if has_converted_customer
       customer = Customer.find_by(id: @lead.converted_customer_id)
       if customer
-        health_policies = HealthInsurance.where(customer_id: customer.id).exists? rescue false
         life_policies = LifeInsurance.where(customer_id: customer.id).exists? rescue false
         motor_policies = MotorInsurance.where(customer_id: customer.id).exists? rescue false
         other_policies = defined?(OtherInsurance) && OtherInsurance.where(customer_id: customer.id).exists? rescue false
-        customer_has_policies = health_policies || life_policies || motor_policies || other_policies
+        customer_has_policies = life_policies || motor_policies || other_policies
       end
     end
 
@@ -136,7 +135,6 @@ class Admin::LeadsController < Admin::ApplicationController
     has_lead_policies = false
     lead_policy_count = 0
     begin
-      lead_policy_count += HealthInsurance.where(lead_id: @lead.lead_id).count rescue 0
       lead_policy_count += LifeInsurance.where(lead_id: @lead.lead_id).count rescue 0
       lead_policy_count += MotorInsurance.where(lead_id: @lead.lead_id).count rescue 0
       lead_policy_count += OtherInsurance.where(lead_id: @lead.lead_id).count rescue 0 if defined?(OtherInsurance)
@@ -361,8 +359,6 @@ class Admin::LeadsController < Admin::ApplicationController
 
     if @lead.product_category == 'insurance'
       case @lead.product_subcategory
-      when 'health'
-        redirect_to new_admin_health_insurance_path(customer_id: @lead.converted_customer_id, lead_id: @lead.id)
       when 'life'
         redirect_to new_admin_life_insurance_path(customer_id: @lead.converted_customer_id, lead_id: @lead.id)
       when 'motor'

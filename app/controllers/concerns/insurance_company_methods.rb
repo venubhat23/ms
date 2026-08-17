@@ -44,11 +44,6 @@ module InsuranceCompanyMethods
     INSURANCE_COMPANIES.keys
   end
 
-  # Get health insurance companies only
-  def health_insurance_companies
-    INSURANCE_COMPANIES.select { |name, type| type == "HEALTH" }.keys
-  end
-
   # Get general insurance companies only
   def general_insurance_companies
     INSURANCE_COMPANIES.select { |name, type| type == "GENERAL" }.keys
@@ -59,11 +54,6 @@ module InsuranceCompanyMethods
     INSURANCE_COMPANIES.map { |name, type| ["#{name} (#{type})", name] }
   end
 
-  # Get health insurance options for select dropdown
-  def health_insurance_options
-    health_insurance_companies.map { |name| [name, name] }
-  end
-
   # Get general insurance options for select dropdown
   def general_insurance_options
     general_insurance_companies.map { |name| [name, name] }
@@ -72,11 +62,6 @@ module InsuranceCompanyMethods
   # Get company type by name
   def insurance_company_type(name)
     INSURANCE_COMPANIES[name]
-  end
-
-  # Check if company is health insurance
-  def health_insurance?(name)
-    insurance_company_type(name) == "HEALTH"
   end
 
   # Check if company is general insurance

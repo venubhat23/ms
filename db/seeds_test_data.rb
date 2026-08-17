@@ -213,47 +213,6 @@ leads = 200.times.map do
 end
 puts "   ✅ Created #{Lead.count} leads"
 
-# 8. Create Health Insurance Policies (100 records)
-puts "🏥 Creating Health Insurance Policies..."
-health_insurances = 100.times.map do
-  customer = customers.sample
-  lead = leads.sample
-  company = insurance_companies.sample
-
-  net_premium = [15000, 25000, 35000, 50000, 75000, 100000].sample
-  gst = net_premium * 0.18
-
-  HealthInsurance.create!(
-    customer: customer,
-    policy_holder: customer.display_name,
-    plan_name: "#{['Arogya', 'Health', 'Care', 'Plus', 'Prime', 'Star'].sample} #{['Basic', 'Premium', 'Gold', 'Platinum'].sample}",
-    insurance_company_name: company.name,
-    insurance_type: %w[Individual Family Floater Senior_Citizen].sample,
-    policy_type: %w[New Renewal Port].sample,
-    policy_number: "HLT#{Faker::Number.unique.number(digits: 10)}",
-    policy_booking_date: Faker::Date.between(from: 1.year.ago, to: Date.current),
-    policy_start_date: Faker::Date.between(from: Date.current, to: 1.month.from_now),
-    policy_end_date: Faker::Date.between(from: 1.year.from_now, to: 2.years.from_now),
-    payment_mode: %w[Yearly Half_Yearly Quarterly Monthly].sample,
-    sum_insured: [300000, 500000, 1000000, 1500000, 2000000].sample,
-    net_premium: net_premium,
-    total_premium: net_premium + gst,
-    gst_percentage: 18,
-    lead_id: lead.lead_id,
-    sub_agent_id: sub_agents.sample.id,
-    distributor_id: distributors.sample.id,
-    investor_id: investors.sample.id,
-    main_agent_commission_received: [true, false].sample,
-    agent_commission_amount: net_premium * 0.15,
-    agent_commission_percentage: 15,
-    added_by: %w[customer_request agent_recommendation system_migration].sample,
-    is_customer_added: [true, false].sample,
-    is_agent_added: [true, false].sample,
-    is_admin_added: [true, false].sample
-  )
-end
-puts "   ✅ Created #{HealthInsurance.count} health insurance policies"
-
 # 9. Create Life Insurance Policies (80 records)
 puts "❤️ Creating Life Insurance Policies..."
 life_insurances = 80.times.map do
@@ -472,12 +431,11 @@ puts "   ✅ Created #{TravelPackage.count} travel packages"
 
 # 16. Create Commission Payouts (100 records)
 puts "💰 Creating Commission Payouts..."
-all_policies = health_insurances + life_insurances + motor_insurances + other_insurances
+all_policies = life_insurances + motor_insurances + other_insurances
 
 commission_payouts = 100.times.map do
   policy = all_policies.sample
   policy_type = case policy.class.name
-                when 'HealthInsurance' then 'health'
                 when 'LifeInsurance' then 'life'
                 when 'MotorInsurance' then 'motor'
                 when 'OtherInsurance' then 'other'
@@ -508,7 +466,6 @@ distributor_payouts = 50.times.map do
   policy = all_policies.sample
   distributor = distributors.sample
   policy_type = case policy.class.name
-                when 'HealthInsurance' then 'health'
                 when 'LifeInsurance' then 'life'
                 when 'MotorInsurance' then 'motor'
                 when 'OtherInsurance' then 'other'
@@ -595,7 +552,6 @@ summary = {
   "💼 Investors" => Investor.count,
   "🏛️ Insurance Companies" => InsuranceCompany.count,
   "🎯 Leads" => Lead.count,
-  "🏥 Health Insurance" => HealthInsurance.count,
   "❤️ Life Insurance" => LifeInsurance.count,
   "🚗 Motor Insurance" => MotorInsurance.count,
   "🛡️ Other Insurance" => OtherInsurance.count,

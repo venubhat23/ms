@@ -829,53 +829,19 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   end
 
   def get_agent_statistics(user)
-    # Calculate real commission from policies where agent is involved.
-    # Load each relation once via .to_a and reuse it in memory for the
-    # commission sum, customer_ids, and count below — previously each of
-    # those re-queried the same rows (up to 9 round trips instead of 3),
-    # same fix already applied to get_sub_agent_statistics below.
-    health_policies = HealthInsurance.where(sub_agent: user).to_a
-    life_policies = LifeInsurance.where(sub_agent: user).to_a
-    motor_policies = defined?(MotorInsurance) ? MotorInsurance.where(sub_agent: user).to_a : []
-
-    # Calculate commission earned from different policy types
-    health_commission = health_policies.sum do |policy|
-      policy.commission_amount || calculate_health_commission(policy)
-    end
-
-    life_commission = life_policies.sum do |policy|
-      policy.sub_agent_commission_amount || calculate_life_commission(policy)
-    end
-
-    motor_commission = motor_policies.sum do |policy|
-      policy.main_agent_commission_amount || calculate_motor_commission(policy)
-    end
-
-    total_commission = health_commission + life_commission + motor_commission
-
-    # Get unique customers associated with this agent's policies
-    customer_ids = health_policies.map(&:customer_id) +
-                   life_policies.map(&:customer_id) +
-                   motor_policies.map(&:customer_id)
-
-    total_policies = health_policies.size + life_policies.size + motor_policies.size
-
-    # If no real data, provide realistic mock data
-    if total_commission == 0 && total_policies == 0
-      total_commission = generate_mock_commission(user)
-      total_policies = generate_mock_policies_count(user)
-      customer_ids = generate_mock_customers(user, total_policies)
-    end
+    # No insurance policy types remain (life/motor/other/health insurance were
+    # all removed), so there's no real commission data to compute — fall
+    # straight to the mock-data path that used to only run when real data was
+    # absent.
+    total_commission = generate_mock_commission(user)
+    total_policies = generate_mock_policies_count(user)
+    customer_ids = generate_mock_customers(user, total_policies)
 
     {
       commission_earned: total_commission.round(2),
       customers_count: customer_ids.uniq.count,
       policies_count: total_policies,
-      commission_breakdown: {
-        health_commission: health_commission.round(2),
-        life_commission: life_commission.round(2),
-        motor_commission: motor_commission.round(2)
-      }
+      commission_breakdown: {}
     }
   end
 
@@ -884,7 +850,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     # Loaded once via .to_a and reused below for commission sum, customer_ids,
     # and count — previously each of those re-queried the same rows (up to 9
     # round trips per agent instead of 3).
-    health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id).to_a
     life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id).to_a
     motor_policies = []
 
@@ -896,17 +861,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     end
 
     # Calculate commission from each policy type using actual database values
-    health_commission = health_policies.sum do |policy|
-      commission = 0.0
-      # Try multiple commission fields for HealthInsurance
-      commission = policy.sub_agent_commission_amount.to_f if policy.respond_to?(:sub_agent_commission_amount) && policy.sub_agent_commission_amount.present?
-      commission = policy.commission_amount.to_f if commission == 0.0 && policy.respond_to?(:commission_amount) && policy.commission_amount.present?
-      commission = policy.after_tds_value.to_f if commission == 0.0 && policy.respond_to?(:after_tds_value) && policy.after_tds_value.present?
-      commission = policy.main_agent_commission_amount.to_f if commission == 0.0 && policy.respond_to?(:main_agent_commission_amount) && policy.main_agent_commission_amount.present?
-      commission = calculate_health_commission(policy) if commission == 0.0
-      commission
-    end
-
     life_commission = life_policies.sum do |policy|
       commission = 0.0
       # LifeInsurance has sub_agent_commission_amount field
@@ -930,13 +884,13 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       end
     end
 
-    total_commission = health_commission + life_commission + motor_commission
+    total_commission = life_commission + motor_commission
 
     # Get unique customer IDs from actual policies - this is the real-time customer count
-    customer_ids = (health_policies.map(&:customer_id) + life_policies.map(&:customer_id))
+    customer_ids = life_policies.map(&:customer_id)
     customer_ids += motor_policies.map(&:customer_id) if motor_policies&.any?
 
-    total_policies = health_policies.size + life_policies.size
+    total_policies = life_policies.size
     total_policies += motor_policies.size if motor_policies&.any?
 
     # Use only customers who have active policies for real-time data
@@ -948,7 +902,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       customers_count: real_customers_count,
       policies_count: total_policies,
       commission_breakdown: {
-        health_commission: health_commission.round(2),
         life_commission: life_commission.round(2),
         motor_commission: motor_commission.round(2)
       },
@@ -958,12 +911,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   end
 
   # Helper methods for commission calculation
-  def calculate_health_commission(policy)
-    return 0.0 unless policy&.net_premium
-    # Default 2% commission for health insurance
-    (policy.net_premium.to_f * 0.02)
-  end
-
   def calculate_life_commission(policy)
     return 0.0 unless policy&.net_premium
     # Default 10% commission for life insurance first year
@@ -1059,7 +1006,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     start_of_month = Date.current.beginning_of_month
     end_of_month = Date.current.end_of_month
 
-    health_policies = HealthInsurance.where(sub_agent_id: sub_agent.id).where(created_at: start_of_month..end_of_month).count
     life_policies = LifeInsurance.where(sub_agent_id: sub_agent.id).where(created_at: start_of_month..end_of_month).count
 
     motor_policies = 0
@@ -1071,7 +1017,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       # Skip if error
     end
 
-    health_policies + life_policies + motor_policies
+    life_policies + motor_policies
   end
 
   def get_current_month_customers_count(sub_agent)
@@ -1079,7 +1025,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     end_of_month = Date.current.end_of_month
 
     # Count unique customers who got policies this month through this sub-agent
-    health_customer_ids = HealthInsurance.where(sub_agent_id: sub_agent.id).where(created_at: start_of_month..end_of_month).pluck(:customer_id)
     life_customer_ids = LifeInsurance.where(sub_agent_id: sub_agent.id).where(created_at: start_of_month..end_of_month).pluck(:customer_id)
 
     motor_customer_ids = []
@@ -1091,7 +1036,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       # Skip if error
     end
 
-    (health_customer_ids + life_customer_ids + motor_customer_ids).uniq.count
+    (life_customer_ids + motor_customer_ids).uniq.count
   end
 
   def calculate_conversion_rate(sub_agent)
@@ -1147,7 +1092,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
 
   def get_team_size(sub_agent)
     # Count customers with active policies from this sub-agent
-    health_customer_ids = HealthInsurance.where(sub_agent_id: sub_agent.id).pluck(:customer_id)
     life_customer_ids = LifeInsurance.where(sub_agent_id: sub_agent.id).pluck(:customer_id)
 
     motor_customer_ids = []
@@ -1158,7 +1102,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       motor_customer_ids = []
     end
 
-    (health_customer_ids + life_customer_ids + motor_customer_ids).uniq.count
+    (life_customer_ids + motor_customer_ids).uniq.count
   end
 
   def calculate_performance_grade(achievement_percentage)
@@ -1181,7 +1125,6 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   end
 
   def get_total_policies_count(sub_agent)
-    health_count = HealthInsurance.where(sub_agent_id: sub_agent.id).count
     life_count = LifeInsurance.where(sub_agent_id: sub_agent.id).count
 
     motor_count = 0
@@ -1193,7 +1136,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       # Skip if error
     end
 
-    health_count + life_count + motor_count
+    life_count + motor_count
   end
 
   # Customer portfolio calculation helper methods

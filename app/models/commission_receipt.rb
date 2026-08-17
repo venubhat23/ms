@@ -6,7 +6,10 @@ class CommissionReceipt < ApplicationRecord
   has_many :payout_audit_logs, as: :auditable, dependent: :destroy
 
   # Validations
-  validates :policy_type, presence: true, inclusion: { in: ['health', 'life', 'motor', 'other'] }
+  # No insurance policy types remain (life/motor/other/health insurance were
+  # all removed), so there's nothing left to constrain policy_type against —
+  # only require it be present so existing records stay valid.
+  validates :policy_type, presence: true
   validates :policy_id, presence: true, numericality: { greater_than: 0 }
   validates :total_commission_received, presence: true, numericality: { greater_than: 0 }
   validates :received_date, presence: true
@@ -32,17 +35,9 @@ class CommissionReceipt < ApplicationRecord
   after_update :create_audit_log, if: :saved_changes?
 
   # Instance methods
+  # No insurance policy types remain, so there's nothing to look up.
   def policy
-    case policy_type
-    when 'health'
-      HealthInsurance.find_by(id: policy_id)
-    when 'life'
-      LifeInsurance.find_by(id: policy_id)
-    when 'motor'
-      MotorInsurance.find_by(id: policy_id)
-    when 'other'
-      OtherInsurance.find_by(id: policy_id)
-    end
+    nil
   end
 
   def customer

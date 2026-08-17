@@ -387,8 +387,6 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
     policy_id = params[:id] || params[:policy_id]
 
     @policy = case policy_type&.downcase
-              when 'health'
-                HealthInsurance.find(policy_id)
               when 'life'
                 LifeInsurance.find(policy_id)
               when 'motor'
@@ -408,8 +406,6 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
     policy_id = params[:policy_id]
 
     case policy_type&.downcase
-    when 'health'
-      HealthInsurance.find_by(id: policy_id)
     when 'life'
       LifeInsurance.find_by(id: policy_id)
     when 'motor'
@@ -420,7 +416,7 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
   end
 
   def find_policy_across_types(policy_id)
-    [HealthInsurance, LifeInsurance, MotorInsurance, OtherInsurance].each do |model|
+    [LifeInsurance, MotorInsurance, OtherInsurance].each do |model|
       policy = model.find_by(id: policy_id)
       return policy if policy
     end
@@ -429,14 +425,6 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
 
   def search_policies_across_types(search_term)
     policies = []
-
-    # Search Health Insurance
-    HealthInsurance.joins(:customer)
-                   .where("health_insurances.policy_number ILIKE ? OR customers.first_name ILIKE ? OR customers.last_name ILIKE ?",
-                          "%#{search_term}%", "%#{search_term}%", "%#{search_term}%")
-                   .limit(10).each do |policy|
-      policies << format_policy_for_search(policy, 'health')
-    end
 
     # Search Life Insurance
     LifeInsurance.joins(:customer)
@@ -640,7 +628,7 @@ class Admin::CommissionTrackingController < Admin::ApplicationController
   def fetch_recent_policies_with_commission
     policies = []
 
-    [HealthInsurance, LifeInsurance, MotorInsurance, OtherInsurance].each do |model|
+    [LifeInsurance, MotorInsurance, OtherInsurance].each do |model|
       begin
         model.includes(:customer).order(created_at: :desc).limit(5).each do |policy|
           begin

@@ -92,7 +92,7 @@
       </div>
     </div>
     <div class="card-body">
-      <% sidebar_modules = ['dashboard', 'customers', 'policies', 'agents', 'sub_agents', 'brokers', 'agency_codes', 'leads', 'life_insurance', 'health_insurance', 'motor_insurance', 'other_insurance', 'reports', 'management', 'settings'] %>
+      <% sidebar_modules = ['dashboard', 'customers', 'agents', 'sub_agents', 'brokers', 'agency_codes', 'leads', 'reports', 'management', 'settings'] %>
       <% sidebar_permissions = Permission.where(module_name: sidebar_modules, action_type: 'read') %>
 
       <div class="row">

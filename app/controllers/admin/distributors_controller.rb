@@ -103,7 +103,6 @@ class Admin::DistributorsController < Admin::ApplicationController
     has_direct_affiliates = @distributor.sub_agents.exists?
 
     # Check for insurance policies directly linked to this distributor
-    has_health_policies = HealthInsurance.where(distributor_id: @distributor.id).exists? rescue false
     has_life_policies = LifeInsurance.where(distributor_id: @distributor.id).exists? rescue false
     has_motor_policies = MotorInsurance.where(distributor_id: @distributor.id).exists? rescue false
     has_other_policies = defined?(OtherInsurance) && OtherInsurance.where(distributor_id: @distributor.id).exists? rescue false
@@ -111,7 +110,7 @@ class Admin::DistributorsController < Admin::ApplicationController
     # Check for distributor payouts
     has_payouts = defined?(DistributorPayout) && DistributorPayout.where(distributor_id: @distributor.id).exists? rescue false
 
-    if has_assigned_affiliates || has_direct_affiliates || has_health_policies || has_life_policies || has_motor_policies || has_other_policies || has_payouts
+    if has_assigned_affiliates || has_direct_affiliates || has_life_policies || has_motor_policies || has_other_policies || has_payouts
       error_messages = []
 
       if has_assigned_affiliates || has_direct_affiliates
@@ -120,7 +119,6 @@ class Admin::DistributorsController < Admin::ApplicationController
       end
 
       policy_count = 0
-      policy_count += HealthInsurance.where(distributor_id: @distributor.id).count rescue 0
       policy_count += LifeInsurance.where(distributor_id: @distributor.id).count rescue 0
       policy_count += MotorInsurance.where(distributor_id: @distributor.id).count rescue 0
       policy_count += OtherInsurance.where(distributor_id: @distributor.id).count rescue 0 if defined?(OtherInsurance)
@@ -204,7 +202,6 @@ class Admin::DistributorsController < Admin::ApplicationController
   end
 
   def calculate_affiliate_stats(affiliate)
-    health_policies = HealthInsurance.where(sub_agent_id: affiliate.id)
     life_policies = LifeInsurance.where(sub_agent_id: affiliate.id)
     motor_policies = MotorInsurance.where(sub_agent_id: affiliate.id)
 
@@ -229,20 +226,17 @@ class Admin::DistributorsController < Admin::ApplicationController
       other_policies_commission = 0.0
     end
 
-    total_policies = health_policies.count + life_policies.count + motor_policies.count + other_policies_count
-    total_premium = (health_policies.sum(:total_premium) +
-                    life_policies.sum(:total_premium) +
+    total_policies = life_policies.count + motor_policies.count + other_policies_count
+    total_premium = (life_policies.sum(:total_premium) +
                     motor_policies.sum(:total_premium) +
                     other_policies_premium).to_f
 
-    total_commission = (health_policies.sum(:commission_amount) +
-                       life_policies.sum(:commission_amount) +
+    total_commission = (life_policies.sum(:commission_amount) +
                        motor_policies.sum(:main_agent_commission_amount) +
                        other_policies_commission).to_f
 
     # Get unique customers from all policies created by this affiliate
     customer_ids = []
-    customer_ids += health_policies.pluck(:customer_id).compact
     customer_ids += life_policies.pluck(:customer_id).compact
     customer_ids += motor_policies.pluck(:customer_id).compact
     unique_customers_count = customer_ids.uniq.count
@@ -251,7 +245,6 @@ class Admin::DistributorsController < Admin::ApplicationController
       total_policies: total_policies,
       total_premium: total_premium,
       total_commission: total_commission,
-      health_policies: health_policies.count,
       life_policies: life_policies.count,
       motor_policies: motor_policies.count,
       other_policies: other_policies_count,
@@ -288,21 +281,6 @@ class Admin::DistributorsController < Admin::ApplicationController
 
   def get_recent_policies_for_affiliate(affiliate)
     policies = []
-
-    # Get recent health policies
-    HealthInsurance.where(sub_agent_id: affiliate.id)
-                   .includes(:customer)
-                   .order(created_at: :desc)
-                   .limit(3)
-                   .each do |policy|
-      policies << {
-        type: 'Health',
-        policy_number: policy.policy_number,
-        customer: policy.customer&.display_name || 'Unknown',
-        premium: policy.total_premium,
-        created_at: policy.created_at
-      }
-    end
 
     # Get recent life policies
     LifeInsurance.where(sub_agent_id: affiliate.id)

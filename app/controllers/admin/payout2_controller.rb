@@ -77,23 +77,22 @@ class Admin::Payout2Controller < Admin::ApplicationController
     # Get all commission payouts with their policy information in a single optimized query
     commission_data = CommissionPayout.joins(
       "LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id " +
-      "LEFT JOIN health_insurances ON commission_payouts.policy_type = 'health' AND commission_payouts.policy_id = health_insurances.id " +
       "LEFT JOIN motor_insurances ON commission_payouts.policy_type = 'motor' AND commission_payouts.policy_id = motor_insurances.id " +
       "LEFT JOIN other_insurances ON commission_payouts.policy_type = 'other' AND commission_payouts.policy_id = other_insurances.id " +
       "LEFT JOIN policies ON commission_payouts.policy_type = 'other' AND other_insurances.policy_id = policies.id " +
-      "LEFT JOIN customers ON (life_insurances.customer_id = customers.id OR health_insurances.customer_id = customers.id OR motor_insurances.customer_id = customers.id OR policies.customer_id = customers.id)"
+      "LEFT JOIN customers ON (life_insurances.customer_id = customers.id OR motor_insurances.customer_id = customers.id OR policies.customer_id = customers.id)"
     ).select(
       "commission_payouts.policy_type, commission_payouts.policy_id, " +
       "commission_payouts.payout_to, commission_payouts.payout_amount, commission_payouts.status, " +
-      "COALESCE(life_insurances.policy_number, health_insurances.policy_number, motor_insurances.policy_number, policies.policy_number) as policy_number, " +
-      "COALESCE(life_insurances.insurance_company_name, health_insurances.insurance_company_name, motor_insurances.insurance_company_name, 'Other Insurance') as company_name, " +
-      "COALESCE(life_insurances.total_premium, health_insurances.total_premium, motor_insurances.total_premium, policies.total_premium) as total_premium, " +
-      "COALESCE(life_insurances.created_at, health_insurances.created_at, motor_insurances.created_at, other_insurances.created_at) as policy_created_at, " +
+      "COALESCE(life_insurances.policy_number, motor_insurances.policy_number, policies.policy_number) as policy_number, " +
+      "COALESCE(life_insurances.insurance_company_name, motor_insurances.insurance_company_name, 'Other Insurance') as company_name, " +
+      "COALESCE(life_insurances.total_premium, motor_insurances.total_premium, policies.total_premium) as total_premium, " +
+      "COALESCE(life_insurances.created_at, motor_insurances.created_at, other_insurances.created_at) as policy_created_at, " +
       "customers.first_name, customers.last_name, customers.company_name as customer_company_name, customers.customer_type, " +
-      "COALESCE(life_insurances.sub_agent_commission_percentage, health_insurances.sub_agent_commission_percentage, 0) as sub_agent_percentage, " +
-      "COALESCE(life_insurances.ambassador_commission_percentage, health_insurances.ambassador_commission_percentage, 0) as ambassador_percentage, " +
-      "COALESCE(life_insurances.investor_commission_percentage, health_insurances.investor_commission_percentage, 0) as investor_percentage, " +
-      "COALESCE(life_insurances.company_expenses_percentage, health_insurances.company_expenses_percentage, 0) as company_percentage"
+      "COALESCE(life_insurances.sub_agent_commission_percentage, 0) as sub_agent_percentage, " +
+      "COALESCE(life_insurances.ambassador_commission_percentage, 0) as ambassador_percentage, " +
+      "COALESCE(life_insurances.investor_commission_percentage, 0) as investor_percentage, " +
+      "COALESCE(life_insurances.company_expenses_percentage, 0) as company_percentage"
     ).group_by { |cp| "#{cp.policy_type}_#{cp.policy_id}" }
 
     payouts = []
@@ -160,8 +159,6 @@ class Admin::Payout2Controller < Admin::ApplicationController
     case policy_type
     when 'life'
       LifeInsurance
-    when 'health'
-      HealthInsurance
     when 'motor'
       MotorInsurance
     when 'other'

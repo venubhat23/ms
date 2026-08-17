@@ -550,38 +550,6 @@ Rails.application.routes.draw do
     end
 
 
-    # Life Insurance
-    resources :life_insurances, path: 'insurance/life' do
-      collection do
-        get :policy_holder_options
-        get :brokers_by_company
-        get :agency_codes_by_broker
-        get :all_agency_codes
-        get :all_brokers
-      end
-      member do
-        get :commission_details
-        patch :remove_rider
-      end
-    end
-
-    # Health Insurance
-    resources :health_insurances, path: 'insurance/health' do
-      collection do
-        get :policy_holder_options
-      end
-    end
-
-    # Motor Insurance
-    resources :motor_insurances, path: 'insurance/motor' do
-      collection do
-        get :policy_holder_options
-      end
-    end
-
-    # Other Insurance
-    resources :other_insurances, path: 'insurance/other'
-
     # Agency/Broker management
     resources :agency_brokers
 
@@ -706,9 +674,6 @@ Rails.application.routes.draw do
       collection do
         get :customers_form
         get :sub_agents_form
-        get :health_insurances_form
-        get :life_insurances_form
-        get :motor_insurances_form
         get :delivery_people_form
         get :products_form
         get :products_variant_form
@@ -722,9 +687,6 @@ Rails.application.routes.draw do
     # Import/Export
     post 'import/customers', to: 'imports#customers'
     post 'import/sub_agents', to: 'imports#sub_agents'
-    post 'import/health_insurances', to: 'imports#health_insurances'
-    post 'import/life_insurances', to: 'imports#life_insurances'
-    post 'import/motor_insurances', to: 'imports#motor_insurances'
     post 'import/delivery_people', to: 'imports#delivery_people'
     post 'import/products', to: 'imports#products'
     post 'import/products_variants', to: 'imports#products_variants'
@@ -1069,24 +1031,6 @@ Rails.application.routes.draw do
       resources :customers do
         member do
           patch :toggle_status
-        end
-      end
-
-      # Health Insurance APIs
-      resources :health_insurances do
-        collection do
-          get :statistics
-          get :form_data
-          get :policy_holder_options
-        end
-      end
-
-      # Life Insurance APIs
-      resources :life_insurances do
-        collection do
-          get :statistics
-          get :form_data
-          get :policy_holder_options
         end
       end
 

@@ -80,13 +80,6 @@ class Admin::CustomersController < Admin::ApplicationController
   def policy_chart
     # Get all policy types and their status for this customer
     @policy_status = {
-      'Health Insurance' => {
-        exists: HealthInsurance.exists?(customer_id: @customer.id),
-        count: HealthInsurance.where(customer_id: @customer.id).count,
-        icon: 'bi-heart-pulse',
-        color: 'info',
-        policies: HealthInsurance.where(customer_id: @customer.id).includes(:customer)
-      },
       'Life Insurance' => {
         exists: LifeInsurance.exists?(customer_id: @customer.id),
         count: LifeInsurance.where(customer_id: @customer.id).count,
@@ -122,19 +115,10 @@ class Admin::CustomersController < Admin::ApplicationController
     # latest_policy from the loaded array, instead of 5 separate queries
     # (exists?, count, sum, order+last, and an unused `policies` relation)
     # per type — 3 types x 5 queries down to 3 queries total.
-    health_policies = HealthInsurance.where(customer_id: @customer.id).to_a
     life_policies = LifeInsurance.where(customer_id: @customer.id).to_a
     motor_policies = MotorInsurance.where(customer_id: @customer.id).to_a
 
     @policy_status = {
-      'Health Insurance' => {
-        opted: health_policies.any?,
-        count: health_policies.size,
-        icon: 'bi-heart-pulse',
-        color: 'success',
-        total_premium: health_policies.sum { |p| p.total_premium || 0 },
-        latest_policy: health_policies.max_by(&:created_at)
-      },
       'Life Insurance' => {
         opted: life_policies.any?,
         count: life_policies.size,
@@ -158,7 +142,6 @@ class Admin::CustomersController < Admin::ApplicationController
 
     # Insurance Products
     @product_status['Life'] = @policy_status['Life Insurance'][:opted]
-    @product_status['Health'] = @policy_status['Health Insurance'][:opted]
     @product_status['Motor'] = @policy_status['Motor Insurance'][:opted]
     @product_status['General'] = false # Placeholder for General Insurance
     @product_status['Travel Insurance'] = false # Placeholder for Travel Insurance
@@ -247,14 +230,12 @@ class Admin::CustomersController < Admin::ApplicationController
     # and the paid subset/total are precomputed here instead of the view
     # calling .where(status: 'paid') three separate times.
     @commission_payouts = CommissionPayout.joins(
-      "LEFT JOIN health_insurances ON commission_payouts.policy_type = 'health' AND commission_payouts.policy_id = health_insurances.id
-       LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
+      "LEFT JOIN life_insurances ON commission_payouts.policy_type = 'life' AND commission_payouts.policy_id = life_insurances.id
        LEFT JOIN motor_insurances ON commission_payouts.policy_type = 'motor' AND commission_payouts.policy_id = motor_insurances.id"
     ).where(
-      "(commission_payouts.policy_type = 'health' AND health_insurances.customer_id = ?) OR
-       (commission_payouts.policy_type = 'life' AND life_insurances.customer_id = ?) OR
+      "(commission_payouts.policy_type = 'life' AND life_insurances.customer_id = ?) OR
        (commission_payouts.policy_type = 'motor' AND motor_insurances.customer_id = ?)",
-      @customer.id, @customer.id, @customer.id
+      @customer.id, @customer.id
     ).includes(:payout_audit_logs).to_a
 
     @paid_commission_payouts = @commission_payouts.select(&:paid?)
@@ -632,7 +613,6 @@ class Admin::CustomersController < Admin::ApplicationController
   def product_selection
     # Available products for selection
     @products = [
-      { name: 'Health Insurance', path: new_admin_health_insurance_path(customer_id: @customer.id), icon: 'heart-pulse', description: 'Medical coverage and health protection' },
       { name: 'Life Insurance', path: new_admin_life_insurance_path(customer_id: @customer.id), icon: 'shield-heart', description: 'Life coverage and financial security' },
       { name: 'Motor Insurance', path: new_admin_motor_insurance_path(customer_id: @customer.id), icon: 'car-front', description: 'Vehicle insurance coverage' },
       { name: 'Investment', path: '#', icon: 'graph-up', description: 'Investment opportunities and plans' },

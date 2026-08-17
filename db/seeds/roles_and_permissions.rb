@@ -18,7 +18,7 @@ roles_config = {
     description: 'Administrative access with full CRUD operations on all insurance modules. Cannot manage roles and users.',
     status: true,
     permissions: %w[
-      dashboard customers policies health_insurance life_insurance motor_insurance
+      dashboard customers policies life_insurance motor_insurance
       other_insurance leads reports analytics import_export helpdesk settings
     ]
   },
@@ -26,13 +26,13 @@ roles_config = {
     name: 'manager',
     description: 'Management level access with read/update permissions and report access. Limited creation rights.',
     status: true,
-    permissions: %w[dashboard customers policies health_insurance life_insurance motor_insurance other_insurance leads reports analytics]
+    permissions: %w[dashboard customers policies life_insurance motor_insurance other_insurance leads reports analytics]
   },
   'agent' => {
     name: 'agent',
     description: 'Agent access limited to customer and policy management. Can create and manage own customer policies.',
     status: true,
-    permissions: %w[dashboard customers policies health_insurance life_insurance motor_insurance other_insurance leads]
+    permissions: %w[dashboard customers policies life_insurance motor_insurance other_insurance leads]
   },
   'customer' => {
     name: 'customer',
@@ -72,7 +72,7 @@ roles_config.each do |role_key, config|
         permissions += Permission.where(module_name: module_name, action_type: ['read', 'update'])
       when 'agent'
         # Agent gets create/read/update permissions for customer-facing modules
-        if %w[customers policies health_insurance life_insurance motor_insurance other_insurance leads].include?(module_name)
+        if %w[customers policies life_insurance motor_insurance other_insurance leads].include?(module_name)
           permissions += Permission.where(module_name: module_name, action_type: ['create', 'read', 'update'])
         else
           permissions += Permission.where(module_name: module_name, action_type: ['read'])

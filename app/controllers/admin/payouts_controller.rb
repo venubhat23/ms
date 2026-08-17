@@ -41,7 +41,7 @@ class Admin::PayoutsController < Admin::ApplicationController
                        .page(params[:page])
                        .per(20)
 
-    # Batch-load the policy behind each visible row (was a HealthInsurance/
+    # Batch-load the policy behind each visible row (was a
     # LifeInsurance.find_by per policy group in the view).
     @policies_by_type_and_id = load_policies_for_payouts(@payouts)
 
@@ -216,19 +216,6 @@ class Admin::PayoutsController < Admin::ApplicationController
     policies = []
 
     case policy_type
-    when 'health_insurance', 'health'
-      policies = HealthInsurance.includes(:customer)
-                                .select(:id, :policy_number, :customer_id, :total_premium)
-                                .limit(100)
-                                .map do |policy|
-        customer_name = policy.customer&.display_name || 'Unknown Customer'
-        {
-          id: policy.id,
-          policy_number: policy.policy_number || "Policy ##{policy.id}",
-          customer_name: customer_name,
-          premium: policy.total_premium || 0
-        }
-      end
     when 'life_insurance', 'life'
       policies = LifeInsurance.includes(:customer)
                               .select(:id, :policy_number, :customer_id, :total_premium)
@@ -341,9 +328,6 @@ class Admin::PayoutsController < Admin::ApplicationController
     ids_by_type = payouts.group_by(&:policy_type).transform_values { |ps| ps.map(&:policy_id).uniq }
     result = {}
 
-    if (health_ids = ids_by_type['health'])
-      HealthInsurance.includes(:customer).where(id: health_ids).each { |p| result[['health', p.id]] = p }
-    end
     if (life_ids = ids_by_type['life'])
       LifeInsurance.includes(:customer).where(id: life_ids).each { |p| result[['life', p.id]] = p }
     end
@@ -391,21 +375,10 @@ class Admin::PayoutsController < Admin::ApplicationController
 
   def available_policies_for_payout
     # Get policies that don't have complete payouts yet
-    health_policies = HealthInsurance.includes(:customer).limit(100)
     life_policies = LifeInsurance.includes(:customer).limit(100)
     motor_policies = MotorInsurance.includes(:customer).limit(100) rescue []
 
     policies = []
-
-    health_policies.each do |policy|
-      policies << {
-        id: policy.id,
-        type: 'health',
-        number: policy.policy_number,
-        customer: policy.customer.display_name,
-        value: "Health - #{policy.policy_number} - #{policy.customer.display_name}"
-      }
-    end
 
     life_policies.each do |policy|
       policies << {
@@ -651,8 +624,6 @@ class Admin::PayoutsController < Admin::ApplicationController
 
   def find_policy_by_type_and_id(policy_type, policy_id)
     case policy_type.downcase
-    when 'health', 'health_insurance'
-      HealthInsurance.includes(:customer).find_by(id: policy_id)
     when 'life', 'life_insurance'
       LifeInsurance.includes(:customer).find_by(id: policy_id)
     when 'motor', 'motor_insurance'

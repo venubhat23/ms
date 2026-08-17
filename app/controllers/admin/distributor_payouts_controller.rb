@@ -282,9 +282,6 @@ class Admin::DistributorPayoutsController < Admin::ApplicationController
   def get_all_paid_policies
     policies = []
 
-    # Health Insurances
-    policies += HealthInsurance.where(main_agent_commission_received: true)
-
     # Life Insurances
     policies += LifeInsurance.where(main_agent_commission_received: true)
 
@@ -301,8 +298,7 @@ class Admin::DistributorPayoutsController < Admin::ApplicationController
 
   def find_policy_by_lead_id(lead_id)
     # Search Dr WISE all insurance types
-    policy = HealthInsurance.find_by(lead_id: lead_id)
-    policy ||= LifeInsurance.find_by(lead_id: lead_id)
+    policy = LifeInsurance.find_by(lead_id: lead_id)
     policy ||= MotorInsurance.find_by(lead_id: lead_id)
     policy ||= OtherInsurance.find_by(lead_id: lead_id) if OtherInsurance.column_names.include?('lead_id')
     policy
@@ -499,8 +495,6 @@ class Admin::DistributorPayoutsController < Admin::ApplicationController
 
   def get_policy_type(policy)
     case policy.class.name
-    when 'HealthInsurance'
-      'health'
     when 'LifeInsurance'
       'life'
     when 'MotorInsurance'
@@ -508,14 +502,12 @@ class Admin::DistributorPayoutsController < Admin::ApplicationController
     when 'OtherInsurance'
       'other'
     else
-      'health' # fallback
+      'life' # fallback
     end
   end
 
   def get_policy_from_commission_payout(commission_payout)
     case commission_payout.policy_type
-    when 'health'
-      HealthInsurance.find_by(id: commission_payout.policy_id)
     when 'life'
       LifeInsurance.find_by(id: commission_payout.policy_id)
     when 'motor'

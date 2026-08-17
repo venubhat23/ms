@@ -11,15 +11,20 @@ class Admin::AffiliatesController < Admin::ApplicationController
 
     # Single aggregate query (FILTER clauses) instead of a grouped count plus
     # a separate this_month count, since each query is a full round trip to
-    # the (remote) DB.
-    stats_row = Affiliate.pick(
-      Arel.sql('COUNT(*)'),
-      Arel.sql('COUNT(*) FILTER (WHERE status = TRUE)'),
-      Arel.sql('COUNT(*) FILTER (WHERE status = FALSE)'),
-      Arel.sql(Affiliate.sanitize_sql_array(['COUNT(*) FILTER (WHERE created_at >= ?)', 1.month.ago]))
-    )
-    total, active, inactive, this_month = stats_row
-    @stats = { total: total, active: active, inactive: inactive, this_month: this_month }
+    # the (remote) DB. Cached like admin_customers/admin_bookings stats — a
+    # cache hit skips that round trip entirely. Not scoped to search/status
+    # since this query already ignores those filters (always counts all
+    # affiliates), matching the pre-existing behavior.
+    @stats = Rails.cache.fetch('admin_affiliates/stats', expires_in: 1.minute) do
+      stats_row = Affiliate.pick(
+        Arel.sql('COUNT(*)'),
+        Arel.sql('COUNT(*) FILTER (WHERE status = TRUE)'),
+        Arel.sql('COUNT(*) FILTER (WHERE status = FALSE)'),
+        Arel.sql(Affiliate.sanitize_sql_array(['COUNT(*) FILTER (WHERE created_at >= ?)', 1.month.ago]))
+      )
+      total, active, inactive, this_month = stats_row
+      { total: total, active: active, inactive: inactive, this_month: this_month }
+    end
 
     # One grouped query for the whole (already paginated) page instead of a
     # referred_customers.count per row.

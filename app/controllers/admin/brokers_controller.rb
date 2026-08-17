@@ -72,9 +72,6 @@ class Admin::BrokersController < Admin::ApplicationController
     life_count = @broker.life_insurances.count
     dependent_records << "#{life_count} life insurance #{'policy'.pluralize(life_count)}" if life_count > 0
 
-    health_count = @broker.health_insurances.count
-    dependent_records << "#{health_count} health insurance #{'policy'.pluralize(health_count)}" if health_count > 0
-
     motor_count = @broker.motor_insurances.count
     dependent_records << "#{motor_count} motor insurance #{'policy'.pluralize(motor_count)}" if motor_count > 0
 
@@ -88,12 +85,6 @@ class Admin::BrokersController < Admin::ApplicationController
         life_policies = @broker.life_insurances.limit(3).pluck(:policy_number, :id)
         life_policies.each { |policy_number, id| policy_details << "Life Policy ##{policy_number} (ID: #{id})" }
         policy_details << "...and #{life_count - 3} more life policies" if life_count > 3
-      end
-
-      if health_count > 0
-        health_policies = @broker.health_insurances.limit(3).pluck(:policy_number, :id)
-        health_policies.each { |policy_number, id| policy_details << "Health Policy ##{policy_number} (ID: #{id})" }
-        policy_details << "...and #{health_count - 3} more health policies" if health_count > 3
       end
 
       if motor_count > 0

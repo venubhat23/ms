@@ -4,7 +4,10 @@ class Payout < ApplicationRecord
   belongs_to :customer
 
   # Validations
-  validates :policy_type, presence: true, inclusion: { in: ['health', 'life', 'motor', 'other'] }
+  # No insurance policy types remain (life/motor/other/health insurance were
+  # all removed), so there's nothing left to constrain policy_type against —
+  # only require it be present so existing records stay valid.
+  validates :policy_type, presence: true
   validates :policy_id, presence: true
   validates :status, presence: true, inclusion: { in: ['pending', 'processing', 'completed', 'failed'] }
   validates :total_commission_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
@@ -25,50 +28,16 @@ class Payout < ApplicationRecord
   # `preload_policy` instead of firing one find_by per payout per call.
   def policy
     return @policy if defined?(@policy)
-    @policy = case policy_type
-    when 'health'
-      HealthInsurance.find_by(id: policy_id)
-    when 'life'
-      LifeInsurance.find_by(id: policy_id)
-    when 'motor'
-      MotorInsurance.find_by(id: policy_id) if defined?(MotorInsurance)
-    when 'other'
-      OtherInsurance.find_by(id: policy_id) if defined?(OtherInsurance)
-    end
+    @policy = nil
   end
 
   def preload_policy(policy)
     @policy = policy
   end
 
-  # Batch-fetches the policy behind every given Payout (grouped by
-  # policy_type, one query per type instead of one #policy call per payout)
-  # and primes each instance via #preload_policy. Callers that loop over many
-  # payouts and call #policy on each should run this first.
-  #
-  # Deliberately does NOT eager-load :customer here — OtherInsurance has no
-  # `belongs_to :customer` (only a delegated `#customer` method through its
-  # own `belongs_to :policy`), so `.includes(:customer)` would raise
-  # ActiveRecord::AssociationNotFoundError for that type. Callers that need
-  # customer data should batch it themselves from policy.customer_id.
+  # No insurance policy types remain, so there's nothing left to batch-fetch.
   def self.preload_policies(payouts)
-    ids_by_type = payouts.group_by(&:policy_type).transform_values { |ps| ps.map(&:policy_id).uniq }
-    policies_by_type_and_id = {}
-
-    if (ids = ids_by_type['health'])
-      HealthInsurance.where(id: ids).each { |p| policies_by_type_and_id[['health', p.id]] = p }
-    end
-    if (ids = ids_by_type['life'])
-      LifeInsurance.where(id: ids).each { |p| policies_by_type_and_id[['life', p.id]] = p }
-    end
-    if (ids = ids_by_type['motor']) && defined?(MotorInsurance)
-      MotorInsurance.where(id: ids).each { |p| policies_by_type_and_id[['motor', p.id]] = p }
-    end
-    if (ids = ids_by_type['other']) && defined?(OtherInsurance)
-      OtherInsurance.where(id: ids).each { |p| policies_by_type_and_id[['other', p.id]] = p }
-    end
-
-    payouts.each { |payout| payout.preload_policy(policies_by_type_and_id[[payout.policy_type, payout.policy_id]]) }
+    payouts.each { |payout| payout.preload_policy(nil) }
   end
 
   def main_agent_commission

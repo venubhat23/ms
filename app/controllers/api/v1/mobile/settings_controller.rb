@@ -351,10 +351,9 @@ class Api::V1::Mobile::SettingsController < Api::V1::Mobile::BaseController
 
   def get_customer_agent(customer)
     # Try to find agent from customer's policies
-    health_policy = HealthInsurance.where(customer: customer).joins(:sub_agent).first
     life_policy = LifeInsurance.where(customer: customer).joins(:sub_agent).first
 
-    sub_agent = health_policy&.sub_agent || life_policy&.sub_agent
+    sub_agent = life_policy&.sub_agent
 
     if sub_agent
       {

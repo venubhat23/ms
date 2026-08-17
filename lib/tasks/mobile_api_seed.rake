@@ -146,87 +146,6 @@ namespace :mobile_api do
       puts "Customer #{i + 1} creation failed: #{e.message}"
     end
 
-    # Create Health Insurance Policies with complete data
-    puts "🏥 Creating Health Insurance Policies..."
-    health_insurances = []
-
-    customers.each_with_index do |customer, i|
-      # Create 1-3 health insurance policies per customer
-      rand(1..3).times do |j|
-        policy_start_date = rand(2.years.ago..1.year.from_now)
-        policy_end_date = policy_start_date + 1.year
-
-        # Set autopay dates for upcoming installments
-        autopay_start_date = policy_start_date + rand(1..11).months
-        autopay_end_date = policy_end_date
-
-        net_premium = [25000, 35000, 50000, 75000, 100000].sample
-        gst_percentage = 18
-        total_premium = net_premium + (net_premium * gst_percentage / 100)
-        commission_percentage = rand(15..25)
-        commission_amount = net_premium * commission_percentage / 100
-
-        health_insurance = HealthInsurance.create!(
-          customer: customer,
-          sub_agent: sub_agents.sample,
-          agency_code: agency_codes.find_by(insurance_type: 'Health'),
-          broker: brokers.sample,
-          policy_holder: customer.display_name,
-          insurance_company_name: ['Star Health Allied Insurance Co Ltd', 'HDFC ERGO General Insurance Co Ltd', 'Care Health Insurance Ltd', 'Niva Bupa Health Insurance Co Ltd'].sample,
-          plan_name: "Family Health Plan #{j + 1}",
-          policy_number: "HLT#{Time.current.year}#{i.to_s.rjust(3, '0')}#{j.to_s.rjust(2, '0')}",
-          insurance_type: ['Individual', 'Family Floater'].sample,
-          policy_type: ['New', 'Renewal'].sample,
-          policy_booking_date: policy_start_date - rand(1..30).days,
-          policy_start_date: policy_start_date,
-          policy_end_date: policy_end_date,
-          policy_term: 1,
-          payment_mode: ['Monthly', 'Quarterly', 'Half Yearly', 'Yearly'].sample,
-          sum_insured: [300000, 500000, 750000, 1000000].sample,
-          net_premium: net_premium,
-          gst_percentage: gst_percentage,
-          total_premium: total_premium,
-          main_agent_commission_percentage: commission_percentage,
-          commission_amount: commission_amount,
-          tds_percentage: 10,
-          tds_amount: commission_amount * 0.1,
-          after_tds_value: commission_amount * 0.9,
-          installment_autopay_start_date: autopay_start_date,
-          installment_autopay_end_date: autopay_end_date,
-          claim_process: "Cashless and Reimbursement"
-        )
-
-        # Create health insurance members
-        if health_insurance.insurance_type == 'Family Floater'
-          # Add customer as primary member
-          HealthInsuranceMember.create!(
-            health_insurance: health_insurance,
-            member_name: customer.display_name,
-            age: customer.age,
-            relationship: 'Self',
-            sum_insured: health_insurance.sum_insured
-          )
-
-          # Add family members
-          customer.family_members.limit(3).each do |family_member|
-            HealthInsuranceMember.create!(
-              health_insurance: health_insurance,
-              member_name: family_member.full_name,
-              age: family_member.age,
-              relationship: family_member.relationship,
-              sum_insured: health_insurance.sum_insured
-            )
-          rescue ActiveRecord::RecordInvalid => e
-            puts "Health insurance member creation failed: #{e.message}"
-          end
-        end
-
-        health_insurances << health_insurance
-      rescue ActiveRecord::RecordInvalid => e
-        puts "Health insurance creation failed: #{e.message}"
-      end
-    end
-
     # Create Life Insurance Policies with complete data
     puts "👨‍👩‍👧‍👦 Creating Life Insurance Policies..."
     life_insurances = []
@@ -342,30 +261,6 @@ namespace :mobile_api do
       added_by: "admin"
     )
 
-    # Health insurance with monthly installments due soon
-    HealthInsurance.create!(
-      customer: test_customer,
-      sub_agent: sub_agents.first,
-      policy_holder: test_customer.display_name,
-      insurance_company_name: "Star Health Allied Insurance Co Ltd",
-      plan_name: "Monthly Installment Health Plan",
-      policy_number: "HLT_MONTHLY_TEST_001",
-      insurance_type: 'Individual',
-      policy_type: 'New',
-      policy_booking_date: 6.months.ago,
-      policy_start_date: 6.months.ago,
-      policy_end_date: 6.months.from_now,
-      payment_mode: 'Monthly',
-      sum_insured: 500000,
-      net_premium: 24000,
-      gst_percentage: 18,
-      total_premium: 28320,
-      main_agent_commission_percentage: 20,
-      commission_amount: 4800,
-      installment_autopay_start_date: 1.week.from_now, # Due soon
-      installment_autopay_end_date: 6.months.from_now
-    )
-
     # Life insurance with monthly installments due soon
     LifeInsurance.create!(
       customer: test_customer,
@@ -396,28 +291,6 @@ namespace :mobile_api do
       active: true
     )
 
-    # Health insurance expiring in 15 days for renewals
-    HealthInsurance.create!(
-      customer: test_customer,
-      sub_agent: sub_agents.first,
-      policy_holder: test_customer.display_name,
-      insurance_company_name: "Care Health Insurance Ltd",
-      plan_name: "Expiring Health Plan",
-      policy_number: "HLT_EXPIRING_TEST_001",
-      insurance_type: 'Individual',
-      policy_type: 'Renewal',
-      policy_booking_date: 11.months.ago,
-      policy_start_date: 11.months.ago,
-      policy_end_date: 15.days.from_now, # Expiring soon
-      payment_mode: 'Yearly',
-      sum_insured: 750000,
-      net_premium: 30000,
-      gst_percentage: 18,
-      total_premium: 35400,
-      main_agent_commission_percentage: 18,
-      commission_amount: 5400
-    )
-
     puts "✅ Comprehensive mobile API seed data created successfully!"
     puts ""
     puts "📊 Summary:"
@@ -426,9 +299,7 @@ namespace :mobile_api do
     puts "- Created #{AgencyCode.count} Agency Codes"
     puts "- Created #{Customer.count} Customers"
     puts "- Created #{FamilyMember.count} Family Members"
-    puts "- Created #{HealthInsurance.count} Health Insurance Policies"
     puts "- Created #{LifeInsurance.count} Life Insurance Policies"
-    puts "- Created #{HealthInsuranceMember.count} Health Insurance Members"
     puts ""
     puts "🎯 Test Scenarios Created:"
     puts "- Portfolio API: All customers have multiple policies"

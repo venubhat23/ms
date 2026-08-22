@@ -288,9 +288,9 @@
                     ['Draft', 'draft'],
                     ['Pending Delivery', 'ordered_and_delivery_pending'],
                     ['Confirmed', 'confirmed'],
-                    ['Processing', 'processing'],
+                    ['Processing', 'confirmed,processing,packed'],
                     ['Packed', 'packed'],
-                    ['Shipped', 'shipped'],
+                    ['Shipped', 'shipped,out_for_delivery'],
                     ['Out for Delivery', 'out_for_delivery'],
                     ['Delivered', 'delivered'],
                     ['Completed', 'completed'],
@@ -481,6 +481,14 @@
                           </span>
                         </div>
                       <% end %>
+                      <%# Assigned delivery person badge %>
+                      <% if booking.delivery_person.present? %>
+                        <div class="mt-1">
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size:0.7rem;">
+                            <i class="bi bi-person-badge me-1"></i>Delivery: <%= booking.delivery_person.full_name %>
+                          </span>
+                        </div>
+                      <% end %>
                     </div>
                   </div>
                 </td>
@@ -572,8 +580,11 @@
                           <% next_statuses.each do |status| %>
                             <li>
                               <%= link_to update_status_admin_booking_path(booking, status: status, list_state: list_state, return_to: 'index'),
-                                  method: :patch, class: "dropdown-item",
-                                  confirm: status == 'cancelled' ? 'Are you sure you want to cancel this order?' : nil do %>
+                                  class: "dropdown-item",
+                                  data: {
+                                    turbo_method: :patch,
+                                    turbo_confirm: (status == 'cancelled' ? 'Are you sure you want to cancel this order?' : nil)
+                                  } do %>
                                 <i class="bi bi-arrow-right me-2"></i>
                                 <%= status.humanize %>
                               <% end %>
@@ -851,9 +862,18 @@ function confirmDelete(bookingId, bookingNumber, customerName, listStateQuery) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  // Initialize Select2 for the customer dropdown (type-to-search)
-  $('.customer-select').select2({
+// Initialize Select2 for the customer dropdown (type-to-search). Bound to both
+// DOMContentLoaded (first hard load) and turbo:load (every Turbo-driven visit,
+// e.g. clicking the "Bookings" sidebar link) — DOMContentLoaded alone never
+// re-fires on a Turbo visit, which left the plain, un-enhanced <select> in
+// place and made "All Customers" not reliably show as the default. Guarded
+// so it's a no-op if Select2 is already attached (turbo:load also fires once
+// on the very first load, right alongside DOMContentLoaded).
+function initCustomerFilterSelect2() {
+  const $customerSelect = $('.customer-select');
+  if (!$customerSelect.length || $customerSelect.hasClass('select2-hidden-accessible')) return;
+
+  $customerSelect.select2({
     theme: 'bootstrap-5',
     placeholder: 'Select Customer...',
     allowClear: true,
@@ -862,18 +882,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Force the pill shape/size to match the other filter chips. Belt-and-suspenders
   // alongside the CSS rules below, in case anything sets the radius inline.
-  $('.customer-select').next('.select2-container').find('.select2-selection').css({
+  $customerSelect.next('.select2-container').find('.select2-selection').css({
     'border-radius': '999px',
     'height': '36px'
   });
 
   // Auto-submit the filter form when the customer selection changes
-  $('.customer-select').on('change', function() {
+  $customerSelect.on('change', function() {
     const form = $(this).closest('form');
     form.addClass('loading');
     this.form.submit();
   });
+}
+document.addEventListener('DOMContentLoaded', initCustomerFilterSelect2);
+document.addEventListener('turbo:load', initCustomerFilterSelect2);
 
+document.addEventListener('DOMContentLoaded', function() {
   // Enhanced search functionality with debounce
   let searchTimeout;
   $('#searchInput').on('input', function() {

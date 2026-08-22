@@ -27,7 +27,8 @@ class Admin::BookingsController < Admin::ApplicationController
     # booking_items is intentionally excluded: the view only calls booking.booking_items.size
     # (item count), which reads the booking_items_count counter cache instead of
     # preloading every item row for every booking on the page.
-    listing_includes = [:customer, { user: :franchise }, :store, :booking_invoices]
+    # delivery_person avoids N+1 when booking.delivery_person.full_name is rendered
+    listing_includes = [:customer, { user: :franchise }, :store, :booking_invoices, :delivery_person]
     listing_includes << :franchise unless current_user.franchise?
 
     @bookings = base_scope.recent.includes(*listing_includes)
@@ -40,7 +41,11 @@ class Admin::BookingsController < Admin::ApplicationController
     end
 
     if params[:status].present? && params[:status].strip != ''
-      @bookings = @bookings.where(status: params[:status])
+      # The "Processing" and "Shipped" stat tiles above roll up multiple
+      # statuses into one count (see index.html.erb), so their matching
+      # dropdown filters pass a comma-separated list here to keep the
+      # filtered result count consistent with the tile it corresponds to.
+      @bookings = @bookings.where(status: params[:status].split(','))
     end
 
     if params[:date_from].present? && params[:date_to].present?
@@ -150,7 +155,10 @@ class Admin::BookingsController < Admin::ApplicationController
     @stores = Store.active.order(:name)
 
     @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-    @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+    # status and commission_percentage are included even though the view doesn't need them:
+    # Franchise#set_defaults (after_initialize) reads both on every instantiation, and a
+    # narrower select raises ActiveModel::MissingAttributeError.
+    @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
   end
 
   def create

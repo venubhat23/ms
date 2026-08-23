@@ -87,7 +87,6 @@ class Franchise::BookingsController < Franchise::BaseController
     @booking.franchise_id = current_franchise.id
     @booking.booked_by = 'franchise'
     @booking.skip_stock_check = true
-    @booking.require_delivery_address = true
 
     # Only set booking_date to current time if not provided in params
     @booking.booking_date = @booking.booking_date.present? ? @booking.booking_date : Time.current
@@ -179,7 +178,6 @@ class Franchise::BookingsController < Franchise::BaseController
     end
 
     @booking.skip_stock_check = true
-    @booking.require_delivery_address = true
 
     if @booking.update(booking_params)
       redirect_to franchise_booking_path(@booking), notice: 'Booking updated successfully!'

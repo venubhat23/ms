@@ -470,6 +470,10 @@
 
       <!-- Submit Buttons -->
       <div class="mt-4 pt-3 border-top">
+        <div id="stage_form_error" class="alert alert-danger d-flex align-items-center d-none" role="alert">
+          <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+          <span id="stage_form_error_text"></span>
+        </div>
         <button type="submit" class="btn btn-primary btn-lg me-2" id="update_stage_btn">
           <i class="bi bi-check-circle me-2"></i>Update Stage
         </button>
@@ -667,6 +671,24 @@
 </style>
 
 <script>
+// Shows a validation message inline instead of a browser alert() popup.
+function showFormError(message) {
+  const errorBox = document.getElementById('stage_form_error');
+  const errorText = document.getElementById('stage_form_error_text');
+  if (!errorBox || !errorText) {
+    alert(message);
+    return;
+  }
+  errorText.textContent = message;
+  errorBox.classList.remove('d-none');
+  errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function hideFormError() {
+  const errorBox = document.getElementById('stage_form_error');
+  if (errorBox) errorBox.classList.add('d-none');
+}
+
 // Form validation and submission
 document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('stage_update_form');
@@ -703,11 +725,12 @@ document.addEventListener('DOMContentLoaded', function() {
   // Form submission validation
   form.addEventListener('submit', function(e) {
     console.log('Form submission attempted');
+    hideFormError();
     const selectedStage = stageSelect.value;
 
     if (!selectedStage) {
       e.preventDefault();
-      alert('Please select a stage first.');
+      showFormError('Please select a stage first.');
       console.log('No stage selected');
       return false;
     }
@@ -721,20 +744,34 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!courierService || !trackingNumber || !courierService.value || !trackingNumber.value) {
         e.preventDefault();
-        alert('Courier service and tracking number are required for shipping.');
+        showFormError('Courier service and tracking number are required for shipping.');
         console.log('Shipping validation failed');
         return false;
       }
     }
 
     if (selectedStage === 'out_for_delivery') {
-      const deliveryPersonSelect = document.querySelector('select[name="delivery_person_id"]');
+      const franchiseModeRadio = document.getElementById('delivery_mode_franchise');
+      const franchiseModeSelected = franchiseModeRadio && franchiseModeRadio.checked;
 
-      if (!deliveryPersonSelect || !deliveryPersonSelect.value) {
-        e.preventDefault();
-        alert('Please select a delivery person for out for delivery.');
-        console.log('Out for delivery validation failed');
-        return false;
+      if (franchiseModeSelected) {
+        const franchiseSelect = document.getElementById('delivery_franchise_select');
+
+        if (!franchiseSelect || !franchiseSelect.value) {
+          e.preventDefault();
+          showFormError('Please select a franchise for out for delivery.');
+          console.log('Out for delivery validation failed — no franchise selected');
+          return false;
+        }
+      } else {
+        const deliveryPersonSelect = document.getElementById('delivery_person_select');
+
+        if (!deliveryPersonSelect || !deliveryPersonSelect.value) {
+          e.preventDefault();
+          showFormError('Please select a delivery person for out for delivery.');
+          console.log('Out for delivery validation failed — no delivery person selected');
+          return false;
+        }
       }
     }
 
@@ -743,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!cancellationReason || !cancellationReason.value) {
         e.preventDefault();
-        alert('Cancellation reason is required.');
+        showFormError('Cancellation reason is required.');
         console.log('Cancellation validation failed');
         return false;
       }
@@ -754,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       if (!returnReason || !returnReason.value) {
         e.preventDefault();
-        alert('Return reason is required.');
+        showFormError('Return reason is required.');
         console.log('Return validation failed');
         return false;
       }
@@ -808,12 +845,14 @@ function showStageFields(stage) {
   const courierServiceField = document.getElementById('courier_service_field');
   const trackingNumberField = document.getElementById('tracking_number_field');
   const deliveryPersonField = document.getElementById('delivery_person_select');
+  const deliveryFranchiseField = document.getElementById('delivery_franchise_select');
 
   if (cancellationReasonField) cancellationReasonField.removeAttribute('required');
   if (returnReasonField) returnReasonField.removeAttribute('required');
   if (courierServiceField) courierServiceField.removeAttribute('required');
   if (trackingNumberField) trackingNumberField.removeAttribute('required');
   if (deliveryPersonField) deliveryPersonField.removeAttribute('required');
+  if (deliveryFranchiseField) deliveryFranchiseField.removeAttribute('required');
 
   // Show the container if stage is selected
   const container = document.getElementById('stageSpecificFields');
@@ -844,7 +883,14 @@ function showStageFields(stage) {
     }
 
     if (stage === 'out_for_delivery') {
-      if (deliveryPersonField) deliveryPersonField.setAttribute('required', 'required');
+      const franchiseModeRadio = document.getElementById('delivery_mode_franchise');
+      const franchiseModeSelected = franchiseModeRadio && franchiseModeRadio.checked;
+
+      if (franchiseModeSelected) {
+        if (deliveryFranchiseField) deliveryFranchiseField.setAttribute('required', 'required');
+      } else {
+        if (deliveryPersonField) deliveryPersonField.setAttribute('required', 'required');
+      }
     }
   }
 }
@@ -887,15 +933,25 @@ function toggleDeliveryMode(radio) {
     if (deliveryPersonSelect) {
       deliveryPersonSelect.value = '';
       deliveryPersonSelect.removeAttribute('name');
+      // A hidden field can't be focused for native validation, and it would
+      // silently block submission if left required — see franchiseSelect below.
+      deliveryPersonSelect.removeAttribute('required');
     }
-    if (franchiseSelect) franchiseSelect.setAttribute('name', 'delivery_franchise_id');
+    if (franchiseSelect) {
+      franchiseSelect.setAttribute('name', 'delivery_franchise_id');
+      franchiseSelect.setAttribute('required', 'required');
+    }
   } else {
     if (otherFields) otherFields.style.display = 'flex';
     if (franchiseFields) franchiseFields.style.display = 'none';
-    if (deliveryPersonSelect) deliveryPersonSelect.setAttribute('name', 'delivery_person_id');
+    if (deliveryPersonSelect) {
+      deliveryPersonSelect.setAttribute('name', 'delivery_person_id');
+      deliveryPersonSelect.setAttribute('required', 'required');
+    }
     if (franchiseSelect) {
       franchiseSelect.value = '';
       franchiseSelect.removeAttribute('name');
+      franchiseSelect.removeAttribute('required');
     }
   }
 }

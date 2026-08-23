@@ -13,7 +13,7 @@
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm">
+  <div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-0">
       <% if @franchise_inventories.any? %>
         <div class="table-responsive">
@@ -44,6 +44,92 @@
           <h5 class="text-muted">No stock credited yet</h5>
           <p class="text-muted mb-3">Stock appears here once HQ approves a stock request or creates a wholesale Franchise Booking for you.</p>
           <%= link_to "Request Stock", new_franchise_stock_request_path, class: "btn btn-primary" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Inventory History -->
+  <h4 class="mb-3">Inventory History</h4>
+
+  <div class="row mb-4">
+    <div class="col-md-4 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="bi bi-arrow-down-circle text-success me-1"></i>Total Credited</h6>
+          <h3 class="mb-0 text-success">+<%= number_with_precision(@total_credited, precision: 2) %></h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="bi bi-arrow-up-circle text-danger me-1"></i>Total Debited</h6>
+          <h3 class="mb-0 text-danger">-<%= number_with_precision(@total_debited, precision: 2) %></h3>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4 col-sm-6 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="bi bi-wallet2 text-primary me-1"></i>Current Balance</h6>
+          <h3 class="mb-0 text-primary"><%= number_with_precision(@current_balance, precision: 2) %></h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0">
+      <h5 class="mb-0">Stock Movement Ledger</h5>
+    </div>
+    <div class="card-body p-0">
+      <% if @stock_movements.any? %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="border-0">Date</th>
+                <th class="border-0">Product</th>
+                <th class="border-0">Type</th>
+                <th class="border-0">Reference</th>
+                <th class="border-0">Quantity</th>
+                <th class="border-0">Balance After</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @stock_movements.each do |movement| %>
+                <tr>
+                  <td class="small"><%= movement.created_at.strftime('%b %d, %Y %I:%M %p') %></td>
+                  <td><%= movement.product.name %></td>
+                  <td>
+                    <span class="badge <%= movement.movement_type_badge_class %>">
+                      <i class="bi <%= movement.movement_type_icon %> me-1"></i><%= movement.movement_type.capitalize %>
+                    </span>
+                  </td>
+                  <td class="small text-muted"><%= movement.notes.presence || movement.reference_type.humanize %></td>
+                  <td class="fw-semibold <%= movement.quantity.to_f > 0 ? 'text-success' : 'text-danger' %>">
+                    <%= movement.formatted_quantity %>
+                  </td>
+                  <td><%= number_with_precision(movement.stock_after, precision: 2) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+
+        <% if @stock_movements.respond_to?(:total_pages) %>
+          <div class="card-footer bg-transparent border-0">
+            <%= paginate @stock_movements %>
+          </div>
+        <% end %>
+      <% else %>
+        <div class="text-center py-5">
+          <i class="bi bi-clock-history fs-1 text-muted d-block mb-3"></i>
+          <h5 class="text-muted">No inventory activity yet</h5>
+          <p class="text-muted mb-0">Every stock credit or debit for your franchise will show up here.</p>
         </div>
       <% end %>
     </div>

@@ -61,7 +61,9 @@ nav{display:flex;align-items:center;gap:28px;padding:16px 48px;background:var(--
 
 /* ── HERO ── */
 .hero{position:relative;min-height:78vh;display:flex;align-items:center;overflow:hidden;background:var(--green-dark)}
-.hero-bg{position:absolute;inset:0;background:url('https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1800') center/cover}
+.hero-slideshow{position:absolute;inset:0;overflow:hidden}
+.hero-track{display:flex;width:100%;height:100%}
+.hero-slide{flex:0 0 100%;width:100%;height:100%;background-size:cover;background-position:center}
 .hero-overlay{position:absolute;inset:0;background:linear-gradient(100deg,rgba(19,79,39,.88) 0%,rgba(19,79,39,.55) 42%,rgba(19,79,39,.15) 100%)}
 .hero-body{position:relative;z-index:2;max-width:620px;padding:0 60px}
 .hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--white);color:var(--green-dark);font-size:11.5px;font-weight:700;letter-spacing:.4px;padding:8px 18px;border-radius:30px;margin-bottom:22px}
@@ -267,7 +269,15 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-bg"></div>
+  <div class="hero-slideshow">
+    <div class="hero-track" id="heroTrack">
+      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
+      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/4198567/pexels-photo-4198567.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
+      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/6157228/pexels-photo-6157228.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
+      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
+      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
+    </div>
+  </div>
   <div class="hero-overlay"></div>
   <div class="hero-body">
     <span class="hero-badge">🌱 Whole-Herb, Whole-Farm Wellness</span>
@@ -612,6 +622,36 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     const row = document.getElementById(id);
     if (row) row.scrollBy({ left: dir * 320, behavior: 'smooth' });
   }
+
+  // ── HERO SLIDESHOW ── cycles the hero background right-to-left every 10s.
+  // A clone of the first slide is appended after the last one so the loop
+  // back to slide 1 slides seamlessly instead of jumping backwards.
+  (function initHeroSlideshow(){
+    const track = document.getElementById('heroTrack');
+    if (!track) return;
+    const slides = Array.from(track.children);
+    if (slides.length < 2) return;
+
+    track.appendChild(slides[0].cloneNode(true));
+    track.style.transition = 'transform 1.2s ease-in-out';
+
+    let index = 0;
+    setInterval(() => {
+      index++;
+      track.style.transition = 'transform 1.2s ease-in-out';
+      track.style.transform = `translateX(-${index * 100}%)`;
+
+      if (index === slides.length) {
+        track.addEventListener('transitionend', function resetToStart(e){
+          if (e.propertyName !== 'transform') return;
+          track.removeEventListener('transitionend', resetToStart);
+          track.style.transition = 'none';
+          index = 0;
+          track.style.transform = 'translateX(0)';
+        });
+      }
+    }, 10000);
+  })();
 
   // ── PRODUCT SEARCH (client-side filter over every product already
   // rendered on the homepage — the theme has no dedicated search route) ──

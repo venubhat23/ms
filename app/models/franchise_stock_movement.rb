@@ -44,6 +44,19 @@ class FranchiseStockMovement < ApplicationRecord
     end
   end
 
+  def movement_type_icon
+    case movement_type
+    when 'added'
+      'bi-arrow-down-circle'
+    when 'consumed'
+      'bi-arrow-up-circle'
+    when 'adjusted'
+      'bi-arrow-clockwise'
+    else
+      'bi-circle'
+    end
+  end
+
   private
 
   def validate_quantity_direction

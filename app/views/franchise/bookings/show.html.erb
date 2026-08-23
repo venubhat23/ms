@@ -25,20 +25,7 @@
         <div class="row">
           <div class="col-md-6">
             <h6 class="text-muted fw-semibold">Booking Status</h6>
-            <% case @booking.status %>
-            <% when 'pending' %>
-              <span class="badge bg-warning fs-6 px-3 py-2">Pending</span>
-            <% when 'processing' %>
-              <span class="badge bg-info fs-6 px-3 py-2">Processing</span>
-            <% when 'shipped' %>
-              <span class="badge bg-primary fs-6 px-3 py-2">Shipped</span>
-            <% when 'delivered' %>
-              <span class="badge bg-success fs-6 px-3 py-2">Delivered</span>
-            <% when 'cancelled' %>
-              <span class="badge bg-danger fs-6 px-3 py-2">Cancelled</span>
-            <% else %>
-              <span class="badge bg-secondary fs-6 px-3 py-2"><%= @booking.status&.humanize %></span>
-            <% end %>
+            <span class="badge bg-<%= @booking.status_color %> fs-6 px-3 py-2"><%= @booking.status&.humanize %></span>
           </div>
           <div class="col-md-6">
             <h6 class="text-muted fw-semibold">Payment Status</h6>

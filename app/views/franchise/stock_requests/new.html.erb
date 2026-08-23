@@ -104,9 +104,13 @@ function fsrRenderCard(p) {
   const img = p.image_url
     ? `<img src="${esc(p.image_url)}" class="card-img-top" loading="lazy" style="height:150px;object-fit:cover;" alt="${esc(p.name)}">`
     : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:150px;"><i class="bi bi-box-seam fs-1 text-muted"></i></div>`;
-  const varSel = p.has_variants && p.variants.length
-    ? `<select class="form-select form-select-sm mb-2" id="fsr-variant-${p.id}"><option value="">— Select variant —</option>${p.variants.map(v=>`<option value="${v.id}" data-price="${v.price}">${esc(v.label)} — ₹${v.price}</option>`).join('')}</select>`
+  const hasVariants = p.has_variants && p.variants.length;
+  const varSel = hasVariants
+    ? `<select class="form-select form-select-sm mb-2" id="fsr-variant-${p.id}" onchange="fsrVariantChange(${p.id})"><option value="">— Select variant —</option>${p.variants.map(v=>`<option value="${v.id}" data-price="${v.price}">${esc(v.label)} — ₹${v.price}</option>`).join('')}</select>`
     : '';
+  const priceLine = hasVariants
+    ? `<div class="fw-bold text-primary mb-2" id="fsr-price-${p.id}">Select a variant</div>`
+    : `<div class="fw-bold text-primary mb-2">₹${p.price}</div>`;
   return `<div class="col-md-4 col-lg-3 fsr-item"
     data-id="${p.id}" data-name="${esc(p.name.toLowerCase())}" data-sku="${esc(p.sku.toLowerCase())}"
     data-category="${esc(p.category_id)}">
@@ -116,7 +120,7 @@ function fsrRenderCard(p) {
         <small class="text-muted mb-1">${esc(p.category_name)}</small>
         <h6 class="fw-bold mb-1" style="font-size:0.9rem;min-height:36px;">${esc(p.name)}</h6>
         <small class="text-muted mb-2">SKU: ${esc(p.sku)}</small>
-        <div class="fw-bold text-primary mb-2">₹${p.price}</div>
+        ${priceLine}
         ${varSel}
         <div class="mt-auto">
           <div class="input-group input-group-sm mb-2">
@@ -150,6 +154,14 @@ function fsrShowProducts(){
   document.getElementById('fsrCartView').style.display='none';
   document.getElementById('fsrProductsView').style.display='';
   document.getElementById('fsrSearchSection').style.display='';
+}
+
+function fsrVariantChange(id){
+  const sel=document.getElementById('fsr-variant-'+id);
+  const priceEl=document.getElementById('fsr-price-'+id);
+  if(!sel||!priceEl) return;
+  const opt=sel.options[sel.selectedIndex];
+  priceEl.textContent = sel.value ? `₹${opt.dataset.price}` : 'Select a variant';
 }
 
 function fsrInc(id){ const i=document.getElementById('fsr-qty-'+id); i.value=parseInt(i.value||1)+1; }

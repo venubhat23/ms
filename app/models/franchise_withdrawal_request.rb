@@ -1,6 +1,7 @@
 class FranchiseWithdrawalRequest < ApplicationRecord
   belongs_to :franchise
   belongs_to :approved_by_user, class_name: 'User', foreign_key: :approved_by_user_id, optional: true
+  belongs_to :booking, optional: true
 
   enum :status, { pending: 'pending', approved: 'approved', rejected: 'rejected', paid: 'paid' }
 

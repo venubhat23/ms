@@ -1,8 +1,11 @@
 class Admin::CustomerWalletsController < Admin::ApplicationController
   include ConfigurablePagination
+  before_action :ensure_customer_wallet_enabled
   before_action :set_customer_wallet, only: [:show, :edit, :update, :destroy, :add_money, :deduct_money, :transaction_history]
 
   def index
+    backfill_missing_wallets
+
     @customer_wallets = CustomerWallet.joins(:customer).includes(:customer)
     @customer_wallets = @customer_wallets.where("customers.first_name ILIKE ? OR customers.last_name ILIKE ? OR customers.email ILIKE ?",
                                                "%#{params[:search]}%", "%#{params[:search]}%", "%#{params[:search]}%") if params[:search].present?
@@ -86,6 +89,25 @@ class Admin::CustomerWalletsController < Admin::ApplicationController
   end
 
   private
+
+  def ensure_customer_wallet_enabled
+    unless SystemSetting.customer_wallet_enabled?
+      redirect_to admin_settings_system_path, alert: 'Enable the Customer Wallet feature (Settings > System) to manage customer wallets.'
+    end
+  end
+
+  # Every customer should show up in the wallet list with a balance, even
+  # before an admin has ever added money to it — so any customer missing a
+  # wallet row is lazily backfilled at 0 balance rather than requiring the
+  # manual "Create Wallet" flow first.
+  def backfill_missing_wallets
+    missing_customer_ids = Customer.where.not(id: CustomerWallet.select(:customer_id)).pluck(:id)
+    return if missing_customer_ids.empty?
+
+    now = Time.current
+    rows = missing_customer_ids.map { |id| { customer_id: id, balance: 0, status: true, created_at: now, updated_at: now } }
+    CustomerWallet.insert_all(rows)
+  end
 
   def set_customer_wallet
     @customer_wallet = CustomerWallet.find(params[:id])

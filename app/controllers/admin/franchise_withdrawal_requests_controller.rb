@@ -10,7 +10,7 @@ class Admin::FranchiseWithdrawalRequestsController < Admin::ApplicationControlle
   end
 
   def index
-    @withdrawal_requests = FranchiseWithdrawalRequest.includes(:franchise).recent
+    @withdrawal_requests = FranchiseWithdrawalRequest.includes(:franchise, :booking).recent
     @withdrawal_requests = @withdrawal_requests.where(status: params[:status]) if params[:status].present?
     @withdrawal_requests = paginate_records(@withdrawal_requests)
 

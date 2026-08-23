@@ -66,6 +66,9 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get OTP login feature settings
     @otp_login_enabled = system_config&.otp_login_enabled || false
 
+    # Get customer wallet feature settings
+    @customer_wallet_enabled = system_config&.customer_wallet_enabled || false
+
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
@@ -270,6 +273,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating OTP Login settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle customer wallet feature toggle
+    if params[:customer_wallet_settings_update] == "true"
+      begin
+        customer_wallet_enabled = params[:customer_wallet_enabled] == "1"
+
+        SystemSetting.set_customer_wallet_enabled(customer_wallet_enabled)
+
+        if customer_wallet_enabled
+          success_messages << 'Customer Wallet feature enabled successfully!'
+        else
+          success_messages << 'Customer Wallet feature disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Customer Wallet settings: #{e.message}"
         return
       end
     end

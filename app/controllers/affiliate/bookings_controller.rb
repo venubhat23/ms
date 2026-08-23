@@ -102,6 +102,7 @@ class Affiliate::BookingsController < Affiliate::ApplicationController
       customer_email:  customer.email,
       affiliate_id:    current_affiliate.id,
       booked_by:       'affiliate',
+      skip_stock_check: true,
       user_id:         current_user.id,
       status:          'completed',
       payment_method:  params[:payment_method].presence || 'cash',

@@ -25,6 +25,12 @@
         </div>
 
         <div class="mb-3">
+          <%= f.label :booking_id, "Tag Booking (Optional)", class: "form-label" %>
+          <%= f.collection_select :booking_id, @bookings, :id, :booking_number, { include_blank: "None" }, class: "form-select" %>
+          <small class="text-muted">Optionally link this withdrawal to a booking you completed.</small>
+        </div>
+
+        <div class="mb-3">
           <%= f.label :notes, "Notes (Optional)", class: "form-label" %>
           <%= f.text_area :notes, class: "form-control", rows: 2, placeholder: "Any note for the admin reviewing this request" %>
         </div>

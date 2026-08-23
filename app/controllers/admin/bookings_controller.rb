@@ -194,16 +194,42 @@ class Admin::BookingsController < Admin::ApplicationController
     # trusted from the client) and folded into discount_amount so the
     # standard total calculation picks it up.
     if @booking.franchise_id.present? && SystemSetting.franchise_commission_enabled?
-      subtotal_for_discount = @booking.calculated_subtotal.to_f
+      # Run the real totals calculation now (it also runs again automatically
+      # before save) so subtotal/tax_amount reflect the actual GST-exclusive
+      # split from booking_items, instead of the GST-inclusive fallback that
+      # calculated_subtotal uses for a still-unsaved booking.
+      @booking.calculate_totals
+      bill_total = (@booking.subtotal.to_f + @booking.tax_amount.to_f).round(2)
+      franchise_discount_value = @booking.franchise_discount_value.to_f
+
       franchise_discount = case @booking.franchise_discount_type
                             when 'percentage'
-                              subtotal_for_discount * @booking.franchise_discount_value.to_f / 100.0
+                              if franchise_discount_value > 100
+                                @booking.errors.add(:franchise_discount_value, "cannot exceed 100% for a percentage discount")
+                              end
+                              (bill_total * franchise_discount_value / 100.0).round(2)
                             when 'fixed'
-                              @booking.franchise_discount_value.to_f
+                              franchise_discount_value.round(2)
                             else
                               0
                             end
-      franchise_discount = [[franchise_discount, 0].max, subtotal_for_discount].min.round(2)
+
+      if franchise_discount > bill_total
+        @booking.errors.add(:franchise_discount_value, "cannot exceed the bill total (₹#{'%.2f' % bill_total})")
+      end
+
+      if @booking.errors.any?
+        @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
+        @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
+        @categories = Category.where(status: true).order(:display_order, :name)
+        @stores = Store.active.order(:name)
+        @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+        @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+        flash.now[:alert] = @booking.errors.full_messages.join(', ')
+        render :new, status: :unprocessable_entity
+        return
+      end
+
       @booking.franchise_discount_amount = franchise_discount
       @booking.discount_amount = @booking.discount_amount.to_f + franchise_discount
     else
@@ -680,7 +706,11 @@ class Admin::BookingsController < Admin::ApplicationController
 
       # Update booking with new status and transition data
       if update_booking_with_stage_transition(transition_data)
-        redirect_to admin_bookings_path(@list_state), notice: "Booking stage updated to #{@target_stage.humanize} successfully."
+        success_notice = "Booking stage updated to #{@target_stage.humanize} successfully."
+        if @target_stage == 'out_for_delivery' && transition_data[:delivery_mode] == 'franchise' && @booking.delivery_franchise.present?
+          success_notice = "Franchise #{@booking.delivery_franchise.name} assigned and booking updated successfully."
+        end
+        redirect_to admin_bookings_path(@list_state), notice: success_notice
       else
         redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "Failed to update stage: #{@booking.errors.full_messages.join(', ')}"
       end

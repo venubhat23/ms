@@ -947,6 +947,7 @@ Rails.application.routes.draw do
         get 'customer/portfolio', to: 'customer#portfolio'
         get 'customer/upcoming_installments', to: 'customer#upcoming_installments'
         get 'customer/upcoming_renewals', to: 'customer#upcoming_renewals'
+        get 'customer/wallet', to: 'customer#wallet'
 
         # Settings Module APIs
         get 'settings/profile', to: 'settings#profile'

@@ -23,6 +23,15 @@
           <dt class="col-sm-4">Requested On</dt>
           <dd class="col-sm-8"><%= @withdrawal_request.requested_at&.strftime("%b %d, %Y %I:%M %p") %></dd>
 
+          <dt class="col-sm-4">Tagged Booking</dt>
+          <dd class="col-sm-8">
+            <% if @withdrawal_request.booking %>
+              <%= link_to @withdrawal_request.booking.booking_number, admin_booking_path(@withdrawal_request.booking) %>
+            <% else %>
+              <span class="text-muted">Not tagged</span>
+            <% end %>
+          </dd>
+
           <% if @withdrawal_request.approved_at %>
             <dt class="col-sm-4">Approved On</dt>
             <dd class="col-sm-8"><%= @withdrawal_request.approved_at.strftime("%b %d, %Y %I:%M %p") %></dd>

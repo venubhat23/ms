@@ -86,6 +86,8 @@ class Franchise::BookingsController < Franchise::BaseController
     @booking.user = current_user
     @booking.franchise_id = current_franchise.id
     @booking.booked_by = 'franchise'
+    @booking.skip_stock_check = true
+    @booking.require_delivery_address = true
 
     # Only set booking_date to current time if not provided in params
     @booking.booking_date = @booking.booking_date.present? ? @booking.booking_date : Time.current
@@ -175,6 +177,9 @@ class Franchise::BookingsController < Franchise::BaseController
       render :edit, status: :unprocessable_entity
       return
     end
+
+    @booking.skip_stock_check = true
+    @booking.require_delivery_address = true
 
     if @booking.update(booking_params)
       redirect_to franchise_booking_path(@booking), notice: 'Booking updated successfully!'
@@ -402,37 +407,10 @@ class Franchise::BookingsController < Franchise::BaseController
     # own credited inventory ledger, not the shared central pool.
     return validate_franchise_stock_availability(booking, items, is_update: is_update) if SystemSetting.franchise_commission_enabled?
 
-    product_ids = items.map(&:product_id).compact.uniq
-
-    # Batch-load products (was: Product.find per item — N queries)
-    products_by_id = Product.where(id: product_ids).index_by(&:id)
-
-    # Batch-load active batch stock per product (was: stock_batches query per product)
-    batch_stock = StockBatch.where(status: 'active', product_id: product_ids)
-                            .group(:product_id).sum(:quantity_remaining)
-
-    # Batch-load variant stock for products with multiple quantities
-    variant_stock = ProductVariant.where(product_id: product_ids)
-                                  .group(:product_id).sum(:available_stock)
-
-    items.each do |item|
-      product = products_by_id[item.product_id]
-      next unless product
-
-      available_stock = if product.has_multiple_quantities?
-        variant_stock[product.id].to_f
-      else
-        batch_stock[product.id].to_f
-      end
-
-      # For updates, add back the original quantity so we don't double-count
-      available_stock += item.quantity_was.to_f if is_update && item.persisted?
-
-      if item.quantity > available_stock
-        @booking.errors.add(:base, "Insufficient stock for #{product.name}. Available: #{available_stock.to_i}, Requested: #{item.quantity}")
-        return false
-      end
-    end
+    # Franchise self-service bookings no longer block on central stock —
+    # only the admin panel (Admin::BookingsController) still shows "out of
+    # stock" and refuses to save. BookingItem#reduce_product_stock is allowed
+    # to push product stock negative instead (see Booking#skip_stock_check).
     true
   end
 

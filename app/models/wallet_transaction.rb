@@ -1,5 +1,6 @@
 class WalletTransaction < ApplicationRecord
   belongs_to :customer_wallet
+  belongs_to :booking, optional: true
 
   validates :transaction_type, presence: true, inclusion: { in: %w[credit debit] }
   validates :amount, presence: true, numericality: { greater_than: 0 }

@@ -43,12 +43,6 @@ class FranchiseStockRequest < ApplicationRecord
   def approve!(admin_user, discount_type: nil, discount_value: nil)
     return false unless pending?
 
-    stock_errors = insufficient_stock_errors
-    if stock_errors.any?
-      errors.add(:base, stock_errors.join(", "))
-      return false
-    end
-
     transaction do
       booking = build_wholesale_booking(discount_type, discount_value)
       booking.save!
@@ -96,40 +90,14 @@ class FranchiseStockRequest < ApplicationRecord
     errors.add(:base, "Add at least one product to request") if active_items.empty?
   end
 
-  # Central-warehouse availability check (same source Booking#allocate_inventory
-  # will deduct from once this booking is confirmed) — batched product/variant/
-  # stock lookups instead of one query per item.
-  def insufficient_stock_errors
-    items_list = items.includes(:product, :product_variant).to_a
-    product_ids = items_list.map(&:product_id).uniq
-    variant_ids = items_list.map(&:product_variant_id).compact.uniq
-
-    batch_stock = StockBatch.where(status: "active", product_id: product_ids, store_id: nil)
-                            .group(:product_id).sum(:quantity_remaining)
-    variants_by_id = variant_ids.any? ? ProductVariant.where(id: variant_ids).index_by(&:id) : {}
-
-    errors_list = []
-    items_list.each do |item|
-      product = item.product
-      next unless product
-
-      available = if product.has_multiple_quantities? && item.product_variant_id.present?
-        variants_by_id[item.product_variant_id]&.available_stock.to_f
-      else
-        batch_stock[item.product_id].to_f
-      end
-
-      if item.quantity.to_f > available
-        errors_list << "#{product.name}: only #{available} available centrally, requested #{item.quantity}"
-      end
-    end
-    errors_list
-  end
-
   def build_wholesale_booking(discount_type, discount_value)
     booking = Booking.new(
       franchise_id: franchise_id,
       booked_by: "admin",
+      # Approving a request is an admin action, but unlike admin/bookings/new
+      # this one is intentionally allowed to oversell central stock (it can
+      # go negative) rather than block the franchise's request.
+      skip_stock_check: true,
       is_b2b: true,
       customer_name: franchise.name,
       customer_phone: franchise.mobile,

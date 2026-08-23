@@ -803,6 +803,54 @@
           </div>
         </div>
 
+        <!-- Customer Wallet Feature Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-transparent border-0">
+            <h5 class="mb-0">
+              <i class="bi bi-wallet2 me-2"></i>
+              Customer Wallet
+            </h5>
+          </div>
+          <div class="card-body">
+            <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "customer-wallet-form" do |form| %>
+              <%= form.hidden_field :customer_wallet_settings_update, value: "true" %>
+
+              <div class="row">
+                <div class="col-md-12">
+                  <div class="form-check form-switch mb-3">
+                    <%= form.check_box :customer_wallet_enabled,
+                          { checked: @customer_wallet_enabled,
+                            class: "form-check-input",
+                            id: "customer_wallet_enabled",
+                            onchange: "handleCustomerWalletToggle(this)" },
+                          "1", "0" %>
+                    <label class="form-check-label" for="customer_wallet_enabled">
+                      <strong>Enable Customer Wallet</strong>
+                    </label>
+                    <div class="form-text">
+                      When enabled: a "Customer Wallets" sidebar entry appears where admins can add/remove money for any customer, customers can see their wallet balance and history from the mobile app, and can choose to pay bookings (fully or partially) from their wallet balance at checkout.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row mt-3">
+                <div class="col-md-12">
+                  <div class="d-flex gap-2">
+                    <%= form.submit "Update Customer Wallet Settings", class: "btn btn-primary" %>
+                    <div class="alert alert-<%= @customer_wallet_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                      <small>
+                        <i class="bi bi-<%= @customer_wallet_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                        Status: <%= @customer_wallet_enabled ? 'Enabled' : 'Disabled' %>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+
         <!-- Store Management Card -->
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-transparent border-0">
@@ -1675,6 +1723,13 @@ function handleFranchiseCommissionToggle(checkbox) {
 
 function handleOtpLoginToggle(checkbox) {
   const form = document.getElementById('otp-login-form');
+  if (form) {
+    form.submit();
+  }
+}
+
+function handleCustomerWalletToggle(checkbox) {
+  const form = document.getElementById('customer-wallet-form');
   if (form) {
     form.submit();
   }

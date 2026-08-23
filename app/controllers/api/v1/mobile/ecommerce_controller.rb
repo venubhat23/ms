@@ -175,7 +175,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   def create_booking
     booking_params = params.require(:booking).permit(
       :customer_id, :customer_name, :customer_email, :customer_phone, :delivery_address,
-      :payment_method, :notes, :pincode, :latitude, :longitude,
+      :payment_method, :notes, :pincode, :latitude, :longitude, :use_wallet,
       booking_items_attributes: [:product_id, :product_variant_id, :quantity, :price]
     )
 
@@ -242,23 +242,14 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         product = products_by_id[product_id.to_i]
         raise ActiveRecord::RecordNotFound unless product
 
-        # Check stock availability — use variant stock for multi-quantity products
+        # Stock is looked up for display/response purposes only — the mobile
+        # app is allowed to book past available stock (unlike the admin
+        # panel), so a shortage here no longer blocks the booking.
         if product.has_multiple_quantities? && variant_id.present?
           variant = ProductVariant.find_by(id: variant_id)
           avail = variant ? variant.available_stock.to_f : 0.0
         else
           avail = product.available_quantity
-        end
-
-        if avail < quantity
-          unavailable_products << {
-            product_id: product.id,
-            product_name: product.name,
-            requested_quantity: quantity,
-            available_stock: avail,
-            reason: 'Insufficient stock'
-          }
-          next
         end
 
         # Product is available
@@ -308,8 +299,12 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       Rails.logger.info "Customer: #{customer&.display_name} (ID: #{customer&.id})"
       Rails.logger.info "Current user: #{@current_user&.id}"
 
+      wallet_deduction_txn = nil
+      wallet_requested = ActiveModel::Type::Boolean.new.cast(booking_params[:use_wallet])
+      wallet_note = nil
+
       ActiveRecord::Base.transaction do
-        @booking = Booking.new(booking_params.except(:pincode, :latitude, :longitude))
+        @booking = Booking.new(booking_params.except(:pincode, :latitude, :longitude, :use_wallet))
 
         # Ensure customer association is properly set
         @booking.customer_id = customer.id
@@ -318,6 +313,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         @booking.booking_date = Time.current
         @booking.status = 'ordered_and_delivery_pending'
         @booking.booked_by = 'mobile_api'
+        @booking.skip_stock_check = true
 
         Rails.logger.info "Booking created with customer_id: #{@booking.customer_id}"
         Rails.logger.info "Booking valid? #{@booking.valid?}"
@@ -334,19 +330,58 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
           customer.update!(customer_updates)
         end
 
+        # Customer Wallet: optionally pay for the booking (fully or
+        # partially) from the customer's wallet balance. #{@booking.valid?}
+        # above already ran calculate_totals via before_validation, so
+        # total_amount and booking_number are available here before save.
+        if wallet_requested
+          if SystemSetting.customer_wallet_enabled?
+            wallet = CustomerWallet.for_customer(customer)
+            deduction = [wallet.balance.to_f, @booking.total_amount.to_f].min.round(2)
+
+            if deduction > 0
+              wallet_deduction_txn = wallet.deduct_money(
+                deduction,
+                "Payment for Booking ##{@booking.booking_number}"
+              )
+              @booking.wallet_amount_used = deduction
+
+              remaining = (@booking.total_amount.to_f - deduction).round(2)
+              if remaining <= 0
+                @booking.payment_status = 'paid'
+                @booking.payment_method = 'wallet'
+              else
+                @booking.payment_status = 'partially_paid'
+              end
+            else
+              wallet_note = 'Wallet balance is 0 — booking was not paid from wallet.'
+            end
+          else
+            wallet_note = 'Customer wallet feature is currently disabled.'
+          end
+        end
+
         @booking.save!
 
-        # Update product stock — reuse the products batch-loaded above instead
-        # of item.product re-querying one at a time.
+        # Now that the booking has an id, link the wallet transaction to it
+        # so both records point at each other end-to-end.
+        if wallet_deduction_txn
+          wallet_deduction_txn.update!(booking_id: @booking.id)
+          @booking.update_column(:wallet_transaction_id, wallet_deduction_txn.id)
+        end
+
+        # Variant stock isn't touched by BookingItem's own stock-reduction
+        # callback (that only tracks central stock_batches/product.stock), so
+        # it still needs to be decremented here — allowed to go negative like
+        # central stock. The non-variant branch used to also decrement
+        # product.stock directly, double-counting on top of the callback;
+        # that's now left to the callback alone.
         @booking.booking_items.each do |item|
           product = products_by_id[item.product_id]
-          if product.has_multiple_quantities? && item.product_variant_id.present?
-            variant = ProductVariant.find_by(id: item.product_variant_id)
-            variant&.update!(available_stock: [variant.available_stock - item.quantity, 0].max)
-          else
-            new_stock = [product.stock - item.quantity, 0].max
-            product.update!(stock: new_stock)
-          end
+          next unless product.has_multiple_quantities? && item.product_variant_id.present?
+
+          variant = ProductVariant.find_by(id: item.product_variant_id)
+          variant&.update!(available_stock: variant.available_stock - item.quantity)
         end
 
         booking_response_data = format_booking_data(@booking).merge({
@@ -356,7 +391,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
             pincode: pincode
           },
           available_products: available_products,
-          stock_updated: true
+          stock_updated: true,
+          wallet_note: wallet_note
         })
 
         render json: {
@@ -1419,37 +1455,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     cart_items = booking_params[:booking_items_attributes]
     return json_response({ success: false, message: 'Cart is empty' }, :bad_request) if cart_items.blank?
 
-    # Batch-load every product/variant referenced in the cart in one query
-    # each (was a Product.find_by + Product.find per item across two loops).
+    # Batch-load every product referenced in the cart in one query (was a
+    # Product.find per item).
     cart_product_ids = cart_items.map { |item| (item[:product_id] || item['product_id']).to_i }.uniq
-    cart_variant_ids = cart_items.map { |item| item[:product_variant_id] || item['product_variant_id'] }.compact.uniq
     products_by_id = Product.where(id: cart_product_ids).index_by(&:id)
-    variants_by_id = cart_variant_ids.any? ? ProductVariant.where(id: cart_variant_ids).index_by(&:id) : {}
-
-    # Validate stock before creating booking
-    stock_errors = []
-    cart_items.each do |item|
-      product_id  = item[:product_id] || item['product_id']
-      variant_id  = item[:product_variant_id] || item['product_variant_id']
-      quantity    = (item[:quantity] || item['quantity']).to_f
-      product     = products_by_id[product_id.to_i]
-      next unless product
-
-      if product.has_multiple_quantities? && variant_id.present?
-        variant = variants_by_id[variant_id.to_i]
-        avail = variant ? variant.available_stock.to_f : 0.0
-      else
-        avail = product.available_quantity
-      end
-
-      if quantity > avail
-        stock_errors << "#{product.name}: Only #{avail} units available, but #{quantity} requested"
-      end
-    end
-
-    if stock_errors.any?
-      return json_response({ success: false, message: stock_errors.join('; ') }, :unprocessable_entity)
-    end
 
     payment_method = booking_params[:payment_method].presence || 'cod'
     pincode  = booking_params[:pincode]
@@ -1472,7 +1481,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         notes: booking_params[:notes],
         payment_status: :unpaid,
         status: payment_method == 'cod' ? 'confirmed' : 'draft',
-        booked_by: 'mobile_api'
+        booked_by: 'mobile_api',
+        skip_stock_check: true
       )
 
       total_amount = 0
@@ -1790,6 +1800,9 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       delivery_charge: delivery_charge,
       delivery_charge_label: delivery_charge > 0 ? "₹#{delivery_charge}" : 'Free',
       total_amount: booking.total_amount.to_f,
+      wallet_amount_used: booking.wallet_amount_used.to_f,
+      paid_via_wallet: booking.wallet_used?,
+      wallet_transaction_id: booking.wallet_transaction_id,
       customer_name: booking.customer_name,
       customer_email: booking.customer_email,
       customer_phone: booking.customer_phone,

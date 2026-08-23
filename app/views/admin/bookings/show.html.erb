@@ -218,6 +218,15 @@
             <strong class="text-muted d-block">Payment Method</strong>
             <%= @booking.payment_method_label %>
           </div>
+          <% if @booking.wallet_used? %>
+            <div class="col-md-6">
+              <strong class="text-muted d-block">Paid via Wallet</strong>
+              <span class="text-success fw-medium">₹<%= number_with_delimiter(@booking.wallet_amount_used.to_f) %></span>
+              <% if @booking.wallet_transaction.present? %>
+                <%= link_to " (Txn ##{@booking.wallet_transaction.reference_number})", admin_customer_wallet_path(@booking.wallet_transaction.customer_wallet), class: "text-muted small" %>
+              <% end %>
+            </div>
+          <% end %>
           <div class="col-md-6">
             <strong class="text-muted d-block">Created By</strong>
             <%= @booking.user&.first_name || 'System' %>

@@ -1,4 +1,11 @@
 class Booking < ApplicationRecord
+  # Non-admin booking channels (franchise self-service, mobile app, affiliate)
+  # set this before save so BookingItem lets the booking through even when
+  # requested quantity exceeds available stock, pushing product stock
+  # negative instead of blocking with "out of stock". Admin bookings
+  # (Admin::BookingsController) never set it, so they keep blocking.
+  attr_accessor :skip_stock_check
+
   belongs_to :customer, optional: true
   belongs_to :user, optional: true # Admin who created the booking
   belongs_to :booking_schedule, optional: true # For subscription bookings
@@ -7,6 +14,7 @@ class Booking < ApplicationRecord
   belongs_to :franchise, optional: true
   belongs_to :delivery_franchise, class_name: 'Franchise', optional: true
   belongs_to :affiliate, optional: true
+  belongs_to :wallet_transaction, optional: true
   has_many :booking_items, dependent: :destroy
   # has_one :order, dependent: :nullify  # Temporarily disabled until booking_id column is added to orders table
   has_many :booking_invoices, dependent: :destroy
@@ -45,7 +53,8 @@ class Booking < ApplicationRecord
     online: 4,
     cod: 5,
     cashfree: 6,
-    cloudflare: 7
+    cloudflare: 7,
+    wallet: 8
   }, prefix: true
 
   enum :payment_gateway, {
@@ -63,12 +72,25 @@ class Booking < ApplicationRecord
   # re-validates uniqueness for a value that was never touched.
   validates :booking_number, uniqueness: true, if: :will_save_change_to_booking_number?
   validates :total_amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :wallet_amount_used, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+
+  # Set by controllers (e.g. Franchise::BookingsController) whose form marks
+  # delivery address as required client-side — enforces it server-side too,
+  # without forcing it on other booking flows (admin/store pickup, etc.).
+  attr_accessor :require_delivery_address
+  validates :delivery_address, presence: true, if: :require_delivery_address
 
   before_validation :generate_booking_number, on: :create
   before_validation :calculate_totals
   before_validation :calculate_final_amount_after_discount
   after_validation :ensure_total_amount_present
   before_create :attribute_to_referring_affiliate
+  # Covers bookings saved directly into a stock-consuming status at creation
+  # (e.g. a franchise/admin walk-in sale whose form defaults status to
+  # "completed", never passing through an update where status changes) —
+  # without this, allocate_inventory only ever fired on the confirmed
+  # transition, so those bookings never deducted stock at all.
+  after_create :allocate_inventory
   after_update :allocate_inventory, if: :saved_change_to_status?
   after_update :sync_invoice_payment_status, if: :saved_change_to_payment_status?
   after_update :credit_affiliate_commission, if: :saved_change_to_status?
@@ -463,13 +485,19 @@ class Booking < ApplicationRecord
     when 'cod', '5'           then 'Cash on Delivery'
     when 'cashfree', '6'      then 'Online Payment'
     when 'cloudflare', '7'    then 'Online Payment'
+    when 'wallet', '8'        then 'Wallet'
     else 'Cash on Delivery'
     end
   end
 
   def payment_method_label
     raw_value = read_attribute(:payment_method).to_s
+    return 'Wallet' if %w[wallet 8].include?(raw_value)
     %w[card 1 upi 2 bank_transfer 3 online 4 cashfree 6 cloudflare 7].include?(raw_value) ? 'Online Payment' : 'Cash on Delivery'
+  end
+
+  def wallet_used?
+    wallet_amount_used.to_f > 0
   end
 
   def payment_status_display
@@ -670,7 +698,11 @@ class Booking < ApplicationRecord
     end
 
     if insufficient_items.any?
-      update_column(:status, status_previously_was)
+      # status_previously_was is nil when this runs from after_create (the
+      # booking was created directly in a stock-consuming status, with no
+      # prior status to revert to) — fall back to 'draft' instead of writing
+      # a NULL status column.
+      update_column(:status, status_previously_was || 'draft')
       errors.add(:status, "Insufficient franchise inventory: #{insufficient_items.map { |i|
         "#{i[:product]} (need #{i[:requested]}, have #{i[:available]})"
       }.join(', ')}")
@@ -694,79 +726,104 @@ class Booking < ApplicationRecord
     Rails.logger.error "Error allocating franchise inventory for booking ##{booking_number}: #{e.message}"
   end
 
+  # Statuses from "confirmed" onward in the booking lifecycle (see
+  # next_possible_statuses) — reaching any of these for the first time is
+  # what should trigger franchise-ledger inventory allocation, whether that
+  # happens via a status-changing update or by being created directly in
+  # that status (e.g. a franchise walk-in sale whose form defaults status to
+  # "completed" on create, so it never passes through an update where status
+  # changes — allocate_franchise_inventory used to never run for these).
+  STOCK_CONSUMING_STATUSES = %w[confirmed processing packed shipped out_for_delivery delivered completed].freeze
+
   def allocate_inventory
-    # Only allocate when order is confirmed
+    # Franchise self-service bookings sell from the franchise's own
+    # inventory ledger (credited via wholesale bookings), not central stock.
+    if booked_by == 'franchise' && franchise_id.present? && SystemSetting.franchise_commission_enabled? &&
+       STOCK_CONSUMING_STATUSES.include?(status) && !STOCK_CONSUMING_STATUSES.include?(status_previously_was)
+      allocate_franchise_inventory
+      return
+    end
+
+    # Only allocate central inventory when order is confirmed. This stays a
+    # strict "confirmed" transition (not the broader STOCK_CONSUMING_STATUSES
+    # check above) — non-franchise bookings created directly in a later
+    # status (e.g. "completed") already had their stock reduced by
+    # BookingItem#reduce_product_stock at creation, so running this on create
+    # too would double-deduct the same stock_batches rows.
     if status == 'confirmed' && status_previously_was != 'confirmed'
-      # Franchise self-service bookings sell from the franchise's own
-      # inventory ledger (credited via wholesale bookings), not central stock.
-      if booked_by == 'franchise' && franchise_id.present? && SystemSetting.franchise_commission_enabled?
-        allocate_franchise_inventory
-        return
-      end
+      # skip_stock_check bookings (franchise/mobile/affiliate, and admin
+      # approving a franchise stock request) already had their stock reduced
+      # — possibly negative — by BookingItem#reduce_product_stock at
+      # creation. Running InventoryService's own availability check here
+      # would either double-deduct the same stock_batches rows on top of
+      # that, or block/revert the status this booking is being confirmed
+      # into, so skip it entirely for these bookings (no SaleItem records
+      # either, same as the franchise-ledger path above).
+      unless skip_stock_check
+        begin
+          inventory_service = InventoryService.new
 
-      begin
-        inventory_service = InventoryService.new
-
-        # Prepare items for allocation
-        items = booking_items.map do |item|
-          {
-            product_id: item.product_id,
-            quantity: item.quantity
-          }
-        end
-
-        # Check availability first
-        insufficient_items = []
-        allocation_data = []
-
-        items.each do |item|
-          availability = inventory_service.check_availability(item[:product_id], item[:quantity])
-          if availability[:available]
-            allocations = inventory_service.allocate_stock(item[:product_id], item[:quantity])
-            allocation_data << allocations
-          else
-            insufficient_items << {
-              product: Product.find(item[:product_id]).name,
-              available: availability[:available_stock],
-              requested: item[:quantity],
-              shortage: availability[:shortage]
+          # Prepare items for allocation
+          items = booking_items.map do |item|
+            {
+              product_id: item.product_id,
+              quantity: item.quantity
             }
           end
-        end
 
-        if insufficient_items.any?
-          # Revert status if inventory is insufficient
-          update_column(:status, status_previously_was)
-          errors.add(:status, "Insufficient inventory: #{insufficient_items.map { |item|
-            "#{item[:product]} (need #{item[:requested]}, have #{item[:available]})"
-          }.join(', ')}")
-          return false
-        else
-          # Reduce stock and create sale items
-          allocation_data.flatten.each_with_index do |allocation, index|
-            inventory_service.reduce_stock([allocation])
+          # Check availability first
+          insufficient_items = []
+          allocation_data = []
 
-            # Create sale item for tracking
-            SaleItem.create!(
-              booking: self,
-              product: allocation[:batch].product,
-              stock_batch: allocation[:batch],
-              quantity: allocation[:quantity],
-              selling_price: allocation[:selling_price],
-              purchase_price: allocation[:purchase_price]
-            )
+          items.each do |item|
+            availability = inventory_service.check_availability(item[:product_id], item[:quantity])
+            if availability[:available]
+              allocations = inventory_service.allocate_stock(item[:product_id], item[:quantity])
+              allocation_data << allocations
+            else
+              insufficient_items << {
+                product: Product.find(item[:product_id]).name,
+                available: availability[:available_stock],
+                requested: item[:quantity],
+                shortage: availability[:shortage]
+              }
+            end
           end
 
-          Rails.logger.info "Inventory allocated successfully for booking ##{booking_number}"
+          if insufficient_items.any?
+            # Revert status if inventory is insufficient
+            update_column(:status, status_previously_was)
+            errors.add(:status, "Insufficient inventory: #{insufficient_items.map { |item|
+              "#{item[:product]} (need #{item[:requested]}, have #{item[:available]})"
+            }.join(', ')}")
+            return false
+          else
+            # Reduce stock and create sale items
+            allocation_data.flatten.each_with_index do |allocation, index|
+              inventory_service.reduce_stock([allocation])
+
+              # Create sale item for tracking
+              SaleItem.create!(
+                booking: self,
+                product: allocation[:batch].product,
+                stock_batch: allocation[:batch],
+                quantity: allocation[:quantity],
+                selling_price: allocation[:selling_price],
+                purchase_price: allocation[:purchase_price]
+              )
+            end
+
+            Rails.logger.info "Inventory allocated successfully for booking ##{booking_number}"
+          end
+        rescue InventoryService::InsufficientStockError => e
+          # Revert status if inventory allocation fails
+          update_column(:status, status_previously_was)
+          errors.add(:status, "Inventory allocation failed: #{e.message}")
+          return false
+        rescue => e
+          Rails.logger.error "Error allocating inventory for booking ##{booking_number}: #{e.message}"
+          # Don't revert status for other errors, just log them
         end
-      rescue InventoryService::InsufficientStockError => e
-        # Revert status if inventory allocation fails
-        update_column(:status, status_previously_was)
-        errors.add(:status, "Inventory allocation failed: #{e.message}")
-        return false
-      rescue => e
-        Rails.logger.error "Error allocating inventory for booking ##{booking_number}: #{e.message}"
-        # Don't revert status for other errors, just log them
       end
     end
 

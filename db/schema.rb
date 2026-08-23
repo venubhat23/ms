@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_23_064228) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -284,6 +284,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
     t.bigint "delivery_franchise_id"
     t.decimal "franchise_commission_amount", precision: 10, scale: 2, default: "0.0"
     t.datetime "franchise_commission_credited_at"
+    t.decimal "wallet_amount_used", precision: 10, scale: 2, default: "0.0"
+    t.bigint "wallet_transaction_id"
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_date"], name: "index_bookings_on_booking_date"
@@ -310,6 +312,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
     t.index ["store_id"], name: "index_bookings_on_store_id"
     t.index ["tracking_number"], name: "index_bookings_on_tracking_number"
     t.index ["user_id"], name: "index_bookings_on_user_id"
+    t.index ["wallet_transaction_id"], name: "index_bookings_on_wallet_transaction_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -589,6 +592,37 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
     t.index ["franchise_id"], name: "index_franchise_stock_movements_on_franchise_id"
     t.index ["product_id"], name: "index_franchise_stock_movements_on_product_id"
     t.index ["reference_type", "reference_id"], name: "idx_franchise_stock_movements_ref_type_id"
+  end
+
+  create_table "franchise_stock_request_items", force: :cascade do |t|
+    t.bigint "franchise_stock_request_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "product_variant_id"
+    t.decimal "quantity", precision: 10, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_stock_request_id"], name: "idx_franchise_stock_request_items_request"
+    t.index ["product_id"], name: "index_franchise_stock_request_items_on_product_id"
+    t.index ["product_variant_id"], name: "index_franchise_stock_request_items_on_product_variant_id"
+  end
+
+  create_table "franchise_stock_requests", force: :cascade do |t|
+    t.bigint "franchise_id", null: false
+    t.string "status", default: "pending", null: false
+    t.text "notes"
+    t.string "discount_type"
+    t.decimal "discount_value", precision: 10, scale: 2
+    t.decimal "discount_amount", precision: 10, scale: 2
+    t.bigint "booking_id"
+    t.bigint "reviewed_by_id"
+    t.datetime "reviewed_at"
+    t.text "rejection_reason"
+    t.integer "items_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["booking_id"], name: "index_franchise_stock_requests_on_booking_id"
+    t.index ["franchise_id", "status"], name: "idx_franchise_stock_requests_franchise_status"
+    t.index ["status"], name: "index_franchise_stock_requests_on_status"
   end
 
   create_table "franchise_wallet_transactions", force: :cascade do |t|
@@ -1498,6 +1532,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
     t.string "website"
     t.boolean "franchise_commission_enabled", default: false
     t.boolean "otp_login_enabled", default: false
+    t.text "home_page_images"
+    t.text "site_gallery_images"
+    t.boolean "customer_wallet_enabled", default: false
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 
@@ -1681,6 +1718,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
     t.json "metadata"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "booking_id"
+    t.index ["booking_id"], name: "index_wallet_transactions_on_booking_id"
     t.index ["customer_wallet_id"], name: "index_wallet_transactions_on_customer_wallet_id"
     t.index ["reference_number"], name: "index_wallet_transactions_on_reference_number", unique: true
     t.index ["transaction_type"], name: "index_wallet_transactions_on_transaction_type"
@@ -1706,6 +1745,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
   add_foreign_key "bookings", "franchises"
   add_foreign_key "bookings", "franchises", column: "delivery_franchise_id"
   add_foreign_key "bookings", "stores"
+  add_foreign_key "bookings", "wallet_transactions"
   add_foreign_key "client_requests", "customers"
   add_foreign_key "client_requests", "users", column: "assignee_id"
   add_foreign_key "customer_addresses", "customers"
@@ -1774,6 +1814,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_17_000000) do
   add_foreign_key "vendor_purchase_items", "products"
   add_foreign_key "vendor_purchase_items", "vendor_purchases"
   add_foreign_key "vendor_purchases", "vendors"
+  add_foreign_key "wallet_transactions", "bookings"
   add_foreign_key "wallet_transactions", "customer_wallets"
   add_foreign_key "wishlists", "customers"
   add_foreign_key "wishlists", "products"

@@ -68,6 +68,7 @@
             <tr>
               <th class="border-0">Franchise</th>
               <th class="border-0">Amount</th>
+              <th class="border-0">Tagged Booking</th>
               <th class="border-0">Requested</th>
               <th class="border-0">Status</th>
               <th class="border-0">Actions</th>
@@ -81,6 +82,13 @@
                   <div class="small text-muted"><%= wr.franchise.mobile %></div>
                 </td>
                 <td class="align-middle fw-semibold"><%= wr.formatted_amount %></td>
+                <td class="align-middle small">
+                  <% if wr.booking %>
+                    <%= link_to wr.booking.booking_number, admin_booking_path(wr.booking) %>
+                  <% else %>
+                    <span class="text-muted">—</span>
+                  <% end %>
+                </td>
                 <td class="align-middle small"><%= wr.requested_at&.strftime("%b %d, %Y") %></td>
                 <td class="align-middle">
                   <% status_color = { 'pending' => 'warning', 'approved' => 'info', 'paid' => 'success', 'rejected' => 'danger' }[wr.status] %>

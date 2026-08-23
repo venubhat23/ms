@@ -543,6 +543,62 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
     }
   end
 
+  # GET /api/v1/mobile/customer/wallet
+  # Returns the customer's current wallet balance plus a paginated transaction
+  # history (admin add-money / remove-money entries and any deductions made
+  # while paying for a booking from the wallet).
+  def wallet
+    unless SystemSetting.customer_wallet_enabled?
+      return render json: {
+        success: false,
+        message: 'Customer wallet feature is currently disabled'
+      }, status: :forbidden
+    end
+
+    customer_wallet = CustomerWallet.for_customer(current_customer)
+
+    page = params[:page]&.to_i || 1
+    per_page = params[:per_page]&.to_i || 20
+    per_page = [per_page, 50].min
+
+    transactions = customer_wallet.wallet_transactions.recent
+    total_count = transactions.count
+    transactions = transactions.offset((page - 1) * per_page).limit(per_page)
+
+    history = transactions.map do |txn|
+      {
+        id: txn.id,
+        transaction_type: txn.transaction_type,
+        amount: txn.amount.to_f,
+        formatted_amount: txn.formatted_amount,
+        balance_after: txn.balance_after.to_f,
+        description: txn.description,
+        reference_number: txn.reference_number,
+        booking_id: txn.booking_id,
+        booking_number: txn.booking&.booking_number,
+        created_at: txn.created_at.iso8601
+      }
+    end
+
+    render json: {
+      success: true,
+      data: {
+        balance: customer_wallet.balance.to_f,
+        formatted_balance: customer_wallet.formatted_balance,
+        status: customer_wallet.status,
+        history: history,
+        pagination: {
+          current_page: page,
+          per_page: per_page,
+          total_count: total_count,
+          total_pages: (total_count.to_f / per_page).ceil,
+          has_next_page: page < (total_count.to_f / per_page).ceil,
+          has_prev_page: page > 1
+        }
+      }
+    }
+  end
+
   # POST /api/v1/mobile/customer/add_policy
   def add_policy
     # Log incoming parameters for debugging

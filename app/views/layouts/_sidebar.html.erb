@@ -858,8 +858,20 @@
           </li>
         <% end %>
 
-        <!-- Coupons -->
         <!-- Customer Wallets -->
+        <% if current_user.has_sidebar_permission?('customer_wallets') && SystemSetting.customer_wallet_enabled? %>
+          <li class="nav-item">
+            <%= link_to admin_customer_wallets_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/customer_wallets')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg" style="background: linear-gradient(135deg, #e8f5e9, #a5d6a7);">
+                  <i class="bi bi-wallet2" style="color: #2e7d32;"></i>
+                </div>
+              </div>
+              <span class="nav-text">Customer Wallets</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+        <% end %>
 
         <!-- Franchise -->
         <% if current_user.has_sidebar_permission?('franchises') %>

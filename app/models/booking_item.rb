@@ -23,6 +23,7 @@ class BookingItem < ApplicationRecord
 
   def check_stock_availability
     return unless quantity.present? && product.present?
+    return if booking&.skip_stock_check
 
     available_stock = stock_batches_scope.sum(:quantity_remaining)
 
@@ -42,6 +43,7 @@ class BookingItem < ApplicationRecord
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     remaining_to_allocate = quantity.to_f
     total_allocated = 0.0
+    last_batch = nil
 
     stock_batches_scope.each do |batch|
       break if remaining_to_allocate <= 0
@@ -53,9 +55,24 @@ class BookingItem < ApplicationRecord
         total_allocated += allocation
         batch.status = 'exhausted' if batch.quantity_remaining <= 0
         batch.save!
+        last_batch = batch
 
         Rails.logger.info "Allocated #{allocation} units from Batch ##{batch.id} (store: #{batch.store_id.inspect})"
       end
+    end
+
+    # Non-admin channels (skip_stock_check) are allowed to oversell: push the
+    # unmet shortfall onto a batch as negative remaining stock instead of
+    # leaving it unallocated, so product.stock actually reflects the deficit.
+    if remaining_to_allocate > 0 && booking&.skip_stock_check
+      overflow_batch = last_batch || stock_batches_scope.last || product.stock_batches.order(:batch_date, :created_at).last
+      if overflow_batch
+        overflow_batch.quantity_remaining -= remaining_to_allocate
+        overflow_batch.status = 'exhausted'
+        overflow_batch.save!
+      end
+      total_allocated += remaining_to_allocate
+      remaining_to_allocate = 0
     end
 
     # new_stock is the post-allocation total for this same (possibly
@@ -94,6 +111,7 @@ class BookingItem < ApplicationRecord
 
     if quantity_difference > 0
       remaining_to_allocate = quantity_difference.to_f
+      last_batch = nil
 
       stock_batches_scope.each do |batch|
         break if remaining_to_allocate <= 0
@@ -105,7 +123,21 @@ class BookingItem < ApplicationRecord
           net_change -= allocation
           batch.status = 'exhausted' if batch.quantity_remaining <= 0
           batch.save!
+          last_batch = batch
         end
+      end
+
+      # See reduce_product_stock for why non-admin channels overflow negative
+      # instead of leaving the increase unallocated.
+      if remaining_to_allocate > 0 && booking&.skip_stock_check
+        overflow_batch = last_batch || stock_batches_scope.last || product.stock_batches.order(:batch_date, :created_at).last
+        if overflow_batch
+          overflow_batch.quantity_remaining -= remaining_to_allocate
+          overflow_batch.status = 'exhausted'
+          overflow_batch.save!
+        end
+        net_change -= remaining_to_allocate
+        remaining_to_allocate = 0
       end
     elsif quantity_difference < 0
       quantity_to_restore = quantity_difference.abs.to_f

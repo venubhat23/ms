@@ -60,7 +60,7 @@ class Franchise::StockRequestsController < Franchise::BaseController
     Rails.cache.fetch("franchise_stock_requests/products_json", expires_in: 5.minutes) do
       products = Product.active
                          .select(:id, :name, :sku, :category_id, :has_multiple_quantities, :r2_image_url, :image_url, :price, :display_order)
-                         .includes(:category, :product_variants)
+                         .includes(:category, :product_variants, image_attachment: :blob)
                          .order(:display_order, :name)
 
       products.map do |p|
@@ -72,7 +72,7 @@ class Franchise::StockRequestsController < Franchise::BaseController
           category_id: p.category_id&.to_s || "",
           category_name: p.category&.name || "No Category",
           has_variants: p.has_multiple_quantities,
-          image_url: p.r2_image_url.presence || p.image_url.presence,
+          image_url: p.main_image_url,
           price: p.price.to_f.round,
           variants: sorted_variants.map { |v| { id: v.id, label: v.label.to_s, price: v.selling_price.to_f.round } }
         }

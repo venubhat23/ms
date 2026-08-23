@@ -6,7 +6,16 @@ class CustomerWallet < ApplicationRecord
 
   after_initialize :set_defaults
 
-  def add_money(amount, description = nil, reference = nil)
+  # Lazily provisions a wallet for a customer who doesn't have one yet
+  # (starts at balance 0), instead of requiring an admin to create it first.
+  def self.for_customer(customer)
+    find_or_create_by!(customer_id: customer.id) do |wallet|
+      wallet.balance = 0
+      wallet.status = true
+    end
+  end
+
+  def add_money(amount, description = nil, reference = nil, booking_id: nil)
     transaction do
       self.balance += amount
       save!
@@ -16,12 +25,13 @@ class CustomerWallet < ApplicationRecord
         amount: amount,
         balance_after: balance,
         description: description || 'Money added to wallet',
-        reference_number: reference || generate_reference_number
+        reference_number: reference || generate_reference_number,
+        booking_id: booking_id
       )
     end
   end
 
-  def deduct_money(amount, description = nil, reference = nil)
+  def deduct_money(amount, description = nil, reference = nil, booking_id: nil)
     return false if balance < amount
 
     transaction do
@@ -33,11 +43,10 @@ class CustomerWallet < ApplicationRecord
         amount: amount,
         balance_after: balance,
         description: description || 'Money deducted from wallet',
-        reference_number: reference || generate_reference_number
+        reference_number: reference || generate_reference_number,
+        booking_id: booking_id
       )
     end
-
-    true
   end
 
   def formatted_balance

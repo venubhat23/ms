@@ -56,6 +56,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
               customer_id: customer.id,
               email: user.email,
               mobile: user.mobile,
+              customer_wallet_enabled: SystemSetting.customer_wallet_enabled?,
               portfolio_summary: {
                 total_policies: portfolio_stats[:total_policies],
                 upcoming_installments: portfolio_stats[:upcoming_installments],
@@ -122,6 +123,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           customer_id: customer.id,
           email: customer.email,
           mobile: customer.mobile,
+          customer_wallet_enabled: SystemSetting.customer_wallet_enabled?,
           profile: {
             first_name: customer.first_name,
             last_name: customer.last_name,
@@ -697,7 +699,8 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           user_id: user.id,
           customer_id: customer.id,
           mobile: user.mobile,
-          is_new_user: is_new_user
+          is_new_user: is_new_user,
+          customer_wallet_enabled: SystemSetting.customer_wallet_enabled?
         }
       })
     when :expired

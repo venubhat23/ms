@@ -9,6 +9,7 @@ class Franchise::WithdrawalRequestsController < Franchise::BaseController
   def new
     @wallet = current_franchise.franchise_wallet
     @withdrawal_request = current_franchise.franchise_withdrawal_requests.new
+    @bookings = current_franchise.bookings.recent.limit(50)
   end
 
   def create
@@ -18,10 +19,12 @@ class Franchise::WithdrawalRequestsController < Franchise::BaseController
     if @withdrawal_request.save
       redirect_to franchise_withdrawal_requests_path, notice: 'Withdrawal request submitted. It will be reviewed by an admin shortly.'
     else
+      @bookings = current_franchise.bookings.recent.limit(50)
       flash.now[:alert] = @withdrawal_request.errors.full_messages.to_sentence
       render :new, status: :unprocessable_entity
     end
   rescue => e
+    @bookings = current_franchise.bookings.recent.limit(50)
     flash.now[:alert] = "Could not submit withdrawal request: #{e.message}"
     render :new, status: :unprocessable_entity
   end
@@ -29,6 +32,6 @@ class Franchise::WithdrawalRequestsController < Franchise::BaseController
   private
 
   def withdrawal_request_params
-    params.require(:franchise_withdrawal_request).permit(:amount, :notes)
+    params.require(:franchise_withdrawal_request).permit(:amount, :notes, :booking_id)
   end
 end

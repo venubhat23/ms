@@ -522,18 +522,18 @@
                             <label class="form-label">Discount Type</label>
                             <div class="d-flex gap-3">
                               <div class="form-check">
-                                <%= f.radio_button :franchise_discount_type, 'fixed', class: 'form-check-input', checked: true, onchange: 'updateCheckoutTotals()' %>
+                                <%= f.radio_button :franchise_discount_type, 'fixed', class: 'form-check-input', checked: true, onchange: 'updateFranchiseDiscountValueBounds(); updateCheckoutTotals()' %>
                                 <label class="form-check-label" for="booking_franchise_discount_type_fixed">Fixed Amount</label>
                               </div>
                               <div class="form-check">
-                                <%= f.radio_button :franchise_discount_type, 'percentage', class: 'form-check-input', onchange: 'updateCheckoutTotals()' %>
+                                <%= f.radio_button :franchise_discount_type, 'percentage', class: 'form-check-input', onchange: 'updateFranchiseDiscountValueBounds(); updateCheckoutTotals()' %>
                                 <label class="form-check-label" for="booking_franchise_discount_type_percentage">Percentage</label>
                               </div>
                             </div>
                           </div>
                           <div class="col-md-4">
                             <label class="form-label">Discount Value</label>
-                            <%= f.number_field :franchise_discount_value, class: 'form-control', min: 0, step: '0.01', placeholder: '0.00', onchange: 'updateCheckoutTotals()', oninput: 'updateCheckoutTotals()' %>
+                            <%= f.number_field :franchise_discount_value, class: 'form-control', min: 0, step: '0.01', placeholder: '0.00', onchange: 'updateFranchiseDiscountValueBounds(); updateCheckoutTotals()', oninput: 'updateCheckoutTotals()' %>
                           </div>
                           <div class="col-md-4">
                             <div class="form-text">
@@ -1395,6 +1395,22 @@ function updateCheckoutTotals() {
 
   // Update change calculation when total changes
   calculateChange();
+}
+
+// Caps the wholesale discount value field at 100 when Percentage is selected,
+// so a value like 1000 can't be typed for a percentage discount in the first
+// place (the server rejects it either way, but this gives instant feedback).
+function updateFranchiseDiscountValueBounds() {
+  const type = document.querySelector('input[name="booking[franchise_discount_type]"]:checked')?.value || 'fixed';
+  const valueField = document.getElementById('booking_franchise_discount_value');
+  if (!valueField) return;
+
+  if (type === 'percentage') {
+    valueField.max = '100';
+    if (parseFloat(valueField.value) > 100) valueField.value = '100';
+  } else {
+    valueField.removeAttribute('max');
+  }
 }
 
 // Returns the calculated wholesale (Franchise Booking) discount in rupees given the gross total
@@ -2309,6 +2325,10 @@ document.addEventListener('DOMContentLoaded', function() {
       b2bToggle.title = 'Turn off Franchise Booking to enable B2B Booking';
     }
   }
+
+  // Sync the Discount Value field's max bound in case a validation-error
+  // reload restored a Percentage selection.
+  updateFranchiseDiscountValueBounds();
 
   // Add category filter listener
   const categoryFilter = document.getElementById('categoryFilter');

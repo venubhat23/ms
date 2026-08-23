@@ -522,18 +522,18 @@
                             <label class="form-label">Discount Type</label>
                             <div class="d-flex gap-3">
                               <div class="form-check">
-                                <%= f.radio_button :franchise_discount_type, 'fixed', class: 'form-check-input', checked: true %>
+                                <%= f.radio_button :franchise_discount_type, 'fixed', class: 'form-check-input', checked: true, onchange: 'updateCheckoutTotals()' %>
                                 <label class="form-check-label" for="booking_franchise_discount_type_fixed">Fixed Amount</label>
                               </div>
                               <div class="form-check">
-                                <%= f.radio_button :franchise_discount_type, 'percentage', class: 'form-check-input' %>
+                                <%= f.radio_button :franchise_discount_type, 'percentage', class: 'form-check-input', onchange: 'updateCheckoutTotals()' %>
                                 <label class="form-check-label" for="booking_franchise_discount_type_percentage">Percentage</label>
                               </div>
                             </div>
                           </div>
                           <div class="col-md-4">
                             <label class="form-label">Discount Value</label>
-                            <%= f.number_field :franchise_discount_value, class: 'form-control', min: 0, step: '0.01', placeholder: '0.00' %>
+                            <%= f.number_field :franchise_discount_value, class: 'form-control', min: 0, step: '0.01', placeholder: '0.00', onchange: 'updateCheckoutTotals()', oninput: 'updateCheckoutTotals()' %>
                           </div>
                           <div class="col-md-4">
                             <div class="form-text">
@@ -681,9 +681,9 @@
 
     <%# Order Summary %>
     <div class="col-lg-4">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header border-0 py-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-bottom: 3px solid #667eea;">
-          <h4 class="mb-0 text-black fw-bold"><i class="bi bi-receipt me-2 fs-4 text-primary"></i>ORDER SUMMARY</h4>
+      <div class="card border-0 shadow-sm order-summary-card">
+        <div class="card-header border-0 py-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <h4 class="mb-0 text-white fw-bold"><i class="bi bi-receipt me-2 fs-4"></i>ORDER SUMMARY</h4>
         </div>
         <div class="card-body">
           <div id="checkoutOrderSummary">
@@ -723,6 +723,14 @@
                     <span id="checkoutDiscountCalc" class="text-success small fw-medium"></span>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <!-- Franchise wholesale discount row (read-only, shown only when Franchise Booking is on) -->
+            <div id="franchiseDiscountRow" style="display: none;" class="mb-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <span>Discount <small class="text-muted">(wholesale)</small></span>
+                <span class="fw-medium">₹<span id="franchiseDiscountDisplay">0.00</span></span>
               </div>
             </div>
 
@@ -766,17 +774,17 @@
 <%# Floating Cart - Enhanced and Larger %>
 <div class="position-fixed bottom-0 end-0 p-4" style="z-index: 1000;">
   <div class="card border-0 shadow-lg" id="floatingCart" style="min-width: 500px; max-width: 550px; display: none;">
-    <div class="card-header py-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-bottom: 3px solid #667eea;">
+    <div class="card-header py-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
       <div class="d-flex justify-content-between align-items-center">
-        <h3 class="mb-0 d-flex align-items-center fw-bold text-black">
-          <i class="bi bi-cart3 me-2 fs-2 text-primary"></i>
-          <span style="font-size: 1.75rem; letter-spacing: 1px; color: black; font-weight: 900;">SHOPPING CART</span>
+        <h3 class="mb-0 d-flex align-items-center fw-bold text-white">
+          <i class="bi bi-cart3 me-2 fs-3"></i>
+          <span style="font-size: 1.3rem; letter-spacing: 0.3px; color: #fff; font-weight: 700;">Shopping Cart</span>
         </h3>
         <div class="d-flex align-items-center gap-2">
-          <span class="badge bg-primary text-white px-3 py-2" style="font-size: 0.9rem; border: 2px solid #667eea;">
+          <span class="badge px-3 py-2" style="font-size: 0.85rem; background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.4);">
             <span id="cartCount">0</span> items
           </span>
-          <button type="button" class="btn btn-sm btn-link text-dark p-0" onclick="minimizeCart()" title="Minimize">
+          <button type="button" class="btn btn-sm btn-link text-white p-0" onclick="minimizeCart()" title="Minimize">
             <i class="bi bi-dash-lg"></i>
           </button>
         </div>
@@ -1328,19 +1336,32 @@ function updateCheckoutTotals() {
     }
   }
 
+  const isFranchise = document.getElementById('franchiseBookingToggle')?.checked;
   const isB2B = document.getElementById('b2bBookingToggle')?.checked;
   let discount = 0;
+  let submittedDiscount = 0;
 
-  if (isB2B) {
+  if (isFranchise) {
+    // Wholesale discount is recomputed and applied server-side (see
+    // bookings_controller#create), so it must NOT also be sent via the
+    // hidden discount_amount field or it would be applied twice.
+    discount = calculateFranchiseDiscountAmount(subtotal + totalGST);
+    submittedDiscount = 0;
+
+    const franchiseDisplay = document.getElementById('franchiseDiscountDisplay');
+    if (franchiseDisplay) franchiseDisplay.textContent = discount.toFixed(2);
+  } else if (isB2B) {
     discount = calculateB2BDiscountAmount(subtotal + totalGST);
+    submittedDiscount = discount;
   } else {
     discount = calculateNormalDiscountAmount(subtotal + totalGST);
+    submittedDiscount = discount;
   }
 
   // Update the hidden field with the discount value
   const hiddenDiscountField = document.getElementById('hiddenDiscountAmount');
   if (hiddenDiscountField) {
-    hiddenDiscountField.value = discount;
+    hiddenDiscountField.value = submittedDiscount;
   }
 
   const total = subtotal + totalGST - discount; // Final total after discount
@@ -1374,6 +1395,19 @@ function updateCheckoutTotals() {
 
   // Update change calculation when total changes
   calculateChange();
+}
+
+// Returns the calculated wholesale (Franchise Booking) discount in rupees given the gross total
+function calculateFranchiseDiscountAmount(grossTotal) {
+  const type  = document.querySelector('input[name="booking[franchise_discount_type]"]:checked')?.value || 'fixed';
+  const value = parseFloat(document.getElementById('booking_franchise_discount_value')?.value || 0);
+  let amount  = 0;
+  if (type === 'percentage') {
+    amount = (grossTotal * value) / 100;
+  } else {
+    amount = value;
+  }
+  return Math.min(Math.max(amount, 0), grossTotal);
 }
 
 // Returns the calculated B2B discount in rupees given the gross total
@@ -1411,8 +1445,12 @@ function updateB2BDiscount() {
 
 // Toggle B2B discount UI and normal discount visibility
 function toggleB2BDiscount(enabled) {
-  document.getElementById('normalDiscountRow').classList.toggle('d-none', enabled);
-  document.getElementById('b2bDiscountSection').style.display = enabled ? '' : 'none';
+  const isFranchise = document.getElementById('franchiseBookingToggle')?.checked;
+
+  if (!isFranchise) {
+    document.getElementById('normalDiscountRow').classList.toggle('d-none', enabled);
+    document.getElementById('b2bDiscountSection').style.display = enabled ? '' : 'none';
+  }
 
   if (!enabled) {
     // Reset B2B fields when turning off
@@ -1506,18 +1544,51 @@ function toggleFranchiseBooking(checkbox) {
   const customerSection = document.getElementById('customerSearchSection');
   const franchiseSection = document.getElementById('franchiseSearchSection');
   const discountSection = document.getElementById('wholesaleDiscountSection');
+  const normalDiscountRow = document.getElementById('normalDiscountRow');
+  const b2bDiscountSection = document.getElementById('b2bDiscountSection');
+  const franchiseDiscountRow = document.getElementById('franchiseDiscountRow');
+  const b2bToggle = document.getElementById('b2bBookingToggle');
 
   if (checkbox.checked) {
     if (customerSection) customerSection.style.display = 'none';
     if (franchiseSection) franchiseSection.style.display = 'block';
     if (discountSection) discountSection.style.display = 'block';
     clearSelectedCustomer();
+
+    // Franchise Booking and B2B Booking are mutually exclusive — turning
+    // Franchise Booking on force-disables (and clears) B2B Booking.
+    if (b2bToggle) {
+      if (b2bToggle.checked) {
+        b2bToggle.checked = false;
+        toggleB2BDiscount(false);
+      }
+      b2bToggle.disabled = true;
+      b2bToggle.title = 'Turn off Franchise Booking to enable B2B Booking';
+    }
+
+    // Order Summary shows only a read-only wholesale discount amount while
+    // Franchise Booking is on; hide the separate editable discount rows.
+    if (normalDiscountRow) normalDiscountRow.classList.add('d-none');
+    if (b2bDiscountSection) b2bDiscountSection.style.display = 'none';
+    if (franchiseDiscountRow) franchiseDiscountRow.style.display = 'block';
   } else {
     if (customerSection) customerSection.style.display = 'block';
     if (franchiseSection) franchiseSection.style.display = 'none';
     if (discountSection) discountSection.style.display = 'none';
     clearSelectedFranchise();
+
+    if (b2bToggle) {
+      b2bToggle.disabled = false;
+      b2bToggle.title = '';
+    }
+
+    if (franchiseDiscountRow) franchiseDiscountRow.style.display = 'none';
+    const isB2B = b2bToggle?.checked;
+    if (normalDiscountRow) normalDiscountRow.classList.toggle('d-none', isB2B);
+    if (b2bDiscountSection) b2bDiscountSection.style.display = isB2B ? '' : 'none';
   }
+
+  updateCheckoutTotals();
 }
 
 function initializeFranchiseSearch() {
@@ -2206,8 +2277,37 @@ document.addEventListener('DOMContentLoaded', function() {
   const b2bToggle = document.getElementById('b2bBookingToggle');
   if (b2bToggle) {
     b2bToggle.addEventListener('change', function() {
+      const franchiseToggle = document.getElementById('franchiseBookingToggle');
+
+      // Franchise Booking and B2B Booking are mutually exclusive — turning
+      // B2B Booking on force-disables (and clears) Franchise Booking.
+      if (franchiseToggle) {
+        if (this.checked) {
+          if (franchiseToggle.checked) {
+            franchiseToggle.checked = false;
+            toggleFranchiseBooking(franchiseToggle);
+          }
+          franchiseToggle.disabled = true;
+          franchiseToggle.title = 'Turn off B2B Booking to enable Franchise Booking';
+        } else {
+          franchiseToggle.disabled = false;
+          franchiseToggle.title = '';
+        }
+      }
+
       toggleB2BDiscount(this.checked);
     });
+
+    // Sync initial disabled state in case a validation-error reload restored
+    // a checked value for either toggle.
+    const franchiseToggleInit = document.getElementById('franchiseBookingToggle');
+    if (b2bToggle.checked && franchiseToggleInit) {
+      franchiseToggleInit.disabled = true;
+      franchiseToggleInit.title = 'Turn off B2B Booking to enable Franchise Booking';
+    } else if (franchiseToggleInit?.checked) {
+      b2bToggle.disabled = true;
+      b2bToggle.title = 'Turn off Franchise Booking to enable B2B Booking';
+    }
   }
 
   // Add category filter listener
@@ -2873,13 +2973,12 @@ function stopCamera() {
 
 #floatingCart .card-header h3 {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-weight: 900;
-  color: #000000 !important;
+  font-weight: 700;
+  color: #ffffff !important;
 }
 
 #floatingCart .card-header h3 span {
-  color: #000000 !important;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+  color: #ffffff !important;
 }
 
 #floatingCart:hover {
@@ -3044,5 +3143,350 @@ function stopCamera() {
 #floatingCart .btn-success:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+}
+
+/* ==========================================================================
+   Professional UI polish — Booking / Checkout page
+   Pure CSS enhancement layer. Targets existing ids/classes only —
+   no markup structure, ids, names or JS hooks were changed for this.
+   ========================================================================== */
+
+:root {
+  --booking-primary: var(--color-primary, #667eea);
+  --booking-primary-dark: var(--color-primary-dark, #764ba2);
+  --booking-border: #e6e9f0;
+  --booking-panel-bg: #ffffff;
+  --booking-muted-bg: #f8f9fc;
+}
+
+/* Top view-toggle buttons (Products / Checkout) as a refined segmented control */
+#productsViewBtnLarge,
+#checkoutViewBtnLarge {
+  border-radius: 10px !important;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  padding: 0.7rem 1.4rem !important;
+  transition: all 0.2s ease;
+}
+
+#productsViewBtnLarge.btn-primary,
+#checkoutViewBtnLarge.btn-primary {
+  background: linear-gradient(135deg, var(--booking-primary) 0%, var(--booking-primary-dark) 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3);
+}
+
+#productsViewBtnLarge.btn-outline-primary,
+#checkoutViewBtnLarge.btn-outline-primary {
+  border: 1.5px solid var(--booking-border);
+  color: #475569;
+  background: #fff;
+}
+
+#productsViewBtnLarge.btn-outline-primary:hover,
+#checkoutViewBtnLarge.btn-outline-primary:hover {
+  border-color: var(--booking-primary);
+  color: var(--booking-primary);
+  background: #f5f6fe;
+}
+
+#productsViewBtn,
+#checkoutViewBtn {
+  border-radius: 10px !important;
+}
+
+/* Barcode / search cards + all checkout-view cards: consistent elevation */
+#barcodeScanSection,
+#searchSection,
+#productsView > .card,
+#checkoutView .card {
+  border-radius: 14px !important;
+}
+
+#checkoutView .card-header.bg-transparent.border-0 {
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+#checkoutView .card-header.bg-transparent.border-0 h5 {
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+#checkoutView .card-body {
+  padding: 1.75rem;
+}
+
+/* Form sections inside the booking form become distinct panels */
+#bookingForm > .mb-4 {
+  background: var(--booking-panel-bg);
+  border: 1px solid var(--booking-border);
+  border-radius: 12px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  margin-bottom: 1.5rem !important;
+}
+
+#bookingForm > .mb-4 > h6 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  letter-spacing: -0.01em;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1.1rem !important;
+  border-bottom: 1px solid #f1f3f9;
+}
+
+#bookingForm > .mb-4 > h6 i {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--booking-primary) 0%, var(--booking-primary-dark) 100%);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+/* Franchise Booking + B2B Booking toggle rows */
+#bookingForm .form-switch {
+  padding-left: 3rem;
+}
+
+#bookingForm .form-switch .form-check-input {
+  width: 2.5rem;
+  height: 1.4rem;
+  margin-left: -3rem;
+  cursor: pointer;
+}
+
+#bookingForm .form-switch .form-check-input:checked {
+  background-color: var(--booking-primary);
+  border-color: var(--booking-primary);
+}
+
+/* Form labels + controls */
+#checkoutView .form-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #334155;
+  margin-bottom: 0.4rem;
+}
+
+#checkoutView .form-control,
+#checkoutView .form-select,
+#barcodeScanSection .form-control,
+#searchSection .form-control,
+#searchSection .form-select {
+  border: 1.5px solid var(--booking-border);
+  border-radius: 9px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.92rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#checkoutView .form-control:focus,
+#checkoutView .form-select:focus,
+#barcodeScanSection .form-control:focus,
+#searchSection .form-control:focus,
+#searchSection .form-select:focus {
+  border-color: var(--booking-primary);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+}
+
+#checkoutView .form-text {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+/* Wholesale discount panel */
+#wholesaleDiscountSection .card {
+  border-radius: 12px !important;
+  border: 1.5px dashed #cbd5f5 !important;
+  background: linear-gradient(135deg, #f5f7ff 0%, #f8f9fc 100%) !important;
+}
+
+#wholesaleDiscountSection h6 {
+  font-weight: 700;
+  color: #4338ca;
+  font-size: 0.9rem;
+}
+
+/* Payment method options rendered as selectable cards */
+.form-check:has(> #payment_cash),
+.form-check:has(> #payment_card),
+.form-check:has(> #payment_upi),
+.form-check:has(> #payment_online) {
+  background: #fff;
+  border: 1.5px solid var(--booking-border);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem 0.75rem 2.6rem;
+  margin: 0;
+  min-height: 100%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.form-check:has(> #payment_cash):hover,
+.form-check:has(> #payment_card):hover,
+.form-check:has(> #payment_upi):hover,
+.form-check:has(> #payment_online):hover {
+  border-color: #c7d2fe;
+  background: #fafbff;
+}
+
+.form-check:has(> #payment_cash:checked),
+.form-check:has(> #payment_card:checked),
+.form-check:has(> #payment_upi:checked),
+.form-check:has(> #payment_online:checked) {
+  border-color: var(--booking-primary);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.07) 0%, rgba(118, 75, 162, 0.07) 100%);
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.12);
+}
+
+.form-check:has(> #payment_cash) label,
+.form-check:has(> #payment_card) label,
+.form-check:has(> #payment_upi) label,
+.form-check:has(> #payment_online) label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #334155;
+  cursor: pointer;
+}
+
+/* Fixed / Percentage discount-type pills (wholesale, order summary, B2B) */
+.form-check:has(> #booking_franchise_discount_type_fixed),
+.form-check:has(> #booking_franchise_discount_type_percentage),
+.form-check:has(> #checkoutDiscountTypeFixed),
+.form-check:has(> #checkoutDiscountTypePercent),
+.form-check:has(> #discountTypeFixed),
+.form-check:has(> #discountTypePercent) {
+  background: #fff;
+  border: 1.5px solid var(--booking-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.85rem 0.3rem 1.9rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.form-check:has(> #booking_franchise_discount_type_fixed:checked),
+.form-check:has(> #booking_franchise_discount_type_percentage:checked),
+.form-check:has(> #checkoutDiscountTypeFixed:checked),
+.form-check:has(> #checkoutDiscountTypePercent:checked),
+.form-check:has(> #discountTypeFixed:checked),
+.form-check:has(> #discountTypePercent:checked) {
+  border-color: var(--booking-primary);
+  background: #eef1ff;
+}
+
+.form-check:has(> #booking_franchise_discount_type_fixed) label,
+.form-check:has(> #booking_franchise_discount_type_percentage) label,
+.form-check:has(> #checkoutDiscountTypeFixed) label,
+.form-check:has(> #checkoutDiscountTypePercent) label,
+.form-check:has(> #discountTypeFixed) label,
+.form-check:has(> #discountTypePercent) label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+}
+
+/* Payment status alert */
+#paymentStatusAlert {
+  border-radius: 10px !important;
+  background: #fff8e6 !important;
+  border-color: #fde3a7 !important;
+  padding: 0.75rem 1rem;
+}
+
+#paymentStatusAlert #paymentStatusText {
+  font-weight: 600;
+  color: #92660a;
+  font-size: 0.9rem;
+}
+
+/* Action buttons */
+#checkoutView .d-flex.gap-2.justify-content-end .btn {
+  border-radius: 9px;
+  padding: 0.65rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+#completeBookingBtn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+  transition: all 0.2s ease;
+}
+
+#completeBookingBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+}
+
+/* Order summary card */
+.order-summary-card {
+  border-radius: 14px !important;
+  overflow: hidden;
+  position: sticky;
+  top: 1rem;
+}
+
+.order-summary-card .card-header {
+  padding: 1.1rem 1.5rem;
+}
+
+.order-summary-card .card-body {
+  padding: 1.5rem;
+}
+
+#checkoutOrderSummary {
+  font-size: 0.92rem;
+}
+
+#orderTotals {
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+#orderTotals .form-control-sm {
+  border-radius: 7px;
+  border: 1.5px solid var(--booking-border);
+}
+
+#orderTotals > .d-flex.justify-content-between.border-top.pt-2.mb-0 {
+  border-top: 1.5px solid var(--booking-border) !important;
+  padding-top: 1rem !important;
+  margin-top: 0.5rem;
+}
+
+#orderTotals > .d-flex.justify-content-between.border-top.pt-2.mb-0 span:first-child {
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+#checkoutTotal {
+  font-size: 1.4rem;
+}
+
+/* Product grid cards */
+#productGrid .card {
+  border-radius: 14px !important;
+  overflow: hidden;
+}
+
+#productGrid .card-title {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 991px) {
+  .order-summary-card {
+    position: static;
+  }
 }
 </style>

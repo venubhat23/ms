@@ -319,20 +319,26 @@
           focus: true
         };
 
-        // Fix any existing modals on page load
-        document.querySelectorAll('.modal').forEach(function(modalElement) {
-          // Clear any existing backdrop
-          const existingBackdrop = document.querySelector('.modal-backdrop');
-          if (existingBackdrop) {
-            existingBackdrop.remove();
-          }
+        // Fix any existing modals on page load. Guarded: bootstrap is loaded
+        // as an importmap module, which can still be resolving when this
+        // classic script's DOMContentLoaded handler runs — without the
+        // guard, a ReferenceError here aborted the rest of this handler too
+        // (toast notifications, sidebar scroll restore below).
+        if (typeof bootstrap !== 'undefined') {
+          document.querySelectorAll('.modal').forEach(function(modalElement) {
+            // Clear any existing backdrop
+            const existingBackdrop = document.querySelector('.modal-backdrop');
+            if (existingBackdrop) {
+              existingBackdrop.remove();
+            }
 
-          // Ensure modal is properly initialized
-          let modalInstance = bootstrap.Modal.getInstance(modalElement);
-          if (!modalInstance) {
-            modalInstance = new bootstrap.Modal(modalElement, defaultModalOptions);
-          }
-        });
+            // Ensure modal is properly initialized
+            let modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (!modalInstance) {
+              modalInstance = new bootstrap.Modal(modalElement, defaultModalOptions);
+            }
+          });
+        }
 
         // Initialize toast notifications
         initToastNotifications();
@@ -355,13 +361,15 @@
         document.body.style.paddingRight = '';
 
         // Re-initialize modals
-        document.querySelectorAll('.modal').forEach(function(modalElement) {
-          let modalInstance = bootstrap.Modal.getInstance(modalElement);
-          if (modalInstance) {
-            modalInstance.dispose();
-          }
-          modalInstance = new bootstrap.Modal(modalElement, defaultModalOptions);
-        });
+        if (typeof bootstrap !== 'undefined') {
+          document.querySelectorAll('.modal').forEach(function(modalElement) {
+            let modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+              modalInstance.dispose();
+            }
+            modalInstance = new bootstrap.Modal(modalElement, defaultModalOptions);
+          });
+        }
 
         // Initialize toast notifications
         initToastNotifications();

@@ -229,7 +229,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
 <!-- NAV -->
 <nav>
   <a class="brand" href="/">
-    <div class="brand-ring"><div class="bi"><img src="logo.jpeg" alt="Marali Santhe"></div></div>
+    <div class="brand-ring"><div class="bi"><img src="<%= SystemSetting.business_settings.logo_display_url %>" alt="Marali Santhe"></div></div>
     <div class="brand-word"><b>Marali Santhe</b><span>Herbal Wellness</span></div>
   </a>
   <form class="nav-search" id="searchForm" onsubmit="return submitSearch(event);">
@@ -271,11 +271,9 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
 <section class="hero">
   <div class="hero-slideshow">
     <div class="hero-track" id="heroTrack">
-      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
-      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/4198567/pexels-photo-4198567.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
-      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/6157228/pexels-photo-6157228.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
-      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
-      <div class="hero-slide" style="background-image:url('https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=1800')"></div>
+      <% SystemSetting.client3_hero_images.each do |hero_image_url| %>
+        <div class="hero-slide" style="background-image:url('<%= hero_image_url %>')"></div>
+      <% end %>
     </div>
   </div>
   <div class="hero-overlay"></div>
@@ -421,7 +419,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
 <!-- SPLIT BANNER: STORY + STATS -->
 <div class="split-banner">
   <div class="split-banner-img">
-    <img src="https://images.pexels.com/photos/3823207/pexels-photo-3823207.jpeg?auto=compress&cs=tinysrgb&w=1000" alt="Wellness family">
+    <img src="<%= SystemSetting.client3_story_image %>" alt="Wellness family">
   </div>
   <div class="split-banner-stats">
     <div class="stat-box"><div class="stat-icon">🌾</div><h4>25+ Years of<br>Herbal Wellness</h4></div>
@@ -519,7 +517,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
   <p class="sec-sub">Loved by wellness-focused families across India</p>
   <div class="testi-grid">
     <div class="testi-photo">
-      <img src="https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=700" alt="Happy customer">
+      <img src="<%= SystemSetting.client3_testimonial1_image %>" alt="Happy customer">
     </div>
     <div class="testi-card">
       <p>"The purity is unmatched — you can genuinely taste and feel the difference. My whole family switched over."</p>
@@ -540,7 +538,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
       <b>Kavya Reddy, Mysuru</b>
     </div>
     <div class="testi-photo">
-      <img src="https://images.pexels.com/photos/4113889/pexels-photo-4113889.jpeg?auto=compress&cs=tinysrgb&w=700" alt="Happy customer">
+      <img src="<%= SystemSetting.client3_testimonial2_image %>" alt="Happy customer">
     </div>
   </div>
 </div>
@@ -622,6 +620,51 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     const row = document.getElementById(id);
     if (row) row.scrollBy({ left: dir * 320, behavior: 'smooth' });
   }
+
+  // ── PRODUCT ROW AUTO-SCROLL ── every carousel-row (categories, best
+  // sellers, all products, new arrivals) auto-advances right-to-left by
+  // one "page" every 30s, looping back to the start at the end. Pauses
+  // on hover/touch and restarts its own timer if the user clicks an arrow.
+  (function initCarouselAutoScroll(){
+    const AUTO_SCROLL_INTERVAL_MS = 30000;
+
+    document.querySelectorAll('.carousel-row').forEach(row => {
+      let timer = null;
+
+      const advance = () => {
+        const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 1;
+        if (atEnd) {
+          row.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          row.scrollBy({ left: row.clientWidth, behavior: 'smooth' });
+        }
+      };
+
+      const start = () => {
+        if (timer) return;
+        timer = setInterval(advance, AUTO_SCROLL_INTERVAL_MS);
+      };
+
+      const stop = () => {
+        clearInterval(timer);
+        timer = null;
+      };
+
+      row.addEventListener('mouseenter', stop);
+      row.addEventListener('mouseleave', start);
+      row.addEventListener('touchstart', stop, { passive: true });
+      row.addEventListener('touchend', start);
+
+      const wrap = row.closest('.carousel-wrap');
+      if (wrap) {
+        wrap.querySelectorAll('.carousel-arrow').forEach(btn => {
+          btn.addEventListener('click', () => { stop(); start(); });
+        });
+      }
+
+      start();
+    });
+  })();
 
   // ── HERO SLIDESHOW ── cycles the hero background right-to-left every 10s.
   // A clone of the first slide is appended after the last one so the loop

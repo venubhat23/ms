@@ -83,8 +83,12 @@
                 </td>
                 <td class="align-middle fw-semibold"><%= wr.formatted_amount %></td>
                 <td class="align-middle small">
-                  <% if wr.booking %>
-                    <%= link_to wr.booking.booking_number, admin_booking_path(wr.booking) %>
+                  <% tagged = wr.all_tagged_bookings %>
+                  <% if tagged.any? %>
+                    <%= link_to tagged.first.booking_number, admin_booking_path(tagged.first) %>
+                    <% if tagged.size > 1 %>
+                      <%= link_to "+#{tagged.size - 1} more", admin_franchise_withdrawal_request_path(wr), class: "text-muted" %>
+                    <% end %>
                   <% else %>
                     <span class="text-muted">—</span>
                   <% end %>

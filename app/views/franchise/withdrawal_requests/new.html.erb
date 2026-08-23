@@ -25,9 +25,24 @@
         </div>
 
         <div class="mb-3">
-          <%= f.label :booking_id, "Tag Booking (Optional)", class: "form-label" %>
-          <%= f.collection_select :booking_id, @bookings, :id, :booking_number, { include_blank: "None" }, class: "form-select" %>
-          <small class="text-muted">Optionally link this withdrawal to a booking you completed.</small>
+          <label class="form-label">Tag Bookings (Optional)</label>
+          <% if @bookings.any? %>
+            <div class="border rounded p-2" style="max-height: 220px; overflow-y: auto;">
+              <div class="form-check mb-1 pb-1 border-bottom">
+                <input type="checkbox" class="form-check-input" id="select_all_bookings" onclick="document.querySelectorAll('.booking-tag-checkbox').forEach(cb => cb.checked = this.checked)">
+                <label class="form-check-label small text-muted" for="select_all_bookings">Select all</label>
+              </div>
+              <% @bookings.each do |booking| %>
+                <div class="form-check">
+                  <input type="checkbox" class="form-check-input booking-tag-checkbox" name="booking_ids[]" value="<%= booking.id %>" id="booking_tag_<%= booking.id %>">
+                  <label class="form-check-label" for="booking_tag_<%= booking.id %>"><%= booking.booking_number %></label>
+                </div>
+              <% end %>
+            </div>
+            <small class="text-muted">Optionally link this withdrawal to one or more bookings you completed. Bookings already tagged to a request aren't shown.</small>
+          <% else %>
+            <p class="text-muted small mb-0">No untagged bookings available to tag right now.</p>
+          <% end %>
         </div>
 
         <div class="mb-3">

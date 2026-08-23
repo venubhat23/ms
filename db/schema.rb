@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_23_064228) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -651,6 +651,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_064228) do
     t.index ["franchise_id"], name: "index_franchise_wallets_on_franchise_id", unique: true
   end
 
+  create_table "franchise_withdrawal_request_bookings", force: :cascade do |t|
+    t.bigint "franchise_withdrawal_request_id", null: false
+    t.bigint "booking_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["booking_id"], name: "index_franchise_withdrawal_request_bookings_on_booking_id"
+    t.index ["booking_id"], name: "index_fwrb_on_booking_id_unique", unique: true
+    t.index ["franchise_withdrawal_request_id"], name: "idx_on_franchise_withdrawal_request_id_ca08eb84a4"
+  end
+
   create_table "franchise_withdrawal_requests", force: :cascade do |t|
     t.bigint "franchise_id", null: false
     t.decimal "amount", precision: 10, scale: 2, null: false
@@ -663,7 +673,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_064228) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "booking_id"
     t.index ["approved_by_user_id"], name: "index_franchise_withdrawal_requests_on_approved_by_user_id"
+    t.index ["booking_id"], name: "index_franchise_withdrawal_requests_on_booking_id"
     t.index ["created_at"], name: "index_franchise_withdrawal_requests_on_created_at"
     t.index ["franchise_id"], name: "index_franchise_withdrawal_requests_on_franchise_id"
     t.index ["status"], name: "index_franchise_withdrawal_requests_on_status"
@@ -1535,6 +1547,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_064228) do
     t.text "home_page_images"
     t.text "site_gallery_images"
     t.boolean "customer_wallet_enabled", default: false
+    t.text "client3_hero_images"
+    t.string "client3_story_image_url"
+    t.string "client3_testimonial1_image_url"
+    t.string "client3_testimonial2_image_url"
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 
@@ -1758,6 +1774,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_064228) do
   add_foreign_key "device_tokens", "delivery_people"
   add_foreign_key "expenses", "stores"
   add_foreign_key "expenses", "users", column: "created_by_id"
+  add_foreign_key "franchise_withdrawal_request_bookings", "bookings"
+  add_foreign_key "franchise_withdrawal_request_bookings", "franchise_withdrawal_requests"
+  add_foreign_key "franchise_withdrawal_requests", "bookings"
   add_foreign_key "franchises", "users"
   add_foreign_key "invoice_items", "invoices"
   add_foreign_key "invoice_items", "milk_delivery_tasks"

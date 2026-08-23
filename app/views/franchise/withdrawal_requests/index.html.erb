@@ -24,6 +24,7 @@
                 <th class="border-0">Amount</th>
                 <th class="border-0">Status</th>
                 <th class="border-0">Payment Reference</th>
+                <th class="border-0">Tagged Bookings</th>
               </tr>
             </thead>
             <tbody>
@@ -36,6 +37,10 @@
                     <span class="badge bg-<%= status_color %>"><%= wr.status.capitalize %></span>
                   </td>
                   <td class="small text-muted"><%= wr.payment_reference || '—' %></td>
+                  <td class="small text-muted">
+                    <% tagged = ([wr.booking] + wr.tagged_bookings).compact.uniq %>
+                    <%= tagged.any? ? tagged.map(&:booking_number).join(', ') : '—' %>
+                  </td>
                 </tr>
               <% end %>
             </tbody>

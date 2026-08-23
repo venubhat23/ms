@@ -23,10 +23,13 @@
           <dt class="col-sm-4">Requested On</dt>
           <dd class="col-sm-8"><%= @withdrawal_request.requested_at&.strftime("%b %d, %Y %I:%M %p") %></dd>
 
-          <dt class="col-sm-4">Tagged Booking</dt>
+          <dt class="col-sm-4">Tagged Bookings</dt>
           <dd class="col-sm-8">
-            <% if @withdrawal_request.booking %>
-              <%= link_to @withdrawal_request.booking.booking_number, admin_booking_path(@withdrawal_request.booking) %>
+            <% tagged = @withdrawal_request.all_tagged_bookings %>
+            <% if tagged.any? %>
+              <% tagged.each do |booking| %>
+                <%= link_to booking.booking_number, admin_booking_path(booking), class: "d-block" %>
+              <% end %>
             <% else %>
               <span class="text-muted">Not tagged</span>
             <% end %>

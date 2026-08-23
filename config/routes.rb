@@ -843,6 +843,9 @@ Rails.application.routes.draw do
       delete 'system/delete_home_page_image', to: 'system#delete_home_page_image', as: :system_delete_home_page_image
       post 'system/upload_gallery_image', to: 'system#upload_gallery_image', as: :system_upload_gallery_image
       delete 'system/delete_gallery_image', to: 'system#delete_gallery_image', as: :system_delete_gallery_image
+      post 'system/upload_client3_hero_image', to: 'system#upload_client3_hero_image', as: :system_upload_client3_hero_image
+      delete 'system/delete_client3_hero_image', to: 'system#delete_client3_hero_image', as: :system_delete_client3_hero_image
+      post 'system/upload_client3_image', to: 'system#upload_client3_image', as: :system_upload_client3_image
     end
 
     # Mobile UI — lightweight mobile admin portal for phones

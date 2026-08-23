@@ -1360,6 +1360,81 @@
         <span id="site_gallery_images_count" class="text-muted small ms-2"><%= @site_gallery_images.size %> / <%= SystemSetting::SITE_GALLERY_IMAGES_MAX %> uploaded</span>
       </div>
     </div>
+
+    <!-- Client3 Theme Images -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header">
+        <h4><i class="bi bi-palette me-2"></i>"Client 3" Theme Images</h4>
+        <p class="text-muted mb-0 small">
+          Images used by the "Client 3" public storefront theme (preview it at <code>/?preview_theme=client3</code>).
+          Each defaults to the theme's built-in image until you replace it below — the business logo shown on this theme
+          is the same one uploaded under Business Settings above.
+        </p>
+      </div>
+      <div class="card-body">
+        <!-- Hero Banner (rotating, up to 5) -->
+        <h6 class="fw-bold mb-1">Hero Banner (rotates every 10s)</h6>
+        <p class="text-muted small mb-2">Add 4&ndash;5 images for the homepage hero to cycle through. Each saves and appears below as soon as it uploads.</p>
+        <div id="client3_hero_images_grid" class="row g-3 mb-3">
+          <%= render 'website_image_thumbnails', images: @client3_hero_images, gallery: 'client3_hero' %>
+        </div>
+        <div id="client3_hero_images_error" class="text-danger small mb-2" style="display: none;"></div>
+        <label for="client3_hero_images_input" class="btn btn-outline-primary btn-sm mb-0">
+          <i class="bi bi-upload me-1"></i>Upload Images
+        </label>
+        <input type="file" id="client3_hero_images_input" accept="image/*" multiple class="d-none">
+        <span id="client3_hero_images_count" class="text-muted small ms-2"><%= @client3_hero_images.size %> / <%= SystemSetting::CLIENT3_HERO_IMAGES_MAX %> uploaded</span>
+
+        <hr class="my-4">
+
+        <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "client3-theme-images-form" do |form| %>
+          <%= form.hidden_field :client3_theme_images_update, value: "true" %>
+          <%= form.hidden_field :client3_story_image_url, id: "client3_story_image_url_field", value: "" %>
+          <%= form.hidden_field :client3_testimonial1_image_url, id: "client3_testimonial1_image_url_field", value: "" %>
+          <%= form.hidden_field :client3_testimonial2_image_url, id: "client3_testimonial2_image_url_field", value: "" %>
+
+          <div class="row">
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Story Banner Image</label>
+                <div class="mb-2">
+                  <img id="client3_story_preview_img" src="<%= @client3_story_image %>" alt="Story banner"
+                       class="border rounded w-100" style="height:120px;object-fit:cover;cursor:zoom-in;">
+                </div>
+                <input type="file" id="client3_story_image_input" accept="image/*" class="form-control form-control-sm">
+                <div id="client3_story_image_error" class="text-danger small mt-1" style="display: none;"></div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Testimonial Photo 1</label>
+                <div class="mb-2">
+                  <img id="client3_testimonial1_preview_img" src="<%= @client3_testimonial1_image %>" alt="Testimonial 1"
+                       class="border rounded w-100" style="height:120px;object-fit:cover;cursor:zoom-in;">
+                </div>
+                <input type="file" id="client3_testimonial1_image_input" accept="image/*" class="form-control form-control-sm">
+                <div id="client3_testimonial1_image_error" class="text-danger small mt-1" style="display: none;"></div>
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label class="form-label fw-bold">Testimonial Photo 2</label>
+                <div class="mb-2">
+                  <img id="client3_testimonial2_preview_img" src="<%= @client3_testimonial2_image %>" alt="Testimonial 2"
+                       class="border rounded w-100" style="height:120px;object-fit:cover;cursor:zoom-in;">
+                </div>
+                <input type="file" id="client3_testimonial2_image_input" accept="image/*" class="form-control form-control-sm">
+                <div id="client3_testimonial2_image_error" class="text-danger small mt-1" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+
+          <%= form.submit "Update", class: "btn btn-primary" %>
+        <% end %>
+      </div>
+    </div>
   </div> <!-- End of Website Images Tab -->
 
 </div> <!-- End of Tab Content -->
@@ -1643,6 +1718,84 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
     uploadUrl: '<%= admin_settings_system_upload_gallery_image_path %>',
     deleteUrl: '<%= admin_settings_system_delete_gallery_image_path %>',
     max: <%= SystemSetting::SITE_GALLERY_IMAGES_MAX %>
+  });
+
+  setupGallery({
+    inputId: 'client3_hero_images_input',
+    gridId: 'client3_hero_images_grid',
+    errorId: 'client3_hero_images_error',
+    countId: 'client3_hero_images_count',
+    uploadUrl: '<%= admin_settings_system_upload_client3_hero_image_path %>',
+    deleteUrl: '<%= admin_settings_system_delete_client3_hero_image_path %>',
+    max: <%= SystemSetting::CLIENT3_HERO_IMAGES_MAX %>
+  });
+})();
+
+// Client3 Theme Images: the 3 single-image slots (story + 2 testimonials)
+// upload to R2 immediately (same as the business logo above), but only save
+// to the DB when "Update" is clicked on the card — the hidden field carries
+// the uploaded URL into that form submit.
+(function() {
+  function setupSingleImageUpload(config) {
+    const input = document.getElementById(config.inputId);
+    if (!input) return;
+
+    const previewImg = document.getElementById(config.previewId);
+    const hiddenField = document.getElementById(config.hiddenFieldId);
+    const errorDiv = document.getElementById(config.errorId);
+
+    previewImg?.addEventListener('click', function() { openImagePreview(this.src); });
+
+    input.addEventListener('change', function() {
+      const file = input.files[0];
+      if (!file) return;
+
+      errorDiv.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      fetch('<%= admin_settings_system_upload_client3_image_path %>', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            errorDiv.textContent = data.error;
+            errorDiv.style.display = 'block';
+            return;
+          }
+          hiddenField.value = data.public_url;
+          previewImg.src = data.public_url;
+        })
+        .catch(function() {
+          errorDiv.textContent = 'Failed to upload image. Please try again.';
+          errorDiv.style.display = 'block';
+        });
+    });
+  }
+
+  setupSingleImageUpload({
+    inputId: 'client3_story_image_input',
+    previewId: 'client3_story_preview_img',
+    hiddenFieldId: 'client3_story_image_url_field',
+    errorId: 'client3_story_image_error'
+  });
+
+  setupSingleImageUpload({
+    inputId: 'client3_testimonial1_image_input',
+    previewId: 'client3_testimonial1_preview_img',
+    hiddenFieldId: 'client3_testimonial1_image_url_field',
+    errorId: 'client3_testimonial1_image_error'
+  });
+
+  setupSingleImageUpload({
+    inputId: 'client3_testimonial2_image_input',
+    previewId: 'client3_testimonial2_preview_img',
+    hiddenFieldId: 'client3_testimonial2_image_url_field',
+    errorId: 'client3_testimonial2_image_error'
   });
 })();
 

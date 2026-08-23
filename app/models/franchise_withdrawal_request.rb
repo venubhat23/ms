@@ -1,7 +1,9 @@
 class FranchiseWithdrawalRequest < ApplicationRecord
   belongs_to :franchise
   belongs_to :approved_by_user, class_name: 'User', foreign_key: :approved_by_user_id, optional: true
-  belongs_to :booking, optional: true
+  belongs_to :booking, optional: true # legacy single-booking tag, kept for old requests
+  has_many :franchise_withdrawal_request_bookings, dependent: :destroy
+  has_many :tagged_bookings, through: :franchise_withdrawal_request_bookings, source: :booking
 
   enum :status, { pending: 'pending', approved: 'approved', rejected: 'rejected', paid: 'paid' }
 
@@ -15,6 +17,12 @@ class FranchiseWithdrawalRequest < ApplicationRecord
 
   def formatted_amount
     "₹#{amount.to_f.round(2)}"
+  end
+
+  # Legacy single `booking` plus the bulk-tagged `tagged_bookings`, deduped —
+  # the full picture of what's tagged to this request.
+  def all_tagged_bookings
+    ([booking] + tagged_bookings.to_a).compact.uniq
   end
 
   def approve!(user)

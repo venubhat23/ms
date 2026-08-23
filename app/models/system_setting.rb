@@ -565,4 +565,75 @@ class SystemSetting < ApplicationRecord
     images
   end
   private_class_method :remove_image
+
+  # Client3 Theme Images
+  #
+  # The "client3" public storefront theme (app/views/home/client3.html.erb)
+  # has 5 admin-manageable image slots: the business logo (reuses the
+  # existing Business Settings logo upload — see logo_display_url), a
+  # rotating hero banner (up to 5 images, cycled client-side), and 3 single
+  # content images (story banner + 2 testimonials). Each defaults to the
+  # stock photo already baked into the template, so shipping this feature
+  # changes nothing on the live site until an admin actually uploads a
+  # replacement — only then does the theme dynamically pick up the new URL.
+
+  CLIENT3_HERO_IMAGES_MAX = 5
+
+  CLIENT3_DEFAULT_HERO_IMAGES = [
+    'https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1800',
+    'https://images.pexels.com/photos/4198567/pexels-photo-4198567.jpeg?auto=compress&cs=tinysrgb&w=1800',
+    'https://images.pexels.com/photos/6157228/pexels-photo-6157228.jpeg?auto=compress&cs=tinysrgb&w=1800',
+    'https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=1800',
+    'https://images.pexels.com/photos/1300972/pexels-photo-1300972.jpeg?auto=compress&cs=tinysrgb&w=1800'
+  ].freeze
+  CLIENT3_DEFAULT_STORY_IMAGE = 'https://images.pexels.com/photos/3823207/pexels-photo-3823207.jpeg?auto=compress&cs=tinysrgb&w=1000'
+  CLIENT3_DEFAULT_TESTIMONIAL1_IMAGE = 'https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=700'
+  CLIENT3_DEFAULT_TESTIMONIAL2_IMAGE = 'https://images.pexels.com/photos/4113889/pexels-photo-4113889.jpeg?auto=compress&cs=tinysrgb&w=700'
+
+  def self.client3_hero_images
+    images = images_for(:client3_hero_images)
+    images.presence || CLIENT3_DEFAULT_HERO_IMAGES
+  end
+
+  def self.add_client3_hero_image(url)
+    add_image(:client3_hero_images, url, CLIENT3_HERO_IMAGES_MAX)
+  end
+
+  def self.remove_client3_hero_image(url)
+    remove_image(:client3_hero_images, url)
+  end
+
+  def self.client3_story_image
+    cached_system_config&.client3_story_image_url.presence || CLIENT3_DEFAULT_STORY_IMAGE
+  end
+
+  def self.client3_testimonial1_image
+    cached_system_config&.client3_testimonial1_image_url.presence || CLIENT3_DEFAULT_TESTIMONIAL1_IMAGE
+  end
+
+  def self.client3_testimonial2_image
+    cached_system_config&.client3_testimonial2_image_url.presence || CLIENT3_DEFAULT_TESTIMONIAL2_IMAGE
+  end
+
+  # Persists the 3 single-image slots (submitted as hidden fields, populated
+  # by JS after an immediate R2 upload) when the admin clicks "Update" on the
+  # Website Images tab's Client3 Theme Images card. Blank fields are left
+  # untouched so re-submitting the form without picking a new file doesn't
+  # wipe out an already-set image.
+  def self.update_client3_theme_images(params)
+    setting = find_or_create_by(key: SYSTEM_CONFIG_KEY) do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    update_attrs = {}
+    update_attrs[:client3_story_image_url] = params[:client3_story_image_url] if params[:client3_story_image_url].present?
+    update_attrs[:client3_testimonial1_image_url] = params[:client3_testimonial1_image_url] if params[:client3_testimonial1_image_url].present?
+    update_attrs[:client3_testimonial2_image_url] = params[:client3_testimonial2_image_url] if params[:client3_testimonial2_image_url].present?
+
+    setting.update!(update_attrs) if update_attrs.any?
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
 end

@@ -76,6 +76,12 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Website Images (home page + general gallery)
     @home_page_images  = SystemSetting.home_page_images
     @site_gallery_images = SystemSetting.site_gallery_images
+
+    # Client3 theme images (hero rotation + story/testimonial single images)
+    @client3_hero_images = SystemSetting.client3_hero_images
+    @client3_story_image = SystemSetting.client3_story_image
+    @client3_testimonial1_image = SystemSetting.client3_testimonial1_image
+    @client3_testimonial2_image = SystemSetting.client3_testimonial2_image
   end
 
   def update
@@ -295,6 +301,19 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       end
     end
 
+    # Handle Client3 theme single-image slots (story + 2 testimonials).
+    # Hero images save immediately as they're uploaded (see
+    # #upload_client3_hero_image), so there's nothing to persist for those here.
+    if params[:client3_theme_images_update] == "true"
+      begin
+        SystemSetting.update_client3_theme_images(params)
+        success_messages << 'Client3 theme images updated successfully!'
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Client3 theme images: #{e.message}"
+        return
+      end
+    end
+
     # Handle website theme update
     if params[:website_theme_update] == "true"
       if SystemSetting::WEBSITE_THEMES.key?(params[:website_theme])
@@ -359,6 +378,38 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
   # DELETE /admin/settings/system/delete_gallery_image
   def delete_gallery_image
     delete_website_image(:remove_site_gallery_image)
+  end
+
+  # POST /admin/settings/system/upload_client3_hero_image
+  def upload_client3_hero_image
+    upload_website_image(:add_client3_hero_image, param_key: :image, max: SystemSetting::CLIENT3_HERO_IMAGES_MAX, folder: 'client3_hero')
+  end
+
+  # DELETE /admin/settings/system/delete_client3_hero_image
+  def delete_client3_hero_image
+    delete_website_image(:remove_client3_hero_image)
+  end
+
+  # POST /admin/settings/system/upload_client3_image
+  # Shared single-image upload endpoint for the Client3 theme's story image
+  # and 2 testimonial images. Only uploads to R2 and hands back the URL —
+  # unlike the hero gallery, these don't save to the DB until the admin
+  # clicks "Update" on the Client3 Theme Images card (see #update).
+  def upload_client3_image
+    respond_to do |format|
+      if params[:image].blank?
+        format.json { render json: { error: "No image file provided" }, status: :bad_request }
+        return
+      end
+
+      result = R2Service.upload(params[:image], folder: 'client3_theme')
+
+      if result[:error]
+        format.json { render json: { error: result[:error] }, status: :unprocessable_entity }
+      else
+        format.json { render json: { public_url: result[:public_url] } }
+      end
+    end
   end
 
   def preview_invoice_template

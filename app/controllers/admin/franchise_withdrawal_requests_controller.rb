@@ -10,7 +10,7 @@ class Admin::FranchiseWithdrawalRequestsController < Admin::ApplicationControlle
   end
 
   def index
-    @withdrawal_requests = FranchiseWithdrawalRequest.includes(:franchise, :booking).recent
+    @withdrawal_requests = FranchiseWithdrawalRequest.includes(:franchise, :booking, :tagged_bookings).recent
     @withdrawal_requests = @withdrawal_requests.where(status: params[:status]) if params[:status].present?
     @withdrawal_requests = paginate_records(@withdrawal_requests)
 
@@ -59,6 +59,6 @@ class Admin::FranchiseWithdrawalRequestsController < Admin::ApplicationControlle
   private
 
   def set_withdrawal_request
-    @withdrawal_request = FranchiseWithdrawalRequest.find(params[:id])
+    @withdrawal_request = FranchiseWithdrawalRequest.includes(:franchise, :booking, :tagged_bookings).find(params[:id])
   end
 end

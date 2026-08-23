@@ -276,7 +276,7 @@
               <%= form.select :customer_id,
                   options_from_collection_for_select(@customers, :id, :display_name, params[:customer_id]),
                   { prompt: 'All Customers' },
-                  { class: "form-select form-select-sm customer-select", data: { placeholder: "Select Customer...", allow_clear: true } } %>
+                  { class: "form-select form-select-sm customer-select" } %>
             </div>
 
             <!-- Status -->
@@ -873,10 +873,14 @@ function initCustomerFilterSelect2() {
   const $customerSelect = $('.customer-select');
   if (!$customerSelect.length || $customerSelect.hasClass('select2-hidden-accessible')) return;
 
+  // No placeholder/allowClear: those make Select2 treat the blank "All
+  // Customers" <option> as a hidden sentinel used only for closed-state
+  // text, excluded from the open results list — so opening the dropdown
+  // auto-highlighted the first real customer instead of offering "All
+  // Customers" as a visible, selectable choice. Leaving it as a plain
+  // first option keeps it visible, selectable, and the natural default.
   $customerSelect.select2({
     theme: 'bootstrap-5',
-    placeholder: 'Select Customer...',
-    allowClear: true,
     width: '100%'
   });
 

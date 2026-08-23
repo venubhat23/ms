@@ -132,22 +132,6 @@ class User < ApplicationRecord
   # Sidebar permissions methods
   def sidebar_permissions_array
     return [] if sidebar_permissions.blank?
-
-    if sidebar_permissions.is_a?(String)
-      JSON.parse(sidebar_permissions)
-    elsif sidebar_permissions.is_a?(Array)
-      sidebar_permissions
-    else
-      []
-    end
-  rescue JSON::ParserError
-    []
-  end
-
-
-  # Sidebar permissions methods
-  def sidebar_permissions_array
-    return [] if sidebar_permissions.blank?
     begin
       parsed = if sidebar_permissions.is_a?(String)
         JSON.parse(sidebar_permissions)

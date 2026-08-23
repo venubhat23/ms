@@ -135,83 +135,39 @@
         <h5 class="mb-0">Sidebar Permissions</h5>
       </div>
       <div class="card-body">
-        <% user_permissions = @user.sidebar_permissions.is_a?(String) ? JSON.parse(@user.sidebar_permissions || '[]') : (@user.sidebar_permissions || []) %>
+        <% user_permissions = @user.sidebar_permissions_array %>
 
-        <% if user_permissions.any? %>
-          <% sidebar_options = {
-            'Main Menu' => [
-              { key: 'dashboard', name: 'Dashboard' },
-              { key: 'customers', name: 'Customers' },
-              { key: 'sub_agents', name: 'Affiliate' },
-              { key: 'distributors', name: 'Ambassadors' },
-              { key: 'investors', name: 'Investors' }
-            ],
-            'Payouts & Commission' => [
-              { key: 'affiliate_payouts', name: 'Affiliate Payouts' },
-              { key: 'distributor_payouts', name: 'Ambassador Payouts' },
-              { key: 'payouts', name: 'Payout' }
-            ],
-            'Business Partners' => [
-              { key: 'brokers', name: 'Brokers' },
-              { key: 'agency_codes', name: 'Agency Code' },
-              { key: 'leads', name: 'Leads' }
-            ],
-            'Reports & Analytics' => [
-              { key: 'commission_report', name: 'Commission Report' },
-              { key: 'expired_insurance', name: 'Expired Insurance' },
-              { key: 'payment_due', name: 'Payment Due' },
-              { key: 'upcoming_renewal', name: 'Upcoming Renewal' },
-              { key: 'upcoming_payment', name: 'Upcoming Payment' },
-              { key: 'leads_report', name: 'Leads Report' },
-              { key: 'session_report', name: 'Session Report' }
-            ],
-            'Management' => [
-              { key: 'client_requests', name: 'Client Requests' },
-              { key: 'insurance_companies', name: 'Companies' },
-              { key: 'agency_brokers', name: 'Agency/Broker' },
-              { key: 'banners', name: 'Banner Management' },
-              { key: 'imports', name: 'Imports' },
-              { key: 'roles_permissions', name: 'Roles & Permissions' }
-            ],
-            'Invoice' => [
-              { key: 'invoices', name: 'Invoices' }
-            ],
-            'Settings' => [
-              { key: 'user_roles', name: 'User Roles' },
-              { key: 'system_settings', name: 'System Settings' }
-            ]
-          } %>
-
-          <div class="row">
-            <% sidebar_options.each do |section_name, options| %>
-              <% section_permissions = options.select { |opt| user_permissions.include?(opt[:key]) } %>
-              <% if section_permissions.any? %>
-                <div class="col-lg-6 mb-4">
-                  <div class="card h-100 border-success">
-                    <div class="card-header bg-success bg-opacity-10">
-                      <h6 class="mb-0 text-success">
-                        <i class="bi bi-check-circle me-2"></i>
-                        <%= section_name %>
-                      </h6>
-                    </div>
-                    <div class="card-body">
-                      <% section_permissions.each do |permission| %>
-                        <div class="d-flex align-items-center mb-2">
-                          <i class="bi bi-check text-success me-2"></i>
-                          <span><%= permission[:name] %></span>
-                        </div>
-                      <% end %>
-                    </div>
-                  </div>
+        <div class="row">
+          <% @sidebar_options.each do |section_name, options| %>
+            <% enabled_count = options.count { |opt| user_permissions.include?(opt[:key]) } %>
+            <div class="col-lg-6 mb-4">
+              <div class="card h-100 <%= enabled_count > 0 ? 'border-success' : 'border-secondary-subtle' %>">
+                <div class="card-header <%= enabled_count > 0 ? 'bg-success bg-opacity-10' : 'bg-light' %>">
+                  <h6 class="mb-0 <%= enabled_count > 0 ? 'text-success' : 'text-muted' %>">
+                    <i class="bi bi-<%= enabled_count > 0 ? 'check-circle' : 'dash-circle' %> me-2"></i>
+                    <%= section_name %>
+                    <span class="badge bg-secondary-subtle text-secondary float-end"><%= enabled_count %>/<%= options.size %></span>
+                  </h6>
                 </div>
-              <% end %>
-            <% end %>
-          </div>
-        <% else %>
+                <div class="card-body">
+                  <% options.each do |option| %>
+                    <% enabled = user_permissions.include?(option[:key]) %>
+                    <div class="d-flex align-items-center mb-2">
+                      <i class="bi bi-<%= enabled ? 'check-circle-fill text-success' : 'x-circle text-muted' %> me-2"></i>
+                      <span class="<%= 'text-muted' unless enabled %>"><%= option[:name] %></span>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+
+        <% if user_permissions.empty? %>
           <div class="text-center py-4">
             <i class="bi bi-shield-x fs-1 text-muted d-block mb-3"></i>
             <h6 class="text-muted">No Permissions Assigned</h6>
-            <p class="text-muted mb-3">This user has no sidebar permissions configured.</p>
+            <p class="text-muted mb-3">This user has no sidebar permissions configured — every item above is disabled.</p>
             <%= link_to edit_admin_settings_user_role_path(@user), class: "btn btn-primary btn-sm" do %>
               <i class="bi bi-pencil me-1"></i>
               Assign Permissions
@@ -285,10 +241,11 @@
         <h6 class="mb-0">Permission Summary</h6>
       </div>
       <div class="card-body">
-        <% user_permissions = @user.sidebar_permissions.is_a?(String) ? JSON.parse(@user.sidebar_permissions || '[]') : (@user.sidebar_permissions || []) %>
+        <% user_permissions = @user.sidebar_permissions_array %>
+        <% total_options = @sidebar_options.values.sum(&:size) %>
         <div class="text-center">
-          <h3 class="text-primary mb-1"><%= user_permissions.count %></h3>
-          <p class="text-muted mb-0">Total Permissions</p>
+          <h3 class="text-primary mb-1"><%= user_permissions.count %> <span class="fs-6 text-muted">/ <%= total_options %></span></h3>
+          <p class="text-muted mb-0">Sidebar Items Enabled</p>
         </div>
 
         <% if user_permissions.count > 0 %>

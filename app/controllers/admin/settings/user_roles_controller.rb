@@ -9,6 +9,7 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
   end
 
   def show
+    @sidebar_options = get_sidebar_options
   end
 
   def new

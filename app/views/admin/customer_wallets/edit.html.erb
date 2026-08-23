@@ -1,1 +1,100 @@
-<!-- Customer Wallet Edit View -->
+<% content_for :title, "Edit Customer Wallet" %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Edit Wallet</h2>
+    <p class="text-muted mb-0"><%= "#{@customer_wallet.customer.first_name} #{@customer_wallet.customer.last_name}".strip %></p>
+  </div>
+  <div>
+    <%= link_to admin_customer_wallet_path(@customer_wallet), class: "btn btn-secondary" do %>
+      <i class="bi bi-arrow-left me-1"></i>Back to Wallet
+    <% end %>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white">
+    <h6 class="mb-0">Wallet Details</h6>
+  </div>
+  <div class="card-body">
+    <%= form_with model: [:admin, @customer_wallet], local: true, class: "needs-validation", novalidate: true do |form| %>
+
+      <!-- Error Messages -->
+      <% if @customer_wallet.errors.any? %>
+        <div class="alert alert-danger">
+          <h6>Please fix the following errors:</h6>
+          <ul class="mb-0">
+            <% @customer_wallet.errors.full_messages.each do |message| %>
+              <li><%= message %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Editing balance here directly overwrites it and does <strong>not</strong> create a transaction record.
+        To keep an audit trail, use "Add Money" / "Deduct Money" on the wallet's detail page instead.
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Customer</label>
+            <input type="text" class="form-control" value="<%= "#{@customer_wallet.customer.first_name} #{@customer_wallet.customer.last_name}".strip %> (<%= @customer_wallet.customer.mobile.presence || @customer_wallet.customer.email %>)" disabled>
+            <small class="text-muted">The customer for a wallet cannot be changed after creation.</small>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="mb-3">
+            <%= form.label :balance, "Balance", class: "form-label fw-bold" %>
+            <div class="input-group">
+              <span class="input-group-text">₹</span>
+              <%= form.number_field :balance,
+                  step: 0.01,
+                  min: 0,
+                  class: "form-control",
+                  required: true %>
+            </div>
+            <div class="invalid-feedback">
+              Please enter a valid balance amount.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              <%= form.check_box :status,
+                  checked: @customer_wallet.status,
+                  class: "form-check-input",
+                  id: "wallet_status" %>
+              <%= form.label :status, "Active Wallet",
+                  class: "form-check-label fw-bold",
+                  for: "wallet_status" %>
+              <small class="d-block text-muted">Inactive wallets cannot be used for transactions</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="mb-3">
+            <%= form.label :notes, "Notes (Optional)", class: "form-label fw-bold" %>
+            <%= form.text_area :notes,
+                rows: 3,
+                class: "form-control" %>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <%= link_to "Cancel", admin_customer_wallet_path(@customer_wallet), class: "btn btn-secondary" %>
+        <%= form.submit "Save Changes", class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>

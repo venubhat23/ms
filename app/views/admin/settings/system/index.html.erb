@@ -379,6 +379,102 @@
       </div>
     <% end %>
 
+    <!-- Mobile App OTP Login Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="bi bi-shield-lock me-2"></i>
+          Mobile App OTP Login
+        </h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "otp-login-form" do |form| %>
+          <%= form.hidden_field :otp_login_settings_update, value: "true" %>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-check form-switch mb-3">
+                <%= form.check_box :otp_login_enabled,
+                      { checked: @otp_login_enabled,
+                        class: "form-check-input",
+                        id: "otp_login_enabled",
+                        onchange: "handleOtpLoginToggle(this)" },
+                      "1", "0" %>
+                <label class="form-check-label" for="otp_login_enabled">
+                  <strong>Enable OTP Login</strong>
+                </label>
+                <div class="form-text">
+                  When enabled: customers can log in to the mobile app by entering their mobile number and verifying a one-time SMS code, instead of (or in addition to) a password. Requires an SMS provider with an approved DLT template to be configured before real OTPs can be sent.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <div class="d-flex gap-2">
+                <%= form.submit "Update OTP Login Settings", class: "btn btn-primary" %>
+                <div class="alert alert-<%= @otp_login_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                  <small>
+                    <i class="bi bi-<%= @otp_login_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                    Status: <%= @otp_login_enabled ? 'Enabled' : 'Disabled' %>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Customer Wallet Feature Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="bi bi-wallet2 me-2"></i>
+          Customer Wallet
+        </h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "customer-wallet-form" do |form| %>
+          <%= form.hidden_field :customer_wallet_settings_update, value: "true" %>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-check form-switch mb-3">
+                <%= form.check_box :customer_wallet_enabled,
+                      { checked: @customer_wallet_enabled,
+                        class: "form-check-input",
+                        id: "customer_wallet_enabled",
+                        onchange: "handleCustomerWalletToggle(this)" },
+                      "1", "0" %>
+                <label class="form-check-label" for="customer_wallet_enabled">
+                  <strong>Enable Customer Wallet</strong>
+                </label>
+                <div class="form-text">
+                  When enabled: a "Customer Wallets" sidebar entry appears where admins can add/remove money for any customer, customers can see their wallet balance and history from the mobile app, and can choose to pay bookings (fully or partially) from their wallet balance at checkout.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <div class="d-flex gap-2">
+                <%= form.submit "Update Customer Wallet Settings", class: "btn btn-primary" %>
+                <div class="alert alert-<%= @customer_wallet_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                  <small>
+                    <i class="bi bi-<%= @customer_wallet_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                    Status: <%= @customer_wallet_enabled ? 'Enabled' : 'Disabled' %>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
   </div>
 
   <!-- System Configuration Tab -->
@@ -746,102 +842,6 @@
                       <small>
                         <i class="bi bi-<%= @franchise_commission_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
                         Status: <%= @franchise_commission_enabled ? 'Enabled' : 'Disabled' %>
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            <% end %>
-          </div>
-        </div>
-
-        <!-- OTP Login Feature Card -->
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-transparent border-0">
-            <h5 class="mb-0">
-              <i class="bi bi-shield-lock me-2"></i>
-              Mobile App OTP Login
-            </h5>
-          </div>
-          <div class="card-body">
-            <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "otp-login-form" do |form| %>
-              <%= form.hidden_field :otp_login_settings_update, value: "true" %>
-
-              <div class="row">
-                <div class="col-md-12">
-                  <div class="form-check form-switch mb-3">
-                    <%= form.check_box :otp_login_enabled,
-                          { checked: @otp_login_enabled,
-                            class: "form-check-input",
-                            id: "otp_login_enabled",
-                            onchange: "handleOtpLoginToggle(this)" },
-                          "1", "0" %>
-                    <label class="form-check-label" for="otp_login_enabled">
-                      <strong>Enable OTP Login</strong>
-                    </label>
-                    <div class="form-text">
-                      When enabled: customers can log in to the mobile app by entering their mobile number and verifying a one-time SMS code, instead of (or in addition to) a password. Requires an SMS provider with an approved DLT template to be configured before real OTPs can be sent.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row mt-3">
-                <div class="col-md-12">
-                  <div class="d-flex gap-2">
-                    <%= form.submit "Update OTP Login Settings", class: "btn btn-primary" %>
-                    <div class="alert alert-<%= @otp_login_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
-                      <small>
-                        <i class="bi bi-<%= @otp_login_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
-                        Status: <%= @otp_login_enabled ? 'Enabled' : 'Disabled' %>
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            <% end %>
-          </div>
-        </div>
-
-        <!-- Customer Wallet Feature Card -->
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-transparent border-0">
-            <h5 class="mb-0">
-              <i class="bi bi-wallet2 me-2"></i>
-              Customer Wallet
-            </h5>
-          </div>
-          <div class="card-body">
-            <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "customer-wallet-form" do |form| %>
-              <%= form.hidden_field :customer_wallet_settings_update, value: "true" %>
-
-              <div class="row">
-                <div class="col-md-12">
-                  <div class="form-check form-switch mb-3">
-                    <%= form.check_box :customer_wallet_enabled,
-                          { checked: @customer_wallet_enabled,
-                            class: "form-check-input",
-                            id: "customer_wallet_enabled",
-                            onchange: "handleCustomerWalletToggle(this)" },
-                          "1", "0" %>
-                    <label class="form-check-label" for="customer_wallet_enabled">
-                      <strong>Enable Customer Wallet</strong>
-                    </label>
-                    <div class="form-text">
-                      When enabled: a "Customer Wallets" sidebar entry appears where admins can add/remove money for any customer, customers can see their wallet balance and history from the mobile app, and can choose to pay bookings (fully or partially) from their wallet balance at checkout.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="row mt-3">
-                <div class="col-md-12">
-                  <div class="d-flex gap-2">
-                    <%= form.submit "Update Customer Wallet Settings", class: "btn btn-primary" %>
-                    <div class="alert alert-<%= @customer_wallet_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
-                      <small>
-                        <i class="bi bi-<%= @customer_wallet_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
-                        Status: <%= @customer_wallet_enabled ? 'Enabled' : 'Disabled' %>
                       </small>
                     </div>
                   </div>

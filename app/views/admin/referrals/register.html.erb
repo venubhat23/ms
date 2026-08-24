@@ -1,0 +1,113 @@
+<% content_for :title, "Mark Referral as Registered" %>
+
+<style>
+/* Same visual language as the referrals index/show pages */
+.register-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  max-width: 640px;
+}
+
+.register-card-header {
+  background: #f8fafc;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  border-radius: 12px 12px 0 0;
+}
+
+.register-card-body {
+  padding: 1.5rem;
+}
+
+/* Mode toggle is CSS-only (no JS): "new" fields show by default (it's the
+   default-checked radio, and the only option when there are no matching
+   customers to link); selecting "existing" flips both via :has() on the
+   shared container. This can't be silently broken by a JS timing/stacking
+   bug the way the old modal was. A plain "~" sibling selector can't reach
+   across the .form-check wrapper divs around each radio, hence :has(). */
+#existingCustomerFields {
+  display: none;
+}
+
+.register-card-body:has(#modeExisting:checked) #newCustomerFields {
+  display: none;
+}
+
+.register-card-body:has(#modeExisting:checked) #existingCustomerFields {
+  display: block;
+}
+</style>
+
+<div class="container-fluid px-4 py-3">
+  <div class="mb-3">
+    <%= link_to admin_referral_path(@referral), class: "btn btn-outline-secondary btn-sm" do %>
+      <i class="bi bi-arrow-left me-1"></i> Back to Referral
+    <% end %>
+  </div>
+
+  <div class="register-card">
+    <div class="register-card-header">
+      <h1 class="h5 mb-1"><i class="bi bi-person-check me-2"></i>Mark as Registered</h1>
+      <p class="text-muted small mb-0">Referral #<%= @referral.id %> &mdash; <%= @referral.referred_name %>, referred by <%= @referral.referrer_name %></p>
+    </div>
+
+    <%= form_with url: mark_registered_admin_referral_path(@referral), method: :patch, local: true do |form| %>
+      <div class="register-card-body">
+        <% if @matching_customers.any? %>
+          <div class="mb-3">
+            <div class="form-check">
+              <%= form.radio_button :registration_mode, "new", checked: true, id: "modeNew", class: "form-check-input" %>
+              <label class="form-check-label" for="modeNew">Create a new customer</label>
+            </div>
+            <div class="form-check">
+              <%= form.radio_button :registration_mode, "existing", id: "modeExisting", class: "form-check-input" %>
+              <label class="form-check-label" for="modeExisting">Link to an existing customer</label>
+            </div>
+          </div>
+        <% else %>
+          <%= form.hidden_field :registration_mode, value: "new" %>
+        <% end %>
+
+        <div id="newCustomerFields">
+          <p class="mb-2 text-muted small">Review the details captured on this referral, then create the customer:</p>
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label">First Name</label>
+              <input type="text" name="customer_first_name" class="form-control" value="<%= @referred_first %>">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Last Name</label>
+              <input type="text" name="customer_last_name" class="form-control" value="<%= @referred_last %>">
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Email</label>
+            <input type="email" name="customer_email" class="form-control" value="<%= @referral.referred_email %>">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Mobile</label>
+            <input type="text" name="customer_mobile" class="form-control" value="<%= @referral.referred_mobile %>">
+          </div>
+          <div class="form-text">Tagged as referred by <%= @referral.referrer_name %>.</div>
+        </div>
+
+        <div id="existingCustomerFields">
+          <label class="form-label">Customer</label>
+          <select name="customer_id" class="form-select">
+            <option value="">Select customer</option>
+            <% @matching_customers.each do |c| %>
+              <option value="<%= c.id %>"><%= c.display_name %> (<%= c.mobile %>)</option>
+            <% end %>
+          </select>
+        </div>
+      </div>
+
+      <div class="register-card-body pt-0 d-flex gap-2 justify-content-end border-top mt-2">
+        <%= link_to "Cancel", admin_referral_path(@referral), class: "btn btn-secondary mt-3" %>
+        <%= form.submit "Mark as Registered", class: "btn btn-success mt-3" %>
+      </div>
+    <% end %>
+  </div>
+</div>

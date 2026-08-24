@@ -503,6 +503,7 @@ Rails.application.routes.draw do
     # Referrals management
     resources :referrals do
       member do
+        get :register
         patch :mark_registered
         patch :mark_converted
         patch :update_status

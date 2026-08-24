@@ -1,7 +1,7 @@
 class Admin::ReferralsController < ApplicationController
   before_action :authenticate_user!
   before_action { require_sidebar_permission!('referrals') }
-  before_action :set_referral, only: [:show, :update, :destroy, :mark_registered, :mark_converted]
+  before_action :set_referral, only: [:show, :update, :destroy, :register, :mark_registered, :mark_converted]
 
   # GET /admin/referrals
   def index
@@ -60,6 +60,24 @@ class Admin::ReferralsController < ApplicationController
   def destroy
     @referral.destroy
     redirect_to admin_referrals_path, notice: 'Referral was successfully deleted.'
+  end
+
+  # GET /admin/referrals/1/register
+  #
+  # A plain full-page form instead of the old Bootstrap-modal trigger on the
+  # index page: that modal opened inside .main-content, which layout_fix.css
+  # makes position:fixed — its own stacking context — so the modal was
+  # trapped behind Bootstrap's backdrop (appended to <body>) and effectively
+  # invisible regardless of JS/Turbo timing. A normal navigated page can't
+  # have that failure mode.
+  def register
+    redirect_to admin_referral_path(@referral), alert: 'This referral is not pending.' and return unless @referral.status == 'pending'
+
+    @matching_customers = Customer.where("email ILIKE ? OR mobile LIKE ?",
+                                          "%#{@referral.referred_email}%", "%#{@referral.referred_mobile}%")
+                                   .order(:first_name, :last_name)
+    @referred_first, *rest = @referral.referred_name.to_s.strip.split(/\s+/)
+    @referred_last = rest.join(' ')
   end
 
   # PATCH /admin/referrals/1/mark_registered

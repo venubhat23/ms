@@ -684,6 +684,31 @@ class Admin::BookingsController < Admin::ApplicationController
     }
   end
 
+  # POST /admin/bookings/quick_create_customer
+  #
+  # Lets the booking form create a customer inline when a search turns up no
+  # match, without leaving the booking in progress. Deliberately lighter than
+  # Admin::CustomersController#create: no User login account, no password —
+  # this just needs a bookable Customer record.
+  def quick_create_customer
+    customer = Customer.new(quick_customer_params)
+
+    if customer.save
+      render json: {
+        success: true,
+        customer: {
+          id: customer.id,
+          name: customer.display_name,
+          mobile: customer.mobile,
+          email: customer.email,
+          address: customer.respond_to?(:address) ? customer.address : ''
+        }
+      }
+    else
+      render json: { success: false, errors: customer.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
   def manage_stage
     # This will render the manage_stage.html.erb view
     @list_state = list_state_params
@@ -953,6 +978,10 @@ class Admin::BookingsController < Admin::ApplicationController
       :booking_date, :is_b2b, :franchise_id, :franchise_discount_type, :franchise_discount_value,
       booking_items_attributes: [:id, :product_id, :product_variant_id, :quantity, :price, :_destroy]
     )
+  end
+
+  def quick_customer_params
+    params.require(:customer).permit(:first_name, :last_name, :email, :mobile)
   end
 
   def validate_stock_availability(booking, is_update: false)

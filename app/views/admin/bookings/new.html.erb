@@ -375,9 +375,12 @@
                       <div class="customer-search-results" id="customerSearchResults">
                         <!-- Results will be populated here -->
                       </div>
-                      <div class="customer-search-footer">
-                        <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="showAllCustomers()">
+                      <div class="customer-search-footer d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary flex-fill" onclick="showAllCustomers()">
                           <i class="bi bi-people me-1"></i>Show All Customers
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success flex-fill" onclick="openQuickAddCustomerModal(document.getElementById('customerSearchInput').value)">
+                          <i class="bi bi-person-plus me-1"></i>New Customer
                         </button>
                       </div>
                     </div>
@@ -391,6 +394,49 @@
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearSelectedCustomer()">
                           <i class="bi bi-x"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Quick Add Customer Modal: lets the admin create a customer right
+                     here when a search comes up empty, instead of abandoning the
+                     booking to go create one elsewhere first. -->
+                <div class="modal fade" id="quickAddCustomerModal" tabindex="-1" aria-labelledby="quickAddCustomerModalLabel" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title" id="quickAddCustomerModalLabel">Create New Customer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div id="quickAddCustomerErrors" class="alert alert-danger d-none"></div>
+                        <div class="row g-3">
+                          <div class="col-md-6">
+                            <label class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="quickCustomerFirstName">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="quickCustomerLastName">
+                          </div>
+                        </div>
+                        <div class="row g-3 mt-1">
+                          <div class="col-md-6">
+                            <label class="form-label">Mobile <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="quickCustomerMobile" placeholder="10-digit mobile number">
+                          </div>
+                          <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="quickCustomerEmail">
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveQuickCustomerBtn">
+                          <i class="bi bi-check-lg me-1"></i>Create &amp; Continue Booking
                         </button>
                       </div>
                     </div>
@@ -1872,7 +1918,14 @@ function displayCustomerResults(customerList, searchQuery = '') {
   if (!results) return;
 
   if (customerList.length === 0) {
-    results.innerHTML = '<div class="customer-search-empty"><i class="bi bi-person-x fs-4 mb-2 d-block text-muted"></i><div class="fw-medium">No customers found</div><small class="text-muted">Try searching with a different name, phone, or email</small></div>';
+    results.innerHTML = '<div class="customer-search-empty">' +
+      '<i class="bi bi-person-x fs-4 mb-2 d-block text-muted"></i>' +
+      '<div class="fw-medium">No customers found</div>' +
+      '<small class="text-muted d-block mb-2">Try a different search, or create this customer now</small>' +
+      '<button type="button" class="btn btn-sm btn-primary" onclick="openQuickAddCustomerModal(\'' + escapeHtml(searchQuery) + '\')">' +
+      '<i class="bi bi-person-plus me-1"></i>Create New Customer' +
+      '</button>' +
+      '</div>';
     return;
   }
 
@@ -1957,6 +2010,98 @@ function clearSelectedCustomer() {
 
   document.getElementById('customerSearchInput').focus();
 }
+
+// Quick Add Customer (from a failed search, or the "New Customer" footer
+// button) — creates the customer inline via AJAX and selects it immediately
+// so the booking continues without a page reload or losing progress.
+function openQuickAddCustomerModal(prefill) {
+  const errorsBox = document.getElementById('quickAddCustomerErrors');
+  errorsBox.classList.add('d-none');
+  errorsBox.innerHTML = '';
+
+  document.getElementById('quickCustomerFirstName').value = '';
+  document.getElementById('quickCustomerLastName').value = '';
+  document.getElementById('quickCustomerMobile').value = '';
+  document.getElementById('quickCustomerEmail').value = '';
+
+  const trimmed = (prefill || '').trim();
+  if (trimmed) {
+    if (/^[0-9+\-\s]{6,}$/.test(trimmed)) {
+      document.getElementById('quickCustomerMobile').value = trimmed.replace(/\D/g, '').slice(-10);
+    } else if (trimmed.includes('@')) {
+      document.getElementById('quickCustomerEmail').value = trimmed;
+    } else {
+      document.getElementById('quickCustomerFirstName').value = trimmed;
+    }
+  }
+
+  hideCustomerDropdown();
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('quickAddCustomerModal'));
+  modal.show();
+  setTimeout(() => document.getElementById('quickCustomerFirstName').focus(), 300);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const saveQuickCustomerBtn = document.getElementById('saveQuickCustomerBtn');
+  if (!saveQuickCustomerBtn) return;
+
+  saveQuickCustomerBtn.addEventListener('click', function() {
+    const errorsBox = document.getElementById('quickAddCustomerErrors');
+    errorsBox.classList.add('d-none');
+    errorsBox.innerHTML = '';
+
+    const firstName = document.getElementById('quickCustomerFirstName').value.trim();
+    const lastName = document.getElementById('quickCustomerLastName').value.trim();
+    const mobile = document.getElementById('quickCustomerMobile').value.trim();
+    const email = document.getElementById('quickCustomerEmail').value.trim();
+
+    const missing = [];
+    if (!firstName) missing.push('First name is required.');
+    if (!mobile) missing.push('Mobile is required.');
+    if (missing.length) {
+      errorsBox.innerHTML = missing.join('<br>');
+      errorsBox.classList.remove('d-none');
+      return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    saveQuickCustomerBtn.disabled = true;
+
+    fetch('<%= quick_create_customer_admin_bookings_path %>', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
+      body: JSON.stringify({
+        customer: { first_name: firstName, last_name: lastName, mobile: mobile, email: email }
+      })
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok && data.success) {
+          const c = data.customer;
+          customers.push({
+            id: c.id, name: c.name, first_name: firstName, last_name: lastName,
+            mobile: c.mobile, email: c.email, address: c.address || ''
+          });
+
+          bootstrap.Modal.getInstance(document.getElementById('quickAddCustomerModal'))?.hide();
+          selectCustomer(c.id, c.name, c.mobile, c.email, c.address);
+          showNotification('Customer "' + c.name + '" created and selected — continue the booking below.', 'success');
+        } else {
+          errorsBox.innerHTML = (data.errors || ['Something went wrong. Please try again.']).join('<br>');
+          errorsBox.classList.remove('d-none');
+        }
+      })
+      .catch(() => {
+        errorsBox.innerHTML = 'Network error — please try again.';
+        errorsBox.classList.remove('d-none');
+      })
+      .finally(() => { saveQuickCustomerBtn.disabled = false; });
+  });
+});
 
 function showAllCustomers() {
   displayCustomerResults(customers.slice(0, 10));

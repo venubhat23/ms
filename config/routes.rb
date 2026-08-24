@@ -158,6 +158,7 @@ Rails.application.routes.draw do
       collection do
         get :search_products
         get :search_customers
+        post :quick_create_customer
         get :realtime_data
         # Status filters
         get :pending

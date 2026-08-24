@@ -168,19 +168,23 @@ function affRenderCard(p) {
     : stock<=5
     ? `<span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">Low (${si})</span>`
     : `<span class="position-absolute top-0 end-0 badge bg-success m-2">${si} in stock</span>`;
-  const varSel = p.has_variants && p.variants.length
-    ? `<select class="form-select form-select-sm mb-2" id="aff-variant-${p.id}"><option value="">— Select variant —</option>${p.variants.map(v=>`<option value="${v.id}" data-price="${v.price}" data-stock="${v.stock}">${esc(v.label)} — ₹${v.price}</option>`).join('')}</select>`
+  const firstVariant = p.has_variants && p.variants.length ? p.variants[0] : null;
+  const varSel = firstVariant
+    ? `<select class="form-select form-select-sm mb-2" id="aff-variant-${p.id}" onchange="affVariantChange(${p.id})">${p.variants.map(v=>`<option value="${v.id}" data-price="${v.price}" data-stock="${v.stock}">${esc(v.label)} — ₹${v.price}</option>`).join('')}</select>`
     : '';
+  const initialStock = firstVariant ? firstVariant.stock : stock;
+  const initialPrice = firstVariant ? firstVariant.price : p.price;
+  const initialSi = Math.floor(initialStock);
   let actionHtml;
-  if(stock>0){
+  if(initialStock>0){
     actionHtml=`<div class="input-group input-group-sm mb-2">
       <button class="btn btn-outline-secondary" type="button" onclick="affDec(${p.id})" style="border-radius:6px 0 0 6px;"><i class="bi bi-dash"></i></button>
-      <input type="number" id="aff-qty-${p.id}" value="1" min="1" step="1" max="${si}" class="form-control text-center fw-bold" style="max-width:54px;">
-      <button class="btn btn-outline-secondary" type="button" onclick="affInc(${p.id},${si})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
+      <input type="number" id="aff-qty-${p.id}" value="1" min="1" step="1" max="${initialSi}" class="form-control text-center fw-bold" style="max-width:54px;">
+      <button class="btn btn-outline-secondary" type="button" onclick="affInc(${p.id})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
     </div>
-    <button class="btn btn-primary btn-sm w-100" onclick="affAdd(${p.id})"><i class="bi bi-cart-plus me-1"></i>Add to Cart</button>`;
+    <button class="btn btn-primary btn-sm w-100" id="aff-add-btn-${p.id}" onclick="affAdd(${p.id})"><i class="bi bi-cart-plus me-1"></i>Add to Cart</button>`;
   } else {
-    actionHtml=`<button class="btn btn-danger btn-sm w-100" disabled>SOLD OUT</button>`;
+    actionHtml=`<button class="btn btn-danger btn-sm w-100" id="aff-add-btn-${p.id}" disabled>SOLD OUT</button>`;
   }
   return `<div class="col-md-4 col-lg-3 aff-item"
     data-id="${p.id}" data-name="${esc(p.name.toLowerCase())}" data-sku="${esc(p.sku.toLowerCase())}"
@@ -191,12 +195,34 @@ function affRenderCard(p) {
         <small class="text-muted mb-1">${esc(p.category_name)}</small>
         <h6 class="fw-bold mb-1" style="font-size:0.9rem;min-height:36px;">${esc(p.name)}</h6>
         <small class="text-muted mb-2">SKU: ${esc(p.sku)}</small>
-        <div class="fw-bold text-primary mb-2">₹${p.price}</div>
+        <div class="fw-bold text-primary mb-2" id="aff-price-${p.id}">₹${initialPrice}</div>
         ${varSel}
-        <div class="mt-auto">${actionHtml}</div>
+        <div class="mt-auto" id="aff-stock-section-${p.id}">${actionHtml}</div>
       </div>
     </div>
   </div>`;
+}
+
+function affVariantChange(id){
+  const sel=document.getElementById('aff-variant-'+id);
+  if(!sel) return;
+  const opt=sel.options[sel.selectedIndex];
+  const price=parseFloat(opt.dataset.price)||0;
+  const stock=parseFloat(opt.dataset.stock)||0;
+  const si=Math.floor(stock);
+  document.getElementById('aff-price-'+id).textContent='₹'+price;
+
+  const section=document.getElementById('aff-stock-section-'+id);
+  if(stock>0){
+    section.innerHTML=`<div class="input-group input-group-sm mb-2">
+      <button class="btn btn-outline-secondary" type="button" onclick="affDec(${id})" style="border-radius:6px 0 0 6px;"><i class="bi bi-dash"></i></button>
+      <input type="number" id="aff-qty-${id}" value="1" min="1" step="1" max="${si}" class="form-control text-center fw-bold" style="max-width:54px;">
+      <button class="btn btn-outline-secondary" type="button" onclick="affInc(${id})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
+    </div>
+    <button class="btn btn-primary btn-sm w-100" id="aff-add-btn-${id}" onclick="affAdd(${id})"><i class="bi bi-cart-plus me-1"></i>Add to Cart</button>`;
+  } else {
+    section.innerHTML=`<button class="btn btn-danger btn-sm w-100" id="aff-add-btn-${id}" disabled>SOLD OUT</button>`;
+  }
 }
 
 (function init(){
@@ -220,27 +246,27 @@ function affShowProducts(){
   document.getElementById('affSearchSection').style.display='';
 }
 
-function affInc(id,max){ const i=document.getElementById('aff-qty-'+id); i.value=Math.min(parseInt(i.value||1)+1,max); }
+function affInc(id){ const i=document.getElementById('aff-qty-'+id); const max=parseFloat(i.max)||Infinity; i.value=Math.min(parseInt(i.value||1)+1,max); }
 function affDec(id){ const i=document.getElementById('aff-qty-'+id); if(parseInt(i.value)>1) i.value=parseInt(i.value)-1; }
 
 function affAdd(id){
   const p=AFF_MAP[id]; if(!p) return;
-  let name=p.name, price=p.price, variantId=null;
+  let name=p.name, price=p.price, variantId=null, maxStock=p.stock;
   if(p.has_variants){
     const sel=document.getElementById('aff-variant-'+id);
     if(!sel||!sel.value){ alert('Please select a variant first.'); return; }
     const opt=sel.options[sel.selectedIndex];
     name=p.name+' ('+opt.text.split('—')[0].trim()+')';
     price=parseFloat(opt.dataset.price)||p.price;
+    maxStock=parseFloat(opt.dataset.stock)||0;
     variantId=sel.value;
   }
   const qty=parseInt(document.getElementById('aff-qty-'+id).value)||1;
   const key=`${id}-${variantId||''}`;
   const ex=affCart.find(i=>i.key===key);
-  if(ex){ ex.qty=Math.min(ex.qty+qty,Math.floor(p.stock)); }
-  else { affCart.push({key,idx:affIdx++,productId:id,variantId,name,price,qty,stock:p.stock}); }
+  if(ex){ ex.qty=Math.min(ex.qty+qty,Math.floor(maxStock)); }
+  else { affCart.push({key,idx:affIdx++,productId:id,variantId,name,price,qty,stock:maxStock}); }
   affUpdateBadge(); affUpdateTotal();
-  const btn=document.querySelector(`#aff-item-${id} button.btn-primary`)||document.querySelector(`[data-id="${id}"] button.btn-primary`);
 }
 
 function affRemove(idx){ affCart=affCart.filter(i=>i.idx!==idx); affRenderCart(); affUpdateBadge(); affUpdateTotal(); }

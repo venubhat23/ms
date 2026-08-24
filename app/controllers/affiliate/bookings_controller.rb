@@ -46,7 +46,7 @@ class Affiliate::BookingsController < Affiliate::ApplicationController
                         "products.price, products.stock, products.display_order, " \
                         "COALESCE(batch_stock.total_stock, 0) AS cached_stock"
                       )
-                      .includes(:category, :product_variants)
+                      .includes(:category, :product_variants, image_attachment: :blob)
                       .by_stock_availability
 
     @products_json = products.map do |p|
@@ -60,7 +60,7 @@ class Affiliate::BookingsController < Affiliate::ApplicationController
         category_name: p.category&.name || 'No Category',
         stock:         p.cached_total_batch_stock,
         has_variants:  p.has_multiple_quantities,
-        image_url:     p.r2_image_url.presence || p.image_url.presence,
+        image_url:     p.main_image_url,
         price:         display_price.round,
         variants:      sorted_variants.map { |v| { id: v.id, label: v.label.to_s, price: v.selling_price.to_f.round, stock: v.available_stock.to_f } }
       }

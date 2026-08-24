@@ -64,7 +64,7 @@ class Admin::ReferralsController < ApplicationController
 
   # PATCH /admin/referrals/1/mark_registered
   def mark_registered
-    if params[:customer_id].present? && params[:customer_id] != 'new'
+    if params[:registration_mode] == 'existing' && params[:customer_id].present?
       customer = Customer.find(params[:customer_id])
       @referral.mark_as_registered!(customer)
       redirect_to admin_referral_path(@referral), notice: 'Referral marked as registered successfully.'
@@ -182,13 +182,16 @@ class Admin::ReferralsController < ApplicationController
 
   # Converts a referral's captured lead details into a real Customer record,
   # tagged with the affiliate that referred them (for commission tracking).
+  # The "Mark as Registered" form pre-fills its fields from the referral but
+  # lets the admin edit them before creating the customer, so submitted
+  # params win over the referral's own captured values.
   def build_customer_from_referral(referral)
     first_name, *rest = referral.referred_name.to_s.strip.split(/\s+/)
     Customer.new(
-      first_name: first_name.presence || referral.referred_name,
-      last_name: rest.join(' '),
-      email: referral.referred_email,
-      mobile: referral.referred_mobile,
+      first_name: params[:customer_first_name].presence || first_name.presence || referral.referred_name,
+      last_name: params[:customer_last_name].presence || rest.join(' '),
+      email: params[:customer_email].presence || referral.referred_email,
+      mobile: params[:customer_mobile].presence || referral.referred_mobile,
       referred_by_affiliate_id: referral.affiliate_id
     )
   end

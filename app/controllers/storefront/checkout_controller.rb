@@ -79,7 +79,8 @@ class Storefront::CheckoutController < Storefront::BaseController
         customer_email: params[:guest_email].to_s.strip,
         customer_phone: params[:guest_phone].to_s.strip,
         delivery_address: delivery_address_text,
-        booked_by: 'public'
+        booked_by: 'public',
+        affiliate_id: referring_affiliate&.id
       )
       @booking.payment_status = :unpaid
       @booking.status = 'draft' if payment_method_key != 'cod'
@@ -123,6 +124,7 @@ class Storefront::CheckoutController < Storefront::BaseController
     return render json: { success: false, error: booking_error || 'Failed to place order.' }, status: :unprocessable_entity if booking_error
 
     session[:cart] = { items: [] }
+    session.delete(:referral_affiliate_code)
 
     if payment_method_key == 'cod'
       render json: {
@@ -205,5 +207,15 @@ class Storefront::CheckoutController < Storefront::BaseController
 
   def generate_booking_number
     "BK#{Date.current.strftime('%Y%m%d')}#{SecureRandom.hex(3).upcase}"
+  end
+
+  # Guest checkout has no Customer record to carry referred_by_affiliate_id,
+  # so the affiliate captured by ApplicationController#capture_referral_code
+  # is read directly from session here instead.
+  def referring_affiliate
+    code = session[:referral_affiliate_code]
+    return nil if code.blank?
+
+    Affiliate.active.find_by(affiliate_code: code)
   end
 end

@@ -413,12 +413,61 @@
             <h5 class="modal-title" id="markRegisteredLabel<%= referral.id %>">Mark as Registered</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
+          <% matching_customers = Customer.where("email ILIKE ? OR mobile LIKE ?",
+                "%#{referral.referred_email}%", "%#{referral.referred_mobile}%")
+                .order(:first_name, :last_name) %>
+          <% referred_first, *referred_rest = referral.referred_name.to_s.strip.split(/\s+/) %>
           <%= form_with url: mark_registered_admin_referral_path(referral), method: :patch, local: true do |form| %>
             <div class="modal-body">
-              <p>Select the customer account for <strong><%= referral.referred_name %></strong>:</p>
-              <%= form.select :customer_id,
-                  options_from_collection_for_select(Customer.order(:first_name, :last_name), :id, :display_name),
-                  { prompt: "Select Customer" }, { class: "form-select", required: true } %>
+              <% if matching_customers.any? %>
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="registration_mode" id="modeNew<%= referral.id %>" value="new" checked
+                           onchange="document.getElementById('newCustomerFields<%= referral.id %>').style.display='block'; document.getElementById('existingCustomerFields<%= referral.id %>').style.display='none';">
+                    <label class="form-check-label" for="modeNew<%= referral.id %>">Create a new customer</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="registration_mode" id="modeExisting<%= referral.id %>" value="existing"
+                           onchange="document.getElementById('newCustomerFields<%= referral.id %>').style.display='none'; document.getElementById('existingCustomerFields<%= referral.id %>').style.display='block';">
+                    <label class="form-check-label" for="modeExisting<%= referral.id %>">Link to an existing customer</label>
+                  </div>
+                </div>
+              <% else %>
+                <input type="hidden" name="registration_mode" value="new">
+              <% end %>
+
+              <div id="newCustomerFields<%= referral.id %>">
+                <p class="mb-2 text-muted small">Review the details captured on this referral, then create the customer:</p>
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <label class="form-label">First Name</label>
+                    <input type="text" name="customer_first_name" class="form-control" value="<%= referred_first %>" required>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Last Name</label>
+                    <input type="text" name="customer_last_name" class="form-control" value="<%= referred_rest.join(' ') %>">
+                  </div>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label">Email</label>
+                  <input type="email" name="customer_email" class="form-control" value="<%= referral.referred_email %>">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label">Mobile</label>
+                  <input type="text" name="customer_mobile" class="form-control" value="<%= referral.referred_mobile %>" required>
+                </div>
+                <div class="form-text">Tagged as referred by <%= referral.referrer_name %>.</div>
+              </div>
+
+              <div id="existingCustomerFields<%= referral.id %>" style="display: none;">
+                <label class="form-label">Customer</label>
+                <select name="customer_id" class="form-select">
+                  <option value="">Select customer</option>
+                  <% matching_customers.each do |c| %>
+                    <option value="<%= c.id %>"><%= c.display_name %> (<%= c.mobile %>)</option>
+                  <% end %>
+                </select>
+              </div>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

@@ -38,6 +38,15 @@ class HomeController < ApplicationController
   end
 
   def index
+    # A followed referral link (?ref=CODE) sends the visitor straight to
+    # account creation instead of the homepage, so the affiliate attribution
+    # captured by capture_referral_code (ApplicationController) isn't lost to
+    # a guest checkout that never creates a Customer record. Falls through to
+    # the normal homepage below if the code didn't resolve to an affiliate.
+    if params[:ref].present? && session[:referral_affiliate_code].present?
+      redirect_to customer_register_path and return
+    end
+
     # `preview_theme` (used only by the admin theme-picker's Preview links) is
     # always checked against WEBSITE_THEMES's fixed key set below, never used
     # to build a path directly — no arbitrary file read is possible here.

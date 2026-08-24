@@ -310,15 +310,32 @@
         });
       }
 
+      // Configure default Bootstrap modal options. Hoisted out of the handlers
+      // below so both can see it — it used to be declared only inside the
+      // DOMContentLoaded handler, which left the turbo:load handler throwing
+      // a ReferenceError on every Turbo navigation (i.e. on every normal
+      // in-app link click, not just hard reloads), aborting modal re-init
+      // and the toast/sidebar-scroll code that followed it in that handler.
+      const defaultModalOptions = {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+      };
+
+      // .main-content is position:fixed (see layout_fix.css), which makes it
+      // its own stacking context. A modal left nested inside it stays trapped
+      // in that context, so Bootstrap's backdrop (appended straight to <body>)
+      // paints over the whole modal no matter the modal's own z-index — the
+      // modal opens (gets the .show class) but is invisible behind the
+      // backdrop. Reparenting to <body> escapes that stacking context.
+      function escapeMainContentStackingContext(modalElement) {
+        if (modalElement.parentElement !== document.body) {
+          document.body.appendChild(modalElement);
+        }
+      }
+
       // Global modal fix to ensure all modals work properly
       document.addEventListener('DOMContentLoaded', function() {
-        // Configure default Bootstrap modal options
-        const defaultModalOptions = {
-          backdrop: true,
-          keyboard: true,
-          focus: true
-        };
-
         // Fix any existing modals on page load. Guarded: bootstrap is loaded
         // as an importmap module, which can still be resolving when this
         // classic script's DOMContentLoaded handler runs — without the
@@ -331,6 +348,8 @@
             if (existingBackdrop) {
               existingBackdrop.remove();
             }
+
+            escapeMainContentStackingContext(modalElement);
 
             // Ensure modal is properly initialized
             let modalInstance = bootstrap.Modal.getInstance(modalElement);
@@ -367,6 +386,9 @@
             if (modalInstance) {
               modalInstance.dispose();
             }
+
+            escapeMainContentStackingContext(modalElement);
+
             modalInstance = new bootstrap.Modal(modalElement, defaultModalOptions);
           });
         }

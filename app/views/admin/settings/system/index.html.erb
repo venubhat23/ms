@@ -1374,7 +1374,8 @@
       <div class="card-body">
         <!-- Hero Banner (rotating, up to 5) -->
         <h6 class="fw-bold mb-1">Hero Banner (rotates every 10s)</h6>
-        <p class="text-muted small mb-2">Add 4&ndash;5 images for the homepage hero to cycle through. Each saves and appears below as soon as it uploads.</p>
+        <p class="text-muted small mb-1">Add 4&ndash;5 images for the homepage hero to cycle through. Each saves and appears below as soon as it uploads.</p>
+        <p class="text-muted small mb-2"><i class="bi bi-info-circle me-1"></i>Recommended: <strong>1920&times;1080px</strong> (widescreen landscape), JPG or PNG. It fills the full-width hero banner, so keep important details away from the left/right edges.</p>
         <div id="client3_hero_images_grid" class="row g-3 mb-3">
           <%= render 'website_image_thumbnails', images: @client3_hero_images, gallery: 'client3_hero' %>
         </div>
@@ -1382,7 +1383,8 @@
         <label for="client3_hero_images_input" class="btn btn-outline-primary btn-sm mb-0">
           <i class="bi bi-upload me-1"></i>Upload Images
         </label>
-        <input type="file" id="client3_hero_images_input" accept="image/*" multiple class="d-none">
+        <input type="file" id="client3_hero_images_input" accept="image/*" multiple class="d-none"
+               data-recommended-w="1920" data-recommended-h="1080">
         <span id="client3_hero_images_count" class="text-muted small ms-2"><%= @client3_hero_images.size %> / <%= SystemSetting::CLIENT3_HERO_IMAGES_MAX %> uploaded</span>
 
         <hr class="my-4">
@@ -1397,11 +1399,13 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label fw-bold">Story Banner Image</label>
+                <p class="text-muted small mb-1">Recommended: <strong>1200&times;800px</strong> (landscape), JPG or PNG.</p>
                 <div class="mb-2">
                   <img id="client3_story_preview_img" src="<%= @client3_story_image %>" alt="Story banner"
                        class="border rounded w-100" style="height:120px;object-fit:cover;cursor:zoom-in;">
                 </div>
-                <input type="file" id="client3_story_image_input" accept="image/*" class="form-control form-control-sm">
+                <input type="file" id="client3_story_image_input" accept="image/*" class="form-control form-control-sm"
+                       data-recommended-w="1200" data-recommended-h="800">
                 <div id="client3_story_image_error" class="text-danger small mt-1" style="display: none;"></div>
               </div>
             </div>
@@ -1409,11 +1413,13 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label fw-bold">Testimonial Photo 1</label>
+                <p class="text-muted small mb-1">Recommended: <strong>800&times;460px</strong> (landscape), JPG or PNG.</p>
                 <div class="mb-2">
                   <img id="client3_testimonial1_preview_img" src="<%= @client3_testimonial1_image %>" alt="Testimonial 1"
                        class="border rounded w-100" style="height:120px;object-fit:cover;cursor:zoom-in;">
                 </div>
-                <input type="file" id="client3_testimonial1_image_input" accept="image/*" class="form-control form-control-sm">
+                <input type="file" id="client3_testimonial1_image_input" accept="image/*" class="form-control form-control-sm"
+                       data-recommended-w="800" data-recommended-h="460">
                 <div id="client3_testimonial1_image_error" class="text-danger small mt-1" style="display: none;"></div>
               </div>
             </div>
@@ -1421,11 +1427,13 @@
             <div class="col-md-4">
               <div class="mb-3">
                 <label class="form-label fw-bold">Testimonial Photo 2</label>
+                <p class="text-muted small mb-1">Recommended: <strong>800&times;460px</strong> (landscape), JPG or PNG.</p>
                 <div class="mb-2">
                   <img id="client3_testimonial2_preview_img" src="<%= @client3_testimonial2_image %>" alt="Testimonial 2"
                        class="border rounded w-100" style="height:120px;object-fit:cover;cursor:zoom-in;">
                 </div>
-                <input type="file" id="client3_testimonial2_image_input" accept="image/*" class="form-control form-control-sm">
+                <input type="file" id="client3_testimonial2_image_input" accept="image/*" class="form-control form-control-sm"
+                       data-recommended-w="800" data-recommended-h="460">
                 <div id="client3_testimonial2_image_error" class="text-danger small mt-1" style="display: none;"></div>
               </div>
             </div>
@@ -1604,6 +1612,68 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
     });
 });
 
+// Recommended-size check: reads a file's actual pixel dimensions client-side
+// (via a throwaway Image()) and flags it as a non-blocking warning when it's
+// well off the theme's ideal size for that upload slot — the field's
+// data-recommended-w/h attributes carry the target size. Upload proceeds
+// either way; this is guidance only, since there's no server-side dimension
+// validation for these theme images.
+function getImageDimensions(file) {
+  return new Promise(function(resolve) {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = function() {
+      URL.revokeObjectURL(objectUrl);
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = function() {
+      URL.revokeObjectURL(objectUrl);
+      resolve(null);
+    };
+    img.src = objectUrl;
+  });
+}
+
+function sizeMismatchWarning(file, dims, recommendedW, recommendedH) {
+  if (!dims) return null;
+  const recommendedRatio = recommendedW / recommendedH;
+  const actualRatio = dims.width / dims.height;
+  const ratioOffPct = Math.abs(actualRatio - recommendedRatio) / recommendedRatio;
+  const tooSmall = dims.width < recommendedW * 0.5 || dims.height < recommendedH * 0.5;
+  if (!tooSmall && ratioOffPct <= 0.2) return null;
+
+  return file.name + ' is ' + dims.width + '×' + dims.height + 'px — ' +
+    recommendedW + '×' + recommendedH + 'px is recommended for this spot' +
+    (tooSmall ? ' (this one may look blurry once uploaded).' : ' (this one will be cropped to fit).');
+}
+
+function showFieldWarning(errorDiv, message) {
+  errorDiv.classList.remove('text-danger');
+  errorDiv.classList.add('text-warning');
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+}
+
+function showFieldError(errorDiv, message) {
+  errorDiv.classList.remove('text-warning');
+  errorDiv.classList.add('text-danger');
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+}
+
+function checkRecommendedSize(input, files, errorDiv) {
+  const recommendedW = parseInt(input.dataset.recommendedW, 10);
+  const recommendedH = parseInt(input.dataset.recommendedH, 10);
+  if (!recommendedW || !recommendedH) return;
+
+  Promise.all(files.map(getImageDimensions)).then(function(dimsList) {
+    const warnings = files
+      .map(function(file, i) { return sizeMismatchWarning(file, dimsList[i], recommendedW, recommendedH); })
+      .filter(Boolean);
+    if (warnings.length) showFieldWarning(errorDiv, warnings.join(' '));
+  });
+}
+
 // Website Images: multi-file upload with immediate save-and-display, plus
 // per-thumbnail delete. Each selected file uploads one at a time so the
 // server-side max-images cap (enforced in SystemSetting.add_image) rejects
@@ -1623,6 +1693,7 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
       input.value = '';
       if (!files.length) return;
       errorDiv.style.display = 'none';
+      checkRecommendedSize(input, files, errorDiv);
       uploadNext(files, 0);
     });
 
@@ -1640,16 +1711,14 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
         .then(response => response.json())
         .then(data => {
           if (data.error) {
-            errorDiv.textContent = data.error;
-            errorDiv.style.display = 'block';
+            showFieldError(errorDiv, data.error);
             return;
           }
           addThumbnail(data.public_url);
           countSpan.textContent = data.images.length + ' / ' + config.max + ' uploaded';
         })
         .catch(function() {
-          errorDiv.textContent = 'Failed to upload image. Please try again.';
-          errorDiv.style.display = 'block';
+          showFieldError(errorDiv, 'Failed to upload image. Please try again.');
         })
         .finally(function() {
           uploadNext(files, index + 1);
@@ -1686,16 +1755,14 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
         .then(response => response.json())
         .then(data => {
           if (data.error) {
-            errorDiv.textContent = data.error;
-            errorDiv.style.display = 'block';
+            showFieldError(errorDiv, data.error);
             return;
           }
           thumb.remove();
           countSpan.textContent = data.images.length + ' / ' + config.max + ' uploaded';
         })
         .catch(function() {
-          errorDiv.textContent = 'Failed to delete image. Please try again.';
-          errorDiv.style.display = 'block';
+          showFieldError(errorDiv, 'Failed to delete image. Please try again.');
         });
     });
   }
@@ -1751,6 +1818,7 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
       if (!file) return;
 
       errorDiv.style.display = 'none';
+      checkRecommendedSize(input, [file], errorDiv);
 
       const formData = new FormData();
       formData.append('image', file);
@@ -1763,16 +1831,14 @@ document.getElementById('logo_file_input')?.addEventListener('change', function(
         .then(response => response.json())
         .then(data => {
           if (data.error) {
-            errorDiv.textContent = data.error;
-            errorDiv.style.display = 'block';
+            showFieldError(errorDiv, data.error);
             return;
           }
           hiddenField.value = data.public_url;
           previewImg.src = data.public_url;
         })
         .catch(function() {
-          errorDiv.textContent = 'Failed to upload image. Please try again.';
-          errorDiv.style.display = 'block';
+          showFieldError(errorDiv, 'Failed to upload image. Please try again.');
         });
     });
   }

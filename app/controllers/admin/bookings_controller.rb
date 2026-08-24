@@ -176,6 +176,44 @@ class Admin::BookingsController < Admin::ApplicationController
     # Only set booking_date to current time if not provided in params
     @booking.booking_date = @booking.booking_date.present? ? @booking.booking_date : Time.current
 
+    # No customer picked from search/quick-add, and this isn't a franchise
+    # booking (whose customer_name/phone are the franchise's own contact
+    # info, not a real customer) — create the customer from what was typed
+    # so "Complete Booking" alone is enough, matching the button's label
+    # (see updateCompleteBookingButtonText() in the view). Look up by mobile
+    # first: Customer#mobile is unique, so re-submitting with a phone that
+    # already exists must link to it, not fail creation outright.
+    @new_customer_created = false
+    if @booking.customer_id.blank? && @booking.franchise_id.blank? && @booking.customer_phone.present?
+      customer = Customer.find_by(mobile: @booking.customer_phone)
+
+      if customer.nil?
+        first_name, *rest = @booking.customer_name.to_s.strip.split(/\s+/)
+        customer = Customer.new(
+          first_name: first_name.presence || @booking.customer_name,
+          last_name: rest.join(' '),
+          mobile: @booking.customer_phone,
+          email: @booking.customer_email
+        )
+
+        if customer.save
+          @new_customer_created = true
+        else
+          @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
+          @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
+          @categories = Category.where(status: true).order(:display_order, :name)
+          @stores = Store.active.order(:name)
+          @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+          @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+          flash.now[:alert] = "Could not create customer: #{customer.errors.full_messages.to_sentence}"
+          render :new, status: :unprocessable_entity
+          return
+        end
+      end
+
+      @booking.customer_id = customer.id
+    end
+
     # Clean and validate discount amount
     discount_value = params[:booking][:discount_amount] if params[:booking]
     Rails.logger.info "Processing discount value: #{discount_value.inspect}"
@@ -290,7 +328,8 @@ class Admin::BookingsController < Admin::ApplicationController
         @booking.convert_to_order!
       end
 
-      redirect_to admin_booking_path(@booking), notice: "Booking created successfully!#{invoice_notice}"
+      success_headline = @new_customer_created ? "🎉 New customer created and booking completed successfully!" : "✅ Booking completed successfully!"
+      redirect_to admin_booking_path(@booking), notice: "#{success_headline}#{invoice_notice}"
     else
       Rails.logger.error "Booking creation failed: #{@booking.errors.full_messages.join(', ')}"
       Rails.logger.error "Booking items errors: #{@booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"

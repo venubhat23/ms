@@ -712,7 +712,7 @@
 
               <button type="submit" name="create_order" value="1" class="btn btn-success" id="completeBookingBtn">
                 <span class="btn-text">
-                  <i class="bi bi-check-circle me-1"></i>Complete Booking
+                  <i class="bi bi-check-circle me-1"></i><span id="completeBookingBtnLabel">Complete Booking</span>
                 </span>
                 <span class="btn-loading d-none">
                   <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -1650,6 +1650,7 @@ function toggleFranchiseBooking(checkbox) {
     if (b2bDiscountSection) b2bDiscountSection.style.display = isB2B ? '' : 'none';
   }
 
+  updateCompleteBookingButtonText();
   updateCheckoutTotals();
 }
 
@@ -1977,6 +1978,25 @@ function updateHighlightedItem(items) {
   }
 }
 
+// The "Complete Booking" button's label reflects what submitting will
+// actually do server-side: with no existing customer selected, submit also
+// creates a Customer from the typed name/phone/email (see
+// Admin::BookingsController#create) before saving the booking, so the label
+// says so. Franchise bookings never create a Customer from the franchise's
+// own contact info, so they always keep the plain label.
+function updateCompleteBookingButtonText() {
+  const label = document.getElementById('completeBookingBtnLabel');
+  if (!label) return;
+
+  const franchiseToggle = document.getElementById('franchiseBookingToggle');
+  const isFranchiseBooking = franchiseToggle && franchiseToggle.checked;
+  const hasSelectedCustomer = document.getElementById('selected_customer_id').value;
+
+  label.textContent = (isFranchiseBooking || hasSelectedCustomer)
+    ? 'Complete Booking'
+    : 'Create New Customer & Complete Booking';
+}
+
 function selectCustomer(customerId, customerName, customerMobile, customerEmail, customerAddress) {
   document.getElementById('selected_customer_id').value = customerId;
   document.getElementById('customerSearchInput').style.display = 'none';
@@ -1995,6 +2015,7 @@ function selectCustomer(customerId, customerName, customerMobile, customerEmail,
 
   hideCustomerDropdown();
   showNotification('Selected customer: ' + customerName, 'success');
+  updateCompleteBookingButtonText();
 }
 
 function clearSelectedCustomer() {
@@ -2007,6 +2028,7 @@ function clearSelectedCustomer() {
   document.getElementById('booking_customer_phone').value = '';
   document.getElementById('booking_customer_email').value = '';
   document.getElementById('booking_delivery_address').value = '';
+  updateCompleteBookingButtonText();
 
   document.getElementById('customerSearchInput').focus();
 }
@@ -2424,6 +2446,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupSearch();
   initializeCustomerSearch();
   initializeFranchiseSearch();
+  updateCompleteBookingButtonText();
 
   // Set default payment method
   selectPaymentMethod('cash');

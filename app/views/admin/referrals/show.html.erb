@@ -476,8 +476,8 @@
       <% end %>
 
       <% if @referral.status == 'registered' %>
-        <%= link_to mark_converted_admin_referral_path(@referral), method: :patch,
-            confirm: "Mark this referral as converted?",
+        <%= link_to mark_converted_admin_referral_path(@referral),
+            data: { turbo_method: :patch, turbo_confirm: "Mark this referral as converted?" },
             class: "btn-modern btn-success-modern" do %>
           <i class="bi bi-check-circle"></i>
           Mark as Converted
@@ -490,8 +490,8 @@
         Edit Notes
       </button>
 
-      <%= link_to admin_referral_path(@referral), method: :delete,
-          confirm: "Are you sure you want to delete this referral? This action cannot be undone.",
+      <%= link_to admin_referral_path(@referral),
+          data: { turbo_method: :delete, turbo_confirm: "Are you sure you want to delete this referral? This action cannot be undone." },
           class: "btn-modern btn-danger-modern" do %>
         <i class="bi bi-trash"></i>
         Delete Referral
@@ -521,24 +521,30 @@
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
+        <% matching_customers = Customer.where("email ILIKE ? OR mobile LIKE ?",
+              "%#{@referral.referred_email}%", "%#{@referral.referred_mobile}%")
+              .order(:first_name, :last_name) %>
         <%= form_with url: mark_registered_admin_referral_path(@referral), method: :patch, local: true do |form| %>
           <div class="modal-body">
             <p class="mb-3">
-              Select the customer account that corresponds to
+              Link this referral to the customer account for
               <strong><%= @referral.referred_name %></strong>
               (<%= @referral.referred_email %>):
             </p>
             <%= form.select :customer_id,
-                options_from_collection_for_select(
-                  Customer.where("email ILIKE ? OR mobile LIKE ?",
-                    "%#{@referral.referred_email}%", "%#{@referral.referred_mobile}%")
-                    .order(:first_name, :last_name),
-                  :id, :display_name_with_contact
+                options_for_select(
+                  [["Create a new customer from referral details", "new"]] +
+                  matching_customers.map { |c| ["#{c.display_name} (#{c.mobile})", c.id] },
+                  "new"
                 ),
-                { prompt: "Select Customer Account" },
+                {},
                 { class: "form-select", required: true } %>
             <div class="form-text">
-              If the customer is not in the list, they may not have registered yet.
+              <% if matching_customers.any? %>
+                Pick a matching existing account, or create a new customer using the name, email and mobile captured on this referral — tagged as referred by <%= @referral.referrer_name %>.
+              <% else %>
+                No existing account matches this referral yet. Creating a new customer will use the name, email and mobile captured here, tagged as referred by <%= @referral.referrer_name %>.
+              <% end %>
             </div>
           </div>
           <div class="modal-footer">

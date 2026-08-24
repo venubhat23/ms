@@ -64,12 +64,18 @@ class Admin::ReferralsController < ApplicationController
 
   # PATCH /admin/referrals/1/mark_registered
   def mark_registered
-    if params[:customer_id].present?
+    if params[:customer_id].present? && params[:customer_id] != 'new'
       customer = Customer.find(params[:customer_id])
       @referral.mark_as_registered!(customer)
       redirect_to admin_referral_path(@referral), notice: 'Referral marked as registered successfully.'
     else
-      redirect_to admin_referral_path(@referral), alert: 'Customer must be selected to mark as registered.'
+      customer = build_customer_from_referral(@referral)
+      if customer.save
+        @referral.mark_as_registered!(customer)
+        redirect_to admin_referral_path(@referral), notice: "New customer \"#{customer.display_name}\" created (referred by #{@referral.referrer_name}) and referral marked as registered."
+      else
+        redirect_to admin_referral_path(@referral), alert: "Could not create customer: #{customer.errors.full_messages.to_sentence}"
+      end
     end
   end
 
@@ -172,6 +178,19 @@ class Admin::ReferralsController < ApplicationController
 
   def referral_params
     params.require(:referral).permit(:status, :notes)
+  end
+
+  # Converts a referral's captured lead details into a real Customer record,
+  # tagged with the affiliate that referred them (for commission tracking).
+  def build_customer_from_referral(referral)
+    first_name, *rest = referral.referred_name.to_s.strip.split(/\s+/)
+    Customer.new(
+      first_name: first_name.presence || referral.referred_name,
+      last_name: rest.join(' '),
+      email: referral.referred_email,
+      mobile: referral.referred_mobile,
+      referred_by_affiliate_id: referral.affiliate_id
+    )
   end
 
   def calculate_conversion_rate(start_date = nil)

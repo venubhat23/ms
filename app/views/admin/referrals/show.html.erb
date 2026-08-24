@@ -527,15 +527,23 @@
         <% referred_first, *referred_rest = @referral.referred_name.to_s.strip.split(/\s+/) %>
         <%= form_with url: mark_registered_admin_referral_path(@referral), method: :patch, local: true do |form| %>
           <div class="modal-body">
+            <% exact_match = matching_customers.find { |c| c.email == @referral.referred_email || c.mobile == @referral.referred_mobile } %>
+            <% default_existing = exact_match.present? %>
             <% if matching_customers.any? %>
+              <% if exact_match %>
+                <div class="alert alert-warning py-2 small mb-3">
+                  <i class="bi bi-exclamation-triangle me-1"></i>
+                  <strong><%= exact_match.display_name %></strong> already has an account with this email or mobile — defaulting to link instead of creating a duplicate.
+                </div>
+              <% end %>
               <div class="mb-3">
                 <div class="form-check">
-                  <input class="form-check-input" type="radio" name="registration_mode" id="modeNew" value="new" checked
+                  <input class="form-check-input" type="radio" name="registration_mode" id="modeNew" value="new" <%= 'checked' unless default_existing %>
                          onchange="document.getElementById('newCustomerFields').style.display='block'; document.getElementById('existingCustomerFields').style.display='none';">
                   <label class="form-check-label" for="modeNew">Create a new customer</label>
                 </div>
                 <div class="form-check">
-                  <input class="form-check-input" type="radio" name="registration_mode" id="modeExisting" value="existing"
+                  <input class="form-check-input" type="radio" name="registration_mode" id="modeExisting" value="existing" <%= 'checked' if default_existing %>
                          onchange="document.getElementById('newCustomerFields').style.display='none'; document.getElementById('existingCustomerFields').style.display='block';">
                   <label class="form-check-label" for="modeExisting">Link to an existing customer</label>
                 </div>
@@ -544,7 +552,7 @@
               <input type="hidden" name="registration_mode" value="new">
             <% end %>
 
-            <div id="newCustomerFields">
+            <div id="newCustomerFields" style="<%= 'display: none;' if default_existing %>">
               <p class="mb-2 text-muted small">Review the details captured on this referral, then create the customer:</p>
               <div class="row g-2 mb-2">
                 <div class="col-6">
@@ -567,12 +575,12 @@
               <div class="form-text">Tagged as referred by <%= @referral.referrer_name %>.</div>
             </div>
 
-            <div id="existingCustomerFields" style="display: none;">
+            <div id="existingCustomerFields" style="<%= 'display: none;' unless default_existing %>">
               <label class="form-label">Customer</label>
               <select name="customer_id" class="form-select">
                 <option value="">Select customer</option>
                 <% matching_customers.each do |c| %>
-                  <option value="<%= c.id %>"><%= c.display_name %> (<%= c.mobile %>)</option>
+                  <option value="<%= c.id %>" <%= 'selected' if exact_match && c.id == exact_match.id %>><%= c.display_name %> (<%= c.mobile %>)</option>
                 <% end %>
               </select>
             </div>

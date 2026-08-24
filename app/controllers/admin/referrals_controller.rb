@@ -73,6 +73,12 @@ class Admin::ReferralsController < ApplicationController
       if customer.save
         @referral.mark_as_registered!(customer)
         redirect_to admin_referral_path(@referral), notice: "New customer \"#{customer.display_name}\" created (referred by #{@referral.referrer_name}) and referral marked as registered."
+      elsif (existing = find_conflicting_customer(customer))
+        # The email/mobile just entered already belongs to a real account —
+        # link to it instead of bouncing the admin back with a bare
+        # validation error for something they can't fix by retrying.
+        @referral.mark_as_registered!(existing)
+        redirect_to admin_referral_path(@referral), notice: "\"#{existing.display_name}\" already has an account with that email/mobile — linked the referral to it instead of creating a duplicate."
       else
         redirect_to admin_referral_path(@referral), alert: "Could not create customer: #{customer.errors.full_messages.to_sentence}"
       end
@@ -194,6 +200,17 @@ class Admin::ReferralsController < ApplicationController
       mobile: params[:customer_mobile].presence || referral.referred_mobile,
       referred_by_affiliate_id: referral.affiliate_id
     )
+  end
+
+  # When customer creation fails only on email/mobile uniqueness, the account
+  # it collided with is the account we actually want to link — find it.
+  def find_conflicting_customer(customer)
+    scopes = []
+    scopes << Customer.where(email: customer.email) if customer.errors.of_kind?(:email, :taken) && customer.email.present?
+    scopes << Customer.where(mobile: customer.mobile) if customer.errors.of_kind?(:mobile, :taken) && customer.mobile.present?
+    return nil if scopes.empty?
+
+    scopes.reduce { |combined, scope| combined.or(scope) }.first
   end
 
   def calculate_conversion_rate(start_date = nil)

@@ -423,12 +423,12 @@
                 <div class="mb-3">
                   <div class="form-check">
                     <input class="form-check-input" type="radio" name="registration_mode" id="modeNew<%= referral.id %>" value="new" checked
-                           onchange="document.getElementById('newCustomerFields<%= referral.id %>').style.display='block'; document.getElementById('existingCustomerFields<%= referral.id %>').style.display='none';">
+                           onchange="toggleReferralRegistrationMode(<%= referral.id %>, 'new')">
                     <label class="form-check-label" for="modeNew<%= referral.id %>">Create a new customer</label>
                   </div>
                   <div class="form-check">
                     <input class="form-check-input" type="radio" name="registration_mode" id="modeExisting<%= referral.id %>" value="existing"
-                           onchange="document.getElementById('newCustomerFields<%= referral.id %>').style.display='none'; document.getElementById('existingCustomerFields<%= referral.id %>').style.display='block';">
+                           onchange="toggleReferralRegistrationMode(<%= referral.id %>, 'existing')">
                     <label class="form-check-label" for="modeExisting<%= referral.id %>">Link to an existing customer</label>
                   </div>
                 </div>
@@ -441,7 +441,7 @@
                 <div class="row g-2 mb-2">
                   <div class="col-6">
                     <label class="form-label">First Name</label>
-                    <input type="text" name="customer_first_name" class="form-control" value="<%= referred_first %>" required>
+                    <input type="text" name="customer_first_name" id="customerFirstName<%= referral.id %>" class="form-control" value="<%= referred_first %>" required>
                   </div>
                   <div class="col-6">
                     <label class="form-label">Last Name</label>
@@ -454,7 +454,7 @@
                 </div>
                 <div class="mb-2">
                   <label class="form-label">Mobile</label>
-                  <input type="text" name="customer_mobile" class="form-control" value="<%= referral.referred_mobile %>" required>
+                  <input type="text" name="customer_mobile" id="customerMobile<%= referral.id %>" class="form-control" value="<%= referral.referred_mobile %>" required>
                 </div>
                 <div class="form-text">Tagged as referred by <%= referral.referrer_name %>.</div>
               </div>
@@ -479,3 +479,29 @@
     </div>
   <% end %>
 <% end %>
+
+<script>
+// Switches the "Mark as Registered" modal between creating a new customer
+// and linking an existing one. Clearing `required` on the hidden new-customer
+// fields when "existing" is selected matters: a required field inside a
+// display:none container can't be focused for native validation, which
+// silently blocks form submission instead of showing any error.
+function toggleReferralRegistrationMode(referralId, mode) {
+  const newFields = document.getElementById('newCustomerFields' + referralId);
+  const existingFields = document.getElementById('existingCustomerFields' + referralId);
+  const firstNameField = document.getElementById('customerFirstName' + referralId);
+  const mobileField = document.getElementById('customerMobile' + referralId);
+
+  if (mode === 'existing') {
+    if (newFields) newFields.style.display = 'none';
+    if (existingFields) existingFields.style.display = 'block';
+    if (firstNameField) firstNameField.removeAttribute('required');
+    if (mobileField) mobileField.removeAttribute('required');
+  } else {
+    if (newFields) newFields.style.display = 'block';
+    if (existingFields) existingFields.style.display = 'none';
+    if (firstNameField) firstNameField.setAttribute('required', 'required');
+    if (mobileField) mobileField.setAttribute('required', 'required');
+  }
+}
+</script>

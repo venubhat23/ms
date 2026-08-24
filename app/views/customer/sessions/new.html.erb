@@ -1,11 +1,67 @@
 <% content_for :title, 'Customer Login' %>
 
+<style>
+  /* Scoped to the login page only (this <style> block is only ever rendered
+     as part of this view) — purely visual touches layered on top of the
+     shared customer_auth palette/classes, same treatment as the register page. */
+  .welcome-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-mid) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(93, 130, 51, 0.25);
+    animation: welcomePulse 2.4s ease-in-out infinite;
+  }
+
+  .welcome-icon i {
+    font-size: 1.8rem;
+    color: white;
+  }
+
+  @keyframes welcomePulse {
+    0%, 100% { box-shadow: 0 8px 20px rgba(93, 130, 51, 0.25); }
+    50% { box-shadow: 0 8px 28px rgba(93, 130, 51, 0.4); }
+  }
+
+  .login-form .input-group {
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .login-form .input-group:focus-within {
+    box-shadow: 0 4px 16px rgba(93, 130, 51, 0.18);
+    transform: translateY(-1px);
+  }
+
+  .login-form .form-options {
+    background: var(--green-light);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-top: 4px;
+  }
+
+  .login-form .forgot-link {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .login-form .forgot-link:hover {
+    text-decoration: underline;
+  }
+</style>
+
 <div class="welcome-section">
+  <div class="welcome-icon">
+    <i class="bi bi-hand-thumbs-up"></i>
+  </div>
   <h1 class="welcome-title">Welcome Back!</h1>
   <p class="welcome-subtitle">Sign in to continue to your organic journey with Marali Santhe</p>
 </div>
 
-<%= form_with url: customer_login_path, method: :post, local: true, class: "needs-validation", novalidate: true do |f| %>
+<%= form_with url: customer_login_path, method: :post, local: true, class: "needs-validation login-form", novalidate: true do |f| %>
   <div class="form-group">
     <div class="input-group">
       <span class="input-group-text"><i class="bi bi-person-circle"></i></span>
@@ -37,7 +93,7 @@
     <% end %>
   </div>
 
-  <div class="d-grid mb-4">
+  <div class="d-grid mb-4 mt-4">
     <%= f.submit "Sign In to Account", class: "btn btn-login" %>
   </div>
 <% end %>
@@ -48,7 +104,7 @@
   </div>
   <p class="mb-0">
     New to Marali Santhe?
-    <%= link_to customer_register_path do %>
+    <%= link_to customer_register_path, class: "register-link" do %>
       <i class="bi bi-person-plus me-1"></i>Create an account
     <% end %>
   </p>

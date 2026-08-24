@@ -1,11 +1,157 @@
 <% content_for :title, 'Customer Registration' %>
 
+<style>
+  /* Scoped to the registration page only (this <style> block is only ever
+     rendered as part of this view) — widens the shared auth card, since
+     login's default 600px feels cramped for this many fields, and adds a
+     few purely visual touches on top of the shared customer_auth palette. */
+  .login-card {
+    max-width: 720px;
+  }
+
+  .welcome-text {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .welcome-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, rgba(212, 168, 83, 0.15) 0%, rgba(212, 168, 83, 0.08) 100%);
+    border: 1px solid rgba(212, 168, 83, 0.35);
+    color: var(--gold);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+
+  .form-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--green-dark);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin: 26px 0 14px;
+  }
+
+  .form-section-title:first-of-type {
+    margin-top: 4px;
+  }
+
+  .form-section-title i {
+    font-size: 0.95rem;
+    color: var(--gold);
+  }
+
+  .form-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(93, 130, 51, 0.25), transparent);
+  }
+
+  .register-form .input-group {
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .register-form .input-group:focus-within {
+    box-shadow: 0 4px 16px rgba(93, 130, 51, 0.18);
+    transform: translateY(-1px);
+  }
+
+  .register-form .input-group-text {
+    min-width: 46px;
+  }
+
+  .optional-tag {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.8em;
+  }
+
+  .referral-box {
+    background: linear-gradient(135deg, rgba(212, 168, 83, 0.1) 0%, rgba(93, 130, 51, 0.06) 100%);
+    border: 1px dashed rgba(212, 168, 83, 0.45);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+
+  .referral-box .form-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--green-dark);
+    font-weight: 600;
+  }
+
+  .terms-check {
+    background: var(--green-light);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+  }
+
+  .btn-create-account {
+    background: linear-gradient(135deg, var(--green) 0%, var(--green-mid) 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 14px 24px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.4s ease;
+    width: 100%;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-create-account::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    transition: left 0.6s ease;
+  }
+
+  .btn-create-account:hover::before {
+    left: 100%;
+  }
+
+  .btn-create-account:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(93, 130, 51, 0.3);
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+    color: var(--dark);
+  }
+
+  @media (max-width: 480px) {
+    .form-section-title {
+      font-size: 0.75rem;
+    }
+  }
+</style>
+
 <div class="welcome-text">
+  <span class="welcome-badge"><i class="bi bi-stars"></i>New Here?</span>
   <h1 class="welcome-title">Join Marali Santhe</h1>
   <p class="welcome-subtitle">Create your account and start your organic journey</p>
 </div>
 
-<%= form_with model: @customer, url: customer_register_path, local: true, class: "needs-validation", novalidate: true do |f| %>
+<%= form_with model: @customer, url: customer_register_path, local: true, class: "needs-validation register-form", novalidate: true do |f| %>
   <% if @customer&.errors&.any? %>
     <div class="alert alert-danger">
       <h6><i class="bi bi-exclamation-triangle me-2"></i>Please fix the following errors:</h6>
@@ -16,6 +162,8 @@
       </ul>
     </div>
   <% end %>
+
+  <div class="form-section-title"><i class="bi bi-person-vcard"></i>Personal Details</div>
 
   <div class="row">
     <div class="col-md-6">
@@ -52,6 +200,8 @@
     </div>
   </div>
 
+  <div class="form-section-title"><i class="bi bi-headset"></i>Contact Information</div>
+
   <div class="form-group">
     <%= f.label :email, "Email Address", class: "form-label" %>
     <div class="input-group">
@@ -80,6 +230,8 @@
       </div>
     </div>
   </div>
+
+  <div class="form-section-title"><i class="bi bi-shield-lock"></i>Secure Your Account</div>
 
   <div class="form-group">
     <%= f.label :password, "Password", class: "form-label" %>
@@ -110,6 +262,8 @@
     </div>
   </div>
 
+  <div class="form-section-title"><i class="bi bi-geo-alt"></i>Additional Details <span class="optional-tag">&nbsp;(optional)</span></div>
+
   <div class="form-group">
     <%= f.label :address, "Address (Optional)", class: "form-label" %>
     <div class="input-group">
@@ -121,17 +275,16 @@
     </div>
   </div>
 
-  <div class="form-group">
-    <%= label_tag :customer_affiliate_code, "Referral / Affiliate Code (Optional)", class: "form-label" %>
-    <div class="input-group">
-      <span class="input-group-text"><i class="bi bi-gift"></i></span>
-      <%= text_field_tag "customer[affiliate_code]", session[:referral_affiliate_code],
-                        class: "form-control",
-                        placeholder: "Have a referral code? Enter it here" %>
-    </div>
+  <div class="referral-box">
+    <%= label_tag :customer_affiliate_code, "Referral / Affiliate Code", class: "form-label" do %>
+      <i class="bi bi-gift"></i>Referral / Affiliate Code
+    <% end %>
+    <%= text_field_tag "customer[affiliate_code]", session[:referral_affiliate_code],
+                      class: "form-control",
+                      placeholder: "Have a referral code? Enter it here" %>
   </div>
 
-  <div class="form-group">
+  <div class="terms-check">
     <div class="form-check">
       <input type="checkbox" class="form-check-input" id="terms" required>
       <label class="form-check-label" for="terms">
@@ -144,7 +297,7 @@
   </div>
 
   <div class="d-grid gap-2 mb-4">
-    <%= f.submit "Create Account", class: "btn btn-primary btn-lg" %>
+    <%= f.submit "Create Account", class: "btn-create-account" %>
   </div>
 <% end %>
 
@@ -154,11 +307,11 @@
   </div>
   <p class="mb-0">
     Already have an account?
-    <%= link_to customer_login_path do %>
+    <%= link_to customer_login_path, class: "register-link" do %>
       <i class="bi bi-box-arrow-in-right me-1"></i>Sign in here
     <% end %>
   </p>
-  <div class="organic-features mt-4">
+  <div class="feature-badges mt-4">
     <div class="feature-badge">
       <i class="bi bi-award"></i>
       <span>100% Natural</span>

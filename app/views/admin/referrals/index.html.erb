@@ -358,12 +358,17 @@
                     <%= link_to admin_referral_path(referral), class: "ref-action-icon view", title: "View Details" do %>
                       <i class="bi bi-eye"></i>
                     <% end %>
+                    <% if referral.customer.present? %>
+                      <%= link_to admin_customer_path(referral.customer), class: "ref-action-icon view", title: "View Customer" do %>
+                        <i class="bi bi-person-lines-fill"></i>
+                      <% end %>
+                    <% end %>
                     <% if referral.status == 'pending' %>
                       <%= link_to register_admin_referral_path(referral), class: "ref-action-icon register", title: "Mark as Registered" do %>
                         <i class="bi bi-person-check"></i>
                       <% end %>
                     <% end %>
-                    <% if referral.status == 'registered' %>
+                    <% if referral.status == 'registered' && referral.customer.blank? %>
                       <%= link_to mark_converted_admin_referral_path(referral),
                           data: { turbo_method: :patch, turbo_confirm: "Mark this referral as converted?" },
                           class: "ref-action-icon convert", title: "Mark as Converted" do %>

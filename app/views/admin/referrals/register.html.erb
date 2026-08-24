@@ -21,21 +21,28 @@
   padding: 1.5rem;
 }
 
-/* Mode toggle is CSS-only (no JS): "new" fields show by default (it's the
-   default-checked radio, and the only option when there are no matching
-   customers to link); selecting "existing" flips both via :has() on the
-   shared container. This can't be silently broken by a JS timing/stacking
-   bug the way the old modal was. A plain "~" sibling selector can't reach
-   across the .form-check wrapper divs around each radio, hence :has(). */
+/* Mode toggle is CSS-only (no JS): whichever radio is server-rendered
+   :checked (new, or existing when the referral exactly matches an existing
+   customer) reveals its field block via :has() on the shared container.
+   This can't be silently broken by a JS timing/stacking bug the way the old
+   modal was. A plain "~" sibling selector can't reach across the
+   .form-check wrapper divs around each radio, hence :has(). */
+#newCustomerFields,
 #existingCustomerFields {
   display: none;
 }
 
-.register-card-body:has(#modeExisting:checked) #newCustomerFields {
-  display: none;
+.register-card-body:has(#modeNew:checked) #newCustomerFields {
+  display: block;
 }
 
 .register-card-body:has(#modeExisting:checked) #existingCustomerFields {
+  display: block;
+}
+
+/* No matching customers: only the hidden "new" field is rendered, so there's
+   no #modeNew radio to key off of — show the new-customer fields directly. */
+.register-card-body:not(:has(#modeNew)):not(:has(#modeExisting)) #newCustomerFields {
   display: block;
 }
 </style>
@@ -56,13 +63,19 @@
     <%= form_with url: mark_registered_admin_referral_path(@referral), method: :patch, local: true do |form| %>
       <div class="register-card-body">
         <% if @matching_customers.any? %>
+          <% if @exact_match %>
+            <div class="alert alert-warning py-2 small mb-3">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              <strong><%= @exact_match.display_name %></strong> already has an account with this email or mobile — defaulting to link instead of creating a duplicate.
+            </div>
+          <% end %>
           <div class="mb-3">
             <div class="form-check">
-              <%= form.radio_button :registration_mode, "new", checked: true, id: "modeNew", class: "form-check-input" %>
+              <%= form.radio_button :registration_mode, "new", checked: !@default_existing, id: "modeNew", class: "form-check-input" %>
               <label class="form-check-label" for="modeNew">Create a new customer</label>
             </div>
             <div class="form-check">
-              <%= form.radio_button :registration_mode, "existing", id: "modeExisting", class: "form-check-input" %>
+              <%= form.radio_button :registration_mode, "existing", checked: @default_existing, id: "modeExisting", class: "form-check-input" %>
               <label class="form-check-label" for="modeExisting">Link to an existing customer</label>
             </div>
           </div>
@@ -98,7 +111,7 @@
           <select name="customer_id" class="form-select">
             <option value="">Select customer</option>
             <% @matching_customers.each do |c| %>
-              <option value="<%= c.id %>"><%= c.display_name %> (<%= c.mobile %>)</option>
+              <option value="<%= c.id %>" <%= 'selected' if @exact_match && c.id == @exact_match.id %>><%= c.display_name %> (<%= c.mobile %>)</option>
             <% end %>
           </select>
         </div>

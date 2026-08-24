@@ -210,6 +210,11 @@
   color: white;
 }
 
+.btn-primary-modern {
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  color: white;
+}
+
 .btn-warning-modern {
   background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
   color: white;
@@ -467,15 +472,21 @@
       Admin Actions
     </h6>
     <div class="action-buttons">
-      <% if @referral.status == 'pending' %>
-        <button type="button" class="btn-modern btn-success-modern"
-                data-bs-toggle="modal" data-bs-target="#markRegisteredModal">
-          <i class="bi bi-person-check"></i>
-          Mark as Registered
-        </button>
+      <% if @referral.customer.present? %>
+        <%= link_to admin_customer_path(@referral.customer), class: "btn-modern btn-primary-modern" do %>
+          <i class="bi bi-person-lines-fill"></i>
+          View Customer
+        <% end %>
       <% end %>
 
-      <% if @referral.status == 'registered' %>
+      <% if @referral.status == 'pending' %>
+        <%= link_to register_admin_referral_path(@referral), class: "btn-modern btn-success-modern" do %>
+          <i class="bi bi-person-check"></i>
+          Mark as Registered
+        <% end %>
+      <% end %>
+
+      <% if @referral.status == 'registered' && @referral.customer.blank? %>
         <%= link_to mark_converted_admin_referral_path(@referral),
             data: { turbo_method: :patch, turbo_confirm: "Mark this referral as converted?" },
             class: "btn-modern btn-success-modern" do %>
@@ -508,92 +519,6 @@
     z-index: 9999 !important;
   }
 </style>
-
-<!-- Mark as Registered Modal -->
-<% if @referral.status == 'pending' %>
-  <div class="modal fade" id="markRegisteredModal" tabindex="-1" style="z-index: 10000;">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="bi bi-person-check me-2"></i>
-            Mark as Registered
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <% matching_customers = Customer.where("email ILIKE ? OR mobile LIKE ?",
-              "%#{@referral.referred_email}%", "%#{@referral.referred_mobile}%")
-              .order(:first_name, :last_name) %>
-        <% referred_first, *referred_rest = @referral.referred_name.to_s.strip.split(/\s+/) %>
-        <%= form_with url: mark_registered_admin_referral_path(@referral), method: :patch, local: true do |form| %>
-          <div class="modal-body">
-            <% exact_match = matching_customers.find { |c| c.email == @referral.referred_email || c.mobile == @referral.referred_mobile } %>
-            <% default_existing = exact_match.present? %>
-            <% if matching_customers.any? %>
-              <% if exact_match %>
-                <div class="alert alert-warning py-2 small mb-3">
-                  <i class="bi bi-exclamation-triangle me-1"></i>
-                  <strong><%= exact_match.display_name %></strong> already has an account with this email or mobile — defaulting to link instead of creating a duplicate.
-                </div>
-              <% end %>
-              <div class="mb-3">
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="registration_mode" id="modeNew" value="new" <%= 'checked' unless default_existing %>
-                         onchange="document.getElementById('newCustomerFields').style.display='block'; document.getElementById('existingCustomerFields').style.display='none';">
-                  <label class="form-check-label" for="modeNew">Create a new customer</label>
-                </div>
-                <div class="form-check">
-                  <input class="form-check-input" type="radio" name="registration_mode" id="modeExisting" value="existing" <%= 'checked' if default_existing %>
-                         onchange="document.getElementById('newCustomerFields').style.display='none'; document.getElementById('existingCustomerFields').style.display='block';">
-                  <label class="form-check-label" for="modeExisting">Link to an existing customer</label>
-                </div>
-              </div>
-            <% else %>
-              <input type="hidden" name="registration_mode" value="new">
-            <% end %>
-
-            <div id="newCustomerFields" style="<%= 'display: none;' if default_existing %>">
-              <p class="mb-2 text-muted small">Review the details captured on this referral, then create the customer:</p>
-              <div class="row g-2 mb-2">
-                <div class="col-6">
-                  <label class="form-label">First Name</label>
-                  <input type="text" name="customer_first_name" class="form-control" value="<%= referred_first %>" required>
-                </div>
-                <div class="col-6">
-                  <label class="form-label">Last Name</label>
-                  <input type="text" name="customer_last_name" class="form-control" value="<%= referred_rest.join(' ') %>">
-                </div>
-              </div>
-              <div class="mb-2">
-                <label class="form-label">Email</label>
-                <input type="email" name="customer_email" class="form-control" value="<%= @referral.referred_email %>">
-              </div>
-              <div class="mb-2">
-                <label class="form-label">Mobile</label>
-                <input type="text" name="customer_mobile" class="form-control" value="<%= @referral.referred_mobile %>" required>
-              </div>
-              <div class="form-text">Tagged as referred by <%= @referral.referrer_name %>.</div>
-            </div>
-
-            <div id="existingCustomerFields" style="<%= 'display: none;' unless default_existing %>">
-              <label class="form-label">Customer</label>
-              <select name="customer_id" class="form-select">
-                <option value="">Select customer</option>
-                <% matching_customers.each do |c| %>
-                  <option value="<%= c.id %>" <%= 'selected' if exact_match && c.id == exact_match.id %>><%= c.display_name %> (<%= c.mobile %>)</option>
-                <% end %>
-              </select>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <%= form.submit "Mark as Registered", class: "btn btn-success" %>
-          </div>
-        <% end %>
-      </div>
-    </div>
-  </div>
-<% end %>
 
 <!-- Edit Notes Modal -->
 <div class="modal fade" id="editNotesModal" tabindex="-1" style="z-index: 10000;">

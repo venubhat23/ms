@@ -76,6 +76,11 @@ class Admin::ReferralsController < ApplicationController
     @matching_customers = Customer.where("email ILIKE ? OR mobile LIKE ?",
                                           "%#{@referral.referred_email}%", "%#{@referral.referred_mobile}%")
                                    .order(:first_name, :last_name)
+    # An exact email/mobile match means this "referred" person already has an
+    # account — default to linking it instead of letting the admin create a
+    # duplicate customer by mistake.
+    @exact_match = @matching_customers.find { |c| c.email == @referral.referred_email || c.mobile == @referral.referred_mobile }
+    @default_existing = @exact_match.present?
     @referred_first, *rest = @referral.referred_name.to_s.strip.split(/\s+/)
     @referred_last = rest.join(' ')
   end

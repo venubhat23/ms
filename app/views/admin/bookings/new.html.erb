@@ -2386,9 +2386,12 @@ function updateStatusPreview() {
   statusPreview.style.display = 'block';
 }
 
-// Booking loader functionality
-function showBookingLoader() {
-  const submitBtn = document.getElementById('completeBookingBtn');
+// Booking loader functionality. `clickedBtn` is whichever of the three
+// submit buttons was actually pressed (there can be more than one visible
+// candidate now); falls back to the single button for any caller that
+// doesn't pass one.
+function showBookingLoader(clickedBtn) {
+  const submitBtn = clickedBtn || document.getElementById('completeBookingBtn');
   const btnText = submitBtn.querySelector('.btn-text');
   const btnLoading = submitBtn.querySelector('.btn-loading');
 
@@ -2397,9 +2400,15 @@ function showBookingLoader() {
     btnText.classList.add('d-none');
     btnLoading.classList.remove('d-none');
 
-    // Disable the button to prevent double submission
-    submitBtn.disabled = true;
-    submitBtn.classList.add('btn-loading-state');
+    // Disable every submit button to prevent double submission (only one is
+    // visible at a time, but disable them all defensively).
+    ['completeBookingBtn', 'completeBookingWalkinBtn', 'completeBookingCreateCustomerBtn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.disabled = true;
+        if (btn === submitBtn) btn.classList.add('btn-loading-state');
+      }
+    });
 
     // Disable the back button during processing
     const backBtn = document.querySelector('button[onclick="showProductsView()"]');
@@ -2582,8 +2591,10 @@ document.addEventListener('DOMContentLoaded', function() {
       // IMPORTANT: Ensure cart items are added to form before submission
       ensureCartItemsInForm();
 
-      // Show loading state
-      showBookingLoader();
+      // Show loading state on whichever button was actually clicked
+      // (e.submitter — the standard way to know which submit button
+      // triggered a form's submit event when more than one exists).
+      showBookingLoader(e.submitter);
     });
   }
 });
@@ -3634,16 +3645,26 @@ function stopCamera() {
   font-size: 0.9rem;
 }
 
-#completeBookingBtn {
+#completeBookingBtn,
+#completeBookingCreateCustomerBtn {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
   transition: all 0.2s ease;
 }
 
-#completeBookingBtn:hover:not(:disabled) {
+#completeBookingBtn:hover:not(:disabled),
+#completeBookingCreateCustomerBtn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(16, 185, 129, 0.35);
+}
+
+#completeBookingWalkinBtn {
+  transition: all 0.2s ease;
+}
+
+#completeBookingWalkinBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
 }
 
 /* Order summary card */

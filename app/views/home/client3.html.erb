@@ -118,11 +118,6 @@ nav{display:flex;align-items:center;gap:28px;padding:16px 48px;background:var(--
 .btn-add:hover{background:var(--green-dark)}
 .btn-add.out{background:#e2e2de;color:#999;cursor:not-allowed}
 
-/* ── CATEGORY INTRO TILE (first card in each carousel) ── */
-.cintro{flex:0 0 190px;border-radius:16px;background:var(--green-pale);display:flex;flex-direction:column;justify-content:center;padding:24px;position:relative;overflow:hidden}
-.cintro h4{font-family:'Playfair Display',serif;font-size:20px;color:var(--green-dark);font-weight:800;line-height:1.2}
-.cintro .cleaf{font-size:30px;margin-bottom:10px;display:block}
-
 /* ── CERTIFICATIONS ── */
 .certs{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;max-width:1200px;margin:0 auto 20px;padding:0 28px}
 .cert-tile{width:118px;height:88px;background:var(--white);border:1px solid var(--cream-dark);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:8px}
@@ -311,59 +306,58 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
 <p class="sec-sub">Find exactly what your wellness routine needs</p>
 <% if @products_by_category.present? %>
   <div class="pill-row">
-    <% @products_by_category.keys.each_with_index do |cat_name, idx| %>
-      <a href="#cat-<%= cat_name.parameterize %>" class="pill-btn<%= ' active' if idx == 0 %>"><%= cat_name %></a>
+    <button type="button" class="pill-btn active" data-cat="all" onclick="selectCategory(this)">All</button>
+    <% @products_by_category.keys.each do |cat_name| %>
+      <button type="button" class="pill-btn" data-cat="<%= cat_name.parameterize %>" onclick="selectCategory(this)"><%= cat_name %></button>
     <% end %>
   </div>
-<% end %>
 
-<% @products_by_category.each do |category_name, products| %>
-  <div id="cat-<%= category_name.parameterize %>" class="carousel-wrap">
-    <button class="carousel-arrow prev" onclick="scrollRow('row-<%= category_name.parameterize %>',-1)" aria-label="Scroll left">‹</button>
-    <div class="carousel-row" id="row-<%= category_name.parameterize %>">
-      <div class="cintro">
-        <span class="cleaf">🌿</span>
-        <h4><%= category_name %></h4>
-      </div>
-      <% products.each do |product| %>
-        <div class="pcard" data-name="<%= j product.name.downcase %>">
-          <div class="pcard-img">
-            <% if product.main_image_url %>
-              <%= image_tag product.main_image_url, alt: product.name %>
-            <% else %>
-              <span class="no-image">🌿</span>
-            <% end %>
-            <% if !product.in_stock? %>
-              <span class="ptag oos">Out of Stock</span>
-            <% elsif @best_seller_ids.include?(product.id) %>
-              <span class="ptag best">★ Bestseller</span>
-            <% elsif @new_arrival_ids.include?(product.id) %>
-              <span class="ptag new">🆕 New</span>
-            <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
-              <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
-            <% end %>
-          </div>
-          <div class="pcard-body">
-            <h4 title="<%= product.name %>"><%= product.name %></h4>
-            <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
-            <div class="pprice">
-              <% if product.discounted? %>
-                <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+  <% [['all', 'row-cat-all', @products_by_category.values.flatten.uniq.first(20)]].concat(
+       @products_by_category.map { |category_name, products| [category_name.parameterize, "row-cat-#{category_name.parameterize}", products] }
+     ).each do |cat_slug, row_id, products| %>
+    <div id="cat-panel-<%= cat_slug %>" class="carousel-wrap cat-panel" data-cat="<%= cat_slug %>"<%= ' style="display:none"' if cat_slug != 'all' %>>
+      <button class="carousel-arrow prev" onclick="scrollRow('<%= row_id %>',-1)" aria-label="Scroll left">‹</button>
+      <div class="carousel-row" id="<%= row_id %>">
+        <% products.each do |product| %>
+          <div class="pcard" data-name="<%= j product.name.downcase %>">
+            <div class="pcard-img">
+              <% if product.main_image_url %>
+                <%= image_tag product.main_image_url, alt: product.name %>
               <% else %>
-                ₹<%= product.selling_price %>
+                <span class="no-image">🌿</span>
+              <% end %>
+              <% if !product.in_stock? %>
+                <span class="ptag oos">Out of Stock</span>
+              <% elsif @best_seller_ids.include?(product.id) %>
+                <span class="ptag best">★ Bestseller</span>
+              <% elsif @new_arrival_ids.include?(product.id) %>
+                <span class="ptag new">🆕 New</span>
+              <% elsif product.discounted? && product.discount_percentage.to_f > 0 %>
+                <span class="ptag discount"><%= product.discount_percentage.to_i %>% OFF</span>
               <% end %>
             </div>
-            <% if product.in_stock? %>
-              <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
-            <% else %>
-              <button class="btn-add out" disabled>Out of Stock</button>
-            <% end %>
+            <div class="pcard-body">
+              <h4 title="<%= product.name %>"><%= product.name %></h4>
+              <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+              <div class="pprice">
+                <% if product.discounted? %>
+                  <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+                <% else %>
+                  ₹<%= product.selling_price %>
+                <% end %>
+              </div>
+              <% if product.in_stock? %>
+                <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+              <% else %>
+                <button class="btn-add out" disabled>Out of Stock</button>
+              <% end %>
+            </div>
           </div>
-        </div>
-      <% end %>
+        <% end %>
+      </div>
+      <button class="carousel-arrow next" onclick="scrollRow('<%= row_id %>',1)" aria-label="Scroll right">›</button>
     </div>
-    <button class="carousel-arrow next" onclick="scrollRow('row-<%= category_name.parameterize %>',1)" aria-label="Scroll right">›</button>
-  </div>
+  <% end %>
 <% end %>
 
 <!-- BEST SELLERS -->
@@ -656,6 +650,28 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
     if (row) row.scrollBy({ left: dir * 320, behavior: 'smooth' });
   }
 
+  // ── CATEGORY TABS ── clicking a pill shows only that category's product
+  // panel (or all of them merged, for "All") instead of stacking every
+  // category's carousel on the page at once.
+  function applyActiveCategoryVisibility(){
+    const activePill = document.querySelector('.pill-row .pill-btn.active');
+    const cat = activePill ? activePill.dataset.cat : 'all';
+    document.querySelectorAll('.cat-panel').forEach(panel => {
+      panel.style.display = panel.dataset.cat === cat ? '' : 'none';
+    });
+  }
+
+  function selectCategory(btn){
+    document.querySelectorAll('.pill-row .pill-btn').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    applyActiveCategoryVisibility();
+
+    // Panels hidden at load never got a real scrollWidth, so their arrow
+    // visibility was never computed correctly — reuse the existing
+    // resize-driven recalculation now that the panel is visible.
+    window.dispatchEvent(new Event('resize'));
+  }
+
   // ── PRODUCT ROW AUTO-SCROLL ── every carousel-row (categories, best
   // sellers, all products, new arrivals) auto-advances right-to-left by
   // one "page" every 30s, looping back to the start at the end. Pauses
@@ -767,7 +783,11 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
 
     if (!query) {
       cards.forEach(c => { c.style.display = ''; });
-      document.querySelectorAll('.carousel-wrap').forEach(w => { w.style.display = ''; });
+      // Non-category carousels (best sellers, full collection, new arrivals)
+      // always go back to visible; category panels defer to whichever tab
+      // is active instead of all reappearing at once.
+      document.querySelectorAll('.carousel-wrap:not(.cat-panel)').forEach(w => { w.style.display = ''; });
+      applyActiveCategoryVisibility();
       banner.style.display = 'none';
       noResults.style.display = 'none';
       return 0;

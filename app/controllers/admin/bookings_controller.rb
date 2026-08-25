@@ -176,15 +176,18 @@ class Admin::BookingsController < Admin::ApplicationController
     # Only set booking_date to current time if not provided in params
     @booking.booking_date = @booking.booking_date.present? ? @booking.booking_date : Time.current
 
-    # No customer picked from search/quick-add, and this isn't a franchise
-    # booking (whose customer_name/phone are the franchise's own contact
-    # info, not a real customer) — create the customer from what was typed
-    # so "Complete Booking" alone is enough, matching the button's label
-    # (see updateCompleteBookingButtonText() in the view). Look up by mobile
-    # first: Customer#mobile is unique, so re-submitting with a phone that
-    # already exists must link to it, not fail creation outright.
+    # No customer picked from search/quick-add: the admin explicitly chose
+    # "Create New Customer & Complete Booking" (customer_mode=create_customer)
+    # over "Complete Booking (Walk-in Customer)" (customer_mode=walkin, or
+    # any other value — walk-in stays the default so the booking still saves
+    # with no linked Customer if this param is ever missing). Franchise
+    # bookings never reach here with customer_mode=create_customer, since
+    # they submit via the single button, which sends no customer_mode at
+    # all. Look up by mobile first: Customer#mobile is unique, so
+    # re-submitting with a phone that already exists must link to it, not
+    # fail creation outright.
     @new_customer_created = false
-    if @booking.customer_id.blank? && @booking.franchise_id.blank? && @booking.customer_phone.present?
+    if @booking.customer_id.blank? && @booking.franchise_id.blank? && @booking.customer_phone.present? && params[:customer_mode] == 'create_customer'
       customer = Customer.find_by(mobile: @booking.customer_phone)
 
       if customer.nil?

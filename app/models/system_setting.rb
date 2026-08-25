@@ -101,7 +101,7 @@ class SystemSetting < ApplicationRecord
       swatch: %w[#4a6741 #c89b3c #faf8f2]
     },
     'client3' => {
-      name: 'Client 3',
+      name: 'Greener',
       description: 'Forest green, gold & cream — scrolling offers bar, search-first nav, category carousels and a torn-paper hero, in the style of a premium herbal wellness storefront.',
       file: 'websites/client3.html',
       swatch: %w[#1f7d3f #f0b923 #f7f1e3]

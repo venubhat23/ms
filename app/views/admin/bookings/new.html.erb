@@ -375,12 +375,9 @@
                       <div class="customer-search-results" id="customerSearchResults">
                         <!-- Results will be populated here -->
                       </div>
-                      <div class="customer-search-footer d-flex gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-primary flex-fill" onclick="showAllCustomers()">
+                      <div class="customer-search-footer">
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="showAllCustomers()">
                           <i class="bi bi-people me-1"></i>Show All Customers
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-success flex-fill" onclick="openQuickAddCustomerModal(document.getElementById('customerSearchInput').value)">
-                          <i class="bi bi-person-plus me-1"></i>New Customer
                         </button>
                       </div>
                     </div>
@@ -704,15 +701,45 @@
             <%# Hidden field for discount amount %>
             <%= f.hidden_field :discount_amount, value: 0, id: 'hiddenDiscountAmount' %>
 
+            <%# create_order used to live on the single submit button (always
+                value "1", since there was only ever one submit button); now
+                that submitting can happen via any of three buttons below, it
+                moved to its own always-present hidden field. %>
+            <%= hidden_field_tag :create_order, '1' %>
+
             <%# Action Buttons %>
-            <div class="d-flex gap-2 justify-content-end">
+            <div class="d-flex gap-2 justify-content-end flex-wrap">
               <button type="button" class="btn btn-outline-secondary" onclick="showProductsView()">
                 <i class="bi bi-arrow-left me-1"></i>Back to Products
               </button>
 
-              <button type="submit" name="create_order" value="1" class="btn btn-success" id="completeBookingBtn">
+              <%# Shown once a customer is selected (search/quick-add) or for
+                  a franchise booking — customer_mode is irrelevant then. %>
+              <button type="submit" class="btn btn-success" id="completeBookingBtn">
                 <span class="btn-text">
-                  <i class="bi bi-check-circle me-1"></i><span id="completeBookingBtnLabel">Complete Booking</span>
+                  <i class="bi bi-check-circle me-1"></i>Complete Booking
+                </span>
+                <span class="btn-loading d-none">
+                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  Processing booking...
+                </span>
+              </button>
+
+              <%# Shown instead of the button above when no customer is
+                  selected yet — the admin picks whether typing a name/phone
+                  should also create a real Customer record. %>
+              <button type="submit" name="customer_mode" value="walkin" class="btn btn-outline-success" id="completeBookingWalkinBtn">
+                <span class="btn-text">
+                  <i class="bi bi-person-walking me-1"></i>Complete Booking (Walk-in Customer)
+                </span>
+                <span class="btn-loading d-none">
+                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  Processing booking...
+                </span>
+              </button>
+              <button type="submit" name="customer_mode" value="create_customer" class="btn btn-success" id="completeBookingCreateCustomerBtn">
+                <span class="btn-text">
+                  <i class="bi bi-person-plus me-1"></i>Create New Customer &amp; Complete Booking
                 </span>
                 <span class="btn-loading d-none">
                   <span class="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -1650,7 +1677,7 @@ function toggleFranchiseBooking(checkbox) {
     if (b2bDiscountSection) b2bDiscountSection.style.display = isB2B ? '' : 'none';
   }
 
-  updateCompleteBookingButtonText();
+  updateCompleteBookingButtons();
   updateCheckoutTotals();
 }
 
@@ -1978,23 +2005,27 @@ function updateHighlightedItem(items) {
   }
 }
 
-// The "Complete Booking" button's label reflects what submitting will
-// actually do server-side: with no existing customer selected, submit also
-// creates a Customer from the typed name/phone/email (see
-// Admin::BookingsController#create) before saving the booking, so the label
-// says so. Franchise bookings never create a Customer from the franchise's
-// own contact info, so they always keep the plain label.
-function updateCompleteBookingButtonText() {
-  const label = document.getElementById('completeBookingBtnLabel');
-  if (!label) return;
+// Which submit button(s) show reflects what submitting will actually do
+// server-side (see Admin::BookingsController#create): once a customer is
+// selected (search/quick-add) or this is a franchise booking, there's only
+// one sensible action — plain "Complete Booking". With no customer selected,
+// typing a name/phone alone is ambiguous, so the admin explicitly picks
+// between a walk-in (booking only, no Customer record) and creating a real
+// Customer to go with it — via which button they click (name="customer_mode").
+function updateCompleteBookingButtons() {
+  const singleBtn = document.getElementById('completeBookingBtn');
+  const walkinBtn = document.getElementById('completeBookingWalkinBtn');
+  const createCustomerBtn = document.getElementById('completeBookingCreateCustomerBtn');
+  if (!singleBtn || !walkinBtn || !createCustomerBtn) return;
 
   const franchiseToggle = document.getElementById('franchiseBookingToggle');
   const isFranchiseBooking = franchiseToggle && franchiseToggle.checked;
   const hasSelectedCustomer = document.getElementById('selected_customer_id').value;
+  const showSingleButton = isFranchiseBooking || hasSelectedCustomer;
 
-  label.textContent = (isFranchiseBooking || hasSelectedCustomer)
-    ? 'Complete Booking'
-    : 'Create New Customer & Complete Booking';
+  singleBtn.style.display = showSingleButton ? '' : 'none';
+  walkinBtn.style.display = showSingleButton ? 'none' : '';
+  createCustomerBtn.style.display = showSingleButton ? 'none' : '';
 }
 
 function selectCustomer(customerId, customerName, customerMobile, customerEmail, customerAddress) {
@@ -2015,7 +2046,7 @@ function selectCustomer(customerId, customerName, customerMobile, customerEmail,
 
   hideCustomerDropdown();
   showNotification('Selected customer: ' + customerName, 'success');
-  updateCompleteBookingButtonText();
+  updateCompleteBookingButtons();
 }
 
 function clearSelectedCustomer() {
@@ -2028,7 +2059,7 @@ function clearSelectedCustomer() {
   document.getElementById('booking_customer_phone').value = '';
   document.getElementById('booking_customer_email').value = '';
   document.getElementById('booking_delivery_address').value = '';
-  updateCompleteBookingButtonText();
+  updateCompleteBookingButtons();
 
   document.getElementById('customerSearchInput').focus();
 }
@@ -2446,7 +2477,7 @@ document.addEventListener('DOMContentLoaded', function() {
   setupSearch();
   initializeCustomerSearch();
   initializeFranchiseSearch();
-  updateCompleteBookingButtonText();
+  updateCompleteBookingButtons();
 
   // Set default payment method
   selectPaymentMethod('cash');

@@ -98,23 +98,23 @@ nav{display:flex;align-items:center;gap:28px;padding:16px 48px;background:var(--
 .carousel-arrow.next{right:8px}
 
 /* ── PRODUCT CARDS ── */
-.pcard{flex:0 0 250px;background:var(--white);border:1px solid #ece4d2;border-radius:16px;overflow:hidden;transition:box-shadow .25s,transform .22s;cursor:pointer;position:relative}
+.pcard{flex:0 0 250px;background:var(--cream-dark);border:1px solid #ece4d2;border-radius:20px;overflow:hidden;transition:box-shadow .25s,transform .22s;cursor:pointer;position:relative;padding:14px}
 .pcard:hover{box-shadow:0 16px 34px rgba(19,79,39,.14);transform:translateY(-4px)}
-.pcard-img{position:relative;height:200px;overflow:hidden;background:var(--cream);display:flex;align-items:center;justify-content:center}
-.pcard-img img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.pcard-img{position:relative;height:180px;overflow:hidden;background:var(--white);border-radius:14px;display:flex;align-items:center;justify-content:center}
+.pcard-img img{width:100%;height:100%;object-fit:contain;padding:10px;transition:transform .5s}
 .pcard-img .no-image{font-size:30px;opacity:.3}
-.pcard:hover .pcard-img img{transform:scale(1.08)}
-.ptag{position:absolute;top:12px;left:12px;font-size:10.5px;font-weight:700;padding:6px 12px;text-transform:uppercase;border-radius:20px;letter-spacing:.3px}
+.pcard:hover .pcard-img img{transform:scale(1.06)}
+.ptag{position:absolute;top:10px;left:10px;font-size:10.5px;font-weight:700;padding:6px 13px;text-transform:uppercase;border-radius:20px;letter-spacing:.3px;box-shadow:0 3px 8px rgba(0,0,0,.12)}
 .ptag.discount{background:var(--gold);color:var(--dark)}
 .ptag.new{background:var(--green);color:var(--white)}
 .ptag.oos{background:#999;color:var(--white)}
 .ptag.best{background:var(--dark);color:var(--gold-pale)}
-.pcard-body{padding:16px 15px 18px}
-.pcard h4{font-size:14px;font-weight:600;margin-bottom:4px;line-height:1.4;color:var(--text)}
-.pcard .psub{font-size:11px;color:var(--muted);margin-bottom:10px}
-.pcard .pprice{font-size:16px;font-weight:800;margin-bottom:13px;color:var(--green-dark);font-family:'Playfair Display',serif}
-.pcard .pprice s{font-weight:400;color:#bbb;font-size:12px;margin-right:6px;font-family:'Poppins',sans-serif}
-.btn-add{width:100%;padding:10px;background:var(--green);color:var(--white);border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-size:12px;font-weight:700;transition:background .2s;border-radius:30px}
+.pcard-body{padding:14px 4px 4px}
+.pcard h4{font-size:14.5px;font-weight:700;margin-bottom:5px;line-height:1.35;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard .psub{font-size:11px;color:var(--muted);margin-bottom:11px}
+.pcard .pprice{display:flex;align-items:baseline;gap:8px;font-size:17px;font-weight:800;margin-bottom:13px;color:var(--dark);font-family:'Poppins',sans-serif}
+.pcard .pprice s{font-weight:500;color:#a8a396;font-size:13px;font-family:'Poppins',sans-serif}
+.btn-add{width:100%;padding:11px;background:var(--green);color:var(--white);border:none;cursor:pointer;font-family:'Poppins',sans-serif;font-size:12.5px;font-weight:700;transition:background .2s;border-radius:30px}
 .btn-add:hover{background:var(--green-dark)}
 .btn-add.out{background:#e2e2de;color:#999;cursor:not-allowed}
 
@@ -335,7 +335,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
             <% end %>
           </div>
           <div class="pcard-body">
-            <h4><%= product.name %></h4>
+            <h4 title="<%= product.name %>"><%= product.name %></h4>
             <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
             <div class="pprice">
               <% if product.discounted? %>
@@ -382,7 +382,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
             <% end %>
           </div>
           <div class="pcard-body">
-            <h4><%= product.name %></h4>
+            <h4 title="<%= product.name %>"><%= product.name %></h4>
             <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
             <div class="pprice">
               <% if product.discounted? %>
@@ -495,7 +495,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
             <span class="ptag new">🆕 New</span>
           </div>
           <div class="pcard-body">
-            <h4><%= product.name %></h4>
+            <h4 title="<%= product.name %>"><%= product.name %></h4>
             <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
             <div class="pprice">₹<%= product.selling_price %></div>
             <% if product.in_stock? %>

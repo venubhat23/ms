@@ -663,10 +663,27 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
   (function initCarouselAutoScroll(){
     const AUTO_SCROLL_INTERVAL_MS = 30000;
 
-    document.querySelectorAll('.carousel-row').forEach(row => {
+    // A short category (e.g. only 2-3 products) doesn't fill the full-width
+    // row, which strands the arrow buttons — anchored to the wrap's far
+    // edges — way off in empty space. Hide the arrows (and skip
+    // auto-scrolling) whenever a row has nothing to scroll to.
+    function syncArrowVisibility(row) {
+      const wrap = row.closest('.carousel-wrap');
+      if (!wrap) return true;
+      const hasOverflow = row.scrollWidth > row.clientWidth + 1;
+      wrap.querySelectorAll('.carousel-arrow').forEach(btn => {
+        btn.style.display = hasOverflow ? '' : 'none';
+      });
+      return hasOverflow;
+    }
+
+    const rows = Array.from(document.querySelectorAll('.carousel-row'));
+
+    rows.forEach(row => {
       let timer = null;
 
       const advance = () => {
+        if (!syncArrowVisibility(row)) return;
         const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 1;
         if (atEnd) {
           row.scrollTo({ left: 0, behavior: 'smooth' });
@@ -697,7 +714,14 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
         });
       }
 
+      syncArrowVisibility(row);
       start();
+    });
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => rows.forEach(syncArrowVisibility), 150);
     });
   })();
 

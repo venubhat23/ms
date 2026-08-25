@@ -82,6 +82,13 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     @client3_story_image = SystemSetting.client3_story_image
     @client3_testimonial1_image = SystemSetting.client3_testimonial1_image
     @client3_testimonial2_image = SystemSetting.client3_testimonial2_image
+
+    @client3_video1_id = SystemSetting.client3_video1_id
+    @client3_video2_id = SystemSetting.client3_video2_id
+    @client3_video3_id = SystemSetting.client3_video3_id
+    @client3_video1_custom = SystemSetting.client3_video1_custom?
+    @client3_video2_custom = SystemSetting.client3_video2_custom?
+    @client3_video3_custom = SystemSetting.client3_video3_custom?
   end
 
   def update

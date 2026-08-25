@@ -1439,6 +1439,40 @@
             </div>
           </div>
 
+          <hr class="my-4">
+
+          <h6 class="fw-bold mb-1">Video Showcase ("See It In Action")</h6>
+          <p class="text-muted small mb-3">
+            Paste any YouTube link (watch, youtu.be, or shorts URL) for each slot. Each defaults to a placeholder
+            video until you add your own — leave a field blank to keep what's currently set.
+          </p>
+
+          <div class="row">
+            <% [1, 2, 3].each do |n| %>
+              <% video_id = instance_variable_get("@client3_video#{n}_id") %>
+              <% is_custom = instance_variable_get("@client3_video#{n}_custom") %>
+              <div class="col-md-4">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">
+                    Video <%= n %> URL
+                    <% if is_custom %>
+                      <span class="badge bg-success ms-1">Custom</span>
+                    <% else %>
+                      <span class="badge bg-secondary ms-1">Default</span>
+                    <% end %>
+                  </label>
+                  <div class="mb-2">
+                    <img id="client3_video<%= n %>_preview_img" src="https://img.youtube.com/vi/<%= video_id %>/mqdefault.jpg"
+                         alt="Video <%= n %> thumbnail" class="border rounded w-100" style="height:120px;object-fit:cover;">
+                  </div>
+                  <%= form.text_field "client3_video#{n}_url", id: "client3_video#{n}_url_input", value: "",
+                        class: "form-control form-control-sm", placeholder: "https://www.youtube.com/watch?v=..." %>
+                  <div id="client3_video<%= n %>_url_error" class="text-danger small mt-1" style="display: none;"></div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+
           <%= form.submit "Update", class: "btn btn-primary" %>
         <% end %>
       </div>
@@ -1863,6 +1897,56 @@ function checkRecommendedSize(input, files, errorDiv) {
     hiddenFieldId: 'client3_testimonial2_image_url_field',
     errorId: 'client3_testimonial2_image_error'
   });
+
+  // Client3 video showcase — validate pasted YouTube URLs and preview the
+  // matched thumbnail live, mirroring SystemSetting.extract_youtube_id.
+  var YOUTUBE_RE = /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(?:[&?/].*)?$/;
+
+  function extractYoutubeId(value) {
+    var str = (value || '').trim();
+    if (!str) return null;
+    if (/^[A-Za-z0-9_-]{11}$/.test(str)) return str;
+    var match = str.match(YOUTUBE_RE);
+    return match ? match[1] : null;
+  }
+
+  [1, 2, 3].forEach(function(n) {
+    var input = document.getElementById('client3_video' + n + '_url_input');
+    var preview = document.getElementById('client3_video' + n + '_preview_img');
+    var errorDiv = document.getElementById('client3_video' + n + '_url_error');
+    if (!input) return;
+
+    input.addEventListener('input', function() {
+      var value = input.value.trim();
+      errorDiv.style.display = 'none';
+      if (!value) return;
+
+      var id = extractYoutubeId(value);
+      if (id) {
+        preview.src = 'https://img.youtube.com/vi/' + id + '/mqdefault.jpg';
+      } else {
+        showFieldError(errorDiv, "That doesn't look like a valid YouTube URL.");
+      }
+    });
+  });
+
+  var client3VideoForm = document.getElementById('client3-theme-images-form');
+  if (client3VideoForm) {
+    client3VideoForm.addEventListener('submit', function(e) {
+      var hasError = false;
+      [1, 2, 3].forEach(function(n) {
+        var input = document.getElementById('client3_video' + n + '_url_input');
+        var errorDiv = document.getElementById('client3_video' + n + '_url_error');
+        if (!input) return;
+        var value = input.value.trim();
+        if (value && !extractYoutubeId(value)) {
+          showFieldError(errorDiv, "That doesn't look like a valid YouTube URL.");
+          hasError = true;
+        }
+      });
+      if (hasError) e.preventDefault();
+    });
+  }
 })();
 
 // Tab Management - Manual implementation to ensure it works

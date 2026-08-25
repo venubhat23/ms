@@ -590,6 +590,43 @@ class SystemSetting < ApplicationRecord
   CLIENT3_DEFAULT_TESTIMONIAL1_IMAGE = 'https://images.pexels.com/photos/1435904/pexels-photo-1435904.jpeg?auto=compress&cs=tinysrgb&w=700'
   CLIENT3_DEFAULT_TESTIMONIAL2_IMAGE = 'https://images.pexels.com/photos/4113889/pexels-photo-4113889.jpeg?auto=compress&cs=tinysrgb&w=700'
 
+  # Video showcase (3 YouTube embeds, admin-managed under Website Images >
+  # Client3 Theme Images). Video 1 also feeds the single "Watch & Learn"
+  # video section shared by all other storefront themes, so whatever an
+  # admin sets here applies site-wide; each slot defaults to a stable
+  # placeholder video until a real YouTube link is pasted in.
+  CLIENT3_DEFAULT_VIDEO1_ID = 'hFZFjoX2cGg'
+  CLIENT3_DEFAULT_VIDEO2_ID = 'jNQXAC9IVRw'
+  CLIENT3_DEFAULT_VIDEO3_ID = '9bZkp7q19f0'
+
+  # Matches youtube.com/watch?v=, youtu.be/, youtube.com/embed/,
+  # youtube.com/shorts/, youtube-nocookie.com and m./www. subdomains, with or
+  # without a leading scheme and trailing query/timestamp params.
+  YOUTUBE_URL_REGEX = %r{
+    \A
+    (?:https?://)?
+    (?:www\.|m\.)?
+    (?:
+      youtube(?:-nocookie)?\.com/(?:watch\?v=|embed/|shorts/|v/) |
+      youtu\.be/
+    )
+    ([A-Za-z0-9_-]{11})
+    (?:[&?/].*)?
+    \z
+  }x
+
+  # Extracts the 11-character YouTube video ID from a pasted URL (any common
+  # format) or a bare ID. Returns nil if the input isn't recognizable.
+  def self.extract_youtube_id(input)
+    return nil if input.blank?
+
+    str = input.to_s.strip
+    return str if str.match?(/\A[A-Za-z0-9_-]{11}\z/)
+
+    match = str.match(YOUTUBE_URL_REGEX)
+    match && match[1]
+  end
+
   def self.client3_hero_images
     images = images_for(:client3_hero_images)
     images.presence || CLIENT3_DEFAULT_HERO_IMAGES
@@ -615,6 +652,42 @@ class SystemSetting < ApplicationRecord
     cached_system_config&.client3_testimonial2_image_url.presence || CLIENT3_DEFAULT_TESTIMONIAL2_IMAGE
   end
 
+  def self.client3_video1_id
+    cached_system_config&.client3_video1_id.presence || CLIENT3_DEFAULT_VIDEO1_ID
+  end
+
+  def self.client3_video2_id
+    cached_system_config&.client3_video2_id.presence || CLIENT3_DEFAULT_VIDEO2_ID
+  end
+
+  def self.client3_video3_id
+    cached_system_config&.client3_video3_id.presence || CLIENT3_DEFAULT_VIDEO3_ID
+  end
+
+  def self.client3_video1_embed_url
+    "https://www.youtube-nocookie.com/embed/#{client3_video1_id}"
+  end
+
+  def self.client3_video2_embed_url
+    "https://www.youtube-nocookie.com/embed/#{client3_video2_id}"
+  end
+
+  def self.client3_video3_embed_url
+    "https://www.youtube-nocookie.com/embed/#{client3_video3_id}"
+  end
+
+  def self.client3_video1_custom?
+    cached_system_config&.client3_video1_id.present?
+  end
+
+  def self.client3_video2_custom?
+    cached_system_config&.client3_video2_id.present?
+  end
+
+  def self.client3_video3_custom?
+    cached_system_config&.client3_video3_id.present?
+  end
+
   # Persists the 3 single-image slots (submitted as hidden fields, populated
   # by JS after an immediate R2 upload) when the admin clicks "Update" on the
   # Website Images tab's Client3 Theme Images card. Blank fields are left
@@ -631,6 +704,16 @@ class SystemSetting < ApplicationRecord
     update_attrs[:client3_story_image_url] = params[:client3_story_image_url] if params[:client3_story_image_url].present?
     update_attrs[:client3_testimonial1_image_url] = params[:client3_testimonial1_image_url] if params[:client3_testimonial1_image_url].present?
     update_attrs[:client3_testimonial2_image_url] = params[:client3_testimonial2_image_url] if params[:client3_testimonial2_image_url].present?
+
+    { client3_video1_url: :client3_video1_id, client3_video2_url: :client3_video2_id, client3_video3_url: :client3_video3_id }.each do |url_param, id_column|
+      raw = params[url_param]
+      next if raw.blank?
+
+      video_id = extract_youtube_id(raw)
+      raise ArgumentError, "\"#{raw}\" doesn't look like a valid YouTube video URL." if video_id.nil?
+
+      update_attrs[id_column] = video_id
+    end
 
     setting.update!(update_attrs) if update_attrs.any?
     LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)

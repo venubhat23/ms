@@ -736,6 +736,9 @@ Rails.application.routes.draw do
       member do
         patch :toggle_status
       end
+      collection do
+        post :validate_code
+      end
     end
 
     # Customer Wallets
@@ -821,6 +824,9 @@ Rails.application.routes.draw do
     resources :coupons do
       member do
         patch :toggle_status
+      end
+      collection do
+        post :validate_code
       end
     end
 

@@ -35,8 +35,7 @@
                     required: true,
                     maxlength: 20,
                     pattern: "[A-Z0-9]+",
-                    title: "Only uppercase letters and numbers allowed",
-                    id: "coupon-code-input" %>
+                    title: "Only uppercase letters and numbers allowed" %>
                 <button type="button" class="btn btn-outline-primary" id="generate-code-btn" title="Generate a random coupon code">
                   <i class="ri-refresh-line align-middle me-1"></i>Generate
                 </button>
@@ -214,26 +213,9 @@
                     <i class="ri-infinity-line align-middle me-1"></i>Use many times (infinite)
                   </label>
                 </div>
-                <div class="form-check form-check-inline usage-type-option border rounded px-3 py-2 m-0">
-                  <input class="form-check-input" type="radio" name="usage_type" id="usage-type-custom" value="custom" <%= 'checked' if coupon.usage_limit.present? && coupon.usage_limit != 1 %>>
-                  <label class="form-check-label" for="usage-type-custom">
-                    <i class="ri-list-ordered" ></i> Custom limit
-                  </label>
-                </div>
               </div>
 
-              <div class="mt-2" id="custom-usage-limit-wrapper" style="display: none;">
-                <div class="input-group" style="max-width: 260px;">
-                  <span class="input-group-text"><i class="ri-user-line"></i></span>
-                  <%= form.number_field :usage_limit,
-                      class: "form-control",
-                      placeholder: "e.g., 100",
-                      min: 2 %>
-                </div>
-                <div class="form-text">
-                  <small class="text-muted">Total number of times this coupon can be used across all customers</small>
-                </div>
-              </div>
+              <%= form.number_field :usage_limit, class: "d-none" %>
             </div>
 
             <div class="col-md-6">
@@ -242,43 +224,6 @@
                   <i class="ri-information-line align-middle me-2"></i>
                   <strong>Current Usage:</strong> <%= coupon.used_count || 0 %> times
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Advanced Settings Section -->
-    <div class="col-12">
-      <div class="card border border-dashed border-info">
-        <div class="card-header bg-info-subtle">
-          <h6 class="card-title mb-0 text-info">
-            <i class="ri-settings-3-line align-middle me-2"></i>Advanced Settings
-            <span class="badge bg-info ms-2">Optional</span>
-          </h6>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <%= form.label :applicable_products, "Applicable Products", class: "form-label fw-semibold" %>
-              <%= form.text_area :applicable_products,
-                  class: "form-control",
-                  rows: 3,
-                  placeholder: "Comma-separated product IDs or names (leave blank for all products)" %>
-              <div class="form-text">
-                <small class="text-muted">Specify which products this coupon applies to</small>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <%= form.label :applicable_categories, "Applicable Categories", class: "form-label fw-semibold" %>
-              <%= form.text_area :applicable_categories,
-                  class: "form-control",
-                  rows: 3,
-                  placeholder: "Comma-separated category IDs or names (leave blank for all categories)" %>
-              <div class="form-text">
-                <small class="text-muted">Specify which categories this coupon applies to</small>
               </div>
             </div>
           </div>
@@ -466,34 +411,26 @@ document.addEventListener('DOMContentLoaded', function() {
     validUntilInput.addEventListener('change', validateDates);
   }
 
-  // Usage type: Single use / Unlimited / Custom limit
+  // Usage type: Single use / Unlimited
   const usageLimitInput = document.getElementById('<%= form_object_name %>_usage_limit');
-  const customUsageWrapper = document.getElementById('custom-usage-limit-wrapper');
   const usageTypeRadios = document.querySelectorAll('input[name="usage_type"]');
+
+  function highlightUsageType() {
+    const selected = document.querySelector('input[name="usage_type"]:checked');
+    document.querySelectorAll('.usage-type-option').forEach(el => el.classList.remove('border-primary', 'bg-primary-subtle'));
+    if (selected) selected.closest('.usage-type-option').classList.add('border-primary', 'bg-primary-subtle');
+  }
 
   function applyUsageType() {
     const selected = document.querySelector('input[name="usage_type"]:checked');
     const type = selected ? selected.value : 'unlimited';
-
-    document.querySelectorAll('.usage-type-option').forEach(el => el.classList.remove('border-primary', 'bg-primary-subtle'));
-    if (selected) selected.closest('.usage-type-option').classList.add('border-primary', 'bg-primary-subtle');
-
-    if (type === 'single') {
-      usageLimitInput.value = 1;
-      customUsageWrapper.style.display = 'none';
-    } else if (type === 'unlimited') {
-      usageLimitInput.value = '';
-      customUsageWrapper.style.display = 'none';
-    } else {
-      customUsageWrapper.style.display = 'block';
-      if (!usageLimitInput.value || usageLimitInput.value === '1') {
-        usageLimitInput.value = '';
-      }
-      usageLimitInput.focus();
-    }
+    highlightUsageType();
+    usageLimitInput.value = type === 'single' ? 1 : '';
     updatePreview();
   }
 
+  // A user clicking a radio always sets the value; the initial page load
+  // (below) only highlights so an existing coupon's usage_limit isn't wiped.
   usageTypeRadios.forEach(radio => radio.addEventListener('change', applyUsageType));
   if (usageLimitInput) usageLimitInput.addEventListener('input', updatePreview);
 
@@ -501,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (!document.querySelector('input[name="usage_type"]:checked')) {
     document.getElementById('usage-type-unlimited').checked = true;
   }
-  applyUsageType();
+  highlightUsageType();
 
   // Generate a professional random coupon code
   const generateBtn = document.getElementById('generate-code-btn');

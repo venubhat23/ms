@@ -81,6 +81,39 @@ class Admin::CouponsController < Admin::ApplicationController
     redirect_to admin_coupons_path, notice: "Coupon status updated to #{@coupon.status ? 'Active' : 'Inactive'}."
   end
 
+  # Live validation for "Apply Coupon" on the New Booking screen. This is
+  # UX-only feedback — the discount actually applied to a booking is always
+  # recomputed and re-validated server-side in Admin::BookingsController#create
+  # from the real Coupon record, never trusted from this response.
+  def validate_code
+    code = params[:code].to_s.strip.upcase
+    amount = params[:amount].to_f
+    coupon = Coupon.find_by(code: code)
+
+    if coupon.nil?
+      render json: { valid: false, message: "Coupon code '#{code}' not found" }
+    elsif !coupon.status
+      render json: { valid: false, message: "This coupon is inactive" }
+    elsif coupon.expired?
+      render json: { valid: false, message: "This coupon expired on #{coupon.valid_until.strftime('%d %b %Y')}" }
+    elsif coupon.upcoming?
+      render json: { valid: false, message: "This coupon isn't active yet (starts #{coupon.valid_from.strftime('%d %b %Y')})" }
+    elsif coupon.usage_limit.present? && coupon.used_count >= coupon.usage_limit
+      render json: { valid: false, message: coupon.usage_limit == 1 ? "This coupon has already been used" : "This coupon has reached its usage limit" }
+    elsif amount < coupon.minimum_amount.to_f
+      render json: { valid: false, message: "Minimum order amount of ₹#{'%.2f' % coupon.minimum_amount} required for this coupon" }
+    else
+      discount = coupon.apply_discount(amount).round(2)
+      render json: {
+        valid: true,
+        code: coupon.code,
+        discount_display: coupon.discount_display,
+        discount_amount: discount,
+        message: "Coupon applied — you save ₹#{'%.2f' % discount}"
+      }
+    end
+  end
+
   private
 
   def set_coupon

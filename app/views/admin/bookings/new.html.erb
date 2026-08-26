@@ -701,6 +701,11 @@
             <%# Hidden field for discount amount %>
             <%= f.hidden_field :discount_amount, value: 0, id: 'hiddenDiscountAmount' %>
 
+            <%# Hidden field for applied coupon code — the Order Summary
+                panel below (where the "Apply Coupon" UI lives) is outside
+                this <form>, so the real submittable field has to live here. %>
+            <%= f.hidden_field :coupon_code, value: '', id: 'hiddenCouponCode' %>
+
             <%# create_order used to live on the single submit button (always
                 value "1", since there was only ever one submit button); now
                 that submitting can happen via any of three buttons below, it
@@ -772,6 +777,24 @@
               <span>GST</span>
               <span>₹<span id="checkoutTax">0</span></span>
             </div>
+
+            <!-- Coupon -->
+            <div id="couponRow" class="mb-2">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span>Coupon</span>
+                <span id="couponAppliedAmount" class="fw-medium text-success" style="display:none;">- ₹<span id="couponDiscountDisplay">0.00</span></span>
+              </div>
+              <div class="d-flex gap-1" id="couponInputGroup">
+                <input type="text" id="couponCodeInput" class="form-control form-control-sm text-uppercase" placeholder="Enter coupon code" style="max-width: 160px;" onkeydown="if(event.key==='Enter'){event.preventDefault();applyCoupon();}">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="applyCoupon()">Apply</button>
+              </div>
+              <div id="couponAppliedInfo" style="display:none;" class="d-flex justify-content-between align-items-center bg-light rounded px-2 py-1">
+                <span class="small text-success"><i class="bi bi-check-circle-fill me-1"></i><strong id="couponAppliedCode"></strong> applied</span>
+                <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeCoupon()">Remove</button>
+              </div>
+              <div id="couponMessage" class="small mt-1"></div>
+            </div>
+
             <!-- Normal discount row (hidden when B2B is on) -->
             <div id="normalDiscountRow" class="mb-2">
               <div class="d-flex justify-content-between align-items-start">
@@ -903,6 +926,7 @@
 // Shopping Cart System
 let cart = {};
 let currentView = 'products';
+let appliedCouponDiscount = 0;
 
 // Initialize cart
 function initializeCart() {
@@ -1437,7 +1461,10 @@ function updateCheckoutTotals() {
     hiddenDiscountField.value = submittedDiscount;
   }
 
-  const total = subtotal + totalGST - discount; // Final total after discount
+  // Coupon discount is layered on top of whatever other discount is set
+  // (normal/B2B/franchise); it's always submitted via hiddenCouponCode and
+  // recomputed server-side, so it never touches hiddenDiscountAmount.
+  const total = Math.max(0, subtotal + totalGST - discount - appliedCouponDiscount); // Final total after discount
 
   // Update display
   document.getElementById('checkoutSubtotal').textContent = subtotal.toFixed(2);
@@ -1468,6 +1495,78 @@ function updateCheckoutTotals() {
 
   // Update change calculation when total changes
   calculateChange();
+}
+
+// Validates a coupon code against the current bill (subtotal + GST) via
+// AJAX and, if valid, applies its discount on top of any other discount.
+// This is UX-only feedback — Admin::BookingsController#create independently
+// re-validates the same coupon and recomputes the discount from the real
+// Coupon record before it ever touches the saved booking.
+async function applyCoupon() {
+  const codeInput = document.getElementById('couponCodeInput');
+  const code = codeInput.value.trim().toUpperCase();
+  const messageEl = document.getElementById('couponMessage');
+
+  if (!code) {
+    messageEl.className = 'small mt-1 text-danger';
+    messageEl.textContent = 'Enter a coupon code first';
+    return;
+  }
+
+  const amount = parseFloat(document.getElementById('checkoutSubtotal')?.textContent || 0)
+               + parseFloat(document.getElementById('checkoutTax')?.textContent || 0);
+
+  messageEl.className = 'small mt-1 text-muted';
+  messageEl.textContent = 'Checking coupon…';
+
+  try {
+    const response = await fetch('<%= validate_code_admin_coupons_path %>', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content
+      },
+      body: JSON.stringify({ code: code, amount: amount })
+    });
+    const data = await response.json();
+
+    if (data.valid) {
+      appliedCouponDiscount = data.discount_amount;
+      document.getElementById('hiddenCouponCode').value = data.code;
+      document.getElementById('couponAppliedCode').textContent = `${data.code} (${data.discount_display})`;
+      document.getElementById('couponDiscountDisplay').textContent = data.discount_amount.toFixed(2);
+      document.getElementById('couponAppliedAmount').style.display = '';
+      document.getElementById('couponAppliedInfo').style.display = 'flex';
+      document.getElementById('couponInputGroup').style.display = 'none';
+      messageEl.className = 'small mt-1 text-success';
+      messageEl.textContent = data.message;
+    } else {
+      appliedCouponDiscount = 0;
+      document.getElementById('hiddenCouponCode').value = '';
+      document.getElementById('couponAppliedAmount').style.display = 'none';
+      messageEl.className = 'small mt-1 text-danger';
+      messageEl.textContent = data.message;
+    }
+  } catch (err) {
+    appliedCouponDiscount = 0;
+    document.getElementById('hiddenCouponCode').value = '';
+    messageEl.className = 'small mt-1 text-danger';
+    messageEl.textContent = 'Could not validate coupon right now. Please try again.';
+  }
+
+  updateCheckoutTotals();
+}
+
+// Clears an applied coupon and reverts to manual entry
+function removeCoupon() {
+  appliedCouponDiscount = 0;
+  document.getElementById('hiddenCouponCode').value = '';
+  document.getElementById('couponCodeInput').value = '';
+  document.getElementById('couponAppliedAmount').style.display = 'none';
+  document.getElementById('couponAppliedInfo').style.display = 'none';
+  document.getElementById('couponInputGroup').style.display = 'flex';
+  document.getElementById('couponMessage').textContent = '';
+  updateCheckoutTotals();
 }
 
 // Caps the wholesale discount value field at 100 when Percentage is selected,

@@ -15,6 +15,7 @@ class Booking < ApplicationRecord
   belongs_to :delivery_franchise, class_name: 'Franchise', optional: true
   belongs_to :affiliate, optional: true
   belongs_to :wallet_transaction, optional: true
+  belongs_to :coupon, optional: true
   has_many :booking_items, dependent: :destroy
   # has_one :order, dependent: :nullify  # Temporarily disabled until booking_id column is added to orders table
   has_many :booking_invoices, dependent: :destroy

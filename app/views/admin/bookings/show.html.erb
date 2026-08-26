@@ -470,6 +470,18 @@
           </div>
         <% end %>
 
+        <% if @booking.coupon_code.present? %>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted"><i class="bi bi-ticket-perforated-fill me-1"></i>Coupon Applied:</span>
+            <span class="fw-medium">
+              <span class="badge bg-success-subtle text-success border border-success-subtle"><%= @booking.coupon_code %></span>
+              <% if @booking.coupon_discount_amount.to_f > 0 %>
+                <span class="text-success">-₹<%= number_with_delimiter(@booking.coupon_discount_amount.to_f) %></span>
+              <% end %>
+            </span>
+          </div>
+        <% end %>
+
         <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
           <span class="text-muted">Tax (<%= gst[:tax_display] %>%):</span>
           <span class="fw-medium">₹<%= number_with_delimiter(gst[:tax]) %></span>

@@ -207,7 +207,7 @@ class Admin::BookingsController < Admin::ApplicationController
           @categories = Category.where(status: true).order(:display_order, :name)
           @stores = Store.active.order(:name)
           @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-          @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+          @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
           flash.now[:alert] = "Could not create customer: #{customer.errors.full_messages.to_sentence}"
           render :new, status: :unprocessable_entity
           return
@@ -265,7 +265,7 @@ class Admin::BookingsController < Admin::ApplicationController
         @categories = Category.where(status: true).order(:display_order, :name)
         @stores = Store.active.order(:name)
         @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-        @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+        @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
         flash.now[:alert] = @booking.errors.full_messages.join(', ')
         render :new, status: :unprocessable_entity
         return
@@ -275,6 +275,58 @@ class Admin::BookingsController < Admin::ApplicationController
       @booking.discount_amount = @booking.discount_amount.to_f + franchise_discount
     else
       @booking.franchise_id = nil
+    end
+
+    # Coupon discount — validated & recomputed server-side (never trust a
+    # client-submitted discount amount or the "Apply Coupon" AJAX preview),
+    # the same way the wholesale Franchise Booking discount above is.
+    # Applied on top of whatever discount is already set (normal/B2B/franchise).
+    coupon_code = params[:booking][:coupon_code].to_s.strip.upcase if params[:booking]
+    if coupon_code.present?
+      @booking.calculate_totals
+      bill_total = (@booking.subtotal.to_f + @booking.tax_amount.to_f).round(2)
+      coupon = Coupon.find_by(code: coupon_code)
+
+      coupon_error =
+        if coupon.nil?
+          "Coupon code '#{coupon_code}' not found"
+        elsif !coupon.status
+          "Coupon '#{coupon_code}' is inactive"
+        elsif coupon.expired?
+          "Coupon '#{coupon_code}' has expired"
+        elsif coupon.upcoming?
+          "Coupon '#{coupon_code}' is not active yet"
+        elsif coupon.usage_limit.present? && coupon.used_count >= coupon.usage_limit
+          coupon.usage_limit == 1 ? "Coupon '#{coupon_code}' has already been used" : "Coupon '#{coupon_code}' has reached its usage limit"
+        elsif bill_total < coupon.minimum_amount.to_f
+          "Coupon '#{coupon_code}' requires a minimum order of ₹#{'%.2f' % coupon.minimum_amount}"
+        end
+
+      if coupon_error
+        @booking.errors.add(:base, coupon_error)
+      else
+        coupon_discount = coupon.apply_discount(bill_total).round(2)
+        @booking.coupon_id = coupon.id
+        @booking.coupon_code = coupon.code
+        @booking.coupon_discount_amount = coupon_discount
+        @booking.discount_amount = @booking.discount_amount.to_f + coupon_discount
+      end
+
+      if @booking.errors.any?
+        @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
+        @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
+        @categories = Category.where(status: true).order(:display_order, :name)
+        @stores = Store.active.order(:name)
+        @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+        @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+        flash.now[:alert] = @booking.errors.full_messages.join(', ')
+        render :new, status: :unprocessable_entity
+        return
+      end
+    else
+      @booking.coupon_id = nil
+      @booking.coupon_code = nil
+      @booking.coupon_discount_amount = 0
     end
 
     # Store payment status value for after save (to avoid enum conflicts during validation)
@@ -288,7 +340,7 @@ class Admin::BookingsController < Admin::ApplicationController
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
       @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
       render :new, status: :unprocessable_entity
       return
     end
@@ -308,6 +360,9 @@ class Admin::BookingsController < Admin::ApplicationController
 
       # Save again to persist the calculated totals and payment status
       @booking.save!
+
+      # Tag the coupon as used now that the booking is confirmed persisted.
+      @booking.coupon.increment_usage! if @booking.coupon_id.present?
 
       # Log the calculated totals for debugging
       Rails.logger.info "Booking totals - Subtotal: #{@booking.subtotal}, Tax: #{@booking.tax_amount}, Discount: #{@booking.discount_amount}, Total: #{@booking.total_amount}"
@@ -342,7 +397,7 @@ class Admin::BookingsController < Admin::ApplicationController
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
       @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address) : Franchise.none
+      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
     end
@@ -1018,6 +1073,7 @@ class Admin::BookingsController < Admin::ApplicationController
       :payment_method, :payment_status, :discount_amount, :notes,
       :delivery_address, :cash_received, :change_amount, :status, :store_id,
       :booking_date, :is_b2b, :franchise_id, :franchise_discount_type, :franchise_discount_value,
+      :coupon_code,
       booking_items_attributes: [:id, :product_id, :product_variant_id, :quantity, :price, :_destroy]
     )
   end

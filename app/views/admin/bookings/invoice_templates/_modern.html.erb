@@ -139,6 +139,9 @@
         <% if discount_amount.to_f > 0 %>
           <div class="t-row"><span>Discount</span><span>- ₹ <%= number_with_delimiter(sprintf('%.2f', discount_amount), delimiter: ',') %></span></div>
         <% end %>
+        <% if booking.coupon_code.present? %>
+          <div class="t-row"><span>Coupon Applied</span><span><%= booking.coupon_code %></span></div>
+        <% end %>
         <div class="t-row grand"><span>Total</span><span>₹ <%= number_with_delimiter(sprintf('%.2f', final_total), delimiter: ',') %></span></div>
         <div style="margin-top:8px;font-size:10px;color:#555;font-style:italic;"><%= amount_in_words(final_total) %> Rupees Only</div>
       </div>

@@ -1072,6 +1072,22 @@
         </div>
       </div>
 
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <%= form.label :b2b_price, "B2B Selling Price (₹)", class: "form-label" %>
+          <%= form.number_field :b2b_price,
+              class: "form-control #{'is-invalid' if product.errors[:b2b_price].any?}",
+              step: "0.01", min: 0, placeholder: "0.00",
+              id: "b2b-selling-price" %>
+          <% if product.errors[:b2b_price].any? %>
+            <div class="invalid-feedback">
+              <%= product.errors[:b2b_price].first %>
+            </div>
+          <% end %>
+          <div class="help-text">Price for wholesale/franchise orders — leave blank to use the regular Selling Price</div>
+        </div>
+      </div>
+
       <!-- Discount Section -->
       <div class="discount-section mt-4">
         <div class="toggle-container">

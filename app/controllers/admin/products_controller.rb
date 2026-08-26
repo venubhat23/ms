@@ -722,7 +722,7 @@ class Admin::ProductsController < Admin::ApplicationController
     params.require(:product).permit(
       :name, :description, :category_id, :price, :discount_price, :stock, :initial_stock,
       :status, :sku, :hsn_code, :weight, :dimensions, :meta_title, :meta_description, :tags,
-      :buying_price, :discount_type, :discount_value, :original_price, :discount_amount, :is_discounted,
+      :buying_price, :b2b_price, :discount_type, :discount_value, :original_price, :discount_amount, :is_discounted,
       :product_type, :unit_type, :is_subscription_enabled,
       :is_occasional_product, :occasional_start_date, :occasional_end_date, :occasional_description, :occasional_auto_hide,
       :occasional_schedule_type, :occasional_recurring_from_day, :occasional_recurring_from_time,

@@ -69,6 +69,7 @@ class Product < ApplicationRecord
   validates :product_type, presence: true, inclusion: { in: PRODUCT_TYPES.map(&:last) }
   validates :weight, numericality: { greater_than: 0 }, allow_blank: true
   validates :buying_price, numericality: { greater_than: 0 }, allow_blank: true, unless: :has_multiple_quantities?
+  validates :b2b_price, numericality: { greater_than: 0 }, allow_blank: true
   validates :unit_type, presence: true, inclusion: { in: UNIT_TYPES.map(&:last) }
   # validates :minimum_stock_alert, numericality: { greater_than: 0 }, allow_blank: true
   # validates :default_selling_price, numericality: { greater_than: 0 }, allow_blank: true
@@ -319,6 +320,13 @@ class Product < ApplicationRecord
 
   def selling_price
     discounted? ? final_price_after_discount : price
+  end
+
+  # Falls back to the regular selling price whenever a B2B price hasn't been
+  # set for this product, so franchise/wholesale flows always have a usable
+  # price without every product needing one explicitly configured.
+  def effective_b2b_price
+    b2b_price.presence || selling_price
   end
 
   def final_price_after_discount

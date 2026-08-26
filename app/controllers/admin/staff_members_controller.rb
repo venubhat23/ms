@@ -19,6 +19,12 @@ class Admin::StaffMembersController < Admin::ApplicationController
     @staff_members.each { |s| s.preload_paid_for(today.month, today.year, paid_totals[s.id] || 0) }
 
     @total_pending = @staff_members.select(&:active?).sum { |s| s.pending_for(today.month, today.year) }
+
+    # One grouped query for "already marked today?" instead of one per row —
+    # feeds the "already marked" badge next to the bulk-attendance checkboxes.
+    todays_attendance = StaffAttendance.where(staff_member_id: @staff_members.map(&:id), attendance_date: today)
+                                        .index_by(&:staff_member_id)
+    @staff_members.each { |s| s.preload_todays_attendance(todays_attendance[s.id]) }
   end
 
   def show

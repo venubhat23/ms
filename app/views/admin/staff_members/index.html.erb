@@ -80,6 +80,32 @@
   </div>
 </div>
 
+<% if @staff_members.any? %>
+  <%# Standalone form — the row checkboxes below live inside the table, not
+      nested in this <form>, and point at it via the form="" attribute
+      (same technique as app/views/admin/stock_transfers/index.html.erb). %>
+  <%= form_tag bulk_mark_today_admin_staff_attendances_path, method: :post, id: "bulk_attendance_form", class: "card border-0 shadow-sm mb-3" do %>
+    <%= hidden_field_tag :store_id, params[:store_id] %>
+    <div class="card-body py-3 d-flex flex-wrap align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-calendar-check text-primary fs-5"></i>
+        <strong>Mark Today's Attendance</strong>
+        <span class="text-muted small">(<%= Date.current.strftime('%d %b %Y') %>)</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="form-label small mb-0" for="bulk_attendance_status">Status</label>
+        <%= select_tag :status,
+            options_for_select([["Present", "present"], ["Absent", "absent"], ["Half Day", "half_day"], ["Leave", "leave"]], "present"),
+            id: "bulk_attendance_status", class: "form-select form-select-sm", style: "width: auto;" %>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm" id="bulk_attendance_submit" disabled>
+        <i class="bi bi-check2-square me-1"></i>Mark Selected (<span id="bulk_attendance_count">0</span>)
+      </button>
+      <span class="text-muted small">Select staff below, or use "select all" in the table header.</span>
+    </div>
+  <% end %>
+<% end %>
+
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-white border-0">
     <h6 class="mb-0"><i class="bi bi-list me-2"></i>Staff List</h6>
@@ -91,6 +117,7 @@
         <table class="table table-hover mb-0">
           <thead class="table-light">
             <tr>
+              <th style="width: 1%;"><input type="checkbox" class="form-check-input" id="select_all_staff" title="Select all"></th>
               <th>Name</th>
               <th>Store</th>
               <th>Designation</th>
@@ -99,12 +126,17 @@
               <th>Paid (<%= today.strftime('%b') %>)</th>
               <th>Pending (<%= today.strftime('%b') %>)</th>
               <th>Status</th>
+              <th>Today's Attendance</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <% @staff_members.each do |staff| %>
               <tr>
+                <td>
+                  <input type="checkbox" name="staff_member_ids[]" value="<%= staff.id %>"
+                         form="bulk_attendance_form" class="form-check-input staff-attendance-checkbox">
+                </td>
                 <td><strong><%= staff.name %></strong></td>
                 <td><%= staff.store.name %></td>
                 <td><%= staff.designation.presence || '—' %></td>
@@ -119,6 +151,13 @@
                     <span class="badge bg-success-subtle text-success">Active</span>
                   <% else %>
                     <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                  <% end %>
+                </td>
+                <td>
+                  <% if staff.todays_attendance %>
+                    <span class="badge bg-success-subtle text-success"><%= staff.todays_attendance.status.humanize %></span>
+                  <% else %>
+                    <span class="badge bg-light text-muted border">Not marked</span>
                   <% end %>
                 </td>
                 <td>
@@ -150,3 +189,31 @@
     <% end %>
   </div>
 </div>
+
+<script>
+  (function() {
+    var selectAll = document.getElementById('select_all_staff');
+    var submitBtn = document.getElementById('bulk_attendance_submit');
+    var countEl = document.getElementById('bulk_attendance_count');
+
+    function checkboxes() {
+      return document.querySelectorAll('.staff-attendance-checkbox');
+    }
+
+    function syncSubmitState() {
+      var checked = document.querySelectorAll('.staff-attendance-checkbox:checked').length;
+      if (countEl) countEl.textContent = checked;
+      if (submitBtn) submitBtn.disabled = checked === 0;
+      if (selectAll) selectAll.checked = checked > 0 && checked === checkboxes().length;
+    }
+
+    if (selectAll) {
+      selectAll.addEventListener('change', function() {
+        checkboxes().forEach(function(cb) { cb.checked = selectAll.checked; });
+        syncSubmitState();
+      });
+    }
+
+    checkboxes().forEach(function(cb) { cb.addEventListener('change', syncSubmitState); });
+  })();
+</script>

@@ -35,6 +35,17 @@ class StaffMember < ApplicationRecord
     [monthly_salary.to_f - paid_for(month, year).to_f, 0].max
   end
 
+  # Memoized like paid_for/preload_paid_for above, so the index page can
+  # batch-preload "already marked today?" for every listed staff member in
+  # one query instead of one per row.
+  def todays_attendance
+    defined?(@todays_attendance) ? @todays_attendance : staff_attendances.find_by(attendance_date: Date.current)
+  end
+
+  def preload_todays_attendance(attendance)
+    @todays_attendance = attendance
+  end
+
   def attendance_summary_for(month, year)
     counts = staff_attendances
              .where(attendance_date: Date.new(year, month, 1)..Date.new(year, month, -1))

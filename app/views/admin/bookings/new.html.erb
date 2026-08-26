@@ -713,44 +713,49 @@
             <%= hidden_field_tag :create_order, '1' %>
 
             <%# Action Buttons %>
-            <div class="d-flex gap-2 justify-content-end flex-wrap">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 booking-action-buttons">
               <button type="button" class="btn btn-outline-secondary" onclick="showProductsView()">
                 <i class="bi bi-arrow-left me-1"></i>Back to Products
               </button>
 
-              <%# Shown once a customer is selected (search/quick-add) or for
-                  a franchise booking — customer_mode is irrelevant then. %>
-              <button type="submit" class="btn btn-success" id="completeBookingBtn">
-                <span class="btn-text">
-                  <i class="bi bi-check-circle me-1"></i>Complete Booking
-                </span>
-                <span class="btn-loading d-none">
-                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                  Processing booking...
-                </span>
-              </button>
+              <%# Stacked so the mutually-exclusive submit buttons below always
+                  share the same width and right edge, however many of them
+                  are visible at once (see updateCompleteBookingButtons()). %>
+              <div class="d-flex flex-column gap-2 booking-submit-buttons">
+                <%# Shown once a customer is selected (search/quick-add) or for
+                    a franchise booking — customer_mode is irrelevant then. %>
+                <button type="submit" class="btn btn-success w-100" id="completeBookingBtn">
+                  <span class="btn-text">
+                    <i class="bi bi-check-circle me-1"></i>Complete Booking
+                  </span>
+                  <span class="btn-loading d-none">
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    Processing booking...
+                  </span>
+                </button>
 
-              <%# Shown instead of the button above when no customer is
-                  selected yet — the admin picks whether typing a name/phone
-                  should also create a real Customer record. %>
-              <button type="submit" name="customer_mode" value="walkin" class="btn btn-outline-success" id="completeBookingWalkinBtn">
-                <span class="btn-text">
-                  <i class="bi bi-person-walking me-1"></i>Complete Booking (Walk-in Customer)
-                </span>
-                <span class="btn-loading d-none">
-                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                  Processing booking...
-                </span>
-              </button>
-              <button type="submit" name="customer_mode" value="create_customer" class="btn btn-success" id="completeBookingCreateCustomerBtn">
-                <span class="btn-text">
-                  <i class="bi bi-person-plus me-1"></i>Create New Customer &amp; Complete Booking
-                </span>
-                <span class="btn-loading d-none">
-                  <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                  Processing booking...
-                </span>
-              </button>
+                <%# Shown instead of the button above when no customer is
+                    selected yet — the admin picks whether typing a name/phone
+                    should also create a real Customer record. %>
+                <button type="submit" name="customer_mode" value="walkin" class="btn btn-outline-success w-100" id="completeBookingWalkinBtn">
+                  <span class="btn-text">
+                    <i class="bi bi-person-walking me-1"></i>Complete Booking (Walk-in Customer)
+                  </span>
+                  <span class="btn-loading d-none">
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    Processing booking...
+                  </span>
+                </button>
+                <button type="submit" name="customer_mode" value="create_customer" class="btn btn-success w-100" id="completeBookingCreateCustomerBtn">
+                  <span class="btn-text">
+                    <i class="bi bi-person-plus me-1"></i>Create New Customer &amp; Complete Booking
+                  </span>
+                  <span class="btn-loading d-none">
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    Processing booking...
+                  </span>
+                </button>
+              </div>
             </div>
           <% end %>
         </div>
@@ -1582,6 +1587,17 @@ function removeCoupon() {
   updateCheckoutTotals();
 }
 
+// A page restored from the browser's back-forward cache (e.g. hitting Back
+// after submitting) never fires DOMContentLoaded again — its JS context and
+// DOM (including any "applied" badge a coupon had shown) stay exactly as
+// they were. Reset the coupon UI on that specific case too, so it can't look
+// applied on a page the admin hasn't touched yet.
+window.addEventListener('pageshow', function(event) {
+  if (event.persisted && document.getElementById('couponRow')) {
+    removeCoupon();
+  }
+});
+
 // A coupon's discount is computed and applied server-side independently of
 // the manual "Discount" field (see Admin::BookingsController#create, which
 // adds both together) — so once a coupon is active, the manual field is
@@ -2107,10 +2123,7 @@ function displayCustomerResults(customerList, searchQuery = '') {
     results.innerHTML = '<div class="customer-search-empty">' +
       '<i class="bi bi-person-x fs-4 mb-2 d-block text-muted"></i>' +
       '<div class="fw-medium">No customers found</div>' +
-      '<small class="text-muted d-block mb-2">Try a different search, or create this customer now</small>' +
-      '<button type="button" class="btn btn-sm btn-primary" onclick="openQuickAddCustomerModal(\'' + escapeHtml(searchQuery) + '\')">' +
-      '<i class="bi bi-person-plus me-1"></i>Create New Customer' +
-      '</button>' +
+      '<small class="text-muted d-block mb-2">Try a different search</small>' +
       '</div>';
     return;
   }
@@ -2645,6 +2658,12 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeCustomerSearch();
   initializeFranchiseSearch();
   updateCompleteBookingButtons();
+
+  // Force the coupon UI back to its unapplied state on every fresh load —
+  // see the pageshow listener below for the back-forward-cache case, which
+  // this DOMContentLoaded handler does NOT cover (it never fires on a
+  // bfcache restore since the page's JS context stays alive).
+  removeCoupon();
 
   // Set default payment method
   selectPaymentMethod('cash');
@@ -3796,11 +3815,16 @@ function stopCamera() {
 }
 
 /* Action buttons */
-#checkoutView .d-flex.gap-2.justify-content-end .btn {
+#checkoutView .booking-action-buttons .btn {
   border-radius: 9px;
   padding: 0.65rem 1.4rem;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.booking-submit-buttons {
+  min-width: 280px;
+  max-width: 380px;
 }
 
 #completeBookingBtn,

@@ -1592,6 +1592,12 @@ function lockNormalDiscountForCoupon(data) {
   if (data.discount_type === 'percentage') {
     document.getElementById('checkoutDiscountTypePercent').checked = true;
     document.getElementById('checkoutDiscount').value = data.discount_value;
+  } else {
+    // Fixed coupon: the field represents a rupee amount here (not a rate),
+    // so mirror the actual applied discount, not the coupon's nominal value
+    // (they can differ if a maximum_discount cap trims it).
+    document.getElementById('checkoutDiscountTypeFixed').checked = true;
+    document.getElementById('checkoutDiscount').value = parseFloat(data.discount_amount) || 0;
   }
   document.getElementById('checkoutDiscountTypeFixed').disabled = true;
   document.getElementById('checkoutDiscountTypePercent').disabled = true;

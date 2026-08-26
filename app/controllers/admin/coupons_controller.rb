@@ -108,9 +108,12 @@ class Admin::CouponsController < Admin::ApplicationController
         valid: true,
         code: coupon.code,
         discount_type: coupon.discount_type,
-        discount_value: coupon.discount_value,
+        discount_value: coupon.discount_value.to_f,
         discount_display: coupon.discount_display,
-        discount_amount: discount,
+        # BigDecimal serializes to a JSON *string* by default (Rails does this
+        # to avoid float precision loss) — cast explicitly so the JS side gets
+        # a real number and can safely call .toFixed() on it.
+        discount_amount: discount.to_f,
         message: "Coupon applied — you save ₹#{'%.2f' % discount}"
       }
     end

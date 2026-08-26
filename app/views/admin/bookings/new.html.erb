@@ -1536,10 +1536,14 @@ async function applyCoupon() {
     const data = await response.json();
 
     if (data.valid) {
-      appliedCouponDiscount = data.discount_amount;
+      // parseFloat guards against discount_amount ever arriving as a JSON
+      // string (e.g. an unconverted BigDecimal) — calling .toFixed() on a
+      // string throws, which used to get silently swallowed by the catch
+      // block below and show "Could not validate coupon" despite success.
+      appliedCouponDiscount = parseFloat(data.discount_amount) || 0;
       document.getElementById('hiddenCouponCode').value = data.code;
       document.getElementById('couponAppliedCode').textContent = `${data.code} (${data.discount_display})`;
-      document.getElementById('couponDiscountDisplay').textContent = data.discount_amount.toFixed(2);
+      document.getElementById('couponDiscountDisplay').textContent = appliedCouponDiscount.toFixed(2);
       document.getElementById('couponAppliedAmount').style.display = '';
       document.getElementById('couponAppliedInfo').style.display = 'flex';
       document.getElementById('couponInputGroup').style.display = 'none';

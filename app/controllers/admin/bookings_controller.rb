@@ -162,7 +162,7 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def create
-    @booking = Booking.new(booking_params)
+    @booking = Booking.new(booking_params.except(:discount_amount, :coupon_code))
     @booking.user = current_user
 
     # Auto-set franchise_id for franchise users
@@ -217,117 +217,39 @@ class Admin::BookingsController < Admin::ApplicationController
       @booking.customer_id = customer.id
     end
 
-    # Clean and validate discount amount
-    discount_value = params[:booking][:discount_amount] if params[:booking]
-    Rails.logger.info "Processing discount value: #{discount_value.inspect}"
+    # Manual/franchise-wholesale/coupon discounts are all computed together
+    # here (never trusted from the client beyond raw inputs) and folded into
+    # discount_amount so the standard total calculation picks them up. See
+    # BookingDiscountService for the shared logic reused by #update.
+    discount_result = BookingDiscountService.compute(
+      booking: @booking,
+      manual_discount_param: params.dig(:booking, :discount_amount),
+      coupon_code_param: params.dig(:booking, :coupon_code)
+    )
 
-    if discount_value.present?
-      # Clean the discount value - remove all whitespace, newlines, etc.
-      cleaned_discount = discount_value.to_s.gsub(/\s+/, '').strip
-      discount_amount = cleaned_discount.to_f
-      @booking.discount_amount = discount_amount > 0 ? discount_amount : 0
-      Rails.logger.info "Applied discount: #{@booking.discount_amount}"
-    else
-      @booking.discount_amount = 0
+    if discount_result.error?
+      @booking.errors.add(discount_result.error_field, discount_result.error_message)
+      @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
+      @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
+      @categories = Category.where(status: true).order(:display_order, :name)
+      @stores = Store.active.order(:name)
+      @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+      flash.now[:alert] = @booking.errors.full_messages.join(', ')
+      render :new, status: :unprocessable_entity
+      return
     end
 
-    # Wholesale "Franchise Booking" discount — recomputed server-side (not
-    # trusted from the client) and folded into discount_amount so the
-    # standard total calculation picks it up.
-    if @booking.franchise_id.present? && SystemSetting.franchise_commission_enabled?
-      # Run the real totals calculation now (it also runs again automatically
-      # before save) so subtotal/tax_amount reflect the actual GST-exclusive
-      # split from booking_items, instead of the GST-inclusive fallback that
-      # calculated_subtotal uses for a still-unsaved booking.
-      @booking.calculate_totals
-      bill_total = (@booking.subtotal.to_f + @booking.tax_amount.to_f).round(2)
-      franchise_discount_value = @booking.franchise_discount_value.to_f
+    # Captured before assignment (always nil here — a new booking never has
+    # a prior coupon) so the increment_usage! guard below can use the exact
+    # same before/after comparison as #update, where it's not always nil.
+    coupon_id_before_discount_compute = @booking.coupon_id
 
-      franchise_discount = case @booking.franchise_discount_type
-                            when 'percentage'
-                              if franchise_discount_value > 100
-                                @booking.errors.add(:franchise_discount_value, "cannot exceed 100% for a percentage discount")
-                              end
-                              (bill_total * franchise_discount_value / 100.0).round(2)
-                            when 'fixed'
-                              franchise_discount_value.round(2)
-                            else
-                              0
-                            end
-
-      if franchise_discount > bill_total
-        @booking.errors.add(:franchise_discount_value, "cannot exceed the bill total (₹#{'%.2f' % bill_total})")
-      end
-
-      if @booking.errors.any?
-        @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
-        @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-        @categories = Category.where(status: true).order(:display_order, :name)
-        @stores = Store.active.order(:name)
-        @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-        @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
-        flash.now[:alert] = @booking.errors.full_messages.join(', ')
-        render :new, status: :unprocessable_entity
-        return
-      end
-
-      @booking.franchise_discount_amount = franchise_discount
-      @booking.discount_amount = @booking.discount_amount.to_f + franchise_discount
-    else
-      @booking.franchise_id = nil
-    end
-
-    # Coupon discount — validated & recomputed server-side (never trust a
-    # client-submitted discount amount or the "Apply Coupon" AJAX preview),
-    # the same way the wholesale Franchise Booking discount above is.
-    # Applied on top of whatever discount is already set (normal/B2B/franchise).
-    coupon_code = params[:booking][:coupon_code].to_s.strip.upcase if params[:booking]
-    if coupon_code.present?
-      @booking.calculate_totals
-      bill_total = (@booking.subtotal.to_f + @booking.tax_amount.to_f).round(2)
-      coupon = Coupon.find_by(code: coupon_code)
-
-      coupon_error =
-        if coupon.nil?
-          "Coupon code '#{coupon_code}' not found"
-        elsif !coupon.status
-          "Coupon '#{coupon_code}' is inactive"
-        elsif coupon.expired?
-          "Coupon '#{coupon_code}' has expired"
-        elsif coupon.upcoming?
-          "Coupon '#{coupon_code}' is not active yet"
-        elsif coupon.usage_limit.present? && coupon.used_count >= coupon.usage_limit
-          coupon.usage_limit == 1 ? "Coupon '#{coupon_code}' has already been used" : "Coupon '#{coupon_code}' has reached its usage limit"
-        elsif bill_total < coupon.minimum_amount.to_f
-          "Coupon '#{coupon_code}' requires a minimum order of ₹#{'%.2f' % coupon.minimum_amount}"
-        end
-
-      if coupon_error
-        @booking.errors.add(:base, coupon_error)
-      else
-        coupon_discount = coupon.apply_discount(bill_total).round(2)
-        @booking.coupon_id = coupon.id
-        @booking.coupon_code = coupon.code
-        @booking.coupon_discount_amount = coupon_discount
-        @booking.discount_amount = @booking.discount_amount.to_f + coupon_discount
-      end
-
-      if @booking.errors.any?
-        @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
-        @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-        @categories = Category.where(status: true).order(:display_order, :name)
-        @stores = Store.active.order(:name)
-        @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-        @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
-        flash.now[:alert] = @booking.errors.full_messages.join(', ')
-        render :new, status: :unprocessable_entity
-        return
-      end
-    else
-      @booking.coupon_id = nil
-      @booking.coupon_code = nil
-      @booking.coupon_discount_amount = 0
-    end
+    @booking.discount_amount = discount_result.discount_amount
+    @booking.franchise_discount_amount = discount_result.franchise_discount_amount
+    @booking.coupon_id = discount_result.coupon&.id
+    @booking.coupon_code = discount_result.coupon&.code
+    @booking.coupon_discount_amount = discount_result.coupon_discount_amount
 
     # Store payment status value for after save (to avoid enum conflicts during validation)
     @payment_status_from_form = params[:booking][:payment_status]
@@ -361,8 +283,18 @@ class Admin::BookingsController < Admin::ApplicationController
       # Save again to persist the calculated totals and payment status
       @booking.save!
 
+      # Rebuild the discount ledger from the just-computed breakdown now that
+      # the booking has a persisted id.
+      @booking.booking_discounts.destroy_all
+      discount_result.rows.each { |row| @booking.booking_discounts.create!(row) }
+
       # Tag the coupon as used now that the booking is confirmed persisted.
-      @booking.coupon.increment_usage! if @booking.coupon_id.present?
+      # Guarded against the pre-computation coupon_id so re-saving an
+      # already-coupled booking (see #update) never double-counts usage
+      # against the coupon's usage_limit.
+      if @booking.coupon_id.present? && @booking.coupon_id != coupon_id_before_discount_compute
+        @booking.coupon.increment_usage!
+      end
 
       # Log the calculated totals for debugging
       Rails.logger.info "Booking totals - Subtotal: #{@booking.subtotal}, Tax: #{@booking.tax_amount}, Discount: #{@booking.discount_amount}, Total: #{@booking.total_amount}"
@@ -432,7 +364,46 @@ class Admin::BookingsController < Admin::ApplicationController
       return
     end
 
-    if @booking.update(booking_params)
+    @booking.assign_attributes(booking_params.except(:discount_amount, :coupon_code))
+
+    # Recompute manual/franchise/coupon discounts the same way #create does
+    # (see BookingDiscountService) — previously #update trusted the client's
+    # discount_amount outright and never recomputed franchise/coupon at all,
+    # so an edited booking's discounts could silently go stale.
+    coupon_id_before_discount_compute = @booking.coupon_id
+    discount_result = BookingDiscountService.compute(
+      booking: @booking,
+      manual_discount_param: params.dig(:booking, :discount_amount),
+      coupon_code_param: params.dig(:booking, :coupon_code)
+    )
+
+    if discount_result.error?
+      @booking.errors.add(discount_result.error_field, discount_result.error_message)
+      @products = Product.active
+                         .select(:id, :name, :price, :gst_enabled, :gst_percentage,
+                                 :cgst_percentage, :sgst_percentage, :igst_percentage,
+                                 :unit_type, :hsn_code)
+                         .includes(:product_variants)
+                         .order(:name)
+      flash.now[:alert] = @booking.errors.full_messages.join(', ')
+      render :edit, status: :unprocessable_entity
+      return
+    end
+
+    @booking.discount_amount = discount_result.discount_amount
+    @booking.franchise_discount_amount = discount_result.franchise_discount_amount
+    @booking.coupon_id = discount_result.coupon&.id
+    @booking.coupon_code = discount_result.coupon&.code
+    @booking.coupon_discount_amount = discount_result.coupon_discount_amount
+
+    if @booking.save
+      @booking.booking_discounts.destroy_all
+      discount_result.rows.each { |row| @booking.booking_discounts.create!(row) }
+
+      if @booking.coupon_id.present? && @booking.coupon_id != coupon_id_before_discount_compute
+        @booking.coupon.increment_usage!
+      end
+
       redirect_to admin_bookings_path(@list_state), notice: 'Booking updated successfully!'
     else
       @products = Product.active

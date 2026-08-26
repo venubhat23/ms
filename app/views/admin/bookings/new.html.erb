@@ -798,7 +798,7 @@
             <!-- Normal discount row (hidden when B2B is on) -->
             <div id="normalDiscountRow" class="mb-2">
               <div class="d-flex justify-content-between align-items-start">
-                <span>Discount</span>
+                <span>Discount <small id="discountCouponNote" class="text-muted" style="display:none;">(from coupon)</small></span>
                 <div class="text-end">
                   <div class="d-flex gap-3 mb-1 justify-content-end">
                     <div class="form-check form-check-inline me-0">
@@ -1451,7 +1451,12 @@ function updateCheckoutTotals() {
     discount = calculateB2BDiscountAmount(subtotal + totalGST);
     submittedDiscount = discount;
   } else {
-    discount = calculateNormalDiscountAmount(subtotal + totalGST);
+    // While a coupon is applied, the "Discount" field is locked to a
+    // read-only mirror (see lockNormalDiscountForCoupon) — its value must
+    // not also be charged, or the coupon's own discount gets doubled both
+    // on screen and server-side.
+    const couponActive = !!document.getElementById('hiddenCouponCode')?.value;
+    discount = couponActive ? 0 : calculateNormalDiscountAmount(subtotal + totalGST);
     submittedDiscount = discount;
   }
 
@@ -1540,18 +1545,21 @@ async function applyCoupon() {
       document.getElementById('couponInputGroup').style.display = 'none';
       messageEl.className = 'small mt-1 text-success';
       messageEl.textContent = data.message;
+      lockNormalDiscountForCoupon(data);
     } else {
       appliedCouponDiscount = 0;
       document.getElementById('hiddenCouponCode').value = '';
       document.getElementById('couponAppliedAmount').style.display = 'none';
       messageEl.className = 'small mt-1 text-danger';
       messageEl.textContent = data.message;
+      unlockNormalDiscountFromCoupon();
     }
   } catch (err) {
     appliedCouponDiscount = 0;
     document.getElementById('hiddenCouponCode').value = '';
     messageEl.className = 'small mt-1 text-danger';
     messageEl.textContent = 'Could not validate coupon right now. Please try again.';
+    unlockNormalDiscountFromCoupon();
   }
 
   updateCheckoutTotals();
@@ -1566,7 +1574,40 @@ function removeCoupon() {
   document.getElementById('couponAppliedInfo').style.display = 'none';
   document.getElementById('couponInputGroup').style.display = 'flex';
   document.getElementById('couponMessage').textContent = '';
+  unlockNormalDiscountFromCoupon();
   updateCheckoutTotals();
+}
+
+// A coupon's discount is computed and applied server-side independently of
+// the manual "Discount" field (see Admin::BookingsController#create, which
+// adds both together) — so once a coupon is active, the manual field is
+// locked to a read-only mirror of it (percentage coupons show their %)
+// instead of being a second, additive discount a staff member could stack
+// on top and silently double-discount the order.
+function lockNormalDiscountForCoupon(data) {
+  if (data.discount_type === 'percentage') {
+    document.getElementById('checkoutDiscountTypePercent').checked = true;
+    document.getElementById('checkoutDiscount').value = data.discount_value;
+  }
+  document.getElementById('checkoutDiscountTypeFixed').disabled = true;
+  document.getElementById('checkoutDiscountTypePercent').disabled = true;
+  document.getElementById('checkoutDiscount').disabled = true;
+  document.getElementById('discountCouponNote').style.display = '';
+  updateNormalDiscount();
+}
+
+function unlockNormalDiscountFromCoupon() {
+  document.getElementById('checkoutDiscountTypeFixed').disabled = false;
+  document.getElementById('checkoutDiscountTypePercent').disabled = false;
+  document.getElementById('checkoutDiscount').disabled = false;
+  document.getElementById('discountCouponNote').style.display = 'none';
+
+  // The value/type were auto-set to mirror the coupon, not chosen by staff —
+  // reset them so removing the coupon doesn't leave a stray manual discount
+  // silently in place.
+  document.getElementById('checkoutDiscountTypeFixed').checked = true;
+  document.getElementById('checkoutDiscount').value = 0;
+  updateNormalDiscount();
 }
 
 // Caps the wholesale discount value field at 100 when Percentage is selected,
@@ -1670,12 +1711,20 @@ function updateNormalDiscount() {
   const prefix = document.getElementById('checkoutDiscountPrefix');
   const calc   = document.getElementById('checkoutDiscountCalc');
 
+  const couponActive = !!document.getElementById('hiddenCouponCode')?.value;
+
   if (type === 'percent') {
     prefix.textContent = '%';
-    const grossTotal = parseFloat(document.getElementById('checkoutSubtotal')?.textContent || 0)
-                     + parseFloat(document.getElementById('checkoutTax')?.textContent || 0);
-    const amount = calculateNormalDiscountAmount(grossTotal);
-    calc.textContent = amount > 0 ? `= ₹${amount.toFixed(2)}` : '';
+    if (couponActive) {
+      // Already broken out on the Coupon row above — showing it again here
+      // as a second "= ₹X" would read as an additional amount being taken.
+      calc.textContent = '';
+    } else {
+      const grossTotal = parseFloat(document.getElementById('checkoutSubtotal')?.textContent || 0)
+                       + parseFloat(document.getElementById('checkoutTax')?.textContent || 0);
+      const amount = calculateNormalDiscountAmount(grossTotal);
+      calc.textContent = amount > 0 ? `= ₹${amount.toFixed(2)}` : '';
+    }
   } else {
     prefix.textContent = '₹';
     calc.textContent   = '';

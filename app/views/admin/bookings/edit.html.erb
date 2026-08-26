@@ -357,7 +357,17 @@
         </div>
         <% gst = gst_booking_summary(@booking.booking_items)
            edit_discount  = @booking.discount_amount.to_f
-           edit_total     = gst[:base] + gst[:tax] - edit_discount %>
+           edit_total     = gst[:base] + gst[:tax] - edit_discount
+           # The input/hidden field below represent only the *manual* portion
+           # of the discount — franchise/coupon are recomputed server-side
+           # from the booking's own stored config (see BookingDiscountService)
+           # and must not be re-submitted here, or they'd be double-counted.
+           manual_discount_value = (@booking.booking_discounts.detect { |d| d.source == 'manual' }&.value || 0).to_f
+           franchise_and_coupon_amount = @booking.franchise_discount_amount.to_f + @booking.coupon_discount_amount.to_f
+           applied_discount_notes = []
+           applied_discount_notes << "₹#{'%.2f' % @booking.franchise_discount_amount.to_f} franchise" if @booking.franchise_discount_amount.to_f > 0
+           applied_discount_notes << "₹#{'%.2f' % @booking.coupon_discount_amount.to_f} coupon (#{@booking.coupon_code})" if @booking.coupon_discount_amount.to_f > 0
+        %>
         <%= f.hidden_field :subtotal,     value: gst[:base] %>
         <%= f.hidden_field :tax_amount,   value: gst[:tax] %>
         <%= f.hidden_field :total_amount, value: edit_total %>
@@ -376,9 +386,12 @@
                 <button type="button" class="btn btn-outline-secondary active" id="discountTypeAmountBtn" onclick="setDiscountType('amount')">₹</button>
                 <button type="button" class="btn btn-outline-secondary" id="discountTypePercentBtn" onclick="setDiscountType('percent')">%</button>
               </div>
-              <input type="number" id="discountInput" value="<%= @booking.discount_amount.to_f %>" min="0" max="999999" step="0.01" class="form-control form-control-sm" onchange="calculateTotals()" oninput="calculateTotals()">
+              <input type="number" id="discountInput" value="<%= manual_discount_value %>" min="0" max="999999" step="0.01" class="form-control form-control-sm" onchange="calculateTotals()" oninput="calculateTotals()">
             </div>
             <small class="text-muted d-none" id="discountAmountPreview">= ₹0.00 off</small>
+            <% if applied_discount_notes.any? %>
+              <small class="text-muted d-block">+ <%= applied_discount_notes.join(' + ') %> already applied</small>
+            <% end %>
             <%= f.hidden_field :discount_amount, id: 'discountHiddenField' %>
           </div>
 
@@ -460,6 +473,11 @@ const productData = {
 };
 
 let discountType = 'amount'; // 'amount' or 'percent'
+
+// Franchise/coupon discounts aren't editable here (see BookingDiscountService) —
+// this constant lets the live total preview below stay accurate even though
+// #discountInput only ever represents the manual portion.
+const FRANCHISE_AND_COUPON_DISCOUNT = <%= franchise_and_coupon_amount %>;
 
 // Toggle discount entry between a flat rupee amount and a percentage
 function setDiscountType(type) {
@@ -600,7 +618,7 @@ function calculateTotals() {
     if (discountPreview) discountPreview.classList.add('d-none');
   }
 
-  const totalAmount = discountBase - discountAmount;
+  const totalAmount = Math.max(0, discountBase - discountAmount - FRANCHISE_AND_COUPON_DISCOUNT);
 
   // Update hidden fields for form submission
   document.querySelector('input[name="booking[subtotal]"]').value = subtotal.toFixed(2);

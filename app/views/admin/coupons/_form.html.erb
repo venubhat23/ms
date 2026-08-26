@@ -128,36 +128,6 @@
               </div>
             </div>
 
-            <div class="col-md-6">
-              <%= form.label :minimum_amount, "Minimum Order Amount", class: "form-label fw-semibold" %>
-              <div class="input-group">
-                <span class="input-group-text">₹</span>
-                <%= form.number_field :minimum_amount,
-                    class: "form-control",
-                    placeholder: "Optional",
-                    min: 0,
-                    step: 0.01 %>
-              </div>
-              <div class="form-text">
-                <small class="text-muted">Minimum cart value required to use this coupon</small>
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <%= form.label :maximum_discount, "Maximum Discount Cap", class: "form-label fw-semibold" %>
-              <div class="input-group">
-                <span class="input-group-text">₹</span>
-                <%= form.number_field :maximum_discount,
-                    class: "form-control",
-                    placeholder: "Optional",
-                    min: 0,
-                    step: 0.01,
-                    id: "max-discount-input" %>
-              </div>
-              <div class="form-text">
-                <small class="text-muted" id="max-discount-help">Maximum discount amount (useful for percentage coupons)</small>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -216,15 +186,6 @@
               </div>
 
               <%= form.number_field :usage_limit, class: "d-none" %>
-            </div>
-
-            <div class="col-md-6">
-              <div class="mt-2 pt-2">
-                <div class="alert alert-info alert-border-left mb-0">
-                  <i class="ri-information-line align-middle me-2"></i>
-                  <strong>Current Usage:</strong> <%= coupon.used_count || 0 %> times
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -299,8 +260,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const discountValueInput = document.getElementById('discount-value-input');
   const discountSymbol = document.getElementById('discount-symbol');
   const discountHelp = document.getElementById('discount-help');
-  const maxDiscountInput = document.getElementById('max-discount-input');
-  const maxDiscountHelp = document.getElementById('max-discount-help');
   const form = document.getElementById('coupon-form');
 
   // Update discount value input based on type
@@ -311,19 +270,11 @@ document.addEventListener('DOMContentLoaded', function() {
       discountValueInput.max = 100;
       discountValueInput.placeholder = 'e.g., 10';
       discountHelp.innerHTML = '<small class="text-muted">Percentage discount (1-100)</small>';
-      maxDiscountHelp.innerHTML = '<small class="text-muted">Recommended for percentage discounts to cap the maximum discount</small>';
-      maxDiscountInput.style.display = '';
-      maxDiscountInput.parentElement.style.display = '';
-      maxDiscountInput.parentElement.parentElement.style.display = '';
     } else if (type === 'fixed') {
       discountSymbol.innerHTML = '₹';
       discountValueInput.removeAttribute('max');
       discountValueInput.placeholder = 'e.g., 50';
       discountHelp.innerHTML = '<small class="text-muted">Fixed amount discount in rupees</small>';
-      maxDiscountHelp.innerHTML = '<small class="text-muted">Not needed for fixed amount discounts</small>';
-      maxDiscountInput.style.display = 'none';
-      maxDiscountInput.parentElement.style.display = 'none';
-      maxDiscountInput.parentElement.parentElement.style.display = 'none';
     }
     updatePreview();
   }

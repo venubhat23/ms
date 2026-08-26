@@ -20,6 +20,7 @@ class Booking < ApplicationRecord
   # has_one :order, dependent: :nullify  # Temporarily disabled until booking_id column is added to orders table
   has_many :booking_invoices, dependent: :destroy
   has_many :sale_items, dependent: :destroy
+  has_many :booking_discounts, dependent: :destroy
 
   accepts_nested_attributes_for :booking_items, allow_destroy: true
 

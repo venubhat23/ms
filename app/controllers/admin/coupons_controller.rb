@@ -107,6 +107,8 @@ class Admin::CouponsController < Admin::ApplicationController
       render json: {
         valid: true,
         code: coupon.code,
+        discount_type: coupon.discount_type,
+        discount_value: coupon.discount_value,
         discount_display: coupon.discount_display,
         discount_amount: discount,
         message: "Coupon applied — you save ₹#{'%.2f' % discount}"

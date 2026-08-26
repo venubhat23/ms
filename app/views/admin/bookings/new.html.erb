@@ -585,6 +585,22 @@
                         <i class="bi bi-piggy-bank-fill me-1"></i>
                         <span id="wholesaleSavingsText">Add products to see the wholesale savings</span>
                       </div>
+                      <div class="wholesale-savings-stats mt-2 d-none" id="wholesaleSavingsStats">
+                        <div class="wholesale-stat">
+                          <small>Selling Price Total</small>
+                          <span id="wholesaleTotalSelling">₹0.00</span>
+                        </div>
+                        <div class="wholesale-stat-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="wholesale-stat">
+                          <small>B2B Price Total</small>
+                          <span id="wholesaleTotalB2B">₹0.00</span>
+                        </div>
+                        <div class="wholesale-stat-arrow"><i class="bi bi-arrow-right"></i></div>
+                        <div class="wholesale-stat wholesale-stat-save">
+                          <small>You Save</small>
+                          <span id="wholesaleTotalSave">₹0.00</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 <% end %>
@@ -1127,6 +1143,14 @@ function updateCartDisplay() {
               ${isB2BPriced ? `<span class="badge b2b-price-badge"><i class="bi bi-shop-window me-1"></i>B2B</span>` : ''}
               ${item.quantity >= item.stock - 2 ? `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Only ${item.stock} in stock</span>` : ''}
             </div>
+            ${isB2BPriced ? `
+              <div class="b2b-price-breakdown mt-1">
+                Selling: <span class="text-decoration-line-through">₹${item.regularPrice.toFixed(2)}</span>
+                <i class="bi bi-arrow-right-short"></i>
+                B2B: <span class="fw-semibold text-primary">₹${item.price.toFixed(2)}</span>
+                <span class="text-success fw-semibold">(Save ₹${(item.regularPrice - item.price).toFixed(2)}/unit)</span>
+              </div>
+            ` : ''}
           </div>
           <button type="button" class="btn btn-sm btn-link text-danger p-1" onclick="removeFromCart(${productId})" title="Remove item">
             <i class="bi bi-x-lg"></i>
@@ -1149,6 +1173,7 @@ function updateCartDisplay() {
               `<small class="text-muted">${item.quantity} × ₹${itemBasePrice.toFixed(2)} (base)</small>` :
               `<small class="text-muted">${item.quantity} × ₹${item.price}</small>`
             }
+            ${isB2BPriced ? `<small class="text-success fw-semibold d-block">Save ₹${((item.regularPrice - item.price) * item.quantity).toFixed(2)}</small>` : ''}
           </div>
         </div>
       </div>
@@ -1383,10 +1408,16 @@ function updateCheckoutDisplay() {
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
           <div class="fw-medium">${item.name} ${isB2BPriced ? `<span class="badge b2b-price-badge">B2B</span>` : ''}</div>
-          <small class="text-muted">
-            ${isB2BPriced ? `<span class="text-decoration-line-through me-1">₹${item.regularPrice.toFixed(2)}</span>` : ''}₹${item.price.toFixed(2)} × ${item.quantity}
-          </small>
+          <small class="text-muted">₹${item.price.toFixed(2)} × ${item.quantity}</small>
           ${itemGSTRate > 0 ? `<br><small class="text-success">GST ${itemGSTRate}%: ₹${Math.abs(itemGSTAmount - Math.round(itemGSTAmount)) < 0.01 ? Math.round(itemGSTAmount) : itemGSTAmount.toFixed(2)}</small>` : ''}
+          ${isB2BPriced ? `
+            <br><small class="b2b-price-breakdown">
+              Selling: <span class="text-decoration-line-through">₹${item.regularPrice.toFixed(2)}</span>
+              <i class="bi bi-arrow-right-short"></i>
+              B2B: <span class="fw-semibold text-primary">₹${item.price.toFixed(2)}</span>
+              — <span class="text-success fw-semibold">Save ₹${((item.regularPrice - item.price) * item.quantity).toFixed(2)}</span>
+            </small>
+          ` : ''}
         </div>
         <span class="fw-medium">₹${itemTotal.toFixed(2)}</span>
       </div>
@@ -1474,22 +1505,34 @@ function updateCheckoutTotals() {
 
     let wholesaleSavings = 0;
     let repricedItems = 0;
+    let totalSellingPrice = 0;
+    let totalB2BPrice = 0;
     for (const item of Object.values(cart)) {
-      const perItemSavings = (item.regularPrice ?? item.price) - item.price;
+      const regular = item.regularPrice ?? item.price;
+      const perItemSavings = regular - item.price;
       wholesaleSavings += perItemSavings * item.quantity;
+      totalSellingPrice += regular * item.quantity;
+      totalB2BPrice += item.price * item.quantity;
       if (perItemSavings > 0) repricedItems++;
     }
     const franchiseDisplay = document.getElementById('franchiseDiscountDisplay');
     if (franchiseDisplay) franchiseDisplay.textContent = wholesaleSavings.toFixed(2);
 
     const savingsText = document.getElementById('wholesaleSavingsText');
+    const savingsStats = document.getElementById('wholesaleSavingsStats');
     if (savingsText) {
       if (Object.keys(cart).length === 0) {
         savingsText.textContent = 'Add products to see the wholesale savings';
+        savingsStats?.classList.add('d-none');
       } else if (wholesaleSavings > 0) {
         savingsText.textContent = `You're saving ₹${wholesaleSavings.toFixed(2)} across ${repricedItems} B2B-priced item${repricedItems === 1 ? '' : 's'}`;
+        document.getElementById('wholesaleTotalSelling').textContent = `₹${totalSellingPrice.toFixed(2)}`;
+        document.getElementById('wholesaleTotalB2B').textContent = `₹${totalB2BPrice.toFixed(2)}`;
+        document.getElementById('wholesaleTotalSave').textContent = `₹${wholesaleSavings.toFixed(2)}`;
+        savingsStats?.classList.remove('d-none');
       } else {
         savingsText.textContent = 'No B2B price set for the items in this cart — regular pricing used';
+        savingsStats?.classList.add('d-none');
       }
     }
   } else if (isB2B) {
@@ -3758,12 +3801,56 @@ function stopCamera() {
   font-weight: 600;
 }
 
+.wholesale-savings-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+}
+
+.wholesale-stat {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  flex: 1;
+}
+
+.wholesale-stat small {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+}
+
+.wholesale-stat span {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.wholesale-stat-save span {
+  color: #86efac;
+}
+
+.wholesale-stat-arrow {
+  opacity: 0.7;
+  font-size: 1.1rem;
+}
+
 .b2b-price-badge {
   background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
   color: #fff;
   font-weight: 600;
   font-size: 0.7rem;
   vertical-align: middle;
+}
+
+.b2b-price-breakdown {
+  font-size: 0.78rem;
+  color: #4338ca;
+  font-weight: 500;
 }
 
 /* Payment method options rendered as selectable cards */

@@ -10,6 +10,7 @@ class Franchise < ApplicationRecord
   has_many :franchise_stock_movements, dependent: :destroy
   has_many :franchise_withdrawal_requests, dependent: :destroy
   has_many :franchise_stock_requests, dependent: :destroy
+  has_many :franchise_returns, dependent: :destroy
 
   # Password support
   has_secure_password validations: false

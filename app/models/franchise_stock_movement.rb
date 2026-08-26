@@ -8,7 +8,8 @@ class FranchiseStockMovement < ApplicationRecord
   REFERENCE_TYPES = [
     ['wholesale_booking', 'Wholesale Booking (from HQ)'],
     ['franchise_booking', 'Franchise Booking'],
-    ['adjustment', 'Manual Adjustment']
+    ['adjustment', 'Manual Adjustment'],
+    ['franchise_return', 'Franchise Return (to HQ)']
   ].freeze
 
   belongs_to :franchise

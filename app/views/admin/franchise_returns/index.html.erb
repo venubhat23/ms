@@ -1,0 +1,115 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Franchise Returns</h2>
+    <p class="text-muted mb-0">Products sent back from a franchise to the main store</p>
+  </div>
+  <%= link_to new_admin_franchise_return_path, class: "btn btn-primary" do %>
+    <i class="bi bi-plus-lg me-1"></i>Create Return
+  <% end %>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Total</h6>
+        <h4 class="mb-0"><%= @stats[:total] %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Pending</h6>
+        <h4 class="mb-0 text-warning"><%= @stats[:pending] %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Approved</h6>
+        <h4 class="mb-0 text-success"><%= @stats[:approved] %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <h6 class="text-muted mb-1">Rejected</h6>
+        <h4 class="mb-0 text-danger"><%= @stats[:rejected] %></h4>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <select class="form-select" onchange="window.location.href='<%= admin_franchise_returns_path %>?status=' + this.value">
+          <option value="">All Status</option>
+          <option value="pending" <%= 'selected' if params[:status] == 'pending' %>>Pending</option>
+          <option value="approved" <%= 'selected' if params[:status] == 'approved' %>>Approved</option>
+          <option value="rejected" <%= 'selected' if params[:status] == 'rejected' %>>Rejected</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <%= link_to "Clear Filters", admin_franchise_returns_path, class: "btn btn-outline-secondary" %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <% if @franchise_returns.any? %>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light">
+            <tr>
+              <th class="border-0">Franchise</th>
+              <th class="border-0">Items</th>
+              <th class="border-0">Return Value</th>
+              <th class="border-0">Submitted</th>
+              <th class="border-0">Status</th>
+              <th class="border-0">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @franchise_returns.each do |fr| %>
+              <tr>
+                <td class="align-middle">
+                  <%= link_to fr.franchise.display_name, admin_franchise_path(fr.franchise) %>
+                  <div class="small text-muted"><%= fr.franchise.mobile %></div>
+                </td>
+                <td class="align-middle"><%= pluralize(fr.items_count, 'item') %></td>
+                <td class="align-middle">₹<%= number_with_delimiter(fr.total_amount.to_f.round(2)) %></td>
+                <td class="align-middle small"><%= fr.created_at.strftime("%b %d, %Y") %></td>
+                <td class="align-middle">
+                  <% status_color = { 'pending' => 'warning', 'approved' => 'success', 'rejected' => 'danger' }[fr.status] %>
+                  <span class="badge bg-<%= status_color %>"><%= fr.status.capitalize %></span>
+                </td>
+                <td class="align-middle">
+                  <%= link_to "Manage", admin_franchise_return_path(fr), class: "btn btn-sm btn-outline-primary" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <% if @franchise_returns.respond_to?(:total_pages) %>
+        <div class="card-footer bg-transparent border-0">
+          <%= paginate @franchise_returns %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-5">
+        <i class="bi bi-arrow-return-left fs-1 text-muted d-block mb-3"></i>
+        <h5 class="text-muted">No franchise returns</h5>
+        <%= link_to "Create Return", new_admin_franchise_return_path, class: "btn btn-primary mt-2" %>
+      </div>
+    <% end %>
+  </div>
+</div>

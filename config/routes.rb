@@ -411,6 +411,7 @@ Rails.application.routes.draw do
     resources :staff_attendances, only: [:create, :destroy] do
       collection do
         post :bulk_create
+        post :bulk_mark_today
       end
     end
     resources :staff_payments, only: [:create, :destroy]
@@ -788,6 +789,15 @@ Rails.application.routes.draw do
     # approves at a discount, which converts it into a wholesale Franchise
     # Booking and credits the franchise's own inventory ledger.
     resources :franchise_stock_requests, only: [:index, :show] do
+      member do
+        patch :approve
+        patch :reject
+      end
+    end
+
+    # Franchise returns — admin picks a franchise and products being sent
+    # back to HQ; approving credits main-store stock and the franchise wallet.
+    resources :franchise_returns, only: [:index, :new, :create, :show] do
       member do
         patch :approve
         patch :reject

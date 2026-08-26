@@ -10,7 +10,8 @@ class StockMovement < ApplicationRecord
   REFERENCE_TYPES = [
     ['vendor_purchase', 'Vendor Purchase'],
     ['booking', 'Booking'],
-    ['adjustment', 'Manual Adjustment']
+    ['adjustment', 'Manual Adjustment'],
+    ['franchise_return', 'Franchise Return']
   ].freeze
 
   belongs_to :product

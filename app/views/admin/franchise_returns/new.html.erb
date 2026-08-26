@@ -1,0 +1,277 @@
+<script>const FR_PRODUCTS = <%= raw json_escape(@products_json) %>;</script>
+
+<style>
+.fr-hover { transition:transform 0.15s,box-shadow 0.15s; }
+.fr-hover:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.12)!important; }
+.fr-cart-item { background:#f9fafb; border-radius:10px; padding:0.75rem 1rem; margin-bottom:0.5rem; position:relative; }
+.fr-cart-remove { position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem; }
+.fr-cart-remove:hover { color:#dc3545; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h4 class="fw-bold mb-1"><i class="bi bi-arrow-return-left me-2 text-primary"></i>Create Franchise Return</h4>
+    <small class="text-muted">Pick the franchise, then the products &amp; quantities being returned to the main store.</small>
+  </div>
+  <%= link_to admin_franchise_returns_path, class: "btn btn-outline-secondary btn-sm" do %>
+    <i class="bi bi-arrow-left me-1"></i>All Returns
+  <% end %>
+</div>
+
+<% if @franchise_return.errors.any? %>
+  <div class="alert alert-danger">
+    <%= @franchise_return.errors.full_messages.to_sentence %>
+  </div>
+<% end %>
+
+<%# Step 1: pick the franchise %>
+<div class="card border-0 shadow-sm mb-3" id="frFranchiseSection">
+  <div class="card-body">
+    <label class="form-label fw-semibold">
+      <i class="bi bi-shop me-1"></i>Franchise <span class="text-danger">*</span>
+    </label>
+    <select class="form-select" id="frFranchiseSelect" onchange="frFranchiseChanged()">
+      <option value="">Select the franchise returning stock…</option>
+      <% @franchises.each do |franchise| %>
+        <option value="<%= franchise.id %>"><%= franchise.name %><%= " (#{franchise.mobile})" if franchise.mobile.present? %></option>
+      <% end %>
+    </select>
+    <div class="form-text">Products can be picked once a franchise is selected.</div>
+  </div>
+</div>
+
+<%# Step 2: search/filter bar %>
+<div class="card border-0 shadow-sm mb-3 d-none" id="frSearchSection">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-center">
+      <div class="col-md-6">
+        <input type="text" class="form-control form-control-sm" id="frSearch" placeholder="Search products…" oninput="frFilter()">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select form-select-sm" id="frCatFilter" onchange="frFilter()">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+      <div class="col-md-2 text-end">
+        <button type="button" class="btn btn-outline-primary btn-sm position-relative w-100" id="frCartBtn" onclick="frShowCart()">
+          <i class="bi bi-cart-check me-1"></i>Review
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="frCartBadge">0</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# Product grid %>
+<div id="frProductsView" class="d-none">
+  <div class="card border-0 shadow-sm">
+    <div class="card-body pt-3">
+      <div class="row g-3" id="frGrid"></div>
+      <div id="frNoResults" class="text-center py-5 d-none">
+        <i class="bi bi-search fs-1 text-muted mb-2 d-block"></i>
+        <p class="text-muted">No products match your search.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# Review/submit view %>
+<div id="frCartView" style="display:none;">
+  <%= form_tag admin_franchise_returns_path, method: :post, id: "frForm" do %>
+    <input type="hidden" name="franchise_return[franchise_id]" id="frFranchiseIdField">
+    <div class="d-flex align-items-center mb-3">
+      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="frShowProducts()">
+        <i class="bi bi-arrow-left me-1"></i>Back to Products
+      </button>
+    </div>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card border-0 shadow-sm mb-3" style="border-radius:14px;">
+          <div class="card-header bg-white py-3 px-4">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-box-seam me-2 text-muted"></i>Returned Items</h6>
+          </div>
+          <div class="card-body px-4 py-3">
+            <div id="frCartItems"></div>
+            <div id="frCartEmpty" class="text-center py-4 text-muted small">
+              <i class="bi bi-cart" style="font-size:2rem;opacity:0.3;"></i>
+              <p class="mt-2 mb-0">No items — go back to add products</p>
+            </div>
+            <div id="frHiddenFields"></div>
+          </div>
+          <div class="card-footer bg-white px-4 py-3 d-flex justify-content-between align-items-center">
+            <span class="text-muted small">Total credit to franchise wallet</span>
+            <span class="fw-bold fs-5 text-success" id="frTotalValue">₹0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm" style="border-radius:14px;">
+          <div class="card-header bg-white py-3 px-4">
+            <h6 class="mb-0 fw-semibold"><i class="bi bi-chat-left-text me-2 text-muted"></i>Notes</h6>
+          </div>
+          <div class="card-body px-4 py-3">
+            <textarea name="franchise_return[notes]" class="form-control form-control-sm" rows="4" placeholder="Optional note — reason for return, condition of goods, etc…"></textarea>
+            <div class="alert alert-info small mt-3 mb-0">
+              <i class="bi bi-info-circle me-1"></i>
+              This is submitted as <strong>pending</strong>. Approving it (on the next page) is what actually credits
+              the stock back to the main store and pays the franchise wallet — nothing happens until then.
+            </div>
+            <div class="d-grid mt-3">
+              <button type="submit" class="btn btn-primary fw-semibold" style="border-radius:10px;">
+                <i class="bi bi-send-check me-1"></i>Submit Return
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+
+<script>
+const FR_MAP = Object.fromEntries(FR_PRODUCTS.map(p => [p.id, p]));
+let frCart = [], frIdx = 0;
+
+function frEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function frRenderCard(p) {
+  const img = p.image_url
+    ? `<img src="${frEsc(p.image_url)}" class="card-img-top" loading="lazy" style="height:150px;object-fit:cover;" alt="${frEsc(p.name)}">`
+    : `<div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height:150px;"><i class="bi bi-box-seam fs-1 text-muted"></i></div>`;
+  return `<div class="col-md-4 col-lg-3 fr-item"
+    data-id="${p.id}" data-name="${frEsc(p.name.toLowerCase())}" data-sku="${frEsc(p.sku.toLowerCase())}"
+    data-category="${frEsc(p.category_id)}">
+    <div class="card h-100 border-0 shadow-sm fr-hover">
+      <div class="position-relative">${img}</div>
+      <div class="card-body d-flex flex-column p-3">
+        <small class="text-muted mb-1">${frEsc(p.category_name)}</small>
+        <h6 class="fw-bold mb-1" style="font-size:0.9rem;min-height:36px;">${frEsc(p.name)}</h6>
+        <small class="text-muted mb-2">SKU: ${frEsc(p.sku)}</small>
+        <div class="fw-bold text-primary mb-2">₹${p.price} <small class="text-muted fw-normal">/ unit (B2B)</small></div>
+        <div class="mt-auto">
+          <div class="input-group input-group-sm mb-2">
+            <button class="btn btn-outline-secondary" type="button" onclick="frDec(${p.id})" style="border-radius:6px 0 0 6px;"><i class="bi bi-dash"></i></button>
+            <input type="number" id="fr-qty-${p.id}" value="1" min="1" step="1" class="form-control text-center fw-bold" style="max-width:54px;">
+            <button class="btn btn-outline-secondary" type="button" onclick="frInc(${p.id})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
+          </div>
+          <button class="btn btn-primary btn-sm w-100" onclick="frAdd(${p.id})"><i class="bi bi-plus-lg me-1"></i>Add to Return</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+(function init(){
+  const cats={};
+  FR_PRODUCTS.forEach(p=>{ if(p.category_id) cats[p.category_id]=p.category_name; });
+  const sel=document.getElementById('frCatFilter');
+  Object.entries(cats).sort((a,b)=>a[1].localeCompare(b[1])).forEach(([id,name])=>{ const o=document.createElement('option');o.value=id;o.textContent=name;sel.appendChild(o); });
+  const grid=document.getElementById('frGrid');
+  grid.innerHTML = FR_PRODUCTS.length ? FR_PRODUCTS.map(frRenderCard).join('') : '<div class="col-12 text-center py-5"><h5 class="text-muted">No products available</h5></div>';
+})();
+
+function frFranchiseChanged(){
+  const select = document.getElementById('frFranchiseSelect');
+  const chosen = !!select.value;
+  document.getElementById('frFranchiseIdField').value = select.value;
+  document.getElementById('frSearchSection').classList.toggle('d-none', !chosen);
+  document.getElementById('frProductsView').classList.toggle('d-none', !chosen);
+  if (!chosen) {
+    document.getElementById('frCartView').style.display = 'none';
+  }
+}
+
+function frShowCart(){
+  document.getElementById('frProductsView').classList.add('d-none');
+  document.getElementById('frSearchSection').classList.add('d-none');
+  document.getElementById('frFranchiseSection').classList.add('d-none');
+  document.getElementById('frCartView').style.display='';
+  frRenderCart();
+}
+function frShowProducts(){
+  document.getElementById('frCartView').style.display='none';
+  document.getElementById('frFranchiseSection').classList.remove('d-none');
+  document.getElementById('frProductsView').classList.remove('d-none');
+  document.getElementById('frSearchSection').classList.remove('d-none');
+}
+
+function frInc(id){ const i=document.getElementById('fr-qty-'+id); i.value=parseInt(i.value||1)+1; }
+function frDec(id){ const i=document.getElementById('fr-qty-'+id); if(parseInt(i.value)>1) i.value=parseInt(i.value)-1; }
+
+function frAdd(id){
+  const p=FR_MAP[id]; if(!p) return;
+  const qty=parseInt(document.getElementById('fr-qty-'+id).value)||1;
+  const ex=frCart.find(i=>i.productId===id);
+  if(ex){ ex.qty+=qty; }
+  else { frCart.push({idx:frIdx++,productId:id,name:p.name,unitPrice:p.price,qty}); }
+  frUpdateBadge();
+}
+
+function frRemove(idx){ frCart=frCart.filter(i=>i.idx!==idx); frRenderCart(); frUpdateBadge(); }
+function frQtyChange(idx,val){ const i=frCart.find(i=>i.idx===idx); if(i){i.qty=Math.max(1,parseInt(val)||1);} frRenderHiddenFields(); frUpdateTotal(); }
+
+function frRenderCart(){
+  const items=document.getElementById('frCartItems');
+  const empty=document.getElementById('frCartEmpty');
+  if(!frCart.length){ items.innerHTML=''; empty.style.display='block'; frUpdateTotal(); return; }
+  empty.style.display='none';
+  items.innerHTML=frCart.map(item=>`
+    <div class="fr-cart-item">
+      <button class="fr-cart-remove" type="button" onclick="frRemove(${item.idx})"><i class="bi bi-x"></i></button>
+      <div class="d-flex align-items-center gap-3">
+        <div class="flex-grow-1">
+          <div class="fw-semibold small">${frEsc(item.name)}</div>
+          <small class="text-muted">₹${item.unitPrice} / unit (B2B)</small>
+        </div>
+        <div style="width:90px;">
+          <input type="number" value="${item.qty}" min="1" step="1"
+                 class="form-control form-control-sm text-center" onchange="frQtyChange(${item.idx},this.value)">
+        </div>
+        <div class="text-end" style="width:90px;">
+          <span class="fw-semibold small">₹${(item.qty*item.unitPrice).toFixed(2)}</span>
+        </div>
+      </div>
+    </div>`).join('');
+  frRenderHiddenFields();
+  frUpdateTotal();
+}
+
+function frRenderHiddenFields(){
+  document.getElementById('frHiddenFields').innerHTML=frCart.map((item,i)=>
+    `<input type="hidden" name="franchise_return[items_attributes][${i}][product_id]" value="${item.productId}">` +
+    `<input type="hidden" name="franchise_return[items_attributes][${i}][quantity]" value="${item.qty}">` +
+    `<input type="hidden" name="franchise_return[items_attributes][${i}][unit_price]" value="${item.unitPrice}">`
+  ).join('');
+}
+
+function frUpdateTotal(){
+  const total = frCart.reduce((s,i)=>s+i.qty*i.unitPrice,0);
+  document.getElementById('frTotalValue').textContent = `₹${total.toFixed(2)}`;
+}
+
+function frUpdateBadge(){
+  const badge=document.getElementById('frCartBadge');
+  const count=frCart.reduce((s,i)=>s+i.qty,0);
+  badge.textContent=count;
+  badge.classList.toggle('d-none',count===0);
+}
+
+function frFilter(){
+  const q=document.getElementById('frSearch').value.toLowerCase();
+  const cat=document.getElementById('frCatFilter').value;
+  let vis=0;
+  document.querySelectorAll('.fr-item').forEach(item=>{
+    const show=(!q||item.dataset.name.includes(q)||item.dataset.sku.includes(q))&&(!cat||item.dataset.category===cat);
+    item.style.display=show?'':'none';
+    if(show) vis++;
+  });
+  document.getElementById('frNoResults').classList.toggle('d-none',vis>0);
+}
+
+document.getElementById('frForm')?.addEventListener('submit',function(e){
+  if(!document.getElementById('frFranchiseIdField').value){ e.preventDefault(); alert('Please select a franchise.'); return; }
+  if(!frCart.length){ e.preventDefault(); alert('Please add at least one product.'); return; }
+  frRenderHiddenFields();
+});
+</script>

@@ -195,6 +195,11 @@
                       rounded_gst = gst_val % 1 == 0 ? gst_val.to_i : gst_val.round(2)
                       base_val = rounded_final - gst_val
                       rounded_base = base_val % 1 == 0 ? base_val.to_i : base_val.round(2)
+
+                      # B2B (Franchise Booking) price — same GST-inclusive convention as
+                      # the regular price above. Multi-quantity products don't have a
+                      # per-variant B2B price yet, so they just keep their regular price.
+                      b2b_rounded_final = (product.has_multiple_quantities? ? final_price : product.effective_b2b_price).round
                     %>
 
                     <% if product.has_multiple_quantities? && product.product_variants.any? %>
@@ -229,6 +234,12 @@
                       <small class="text-muted d-block">
                         Base: ₹<%= number_with_delimiter(rounded_base) %> + GST: ₹<%= number_with_delimiter(rounded_gst) %> (<%= gst_rate %>%) = ₹<%= number_with_delimiter(rounded_final) %>
                       </small>
+                    <% end %>
+
+                    <% if b2b_rounded_final != rounded_final %>
+                      <span class="badge b2b-price-badge mt-1" data-b2b-hint>
+                        <i class="bi bi-shop-window me-1"></i>B2B: ₹<%= number_with_delimiter(b2b_rounded_final) %>
+                      </span>
                     <% end %>
                   </div>
 
@@ -277,7 +288,7 @@
                       %>
                       <button class="btn btn-primary w-100"
                               id="booking-add-btn-<%= product.id %>"
-                              onclick="bookingAddToCart(<%= product.id %>, '<%= j(product.name) %>', <%= cart_final_price %>, <%= effective_stock %>, <%= cart_base_price %>, <%= cart_gst_rate %>)"
+                              onclick="bookingAddToCart(<%= product.id %>, '<%= j(product.name) %>', <%= cart_final_price %>, <%= effective_stock %>, <%= cart_base_price %>, <%= cart_gst_rate %>, <%= b2b_rounded_final %>)"
                               data-base-price="<%= cart_base_price %>"
                               data-gst-rate="<%= cart_gst_rate %>"
                               data-final-price="<%= cart_final_price %>"
@@ -557,33 +568,22 @@
 
                 <% if @franchise_commission_enabled %>
                   <div class="col-12" id="wholesaleDiscountSection" style="display: none;">
-                    <div class="card border-0 bg-light-subtle">
-                      <div class="card-body">
-                        <h6 class="mb-3"><i class="bi bi-percent me-2"></i>Wholesale Discount</h6>
-                        <div class="row g-3 align-items-end">
-                          <div class="col-md-4">
-                            <label class="form-label">Discount Type</label>
-                            <div class="d-flex gap-3">
-                              <div class="form-check">
-                                <%= f.radio_button :franchise_discount_type, 'fixed', class: 'form-check-input', checked: true, onchange: 'updateFranchiseDiscountValueBounds(); updateCheckoutTotals()' %>
-                                <label class="form-check-label" for="booking_franchise_discount_type_fixed">Fixed Amount</label>
-                              </div>
-                              <div class="form-check">
-                                <%= f.radio_button :franchise_discount_type, 'percentage', class: 'form-check-input', onchange: 'updateFranchiseDiscountValueBounds(); updateCheckoutTotals()' %>
-                                <label class="form-check-label" for="booking_franchise_discount_type_percentage">Percentage</label>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="col-md-4">
-                            <label class="form-label">Discount Value</label>
-                            <%= f.number_field :franchise_discount_value, class: 'form-control', min: 0, step: '0.01', placeholder: '0.00', onchange: 'updateFranchiseDiscountValueBounds(); updateCheckoutTotals()', oninput: 'updateCheckoutTotals()' %>
-                          </div>
-                          <div class="col-md-4">
-                            <div class="form-text">
-                              <i class="bi bi-info-circle me-1"></i>Applied to the bill total and recorded against this franchise. The quantity sold will also be credited to the franchise's own inventory.
-                            </div>
-                          </div>
+                    <div class="wholesale-pricing-banner">
+                      <div class="d-flex align-items-center gap-3">
+                        <div class="wholesale-pricing-icon">
+                          <i class="bi bi-shop-window"></i>
                         </div>
+                        <div class="flex-grow-1">
+                          <h6 class="mb-1">B2B Wholesale Pricing Active</h6>
+                          <p class="mb-0 small opacity-90">
+                            Every product in the cart is automatically priced at its B2B rate instead of the regular selling price
+                            — no manual discount to enter. The quantity sold is also credited to the franchise's own inventory.
+                          </p>
+                        </div>
+                      </div>
+                      <div class="wholesale-savings-line mt-3" id="wholesaleSavingsLine">
+                        <i class="bi bi-piggy-bank-fill me-1"></i>
+                        <span id="wholesaleSavingsText">Add products to see the wholesale savings</span>
                       </div>
                     </div>
                   </div>
@@ -827,11 +827,12 @@
               </div>
             </div>
 
-            <!-- Franchise wholesale discount row (read-only, shown only when Franchise Booking is on) -->
+            <!-- B2B wholesale savings row (informational — already baked into
+                 Subtotal above via each item's B2B price, not subtracted again) -->
             <div id="franchiseDiscountRow" style="display: none;" class="mb-2">
               <div class="d-flex justify-content-between align-items-center">
-                <span>Discount <small class="text-muted">(wholesale)</small></span>
-                <span class="fw-medium">₹<span id="franchiseDiscountDisplay">0.00</span></span>
+                <span><i class="bi bi-shop-window me-1 text-primary"></i>B2B Savings</span>
+                <span class="fw-medium text-success">₹<span id="franchiseDiscountDisplay">0.00</span></span>
               </div>
             </div>
 
@@ -939,8 +940,10 @@ function initializeCart() {
 }
 
 // Add item to cart
-// qty param is optional — used by barcode scan to bypass the DOM qty input
-function addToCart(productId, productName, finalPrice, stock, basePrice, gstRate, variantId, qty) {
+// qty param is optional — used by barcode scan to bypass the DOM qty input.
+// b2bPrice is optional too — barcode-scanned items don't carry one, so they
+// just keep their regular price when Franchise Booking is on.
+function addToCart(productId, productName, finalPrice, stock, basePrice, gstRate, variantId, qty, b2bPrice) {
   const qtyEl = document.getElementById(`qty-${productId}`);
   const quantity = qty !== undefined ? parseFloat(qty) : (parseFloat(qtyEl?.value) || 1);
 
@@ -950,6 +953,8 @@ function addToCart(productId, productName, finalPrice, stock, basePrice, gstRate
   }
 
   const cartKey = variantId ? `${productId}_v${variantId}` : String(productId);
+  const effectiveB2bPrice = (b2bPrice !== undefined && b2bPrice !== null) ? b2bPrice : finalPrice;
+  const isFranchiseActive = document.getElementById('franchiseBookingToggle')?.checked;
 
   if (cart[cartKey]) {
     if (stock > 0 && cart[cartKey].quantity + quantity > stock) {
@@ -962,7 +967,11 @@ function addToCart(productId, productName, finalPrice, stock, basePrice, gstRate
       productId: productId,
       variantId: variantId || null,
       name: productName,
-      price: finalPrice,
+      // Already sitting in Franchise Booking mode when this item is first
+      // added — start it at B2B price, not the regular one.
+      price: isFranchiseActive ? effectiveB2bPrice : finalPrice,
+      regularPrice: finalPrice,
+      b2bPrice: effectiveB2bPrice,
       basePrice: basePrice || finalPrice,
       gstRate: gstRate || 0,
       quantity: quantity,
@@ -1025,7 +1034,7 @@ function bookingUpdateVariant(selectEl, productId) {
 }
 
 // Wrapper for variant-aware add-to-cart on booking page
-function bookingAddToCart(productId, productName, finalPrice, stock, basePrice, gstRate) {
+function bookingAddToCart(productId, productName, finalPrice, stock, basePrice, gstRate, b2bFinalPrice) {
   // Pick up variant info if available
   const variantInput = document.getElementById(`booking-selected-variant-${productId}`);
   const variantId = variantInput ? variantInput.value : null;
@@ -1038,9 +1047,12 @@ function bookingAddToCart(productId, productName, finalPrice, stock, basePrice, 
     stock = parseInt(opt.dataset.stock);
     // finalPrice is GST-inclusive — deflate it to get the base (pre-GST) price
     basePrice = gstRate > 0 ? finalPrice / (1 + gstRate / 100) : finalPrice;
+    // Multi-quantity products don't have a per-variant B2B price — keep the
+    // regular (possibly variant-overridden) price either way.
+    b2bFinalPrice = finalPrice;
   }
 
-  addToCart(productId, productName, finalPrice, stock, basePrice, gstRate, variantId);
+  addToCart(productId, productName, finalPrice, stock, basePrice, gstRate, variantId, undefined, b2bFinalPrice);
 }
 
 // Update cart display
@@ -1076,12 +1088,14 @@ function updateCartDisplay() {
 
   let itemsHtml = '';
   let subtotal = 0;
+  const isFranchiseActive = document.getElementById('franchiseBookingToggle')?.checked;
 
   // Sort items by name for consistent display
   const sortedItems = Object.entries(cart).sort((a, b) => a[1].name.localeCompare(b[1].name));
 
   for (const [productId, item] of sortedItems) {
     const itemGSTRate = item.gstRate || 0;
+    const isB2BPriced = isFranchiseActive && item.regularPrice != null && item.price < item.regularPrice;
     // item.price is always GST-inclusive — derive the base price from it directly
     // (smart-rounded, matching the checkout summary) rather than trusting a
     // separately-stored basePrice, which can drift out of sync.
@@ -1110,6 +1124,7 @@ function updateCartDisplay() {
                 `<span class="badge bg-light text-dark">₹${Math.abs(itemBasePrice - Math.round(itemBasePrice)) < 0.01 ? Math.round(itemBasePrice) : itemBasePrice.toFixed(2)} + GST ${itemGSTRate}%</span>` :
                 `<span class="badge bg-light text-dark">₹${item.price} each</span>`
               }
+              ${isB2BPriced ? `<span class="badge b2b-price-badge"><i class="bi bi-shop-window me-1"></i>B2B</span>` : ''}
               ${item.quantity >= item.stock - 2 ? `<span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Only ${item.stock} in stock</span>` : ''}
             </div>
           </div>
@@ -1128,6 +1143,7 @@ function updateCartDisplay() {
             </button>
           </div>
           <div class="text-end">
+            ${isB2BPriced ? `<small class="text-muted text-decoration-line-through d-block">₹${(item.regularPrice * item.quantity).toFixed(2)}</small>` : ''}
             <div class="fw-bold fs-5 text-primary">₹${itemTotal.toFixed(2)}</div>
             ${itemGSTRate > 0 ?
               `<small class="text-muted">${item.quantity} × ₹${itemBasePrice.toFixed(2)} (base)</small>` :
@@ -1339,10 +1355,12 @@ function updateCheckoutDisplay() {
   let fieldsHtml = '';
   let subtotal = 0;
   let fieldIndex = 0;
+  const isFranchiseActive = document.getElementById('franchiseBookingToggle')?.checked;
 
   for (const [productId, item] of Object.entries(cart)) {
     const itemBasePrice = item.basePrice || item.price;
     const itemGSTRate = item.gstRate || 0;
+    const isB2BPriced = isFranchiseActive && item.regularPrice != null && item.price < item.regularPrice;
     let itemTotal;
     let itemGSTAmount = 0;
 
@@ -1364,8 +1382,10 @@ function updateCheckoutDisplay() {
     summaryHtml += `
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
-          <div class="fw-medium">${item.name}</div>
-          <small class="text-muted">₹${item.price.toFixed(2)} × ${item.quantity}</small>
+          <div class="fw-medium">${item.name} ${isB2BPriced ? `<span class="badge b2b-price-badge">B2B</span>` : ''}</div>
+          <small class="text-muted">
+            ${isB2BPriced ? `<span class="text-decoration-line-through me-1">₹${item.regularPrice.toFixed(2)}</span>` : ''}₹${item.price.toFixed(2)} × ${item.quantity}
+          </small>
           ${itemGSTRate > 0 ? `<br><small class="text-success">GST ${itemGSTRate}%: ₹${Math.abs(itemGSTAmount - Math.round(itemGSTAmount)) < 0.01 ? Math.round(itemGSTAmount) : itemGSTAmount.toFixed(2)}</small>` : ''}
         </div>
         <span class="fw-medium">₹${itemTotal.toFixed(2)}</span>
@@ -1444,14 +1464,34 @@ function updateCheckoutTotals() {
   let submittedDiscount = 0;
 
   if (isFranchise) {
-    // Wholesale discount is recomputed and applied server-side (see
-    // bookings_controller#create), so it must NOT also be sent via the
-    // hidden discount_amount field or it would be applied twice.
-    discount = calculateFranchiseDiscountAmount(subtotal + totalGST);
+    // B2B pricing is already baked into each cart item's price (see
+    // addToCart / toggleFranchiseBooking), so subtotal/total above are
+    // already the wholesale amounts — no extra discount is subtracted here,
+    // that would double-count it. This is purely an informational "you're
+    // saving ₹X vs regular pricing" figure.
+    discount = 0;
     submittedDiscount = 0;
 
+    let wholesaleSavings = 0;
+    let repricedItems = 0;
+    for (const item of Object.values(cart)) {
+      const perItemSavings = (item.regularPrice ?? item.price) - item.price;
+      wholesaleSavings += perItemSavings * item.quantity;
+      if (perItemSavings > 0) repricedItems++;
+    }
     const franchiseDisplay = document.getElementById('franchiseDiscountDisplay');
-    if (franchiseDisplay) franchiseDisplay.textContent = discount.toFixed(2);
+    if (franchiseDisplay) franchiseDisplay.textContent = wholesaleSavings.toFixed(2);
+
+    const savingsText = document.getElementById('wholesaleSavingsText');
+    if (savingsText) {
+      if (Object.keys(cart).length === 0) {
+        savingsText.textContent = 'Add products to see the wholesale savings';
+      } else if (wholesaleSavings > 0) {
+        savingsText.textContent = `You're saving ₹${wholesaleSavings.toFixed(2)} across ${repricedItems} B2B-priced item${repricedItems === 1 ? '' : 's'}`;
+      } else {
+        savingsText.textContent = 'No B2B price set for the items in this cart — regular pricing used';
+      }
+    }
   } else if (isB2B) {
     discount = calculateB2BDiscountAmount(subtotal + totalGST);
     submittedDiscount = discount;
@@ -1634,35 +1674,6 @@ function unlockNormalDiscountFromCoupon() {
   document.getElementById('checkoutDiscountTypeFixed').checked = true;
   document.getElementById('checkoutDiscount').value = 0;
   updateNormalDiscount();
-}
-
-// Caps the wholesale discount value field at 100 when Percentage is selected,
-// so a value like 1000 can't be typed for a percentage discount in the first
-// place (the server rejects it either way, but this gives instant feedback).
-function updateFranchiseDiscountValueBounds() {
-  const type = document.querySelector('input[name="booking[franchise_discount_type]"]:checked')?.value || 'fixed';
-  const valueField = document.getElementById('booking_franchise_discount_value');
-  if (!valueField) return;
-
-  if (type === 'percentage') {
-    valueField.max = '100';
-    if (parseFloat(valueField.value) > 100) valueField.value = '100';
-  } else {
-    valueField.removeAttribute('max');
-  }
-}
-
-// Returns the calculated wholesale (Franchise Booking) discount in rupees given the gross total
-function calculateFranchiseDiscountAmount(grossTotal) {
-  const type  = document.querySelector('input[name="booking[franchise_discount_type]"]:checked')?.value || 'fixed';
-  const value = parseFloat(document.getElementById('booking_franchise_discount_value')?.value || 0);
-  let amount  = 0;
-  if (type === 'percentage') {
-    amount = (grossTotal * value) / 100;
-  } else {
-    amount = value;
-  }
-  return Math.min(Math.max(amount, 0), grossTotal);
 }
 
 // Returns the calculated B2B discount in rupees given the gross total
@@ -1851,8 +1862,16 @@ function toggleFranchiseBooking(checkbox) {
     if (b2bDiscountSection) b2bDiscountSection.style.display = isB2B ? '' : 'none';
   }
 
+  // Reprice every item already in the cart to/from its B2B price. Items
+  // added later already pick the right price at add-time (see addToCart).
+  for (const key in cart) {
+    const item = cart[key];
+    item.price = checkbox.checked ? (item.b2bPrice ?? item.price) : (item.regularPrice ?? item.price);
+  }
+
   updateCompleteBookingButtons();
-  updateCheckoutTotals();
+  updateCartDisplay();
+  updateCheckoutDisplay();
 }
 
 function initializeFranchiseSearch() {
@@ -2710,10 +2729,6 @@ document.addEventListener('DOMContentLoaded', function() {
       b2bToggle.title = 'Turn off Franchise Booking to enable B2B Booking';
     }
   }
-
-  // Sync the Discount Value field's max bound in case a validation-error
-  // reload restored a Percentage selection.
-  updateFranchiseDiscountValueBounds();
 
   // Add category filter listener
   const categoryFilter = document.getElementById('categoryFilter');
@@ -3708,17 +3723,47 @@ function stopCamera() {
   color: #94a3b8;
 }
 
-/* Wholesale discount panel */
-#wholesaleDiscountSection .card {
-  border-radius: 12px !important;
-  border: 1.5px dashed #cbd5f5 !important;
-  background: linear-gradient(135deg, #f5f7ff 0%, #f8f9fc 100%) !important;
+/* B2B wholesale pricing banner (Franchise Booking) */
+.wholesale-pricing-banner {
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  color: #fff;
+  background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+  box-shadow: 0 8px 20px rgba(67, 56, 202, 0.25);
 }
 
-#wholesaleDiscountSection h6 {
+.wholesale-pricing-banner h6 {
   font-weight: 700;
-  color: #4338ca;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.wholesale-pricing-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+}
+
+.wholesale-savings-line {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.b2b-price-badge {
+  background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.7rem;
+  vertical-align: middle;
 }
 
 /* Payment method options rendered as selectable cards */
@@ -3763,9 +3808,7 @@ function stopCamera() {
   cursor: pointer;
 }
 
-/* Fixed / Percentage discount-type pills (wholesale, order summary, B2B) */
-.form-check:has(> #booking_franchise_discount_type_fixed),
-.form-check:has(> #booking_franchise_discount_type_percentage),
+/* Fixed / Percentage discount-type pills (order summary, B2B) */
 .form-check:has(> #checkoutDiscountTypeFixed),
 .form-check:has(> #checkoutDiscountTypePercent),
 .form-check:has(> #discountTypeFixed),
@@ -3778,8 +3821,6 @@ function stopCamera() {
   cursor: pointer;
 }
 
-.form-check:has(> #booking_franchise_discount_type_fixed:checked),
-.form-check:has(> #booking_franchise_discount_type_percentage:checked),
 .form-check:has(> #checkoutDiscountTypeFixed:checked),
 .form-check:has(> #checkoutDiscountTypePercent:checked),
 .form-check:has(> #discountTypeFixed:checked),
@@ -3788,8 +3829,6 @@ function stopCamera() {
   background: #eef1ff;
 }
 
-.form-check:has(> #booking_franchise_discount_type_fixed) label,
-.form-check:has(> #booking_franchise_discount_type_percentage) label,
 .form-check:has(> #checkoutDiscountTypeFixed) label,
 .form-check:has(> #checkoutDiscountTypePercent) label,
 .form-check:has(> #discountTypeFixed) label,

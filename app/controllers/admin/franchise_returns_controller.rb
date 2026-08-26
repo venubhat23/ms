@@ -68,17 +68,15 @@ class Admin::FranchiseReturnsController < Admin::ApplicationController
     )
   end
 
-  # Full catalog, each product's B2B price pre-baked in as the default
-  # per-unit return credit (falls back to the regular selling price when a
-  # product has no B2B price set — see Product#effective_b2b_price).
+  # Full catalog, each product's B2B price pre-baked in as the per-unit
+  # return credit. Products with no b2b_price set are excluded entirely
+  # rather than silently falling back to the regular selling price (see
+  # Product#effective_b2b_price) — a return must always be valued at what
+  # the franchise actually paid, never the higher retail price.
   def cached_products_json
-    Rails.cache.fetch("franchise_returns/products_json", expires_in: 5.minutes) do
-      # No narrow .select here — effective_b2b_price falls through
-      # selling_price's full discount-fields chain (discount_type,
-      # discount_value, original_price, ...), so a partial select risks
-      # ActiveModel::MissingAttributeError. This is cached for 5 minutes,
-      # so the wider row payload costs nothing that matters.
+    Rails.cache.fetch("franchise_returns/products_json_b2b_only", expires_in: 5.minutes) do
       products = Product.active
+                         .where.not(b2b_price: nil)
                          .includes(:category, image_attachment: :blob)
                          .order(:display_order, :name)
 
@@ -90,7 +88,7 @@ class Admin::FranchiseReturnsController < Admin::ApplicationController
           category_id: p.category_id&.to_s || "",
           category_name: p.category&.name || "No Category",
           image_url: p.main_image_url,
-          price: p.effective_b2b_price.to_f.round(2)
+          price: p.b2b_price.to_f.round(2)
         }
       end.to_json
     end

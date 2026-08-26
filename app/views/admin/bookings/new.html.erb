@@ -3968,11 +3968,23 @@ function stopCamera() {
 }
 
 #completeBookingWalkinBtn {
+  background: #fff;
+  color: #198754;
+  border: 2px solid #198754;
   transition: all 0.2s ease;
 }
 
 #completeBookingWalkinBtn:hover:not(:disabled) {
+  background: #198754;
+  color: #fff;
+  border-color: #198754;
   transform: translateY(-1px);
+}
+
+#completeBookingWalkinBtn:disabled {
+  background: #fff;
+  color: #198754;
+  opacity: 0.65;
 }
 
 /* Order summary card */

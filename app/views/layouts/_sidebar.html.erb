@@ -858,6 +858,21 @@
           </li>
         <% end %>
 
+        <!-- Coupons -->
+        <% if current_user.has_sidebar_permission?('coupons') %>
+          <li class="nav-item">
+            <%= link_to admin_coupons_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/coupons')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg" style="background: linear-gradient(135deg, #fff3e0, #ffcc80);">
+                  <i class="bi bi-ticket-perforated-fill" style="color: #e65100;"></i>
+                </div>
+              </div>
+              <span class="nav-text">Coupons</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+        <% end %>
+
         <!-- Customer Wallets -->
         <% if current_user.has_sidebar_permission?('customer_wallets') && SystemSetting.customer_wallet_enabled? %>
           <li class="nav-item">

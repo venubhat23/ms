@@ -1,3 +1,4 @@
+<% form_object_name = coupon.model_name.param_key %>
 <%= form_with model: [:admin, coupon], local: true, class: "needs-validation", novalidate: true, id: "coupon-form" do |form| %>
   <% if coupon.errors.any? %>
     <div class="alert alert-danger alert-border-left alert-dismissible fade show" role="alert">
@@ -34,7 +35,11 @@
                     required: true,
                     maxlength: 20,
                     pattern: "[A-Z0-9]+",
-                    title: "Only uppercase letters and numbers allowed" %>
+                    title: "Only uppercase letters and numbers allowed",
+                    id: "coupon-code-input" %>
+                <button type="button" class="btn btn-outline-primary" id="generate-code-btn" title="Generate a random coupon code">
+                  <i class="ri-refresh-line align-middle me-1"></i>Generate
+                </button>
                 <div class="invalid-feedback">
                   Please enter a valid coupon code (uppercase letters and numbers only)
                 </div>
@@ -193,22 +198,46 @@
               </div>
             </div>
 
-            <div class="col-md-6">
-              <%= form.label :usage_limit, "Usage Limit", class: "form-label fw-semibold" %>
-              <div class="input-group">
-                <span class="input-group-text"><i class="ri-user-line"></i></span>
-                <%= form.number_field :usage_limit,
-                    class: "form-control",
-                    placeholder: "Unlimited",
-                    min: 1 %>
+            <div class="col-12">
+              <label class="form-label fw-semibold">Usage Type</label>
+              <span class="text-danger">*</span>
+              <div class="d-flex flex-wrap gap-2" id="usage-type-group">
+                <div class="form-check form-check-inline usage-type-option border rounded px-3 py-2 m-0">
+                  <input class="form-check-input" type="radio" name="usage_type" id="usage-type-single" value="single" <%= 'checked' if coupon.usage_limit == 1 %>>
+                  <label class="form-check-label" for="usage-type-single">
+                    <i class="ri-ticket-2-line align-middle me-1"></i>Use only 1 time
+                  </label>
+                </div>
+                <div class="form-check form-check-inline usage-type-option border rounded px-3 py-2 m-0">
+                  <input class="form-check-input" type="radio" name="usage_type" id="usage-type-unlimited" value="unlimited" <%= 'checked' if coupon.usage_limit.nil? %>>
+                  <label class="form-check-label" for="usage-type-unlimited">
+                    <i class="ri-infinity-line align-middle me-1"></i>Use many times (infinite)
+                  </label>
+                </div>
+                <div class="form-check form-check-inline usage-type-option border rounded px-3 py-2 m-0">
+                  <input class="form-check-input" type="radio" name="usage_type" id="usage-type-custom" value="custom" <%= 'checked' if coupon.usage_limit.present? && coupon.usage_limit != 1 %>>
+                  <label class="form-check-label" for="usage-type-custom">
+                    <i class="ri-list-ordered" ></i> Custom limit
+                  </label>
+                </div>
               </div>
-              <div class="form-text">
-                <small class="text-muted">Total number of times this coupon can be used (leave blank for unlimited)</small>
+
+              <div class="mt-2" id="custom-usage-limit-wrapper" style="display: none;">
+                <div class="input-group" style="max-width: 260px;">
+                  <span class="input-group-text"><i class="ri-user-line"></i></span>
+                  <%= form.number_field :usage_limit,
+                      class: "form-control",
+                      placeholder: "e.g., 100",
+                      min: 2 %>
+                </div>
+                <div class="form-text">
+                  <small class="text-muted">Total number of times this coupon can be used across all customers</small>
+                </div>
               </div>
             </div>
 
             <div class="col-md-6">
-              <div class="mt-4 pt-2">
+              <div class="mt-2 pt-2">
                 <div class="alert alert-info alert-border-left mb-0">
                   <i class="ri-information-line align-middle me-2"></i>
                   <strong>Current Usage:</strong> <%= coupon.used_count || 0 %> times
@@ -356,13 +385,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Live preview functionality
   function updatePreview() {
-    const code = document.getElementById('<%= form.object_name %>_code').value.toUpperCase() || 'SAMPLE';
-    const description = document.getElementById('<%= form.object_name %>_description').value || 'Sample coupon description';
+    const code = document.getElementById('<%= form_object_name %>_code').value.toUpperCase() || 'SAMPLE';
+    const description = document.getElementById('<%= form_object_name %>_description').value || 'Sample coupon description';
     const discountType = discountTypeSelect.value;
     const discountValue = discountValueInput.value;
-    const validFrom = document.getElementById('<%= form.object_name %>_valid_from').value;
-    const validUntil = document.getElementById('<%= form.object_name %>_valid_until').value;
-    const usageLimit = document.getElementById('<%= form.object_name %>_usage_limit').value;
+    const validFrom = document.getElementById('<%= form_object_name %>_valid_from').value;
+    const validUntil = document.getElementById('<%= form_object_name %>_valid_until').value;
+    const usageLimit = document.getElementById('<%= form_object_name %>_usage_limit').value;
 
     // Update preview elements
     document.getElementById('preview-code').textContent = code;
@@ -387,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Add event listeners for live preview
   const previewInputs = ['code', 'description', 'discount_value', 'valid_from', 'valid_until', 'usage_limit'];
   previewInputs.forEach(field => {
-    const element = document.getElementById('<%= form.object_name %>_' + field);
+    const element = document.getElementById('<%= form_object_name %>_' + field);
     if (element) {
       element.addEventListener('input', updatePreview);
       element.addEventListener('change', updatePreview);
@@ -408,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updatePreview();
 
   // Auto-uppercase coupon code
-  const codeInput = document.getElementById('<%= form.object_name %>_code');
+  const codeInput = document.getElementById('<%= form_object_name %>_code');
   if (codeInput) {
     codeInput.addEventListener('input', function() {
       this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -416,8 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Date validation
-  const validFromInput = document.getElementById('<%= form.object_name %>_valid_from');
-  const validUntilInput = document.getElementById('<%= form.object_name %>_valid_until');
+  const validFromInput = document.getElementById('<%= form_object_name %>_valid_from');
+  const validUntilInput = document.getElementById('<%= form_object_name %>_valid_until');
 
   function validateDates() {
     if (validFromInput.value && validUntilInput.value) {
@@ -435,6 +464,59 @@ document.addEventListener('DOMContentLoaded', function() {
   if (validFromInput && validUntilInput) {
     validFromInput.addEventListener('change', validateDates);
     validUntilInput.addEventListener('change', validateDates);
+  }
+
+  // Usage type: Single use / Unlimited / Custom limit
+  const usageLimitInput = document.getElementById('<%= form_object_name %>_usage_limit');
+  const customUsageWrapper = document.getElementById('custom-usage-limit-wrapper');
+  const usageTypeRadios = document.querySelectorAll('input[name="usage_type"]');
+
+  function applyUsageType() {
+    const selected = document.querySelector('input[name="usage_type"]:checked');
+    const type = selected ? selected.value : 'unlimited';
+
+    document.querySelectorAll('.usage-type-option').forEach(el => el.classList.remove('border-primary', 'bg-primary-subtle'));
+    if (selected) selected.closest('.usage-type-option').classList.add('border-primary', 'bg-primary-subtle');
+
+    if (type === 'single') {
+      usageLimitInput.value = 1;
+      customUsageWrapper.style.display = 'none';
+    } else if (type === 'unlimited') {
+      usageLimitInput.value = '';
+      customUsageWrapper.style.display = 'none';
+    } else {
+      customUsageWrapper.style.display = 'block';
+      if (!usageLimitInput.value || usageLimitInput.value === '1') {
+        usageLimitInput.value = '';
+      }
+      usageLimitInput.focus();
+    }
+    updatePreview();
+  }
+
+  usageTypeRadios.forEach(radio => radio.addEventListener('change', applyUsageType));
+  if (usageLimitInput) usageLimitInput.addEventListener('input', updatePreview);
+
+  // Default to "unlimited" if nothing pre-selected (new coupon)
+  if (!document.querySelector('input[name="usage_type"]:checked')) {
+    document.getElementById('usage-type-unlimited').checked = true;
+  }
+  applyUsageType();
+
+  // Generate a professional random coupon code
+  const generateBtn = document.getElementById('generate-code-btn');
+  if (generateBtn && codeInput) {
+    generateBtn.addEventListener('click', function() {
+      const prefixes = ['SAVE', 'DEAL', 'OFF', 'PROMO', 'GET'];
+      const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let suffix = '';
+      for (let i = 0; i < 6; i++) {
+        suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      codeInput.value = `${prefix}${suffix}`;
+      codeInput.dispatchEvent(new Event('input'));
+    });
   }
 });
 </script>

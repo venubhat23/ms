@@ -8,6 +8,11 @@
     <%= link_to admin_booking_path(@booking, list_state: @list_state), class: "btn btn-outline-primary" do %>
       <i class="bi bi-eye me-1"></i>View Order
     <% end %>
+    <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+      <button type="button" class="btn btn-outline-primary" id="assignToFranchiseBtn" onclick="toggleFranchiseAssignPanel()">
+        <i class="bi bi-shop-window me-1"></i>Assign to Franchise
+      </button>
+    <% end %>
     <%= link_to admin_bookings_path(@list_state), class: "btn btn-outline-secondary" do %>
       <i class="bi bi-arrow-left me-1"></i>Back to Bookings
     <% end %>
@@ -78,51 +83,63 @@
   </div>
 </div>
 
-<!-- Assign to Franchise — quick action independent of the step-by-step stage
-     picker below, so an admin doesn't have to walk a booking through every
-     intermediate stage just to hand it off for franchise delivery. -->
-<% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+<!-- Already assigned to a franchise — always visible, nothing to toggle -->
+<% if @booking.delivery_franchise.present? %>
   <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-transparent border-0">
       <h5 class="mb-0"><i class="bi bi-shop-window me-2 text-primary"></i>Franchise Delivery</h5>
     </div>
     <div class="card-body">
-      <% if @booking.delivery_franchise.present? %>
-        <div class="alert alert-info d-flex align-items-center mb-0">
-          <i class="bi bi-check-circle-fill me-2 fs-5"></i>
-          <div>
-            Assigned to <strong><%= @booking.delivery_franchise.name %></strong> for delivery.
-          </div>
+      <div class="alert alert-info d-flex align-items-center mb-0">
+        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+        <div>
+          Assigned to <strong><%= @booking.delivery_franchise.name %></strong> for delivery.
         </div>
-      <% else %>
-        <%= form_with url: update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch, local: true, data: { turbo: false } do %>
-          <input type="hidden" name="target_stage" value="out_for_delivery">
-          <input type="hidden" name="delivery_mode" value="franchise">
-          <div class="d-flex gap-2 align-items-end flex-wrap">
-            <div style="min-width: 260px;">
-              <label class="form-label small text-muted mb-1">Nearest Franchise</label>
-              <select name="delivery_franchise_id" class="form-select" required>
-                <option value="">-- Select Franchise --</option>
-                <% Franchise.active.order(:name).each do |fr| %>
-                  <option value="<%= fr.id %>"><%= fr.name %> (<%= number_with_precision(fr.commission_percentage, precision: 2) %>% commission)</option>
-                <% end %>
-              </select>
-            </div>
-            <button type="submit" class="btn btn-primary">
-              <i class="bi bi-shop-window me-1"></i>Assign to Franchise
-            </button>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<!-- Assign to Franchise panel — hidden until "Assign to Franchise" in the
+     header is clicked, at which point it replaces the step-by-step stage
+     picker below (toggleFranchiseAssignPanel), so an admin isn't shown two
+     different ways to move the same booking forward at once. -->
+<% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+  <div class="card border-0 shadow-sm mb-4" id="franchiseAssignPanel" style="display: none;">
+    <div class="card-header bg-transparent border-0">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-shop-window me-2 text-primary"></i>Assign to Franchise</h5>
+        <button type="button" class="btn-close" aria-label="Close" onclick="toggleFranchiseAssignPanel()"></button>
+      </div>
+    </div>
+    <div class="card-body">
+      <%= form_with url: update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch, local: true, data: { turbo: false } do %>
+        <input type="hidden" name="target_stage" value="out_for_delivery">
+        <input type="hidden" name="delivery_mode" value="franchise">
+        <div class="d-flex gap-2 align-items-end flex-wrap">
+          <div style="min-width: 260px;">
+            <label class="form-label small text-muted mb-1">Nearest Franchise</label>
+            <select name="delivery_franchise_id" class="form-select" required>
+              <option value="">-- Select Franchise --</option>
+              <% Franchise.active.order(:name).each do |fr| %>
+                <option value="<%= fr.id %>"><%= fr.name %> (<%= number_with_precision(fr.commission_percentage, precision: 2) %>% commission)</option>
+              <% end %>
+            </select>
           </div>
-          <div class="form-text mt-2">
-            Moves this booking straight to "Out for Delivery" and hands it to the selected franchise — they'll see it under their Deliveries list and earn a commission once they mark it delivered/completed.
-          </div>
-        <% end %>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-shop-window me-1"></i>Assign to Franchise
+          </button>
+        </div>
+        <div class="form-text mt-2">
+          Moves this booking straight to "Out for Delivery" and hands it to the selected franchise — they'll see it under their Deliveries list and earn a commission once they mark it delivered/completed.
+        </div>
       <% end %>
     </div>
   </div>
 <% end %>
 
 <!-- Main Content -->
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm" id="updateStageCard">
   <div class="card-header bg-transparent border-0">
     <div class="d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Update Order Stage</h5>
@@ -714,6 +731,19 @@
 </style>
 
 <script>
+// Toggles the "Assign to Franchise" panel from the header button, hiding
+// the step-by-step "Update Order Stage" card while it's open so the admin
+// isn't offered two different ways to move the booking forward at once.
+function toggleFranchiseAssignPanel() {
+  const panel = document.getElementById('franchiseAssignPanel');
+  const stageCard = document.getElementById('updateStageCard');
+  if (!panel) return;
+
+  const opening = panel.style.display === 'none' || panel.style.display === '';
+  panel.style.display = opening ? 'block' : 'none';
+  if (stageCard) stageCard.style.display = opening ? 'none' : 'block';
+}
+
 // Shows a validation message inline instead of a browser alert() popup.
 function showFormError(message) {
   const errorBox = document.getElementById('stage_form_error');

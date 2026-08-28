@@ -1,0 +1,184 @@
+<% content_for :title, "My Profile - Marali Santhe" %>
+
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">My Profile</h2>
+    <p class="text-muted mb-0">Your franchise account information</p>
+  </div>
+</div>
+
+<!-- Profile Summary Card -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-auto">
+        <div class="avatar-lg bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center">
+          <i class="fas fa-building fs-1 text-primary"></i>
+        </div>
+      </div>
+      <div class="col">
+        <h4 class="mb-1"><%= @franchise.display_name %></h4>
+        <div class="text-muted">
+          <div class="d-flex flex-wrap gap-3">
+            <span><i class="fas fa-envelope me-2"></i><%= @franchise.email %></span>
+            <span><i class="fas fa-phone me-2"></i><%= @franchise.mobile.presence || 'Not provided' %></span>
+          </div>
+        </div>
+      </div>
+      <div class="col-auto">
+        <span class="badge <%= @franchise.active? ? 'bg-success' : 'bg-secondary' %>">
+          <%= @franchise.active? ? 'Active' : 'Inactive' %>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Information Cards -->
+<div class="row mb-4">
+  <div class="col-lg-6 mb-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="fas fa-building me-2 text-primary"></i>
+          Business Information
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Franchise Name</label>
+            <div class="fw-medium"><%= @franchise.name %></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Contact Person</label>
+            <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.contact_person_name.present? %>">
+              <%= @franchise.contact_person_name.presence || 'Not provided' %>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Business Type</label>
+            <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.business_type.present? %>">
+              <%= @franchise.business_type.presence || 'Not provided' %>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Commission %</label>
+            <div class="fw-medium"><%= @franchise.commission_percentage %>%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6 mb-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="fas fa-phone me-2 text-success"></i>
+          Contact Information
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold text-muted">Email Address</label>
+            <div class="fw-medium"><%= @franchise.email %></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">Mobile Number</label>
+            <div class="fw-medium"><%= @franchise.mobile.presence || 'Not provided' %></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold text-muted">WhatsApp Number</label>
+            <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.whatsapp_number.present? %>">
+              <%= @franchise.whatsapp_number.presence || 'Not provided' %>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold text-muted">Address</label>
+            <div class="fw-medium"><%= @franchise.address %></div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold text-muted">City</label>
+            <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.city.present? %>">
+              <%= @franchise.city.presence || 'Not provided' %>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold text-muted">State</label>
+            <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.state.present? %>">
+              <%= @franchise.state.presence || 'Not provided' %>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold text-muted">PIN Code</label>
+            <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.pincode.present? %>">
+              <%= @franchise.pincode.presence || 'Not provided' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Additional Information Card -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent border-0">
+    <h5 class="mb-0">
+      <i class="fas fa-info-circle me-2 text-info"></i>
+      Additional Information
+    </h5>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold text-muted">PAN Number</label>
+        <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.pan_no.present? %>">
+          <%= @franchise.pan_no.presence || 'Not provided' %>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-semibold text-muted">GST Number</label>
+        <div class="fw-medium <%= 'text-muted fst-italic' unless @franchise.gst_no.present? %>">
+          <%= @franchise.gst_no.presence || 'Not provided' %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.avatar-lg {
+  width: 4rem;
+  height: 4rem;
+}
+
+.card {
+  transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.form-label {
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.fw-medium {
+  font-weight: 500 !important;
+}
+
+.card-header h5 {
+  font-weight: 600;
+}
+
+.text-muted.fst-italic {
+  font-style: italic;
+  opacity: 0.7;
+}
+</style>

@@ -1119,6 +1119,9 @@ Rails.application.routes.draw do
       end
     end
 
+    # Profile
+    resource :profile, only: [:show]
+
     # Franchise-wise inventory
     get '/inventory', to: 'inventory#index'
 

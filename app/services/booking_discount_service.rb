@@ -63,6 +63,17 @@ class BookingDiscountService
       return [0, nil]
     end
 
+    # The wholesale "Franchise Booking" toggle in the admin new-booking form
+    # bakes its discount straight into each booking_item's price instead of
+    # this manual field, so franchise_discount_type is blank for that flow —
+    # there's no discount row to record. Only a franchise's *manual*
+    # Fixed/Percentage discount (see FranchiseStockRequest#approve!, the
+    # other place that sets these two fields) produces one; falling through
+    # to the case below with a blank type used to push a row with
+    # discount_type: nil, which BookingDiscount's inclusion validation
+    # always rejected.
+    return [0, nil] if @booking.franchise_discount_type.blank?
+
     # Run the real totals calculation now (it also runs again automatically
     # before save) so subtotal/tax_amount reflect the actual GST-exclusive
     # split from booking_items, instead of the GST-inclusive fallback that
@@ -80,8 +91,6 @@ class BookingDiscountService
       amount = (bill_total * value / 100.0).round(2)
     when 'fixed'
       amount = value.round(2)
-    else
-      amount = 0
     end
 
     if amount > bill_total

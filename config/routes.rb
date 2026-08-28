@@ -162,6 +162,7 @@ Rails.application.routes.draw do
         get :search_customers
         post :quick_create_customer
         get :realtime_data
+        get :franchise_replenish_progress
         # Status filters
         get :pending
         get :confirmed

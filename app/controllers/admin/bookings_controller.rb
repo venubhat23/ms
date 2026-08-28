@@ -818,6 +818,19 @@ class Admin::BookingsController < Admin::ApplicationController
     @next_stages = @booking.next_possible_statuses
   end
 
+  # Polled by manage_stage's progress bar while FranchiseStockAutoReplenishJob
+  # auto-requests/approves a franchise's stock shortfall and finishes
+  # assigning the booking to them in the background.
+  def franchise_replenish_progress
+    progress = Rails.cache.read("franchise_stock_replenish_progress:#{params[:token]}")
+    if progress.nil?
+      render json: { done: true, missing: true, percent: 100 }
+      return
+    end
+
+    render json: progress
+  end
+
   def update_stage
     @list_state = list_state_params
     @target_stage = params[:target_stage] || params[:booking][:status]
@@ -852,8 +865,22 @@ class Admin::BookingsController < Admin::ApplicationController
 
         shortfall = franchise_stock_shortfall(franchise)
         if shortfall.any?
-          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state),
-            alert: "#{franchise.name} doesn't have enough stock to fulfil this booking — #{shortfall.join('; ')}."
+          # Rather than block the assignment, auto-request and auto-approve
+          # exactly the missing stock from HQ on the franchise's behalf (see
+          # FranchiseStockAutoReplenishJob), then finish the assignment —
+          # backgrounded since the wholesale booking + stock transfer it
+          # runs can be slow, with a token the manage_stage page polls to
+          # show a progress bar.
+          token = SecureRandom.hex(10)
+          FranchiseStockAutoReplenishJob.perform_later(@booking.id, franchise.id, current_user.id, transition_data, token)
+
+          respond_to do |format|
+            format.json { render json: { token: token, total: shortfall.size, franchise_name: franchise.name } }
+            format.html do
+              redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state),
+                notice: "#{franchise.name} was short on stock for this booking — auto-requesting and approving replenishment from HQ, then assigning. Refresh in a few moments."
+            end
+          end
           return
         end
       end
@@ -873,11 +900,13 @@ class Admin::BookingsController < Admin::ApplicationController
       # this booking as already fulfilled.
       success = ActiveRecord::Base.transaction do
         if franchise
-          restore_central_stock_for_franchise_transfer!(franchise) unless SystemSetting.stock_allocation_at_delivery_enabled?
-          consume_franchise_stock!(franchise)
-          @booking.update_column(:stock_allocated_at, Time.current) if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.stock_allocated_at.nil?
+          FranchiseDeliveryAssignmentService.new(
+            booking: @booking, franchise: franchise, actor: current_user, transition_data: transition_data
+          ).call!
+          true
+        else
+          update_booking_with_stage_transition(transition_data)
         end
-        update_booking_with_stage_transition(transition_data)
       end
 
       if success
@@ -1279,104 +1308,9 @@ class Admin::BookingsController < Admin::ApplicationController
     end
   end
 
-  # Deducts each of @booking's items from franchise's own inventory ledger.
-  # Only ever called after franchise_stock_shortfall has confirmed there's
-  # enough, so consume_stock! returning false here means a race — another
-  # assignment consumed the same stock between the check and this call —
-  # which raises to roll back the whole transaction this runs inside.
-  def consume_franchise_stock!(franchise)
-    @booking.booking_items.each do |item|
-      next if item.product_id.blank? || item.quantity.to_f <= 0
-
-      consumed = FranchiseInventory.consume_stock!(
-        franchise, item.product, item.quantity,
-        reference_type: 'franchise_delivery_assignment',
-        reference_id: @booking.id,
-        notes: "Delivery assignment for Booking ##{@booking.booking_number}"
-      )
-      raise "Insufficient stock for #{item.product&.name} at #{franchise.name}" unless consumed
-    end
-  end
-
-  # Central stock for every booking_item was already deducted at booking
-  # creation time (see BookingItem#reduce_product_stock), long before it
-  # ever reaches this stage. Once a franchise takes over delivery and
-  # fulfils it from their own on-shelf FranchiseInventory (see
-  # consume_franchise_stock!), the central warehouse is no longer shipping
-  # this order — so its stock claim on central inventory is released back.
-  #
-  # Mirrors the two restore patterns already used elsewhere: when a
-  # SaleItem ledger exists for this booking/product (Booking#allocate_inventory's
-  # confirmed-transition path), restore exactly into the batch it was drawn
-  # from, same as Booking#release_allocated_inventory. Otherwise, fall back
-  # to crediting the most recent active/exhausted batch, same approximation
-  # BookingItem#restore_product_stock uses since booking_items don't record
-  # which batch(es) they consumed.
-  def restore_central_stock_for_franchise_transfer!(franchise)
-    @booking.booking_items.includes(:product).each do |item|
-      product = item.product
-      next if product.blank? || item.quantity.to_f <= 0
-
-      sale_items = SaleItem.where(booking: @booking, product: product)
-
-      if sale_items.exists?
-        sale_items.find_each do |sale_item|
-          batch = sale_item.stock_batch
-          next unless batch
-
-          stock_before = batch.quantity_remaining
-          batch.quantity_remaining += sale_item.quantity
-          batch.status = 'active' if batch.exhausted? && batch.quantity_remaining > 0
-          batch.save!
-
-          StockMovement.create!(
-            product: product,
-            reference_type: 'franchise_delivery_assignment',
-            reference_id: @booking.id,
-            movement_type: 'added',
-            quantity: sale_item.quantity,
-            stock_before: stock_before,
-            stock_after: batch.quantity_remaining,
-            notes: "Stock returned to central inventory — Booking ##{@booking.booking_number} handed to #{franchise.name} for delivery"
-          )
-
-          sale_item.destroy
-        end
-      else
-        restore_scope = @booking.store_id.present? \
-          ? product.stock_batches.where(store_id: @booking.store_id).order(:batch_date, :created_at) \
-          : product.stock_batches.order(:batch_date, :created_at)
-
-        current_stock = restore_scope.sum(:quantity_remaining)
-        quantity_to_restore = item.quantity.to_f
-
-        restore_scope.reverse_each do |batch|
-          break if quantity_to_restore <= 0
-
-          if batch.status == 'exhausted' || batch.status == 'active'
-            batch.quantity_remaining += quantity_to_restore
-            batch.status = 'active'
-            batch.save!
-            quantity_to_restore = 0
-            break
-          end
-        end
-
-        StockMovement.create!(
-          product: product,
-          reference_type: 'franchise_delivery_assignment',
-          reference_id: @booking.id,
-          movement_type: 'added',
-          quantity: item.quantity.to_f,
-          stock_before: current_stock,
-          stock_after: current_stock + item.quantity.to_f,
-          notes: "Stock returned to central inventory — Booking ##{@booking.booking_number} handed to #{franchise.name} for delivery"
-        )
-      end
-
-      product.update_column(:stock, product.total_batch_stock)
-    end
-  end
+  # The franchise-transfer stock movements (consuming FranchiseInventory,
+  # restoring central stock) live in FranchiseDeliveryAssignmentService now,
+  # shared with FranchiseStockAutoReplenishJob's post-replenishment path.
 
   def process_out_for_delivery_transition
     if franchise_delivery_mode_requested?

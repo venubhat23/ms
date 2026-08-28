@@ -150,7 +150,7 @@
       </div>
     </div>
     <div class="card-body">
-      <%= form_with url: update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch, local: true, data: { turbo: false } do %>
+      <%= form_with url: update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch, local: true, data: { turbo: false }, id: "franchise_quick_assign_form" do %>
         <input type="hidden" name="target_stage" value="out_for_delivery">
         <input type="hidden" name="delivery_mode" value="franchise">
         <div class="d-flex gap-2 align-items-end flex-wrap">
@@ -194,7 +194,15 @@
         <label class="form-label fw-bold">Select New Stage</label>
         <select name="target_stage" class="form-select form-select-lg" onchange="showStageFields(this.value)" required>
           <option value="">-- Select Stage --</option>
-          <% all_stages = ['draft', 'ordered_and_delivery_pending', 'confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'completed', 'cancelled', 'returned'] %>
+          <% all_stages = if @booking.is_pre_booking?
+                             # Pre-bookings follow the same 8-stage progression shown in the
+                             # "Pre-Booking Progress" card above (and on the customer tracker) —
+                             # draft never applies here; cancelled/returned stay available as
+                             # exits from that progression, not as part of it.
+                             %w[ordered_and_delivery_pending confirmed processing packed shipped out_for_delivery delivered completed cancelled returned]
+                           else
+                             %w[draft ordered_and_delivery_pending confirmed processing packed shipped out_for_delivery delivered completed cancelled returned]
+                           end %>
           <% # Remove current stage from available stages %>
           <% available_stages = all_stages.reject { |stage| stage == @booking.status } %>
 
@@ -907,12 +915,36 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
 
+    // Franchise delivery assignment goes through the async/progress-bar path
+    // instead of a normal full-page form submit — see submitFranchiseAssignmentAsync.
+    if (selectedStage === 'out_for_delivery') {
+      const franchiseModeRadio = document.getElementById('delivery_mode_franchise');
+      if (franchiseModeRadio && franchiseModeRadio.checked) {
+        e.preventDefault();
+        submitFranchiseAssignmentAsync(form, submitBtn);
+        return false;
+      }
+    }
+
     // Show loading state
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Updating...';
 
     console.log('Form submission proceeding...');
     return true;
+  });
+});
+
+// The quick "Assign to Franchise" panel form always targets
+// out_for_delivery + delivery_mode: franchise, so every submit goes through
+// the async/progress-bar path.
+document.addEventListener('DOMContentLoaded', function() {
+  const quickForm = document.getElementById('franchise_quick_assign_form');
+  if (!quickForm) return;
+
+  quickForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    submitFranchiseAssignmentAsync(quickForm, quickForm.querySelector('button[type="submit"]'));
   });
 });
 
@@ -1067,5 +1099,151 @@ function toggleDeliveryMode(radio) {
 }
 
 // Stage management functionality
+</script>
+
+<!-- Franchise stock auto-replenish progress modal — shown while
+     FranchiseStockAutoReplenishJob auto-requests/approves the franchise's
+     stock shortfall and finishes the delivery assignment in the background. -->
+<div class="modal fade" id="franchiseReplenishModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px; border:none;">
+      <div class="modal-body text-center p-4">
+        <div id="franchiseReplenishIcon" class="mb-3">
+          <i class="bi bi-arrow-repeat" style="font-size:2rem; color:#0d6efd; display:inline-block; animation: franchise-replenish-spin 1s linear infinite;"></i>
+        </div>
+        <h6 id="franchiseReplenishTitle" class="fw-semibold mb-3">Assigning to franchise&hellip;</h6>
+        <div class="progress mb-2" style="height:22px; border-radius:11px; background:#f1f3f5;">
+          <div id="franchiseReplenishBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+               role="progressbar" style="width:0%; border-radius:11px; font-weight:600; transition:width 0.3s ease;">0%</div>
+        </div>
+        <div id="franchiseReplenishStep" class="text-muted small">Starting&hellip;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes franchise-replenish-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+</style>
+
+<script>
+(function() {
+  let modalInstance = null;
+  let pollTimer = null;
+
+  function getModal() {
+    if (!modalInstance) {
+      modalInstance = new bootstrap.Modal(document.getElementById('franchiseReplenishModal'));
+    }
+    return modalInstance;
+  }
+
+  const spinnerIcon = '<i class="bi bi-arrow-repeat" style="font-size:2rem; color:#0d6efd; display:inline-block; animation: franchise-replenish-spin 1s linear infinite;"></i>';
+  const doneIcon = '<i class="bi bi-check-circle-fill" style="font-size:2rem; color:#2f9e44;"></i>';
+  const failedIcon = '<i class="bi bi-x-circle-fill" style="font-size:2rem; color:#dc3545;"></i>';
+
+  function setIcon(html) {
+    document.getElementById('franchiseReplenishIcon').innerHTML = html;
+  }
+
+  function updateBar(percent) {
+    const bar = document.getElementById('franchiseReplenishBar');
+    const pct = percent || 0;
+    bar.style.width = pct + '%';
+    bar.textContent = pct + '%';
+  }
+
+  function startPolling(token) {
+    pollTimer = setInterval(function() {
+      fetch('<%= franchise_replenish_progress_admin_bookings_path %>?token=' + encodeURIComponent(token), {
+        headers: { 'Accept': 'application/json' }
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(progress) {
+          updateBar(progress.percent);
+          if (progress.step) {
+            document.getElementById('franchiseReplenishStep').textContent = progress.step;
+          }
+
+          if (progress.done) {
+            clearInterval(pollTimer);
+            document.getElementById('franchiseReplenishBar').classList.remove('progress-bar-animated');
+
+            if (progress.success === false) {
+              document.getElementById('franchiseReplenishBar').classList.remove('bg-primary');
+              document.getElementById('franchiseReplenishBar').classList.add('bg-danger');
+              document.getElementById('franchiseReplenishTitle').textContent = 'Auto-replenish failed';
+              document.getElementById('franchiseReplenishStep').textContent =
+                progress.error || 'Something went wrong — please retry from the booking page.';
+              setIcon(failedIcon);
+            } else {
+              document.getElementById('franchiseReplenishBar').classList.remove('bg-primary');
+              document.getElementById('franchiseReplenishBar').classList.add('bg-success');
+              document.getElementById('franchiseReplenishTitle').textContent = 'Done!';
+              document.getElementById('franchiseReplenishStep').textContent = progress.message || 'Booking updated successfully.';
+              setIcon(doneIcon);
+              setTimeout(function() { window.location.href = '<%= admin_bookings_path %>'; }, 1000);
+            }
+          }
+        })
+        .catch(function() {
+          // Transient network hiccup — next tick retries, no need to abort.
+        });
+    }, 800);
+  }
+
+  window.submitFranchiseAssignmentAsync = function(form, submitBtn) {
+    if (submitBtn) submitBtn.disabled = true;
+
+    const modal = getModal();
+    document.getElementById('franchiseReplenishTitle').textContent = 'Assigning to franchise…';
+    document.getElementById('franchiseReplenishStep').textContent = 'Starting…';
+    setIcon(spinnerIcon);
+    const bar = document.getElementById('franchiseReplenishBar');
+    bar.classList.remove('bg-success', 'bg-danger');
+    bar.classList.add('bg-primary', 'progress-bar-animated');
+    updateBar(0);
+    modal.show();
+
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(function(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.indexOf('application/json') !== -1) {
+          return response.json().then(function(data) { return { json: true, data: data }; });
+        }
+        // Server responded with a plain HTML redirect — an early validation
+        // failure (already assigned / invalid franchise) never reaches the
+        // job, so there's no token to poll. Just follow it.
+        return { json: false, url: response.url };
+      })
+      .then(function(result) {
+        if (result.json && result.data.token) {
+          startPolling(result.data.token);
+        } else if (result.json) {
+          modal.hide();
+          if (submitBtn) submitBtn.disabled = false;
+          if (typeof showFormError === 'function') {
+            showFormError(result.data.error || 'Something went wrong.');
+          }
+        } else {
+          window.location.href = result.url;
+        }
+      })
+      .catch(function(err) {
+        modal.hide();
+        if (submitBtn) submitBtn.disabled = false;
+        if (typeof showFormError === 'function') {
+          showFormError('Network error: ' + err.message);
+        }
+      });
+  };
+})();
 </script>
 

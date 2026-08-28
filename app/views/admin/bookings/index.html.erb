@@ -112,18 +112,6 @@
   display: contents;
 }
 
-.pre-booking-decision {
-  font-size: 11px;
-  white-space: nowrap;
-}
-.pre-booking-decision.approved {
-  background-color: #e8f5e8;
-  color: #2e7d32;
-}
-.pre-booking-decision.disapproved {
-  background-color: #ffebee;
-  color: #d32f2f;
-}
 
 /* Franchise booking highlighting */
 .franchise-booking {
@@ -725,12 +713,12 @@
                       <% else %>
                         <% if booking.is_pre_booking? %>
                           <% if booking.status == 'cancelled' %>
-                            <span class="badge pre-booking-decision disapproved" title="Pre-booking was disapproved">
-                              <i class="bi bi-x-circle-fill me-1"></i>Disapproved
+                            <span class="action-icon disapprove" title="Pre-booking was disapproved" style="cursor:default;">
+                              <i class="bi bi-x-lg"></i>
                             </span>
                           <% else %>
-                            <span class="badge pre-booking-decision approved" title="Pre-booking was approved">
-                              <i class="bi bi-check-circle-fill me-1"></i>Approved
+                            <span class="action-icon approve" title="Pre-booking was approved" style="cursor:default;">
+                              <i class="bi bi-check-lg"></i>
                             </span>
                           <% end %>
                         <% end %>

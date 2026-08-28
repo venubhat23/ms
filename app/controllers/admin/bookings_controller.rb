@@ -845,7 +845,7 @@ class Admin::BookingsController < Admin::ApplicationController
       if success
         success_notice = "Booking stage updated to #{@target_stage.humanize} successfully."
         if @target_stage == 'out_for_delivery' && transition_data[:delivery_mode] == 'franchise' && @booking.delivery_franchise.present?
-          success_notice = "Franchise #{@booking.delivery_franchise.name} assigned and booking updated successfully."
+          success_notice = "Booking successfully transferred to #{@booking.delivery_franchise.name}."
         end
         redirect_to admin_bookings_path(@list_state), notice: success_notice
       else

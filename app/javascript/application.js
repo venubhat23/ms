@@ -1,8 +1,14 @@
 // Configure your import map in config/importmap.rb. Read more: https://github.com/rails/importmap-rails
 import "@hotwired/turbo-rails"
 import "controllers"
-import * as bootstrap from "bootstrap"
-window.bootstrap = bootstrap
+
+// Bootstrap is loaded as a plain global via a <script> tag in
+// app/views/layouts/application.html.erb (same pattern every other layout
+// in this app uses), not imported here — importing the UMD bundle as an ES
+// module makes `import * as bootstrap` bind an empty module namespace (it
+// has no `export` statements), and assigning that to window.bootstrap
+// clobbers the real API the UMD wrapper already attached to globalThis as
+// a side effect, leaving every bootstrap.Modal/.Dropdown/... call broken.
 
 // layout_fix.css forces `overflow: hidden !important` on every .card (and
 // `overflow-x: auto !important` on .table-responsive), which clips any

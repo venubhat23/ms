@@ -439,6 +439,50 @@ class Booking < ApplicationRecord
     cancel_order!(reason.presence || 'Pre-booking rejected by admin') if pending_pre_booking_approval?
   end
 
+  # Pre-booking tracker steps shown to the customer on /track-order and
+  # referenced on the admin manage_stage page, so both stay in sync.
+  PRE_BOOKING_TRACKING_STEPS = [
+    { key: 'ordered_and_delivery_pending', label: 'Order Placed',     icon: '🧾' },
+    { key: 'confirmed',                    label: 'Admin Confirmed',  icon: '✅' },
+    { key: 'paid',                         label: 'Paid',             icon: '💳' },
+    { key: 'processing',                   label: 'Processing',       icon: '⚙️' },
+    { key: 'packed',                       label: 'Packed',           icon: '📦' },
+    { key: 'shipped',                      label: 'Shipped',          icon: '🚚' },
+    { key: 'out_for_delivery',             label: 'Out for Delivery', icon: '🛵' },
+    { key: 'delivered',                    label: 'Delivered',        icon: '🏠' }
+  ].freeze
+
+  # Index into PRE_BOOKING_TRACKING_STEPS reflecting how far a pre-booking
+  # has progressed. Unlike a normal order (a plain status lookup), "Paid"
+  # tracks payment_status independently of "Admin Confirmed" — see
+  # mark_payment_completed!, which can complete payment before admin
+  # approval — so this returns the longest *contiguous* prefix of steps
+  # that are actually satisfied, rather than jumping ahead on an
+  # out-of-order payment and falsely marking "Admin Confirmed" as done.
+  def pre_booking_tracking_step_index
+    post_confirm_ranks = %w[processing packed shipped out_for_delivery delivered completed]
+    status_rank = post_confirm_ranks.index(status)
+
+    conditions = [
+      true,
+      !pending_pre_booking_approval? && !%w[draft cancelled].include?(status),
+      payment_status_paid?,
+      !status_rank.nil? && status_rank >= 0,
+      !status_rank.nil? && status_rank >= 1,
+      !status_rank.nil? && status_rank >= 2,
+      !status_rank.nil? && status_rank >= 3,
+      !status_rank.nil? && status_rank >= 4
+    ]
+
+    index = 0
+    conditions.each_with_index do |ok, i|
+      break unless ok
+
+      index = i
+    end
+    index
+  end
+
   def can_return?
     %w[delivered completed].include?(status)
   end

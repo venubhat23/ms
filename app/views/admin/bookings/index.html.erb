@@ -87,6 +87,44 @@
   font-size: 14px;
 }
 
+/* Approve icon - green */
+.action-icon.approve {
+  background: #e8f5e8;
+  color: #2e7d32;
+}
+.action-icon.approve:hover {
+  background: #c8e6c9;
+  color: #1b5e20;
+}
+
+/* Disapprove icon - red */
+.action-icon.disapprove {
+  background: #ffebee;
+  color: #d32f2f;
+}
+.action-icon.disapprove:hover {
+  background: #ffcdd2;
+  color: #b71c1c;
+}
+
+/* button_to wraps its button in a form; keep it from affecting flex layout */
+.action-icons form.button_to {
+  display: contents;
+}
+
+.pre-booking-decision {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.pre-booking-decision.approved {
+  background-color: #e8f5e8;
+  color: #2e7d32;
+}
+.pre-booking-decision.disapproved {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
 /* Franchise booking highlighting */
 .franchise-booking {
   background-color: #e8f4f8 !important;
@@ -439,6 +477,13 @@
                           </span>
                         </div>
                       <% end %>
+                      <% if booking.is_pre_booking? %>
+                        <div class="mt-1">
+                          <span class="badge bg-purple-subtle text-purple px-2 py-1" style="background-color:#f3e8ff;color:#7c3aed;" title="Placed ahead of stock via the storefront's Pre Booking option">
+                            <i class="bi bi-calendar-plus me-1"></i>Pre-Booking
+                          </span>
+                        </div>
+                      <% end %>
                       <%# Booking source label %>
                       <div class="mt-1">
                         <% case booking.booked_by
@@ -590,11 +635,6 @@
                       <% status_text = booking.status&.humanize || 'Unknown' %>
                       <%= status_text.length > 12 ? status_text[0..11] + '...' : status_text %>
                     </span>
-                    <% if booking.is_pre_booking? %>
-                      <span class="badge bg-purple-subtle text-purple px-2 py-1" style="background-color:#f3e8ff;color:#7c3aed;" title="Placed ahead of stock via the storefront's Pre Booking option">
-                        <i class="bi bi-calendar-plus me-1"></i>Pre-Booking
-                      </span>
-                    <% end %>
 
                     <% if next_statuses.any? %>
                       <div class="dropdown">
@@ -697,16 +737,27 @@
                       <% end %>
                       <% if booking.pending_pre_booking_approval? %>
                         <%= button_to approve_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
-                              class: "btn btn-sm btn-success",
+                              class: "action-icon approve", title: "Approve Pre-booking",
                               data: { confirm: "Approve pre-booking ##{booking.booking_number}? This confirms the order and notifies the customer." } do %>
-                          <i class="bi bi-check-lg"></i> Approve
+                          <i class="bi bi-check-lg"></i>
                         <% end %>
                         <%= button_to reject_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
-                              class: "btn btn-sm btn-outline-danger",
+                              class: "action-icon disapprove", title: "Disapprove Pre-booking",
                               data: { confirm: "Disapprove (cancel) pre-booking ##{booking.booking_number}?" } do %>
-                          <i class="bi bi-x-lg"></i> Disapprove
+                          <i class="bi bi-x-lg"></i>
                         <% end %>
                       <% else %>
+                        <% if booking.is_pre_booking? %>
+                          <% if booking.status == 'cancelled' %>
+                            <span class="badge pre-booking-decision disapproved" title="Pre-booking was disapproved">
+                              <i class="bi bi-x-circle-fill me-1"></i>Disapproved
+                            </span>
+                          <% else %>
+                            <span class="badge pre-booking-decision approved" title="Pre-booking was approved">
+                              <i class="bi bi-check-circle-fill me-1"></i>Approved
+                            </span>
+                          <% end %>
+                        <% end %>
                         <%= link_to edit_admin_booking_path(booking, list_state: list_state), class: "action-icon edit", title: "Edit Booking" do %>
                           <i class="bi bi-pencil"></i>
                         <% end %>

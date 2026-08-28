@@ -53,16 +53,21 @@ class OrderTrackingController < ActionController::Base
         :returned
       end
 
-    @steps = STEPS
-    raw_index = STEP_KEYS.index(@booking.status)
-    @current_step_index =
-      if raw_index
-        raw_index
-      elsif @booking.status == 'completed'
-        STEP_KEYS.length - 1
-      else
-        0 # draft or any unmapped pre-processing status
-      end
+    if @booking.is_pre_booking?
+      @steps = Booking::PRE_BOOKING_TRACKING_STEPS
+      @current_step_index = @booking.pre_booking_tracking_step_index
+    else
+      @steps = STEPS
+      raw_index = STEP_KEYS.index(@booking.status)
+      @current_step_index =
+        if raw_index
+          raw_index
+        elsif @booking.status == 'completed'
+          STEP_KEYS.length - 1
+        else
+          0 # draft or any unmapped pre-processing status
+        end
+    end
   end
 
   # Renders the same invoice template the admin invoice page uses

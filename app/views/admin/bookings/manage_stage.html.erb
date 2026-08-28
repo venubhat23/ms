@@ -36,6 +36,26 @@
   </div>
 </div>
 
+<!-- Pre-booking tracker — mirrors the customer-facing /track-order stepper -->
+<% if @booking.is_pre_booking? %>
+  <% current_step_index = @booking.pre_booking_tracking_step_index %>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0">
+      <h5 class="mb-0"><i class="bi bi-calendar-plus me-2 text-purple" style="color:#7c3aed;"></i>Pre-Booking Progress</h5>
+    </div>
+    <div class="card-body">
+      <div class="d-flex flex-wrap gap-2">
+        <% Booking::PRE_BOOKING_TRACKING_STEPS.each_with_index do |step, i| %>
+          <span class="badge px-3 py-2 <%= i <= current_step_index ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-light text-muted border' %>">
+            <%= step[:icon] %> <%= step[:label] %><%= ' (current)' if i == current_step_index %>
+          </span>
+        <% end %>
+      </div>
+      <div class="form-text mt-2">Same stage sequence shown to the customer on their order tracking page.</div>
+    </div>
+  </div>
+<% end %>
+
 <!-- Current Status Statistics Cards -->
 <div class="row mb-4">
   <div class="col-md-3">

@@ -70,9 +70,15 @@ class BookingItem < ApplicationRecord
     if remaining_to_allocate > 0 && booking&.skip_stock_check
       overflow_batch = last_batch || stock_batches_scope.last || product.stock_batches.order(:batch_date, :created_at).last
       if overflow_batch
-        overflow_batch.quantity_remaining -= remaining_to_allocate
-        overflow_batch.status = 'exhausted'
-        overflow_batch.save!
+        # update_columns (not save!) because this deliberately pushes
+        # quantity_remaining negative to record the oversell/pre-booking
+        # deficit — StockBatch's own `quantity_remaining >= 0` validation
+        # would otherwise raise here for exactly the 0-stock case this
+        # branch exists to handle (e.g. a Pre Booking order).
+        overflow_batch.update_columns(
+          quantity_remaining: overflow_batch.quantity_remaining - remaining_to_allocate,
+          status: 'exhausted'
+        )
       end
       total_allocated += remaining_to_allocate
       remaining_to_allocate = 0
@@ -90,7 +96,12 @@ class BookingItem < ApplicationRecord
     product.update_column(:stock, new_total_batch_stock)
 
     store_note = booking_store_id.present? ? " at #{booking.store.name}" : ''
-    product.stock_movements.create!(
+    # save!(validate: false): a skip_stock_check (e.g. Pre Booking) order can
+    # legitimately push stock_after negative — StockMovement's own
+    # `stock_after >= 0` validation would otherwise raise here and abort the
+    # whole booking save (see the overflow_batch fix above for the same
+    # reasoning).
+    product.stock_movements.new(
       reference_type: 'booking',
       reference_id: booking.id,
       movement_type: 'consumed',
@@ -98,7 +109,7 @@ class BookingItem < ApplicationRecord
       stock_before: current_stock,
       stock_after: new_stock,
       notes: "Stock consumed for booking#{store_note}: #{product.name} (Qty: #{quantity})"
-    )
+    ).save!(validate: false)
 
     Rails.logger.info "Reduced stock for Product ##{product.id} by #{quantity}. New store stock: #{new_stock}"
   end
@@ -136,9 +147,11 @@ class BookingItem < ApplicationRecord
       if remaining_to_allocate > 0 && booking&.skip_stock_check
         overflow_batch = last_batch || stock_batches_scope.last || product.stock_batches.order(:batch_date, :created_at).last
         if overflow_batch
-          overflow_batch.quantity_remaining -= remaining_to_allocate
-          overflow_batch.status = 'exhausted'
-          overflow_batch.save!
+          # update_columns (not save!) — see reduce_product_stock for why.
+          overflow_batch.update_columns(
+            quantity_remaining: overflow_batch.quantity_remaining - remaining_to_allocate,
+            status: 'exhausted'
+          )
         end
         net_change -= remaining_to_allocate
         remaining_to_allocate = 0
@@ -178,7 +191,8 @@ class BookingItem < ApplicationRecord
       movement_type = quantity_difference > 0 ? 'consumed' : 'adjusted'
       movement_quantity = quantity_difference > 0 ? -quantity_difference.abs : quantity_difference.abs
 
-      product.stock_movements.create!(
+      # save!(validate: false) — see reduce_product_stock for why.
+      product.stock_movements.new(
         reference_type: 'booking',
         reference_id: booking.id,
         movement_type: movement_type,
@@ -186,7 +200,7 @@ class BookingItem < ApplicationRecord
         stock_before: current_stock,
         stock_after: new_stock,
         notes: "Booking item quantity changed from #{old_quantity} to #{new_quantity}"
-      )
+      ).save!(validate: false)
     end
   end
 
@@ -224,7 +238,10 @@ class BookingItem < ApplicationRecord
     new_total_batch_stock = booking_store_id.present? ? product.total_batch_stock : new_stock
     product.update_column(:stock, new_total_batch_stock)
 
-    product.stock_movements.create!(
+    # save!(validate: false) — see reduce_product_stock for why (stock_after
+    # can still be negative here if the product's stock was already in
+    # deficit from an earlier oversold/pre-booked item).
+    product.stock_movements.new(
       reference_type: 'booking',
       reference_id: booking.id,
       movement_type: 'adjusted',
@@ -232,7 +249,7 @@ class BookingItem < ApplicationRecord
       stock_before: current_stock,
       stock_after: new_stock,
       notes: "Stock restored from cancelled booking item: #{product.name} (Qty: #{quantity})"
-    )
+    ).save!(validate: false)
 
     Rails.logger.info "Restored stock for Product ##{product.id} by #{quantity}. New stock: #{new_stock}"
   end

@@ -103,25 +103,31 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
 
       <div class="card">
         <h2>Delivery Option</h2>
-        <label class="opt selected" id="opt-home" onclick="selectDelivery('home')">
-          <input type="radio" name="delivery_option" value="home_delivery" checked>
+        <label class="opt <%= @allow_pre_booking_enabled ? 'disabled-opt' : 'selected' %>" id="opt-home" onclick="selectDelivery('home')">
+          <input type="radio" name="delivery_option" value="home_delivery" <%= 'checked' unless @allow_pre_booking_enabled %> <%= 'disabled' if @allow_pre_booking_enabled %>>
           <div>
             <div class="opt-title">Home Delivery</div>
             <div class="opt-sub">Delivered to your address</div>
+            <% if @allow_pre_booking_enabled %>
+              <div class="opt-sub" style="color:#b08d3f">Unavailable while Pre Booking is on</div>
+            <% end %>
           </div>
         </label>
         <% if @collect_from_store_enabled && @available_stores&.any? %>
-          <label class="opt" id="opt-store" onclick="selectDelivery('store')">
-            <input type="radio" name="delivery_option" value="store_pickup">
+          <label class="opt <%= 'disabled-opt' if @allow_pre_booking_enabled %>" id="opt-store" onclick="selectDelivery('store')">
+            <input type="radio" name="delivery_option" value="store_pickup" <%= 'disabled' if @allow_pre_booking_enabled %>>
             <div>
               <div class="opt-title">Collect from Store</div>
               <div class="opt-sub">Pick up your order yourself</div>
+              <% if @allow_pre_booking_enabled %>
+                <div class="opt-sub" style="color:#b08d3f">Unavailable while Pre Booking is on</div>
+              <% end %>
             </div>
           </label>
         <% end %>
         <% if @allow_pre_booking_enabled %>
-          <label class="opt" id="opt-prebooking" onclick="selectDelivery('prebooking')">
-            <input type="radio" name="delivery_option" value="pre_booking">
+          <label class="opt selected" id="opt-prebooking" onclick="selectDelivery('prebooking')">
+            <input type="radio" name="delivery_option" value="pre_booking" checked>
             <div>
               <div class="opt-title">Pre Booking</div>
               <div class="opt-sub">Order now, even if not currently in stock — delivered to your address once admin approves</div>
@@ -175,15 +181,18 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
 
       <div class="card">
         <h2>Payment Method</h2>
-        <label class="opt selected" id="pay-cod" onclick="selectPayment('cod')">
-          <input type="radio" name="payment_method" value="cod" checked>
+        <% if @allow_pre_booking_enabled %>
+          <div class="opt-sub" style="margin-bottom:10px">No payment is collected now — you'll be contacted once your Pre Booking is approved.</div>
+        <% end %>
+        <label class="opt <%= @allow_pre_booking_enabled ? 'disabled-opt' : 'selected' %>" id="pay-cod" onclick="selectPayment('cod')">
+          <input type="radio" name="payment_method" value="cod" checked <%= 'disabled' if @allow_pre_booking_enabled %>>
           <div>
             <div class="opt-title">Cash on Delivery</div>
             <div class="opt-sub">Pay when you receive your order</div>
           </div>
         </label>
-        <label class="opt" id="pay-online" onclick="selectPayment('online')">
-          <input type="radio" name="payment_method" value="online">
+        <label class="opt <%= 'disabled-opt' if @allow_pre_booking_enabled %>" id="pay-online" onclick="selectPayment('online')">
+          <input type="radio" name="payment_method" value="online" <%= 'disabled' if @allow_pre_booking_enabled %>>
           <div>
             <div class="opt-title">Online Payment</div>
             <div class="opt-sub">UPI, Cards, Net Banking, Wallets — pay securely now</div>

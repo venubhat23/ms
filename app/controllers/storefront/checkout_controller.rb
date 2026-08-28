@@ -205,6 +205,12 @@ class Storefront::CheckoutController < Storefront::BaseController
   end
 
   def payment_method_key
+    # Payment Method is disabled client-side for a Pre Booking (see
+    # show.html.erb) — no charge is collected at order time, so force 'cod'
+    # server-side too regardless of what params[:payment_method] says, in
+    # case that's been tampered with.
+    return 'cod' if params[:delivery_option] == 'pre_booking' && SystemSetting.allow_pre_booking_enabled?
+
     params[:payment_method] == 'online' ? 'cashfree' : 'cod'
   end
 

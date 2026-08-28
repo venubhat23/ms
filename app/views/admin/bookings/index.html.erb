@@ -635,30 +635,6 @@
                       <% status_text = booking.status&.humanize || 'Unknown' %>
                       <%= status_text.length > 12 ? status_text[0..11] + '...' : status_text %>
                     </span>
-
-                    <% if next_statuses.any? %>
-                      <div class="dropdown">
-                        <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Quick Stage Update">
-                          <i class="bi bi-gear"></i>
-                        </button>
-                        <ul class="dropdown-menu">
-                          <li class="dropdown-header">Quick Stage Update</li>
-                          <% next_statuses.each do |status| %>
-                            <li>
-                              <%= link_to update_status_admin_booking_path(booking, status: status, list_state: list_state, return_to: 'index'),
-                                  class: "dropdown-item",
-                                  data: {
-                                    turbo_method: :patch,
-                                    turbo_confirm: (status == 'cancelled' ? 'Are you sure you want to cancel this order?' : nil)
-                                  } do %>
-                                <i class="bi bi-arrow-right me-2"></i>
-                                <%= status.humanize %>
-                              <% end %>
-                            </li>
-                          <% end %>
-                        </ul>
-                      </div>
-                    <% end %>
                   </div>
                 </td>
                 <td class="align-middle">

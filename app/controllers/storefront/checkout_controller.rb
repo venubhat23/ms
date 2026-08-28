@@ -181,6 +181,11 @@ class Storefront::CheckoutController < Storefront::BaseController
   def confirmation
     @booking = Booking.includes(booking_items: :product).where(booked_by: 'public').find(params[:booking_id])
     @booking_items = @booking.booking_items
+
+    if @booking.is_pre_booking?
+      @steps = Booking::PRE_BOOKING_TRACKING_STEPS
+      @current_step_index = @booking.pre_booking_tracking_step_index
+    end
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: 'Order not found.'
   end

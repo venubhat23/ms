@@ -184,20 +184,22 @@ h1.page-title{font-size:26px;font-weight:700;margin-bottom:24px}
         <% if @allow_pre_booking_enabled %>
           <div class="opt-sub" style="margin-bottom:10px">No payment is collected now — you'll be contacted once your Pre Booking is approved.</div>
         <% end %>
-        <label class="opt <%= @allow_pre_booking_enabled ? 'disabled-opt' : 'selected' %>" id="pay-cod" onclick="selectPayment('cod')">
-          <input type="radio" name="payment_method" value="cod" checked <%= 'disabled' if @allow_pre_booking_enabled %>>
-          <div>
-            <div class="opt-title">Cash on Delivery</div>
-            <div class="opt-sub">Pay when you receive your order</div>
-          </div>
-        </label>
-        <label class="opt <%= 'disabled-opt' if @allow_pre_booking_enabled %>" id="pay-online" onclick="selectPayment('online')">
-          <input type="radio" name="payment_method" value="online" <%= 'disabled' if @allow_pre_booking_enabled %>>
-          <div>
-            <div class="opt-title">Online Payment</div>
-            <div class="opt-sub">UPI, Cards, Net Banking, Wallets — pay securely now</div>
-          </div>
-        </label>
+        <div id="payment-options" style="display:<%= @allow_pre_booking_enabled ? 'none' : 'block' %>">
+          <label class="opt selected" id="pay-cod" onclick="selectPayment('cod')">
+            <input type="radio" name="payment_method" value="cod" checked>
+            <div>
+              <div class="opt-title">Cash on Delivery</div>
+              <div class="opt-sub">Pay when you receive your order</div>
+            </div>
+          </label>
+          <label class="opt" id="pay-online" onclick="selectPayment('online')">
+            <input type="radio" name="payment_method" value="online">
+            <div>
+              <div class="opt-title">Online Payment</div>
+              <div class="opt-sub">UPI, Cards, Net Banking, Wallets — pay securely now</div>
+            </div>
+          </label>
+        </div>
       </div>
     </div>
 
@@ -333,6 +335,14 @@ function selectDelivery(type) {
   document.getElementById('address-fields').style.display = (type === 'home' || type === 'prebooking') ? 'block' : 'none';
   const storeFields = document.getElementById('store-fields');
   if (storeFields) storeFields.style.display = type === 'store' ? 'block' : 'none';
+
+  // No payment is collected for a Pre Booking — hide the Cash on
+  // Delivery / Online Payment options entirely rather than just
+  // disabling them (server still forces payment_method to 'cod'
+  // regardless, see Storefront::CheckoutController#payment_method_key).
+  const paymentOptions = document.getElementById('payment-options');
+  if (paymentOptions) paymentOptions.style.display = preBookingActive ? 'none' : 'block';
+
   updateSummary();
   updatePlaceButtonState();
 }

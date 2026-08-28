@@ -596,19 +596,6 @@
                       </span>
                     <% end %>
 
-                    <% if booking.pending_pre_booking_approval? %>
-                      <%= button_to approve_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
-                            class: "btn btn-sm btn-success",
-                            data: { confirm: "Approve pre-booking ##{booking.booking_number}? This confirms the order and notifies the customer." } do %>
-                        <i class="bi bi-check-lg"></i> Approve
-                      <% end %>
-                      <%= button_to reject_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
-                            class: "btn btn-sm btn-outline-danger",
-                            data: { confirm: "Disapprove (cancel) pre-booking ##{booking.booking_number}?" } do %>
-                        <i class="bi bi-x-lg"></i> Disapprove
-                      <% end %>
-                    <% end %>
-
                     <% if next_statuses.any? %>
                       <div class="dropdown">
                         <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Quick Stage Update">
@@ -708,12 +695,25 @@
                       <%= link_to admin_booking_path(booking, list_state: list_state), class: "action-icon view", title: "View Booking" do %>
                         <i class="bi bi-eye"></i>
                       <% end %>
-                      <%= link_to edit_admin_booking_path(booking, list_state: list_state), class: "action-icon edit", title: "Edit Booking" do %>
-                        <i class="bi bi-pencil"></i>
+                      <% if booking.pending_pre_booking_approval? %>
+                        <%= button_to approve_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
+                              class: "btn btn-sm btn-success",
+                              data: { confirm: "Approve pre-booking ##{booking.booking_number}? This confirms the order and notifies the customer." } do %>
+                          <i class="bi bi-check-lg"></i> Approve
+                        <% end %>
+                        <%= button_to reject_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
+                              class: "btn btn-sm btn-outline-danger",
+                              data: { confirm: "Disapprove (cancel) pre-booking ##{booking.booking_number}?" } do %>
+                          <i class="bi bi-x-lg"></i> Disapprove
+                        <% end %>
+                      <% else %>
+                        <%= link_to edit_admin_booking_path(booking, list_state: list_state), class: "action-icon edit", title: "Edit Booking" do %>
+                          <i class="bi bi-pencil"></i>
+                        <% end %>
+                        <a href="#" class="action-icon delete" title="Delete Booking" onclick="confirmDelete(<%= booking.id %>, '<%= booking.booking_number %>', '<%= booking.customer&.display_name || 'Unknown' %>', '<%= list_state.to_query('list_state') %>')">
+                          <i class="bi bi-trash"></i>
+                        </a>
                       <% end %>
-                      <a href="#" class="action-icon delete" title="Delete Booking" onclick="confirmDelete(<%= booking.id %>, '<%= booking.booking_number %>', '<%= booking.customer&.display_name || 'Unknown' %>', '<%= list_state.to_query('list_state') %>')">
-                        <i class="bi bi-trash"></i>
-                      </a>
                       <%
                         wa_phone_raw   = (booking.customer&.mobile || booking.customer_phone).to_s
                         wa_phone_clean = wa_phone_raw.gsub(/\D/, '').sub(/^0+/, '').sub(/^91/, '')

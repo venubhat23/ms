@@ -841,6 +841,26 @@ class Admin::BookingsController < Admin::ApplicationController
     end
 
     begin
+      # "paid" is a pseudo-stage only ever offered for pre-bookings (see
+      # manage_stage.html.erb) — it tracks payment_status, not the booking's
+      # actual status enum, so it's handled here instead of falling into the
+      # generic status-transition logic below (which would otherwise try
+      # `@booking.status = 'paid'`, an invalid enum value).
+      if @target_stage == 'paid'
+        unless @booking.is_pre_booking?
+          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "Marking paid from here is only available for pre-bookings."
+          return
+        end
+        if @booking.payment_status_paid?
+          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "This booking is already marked as paid."
+          return
+        end
+
+        @booking.mark_as_fully_paid!
+        redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), notice: "Booking ##{@booking.booking_number} marked as fully paid."
+        return
+      end
+
       # Build transition data
       transition_data = build_stage_transition_data
 

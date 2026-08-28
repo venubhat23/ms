@@ -449,6 +449,8 @@ module ApplicationHelper
       'Order placed and waiting for processing setup'
     when 'confirmed'
       'Confirm order and notify customer'
+    when 'paid'
+      'Mark payment as received (does not change order stage)'
     when 'processing'
       'Start processing the order'
     when 'packed'

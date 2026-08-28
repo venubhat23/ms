@@ -198,13 +198,16 @@
                              # Pre-bookings follow the same 8-stage progression shown in the
                              # "Pre-Booking Progress" card above (and on the customer tracker) —
                              # draft never applies here; cancelled/returned stay available as
-                             # exits from that progression, not as part of it.
-                             %w[ordered_and_delivery_pending confirmed processing packed shipped out_for_delivery delivered completed cancelled returned]
+                             # exits from that progression, not as part of it. "paid" isn't a
+                             # real status (it's payment_status, tracked independently — see
+                             # Booking#pre_booking_tracking_step_index), so it's a pseudo-stage
+                             # handled specially below and in update_stage.
+                             %w[ordered_and_delivery_pending confirmed paid processing packed shipped out_for_delivery delivered completed cancelled returned]
                            else
                              %w[draft ordered_and_delivery_pending confirmed processing packed shipped out_for_delivery delivered completed cancelled returned]
                            end %>
-          <% # Remove current stage from available stages %>
-          <% available_stages = all_stages.reject { |stage| stage == @booking.status } %>
+          <% # Remove current stage from available stages, and "paid" once payment is already marked complete %>
+          <% available_stages = all_stages.reject { |stage| stage == @booking.status || (stage == 'paid' && @booking.payment_status_paid?) } %>
 
           <% available_stages.each do |stage| %>
             <option value="<%= stage %>">
@@ -251,6 +254,15 @@
               <label class="form-label">Order Notes</label>
               <textarea class="form-control" name="transition_notes" rows="3" placeholder="Order placement details and requirements..."></textarea>
             </div>
+          </div>
+        </div>
+
+        <!-- Paid Fields (pre-bookings only — marks payment_status, not order status) -->
+        <div id="paidFields" class="stage-fields" style="display: none;">
+          <h6 class="mb-3 text-muted">Mark as Paid</h6>
+          <div class="alert alert-info mb-0" role="alert">
+            <i class="bi bi-credit-card me-2"></i>
+            Marks this pre-booking's payment as received — it does not change the order stage shown above.
           </div>
         </div>
 
@@ -721,6 +733,17 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Franchise assignment panel — animated reveal + a brief highlight ring so
+   opening it (which can be far below the fold) is unmistakably visible. */
+.franchise-panel-pop {
+  animation: franchisePanelPop 0.5s ease;
+}
+@keyframes franchisePanelPop {
+  0% { opacity: 0; transform: translateY(-12px); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.45); }
+  60% { opacity: 1; transform: translateY(0); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.45); }
+  100% { opacity: 1; transform: translateY(0); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+}
+
 .stage-card.current-stage .stage-label {
   border-color: #0dcaf0 !important;
   background: linear-gradient(135deg, #e0f8ff 0%, #f0fbff 100%) !important;
@@ -787,6 +810,18 @@ function toggleFranchiseAssignPanel() {
   const opening = panel.style.display === 'none' || panel.style.display === '';
   panel.style.display = opening ? 'block' : 'none';
   if (stageCard) stageCard.style.display = opening ? 'none' : 'block';
+
+  if (opening) {
+    // The panel can render well below the fold (stat cards, pre-booking
+    // progress, etc. all sit above it), so a plain display:block swap can
+    // look like the button did nothing — scroll it into view and give it a
+    // brief highlight so it's obvious something happened.
+    panel.classList.remove('franchise-panel-pop');
+    // Force reflow so re-adding the class restarts the animation on repeat clicks.
+    void panel.offsetWidth;
+    panel.classList.add('franchise-panel-pop');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 // Shows a validation message inline instead of a browser alert() popup.

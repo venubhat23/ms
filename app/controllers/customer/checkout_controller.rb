@@ -172,6 +172,8 @@ class Customer::CheckoutController < Customer::BaseController
 
         # For online payments, hold as draft until payment completes
         @booking.status = 'draft' if params[:payment_method] != 'cod'
+        # Pre-booking: let the order through even at 0 stock.
+        @booking.skip_stock_check = true if SystemSetting.allow_pre_booking_enabled?
 
         # Pre-load all products in ONE query (was N separate Product.find calls)
         product_ids = cart_items.map { |i| (i[:id] || i['id']).to_i }
@@ -344,6 +346,8 @@ class Customer::CheckoutController < Customer::BaseController
 
     booking = Booking.new(booking_attributes)
     booking.payment_status = :unpaid  # set before save so before_validation picks it up
+    # Pre-booking: let the order through even at 0 stock.
+    booking.skip_stock_check = true if SystemSetting.allow_pre_booking_enabled?
 
     # Pre-load all cart products in ONE query instead of N separate finds
     product_ids = @cart[:items].map { |i| i['product_id'].to_i }.uniq

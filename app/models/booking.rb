@@ -416,6 +416,29 @@ class Booking < ApplicationRecord
     %w[draft ordered_and_delivery_pending confirmed processing].include?(status)
   end
 
+  # Pre-booking (out-of-stock order placed while SystemSetting.allow_pre_booking_enabled?
+  # is on) sits at "ordered_and_delivery_pending" until an admin explicitly
+  # approves or rejects it — see Admin::BookingsController#approve_pre_booking /
+  # #reject_pre_booking, which drive this through the existing
+  # mark_as_confirmed! / cancel_order! transitions.
+  def pending_pre_booking_approval?
+    is_pre_booking? && ordered_and_delivery_pending?
+  end
+
+  # Admin approves a pending pre-booking: moves it to "confirmed" (same as
+  # any other order reaching that stage) and sends the usual confirmation
+  # email via mark_as_confirmed!.
+  def approve_pre_booking!
+    mark_as_confirmed! if pending_pre_booking_approval?
+  end
+
+  # Admin rejects a pending pre-booking: cancels it, same as cancel_order!
+  # for any other cancellable booking, with a pre-booking-specific default
+  # reason when none is given.
+  def reject_pre_booking!(reason = nil)
+    cancel_order!(reason.presence || 'Pre-booking rejected by admin') if pending_pre_booking_approval?
+  end
+
   def can_return?
     %w[delivered completed].include?(status)
   end
@@ -803,6 +826,14 @@ class Booking < ApplicationRecord
   STOCK_CONSUMING_STATUSES = %w[confirmed processing packed shipped out_for_delivery delivered completed].freeze
 
   def allocate_inventory
+    if SystemSetting.stock_allocation_at_delivery_enabled?
+      allocate_inventory_at_delivery
+    else
+      allocate_inventory_immediately
+    end
+  end
+
+  def allocate_inventory_immediately
     # Franchise self-service bookings sell from the franchise's own
     # inventory ledger (credited via wholesale bookings), not central stock.
     if booked_by == 'franchise' && franchise_id.present? && SystemSetting.franchise_commission_enabled? &&
@@ -826,72 +857,7 @@ class Booking < ApplicationRecord
       # that, or block/revert the status this booking is being confirmed
       # into, so skip it entirely for these bookings (no SaleItem records
       # either, same as the franchise-ledger path above).
-      unless skip_stock_check
-        begin
-          inventory_service = InventoryService.new
-
-          # Prepare items for allocation
-          items = booking_items.map do |item|
-            {
-              product_id: item.product_id,
-              quantity: item.quantity
-            }
-          end
-
-          # Check availability first
-          insufficient_items = []
-          allocation_data = []
-
-          items.each do |item|
-            availability = inventory_service.check_availability(item[:product_id], item[:quantity])
-            if availability[:available]
-              allocations = inventory_service.allocate_stock(item[:product_id], item[:quantity])
-              allocation_data << allocations
-            else
-              insufficient_items << {
-                product: Product.find(item[:product_id]).name,
-                available: availability[:available_stock],
-                requested: item[:quantity],
-                shortage: availability[:shortage]
-              }
-            end
-          end
-
-          if insufficient_items.any?
-            # Revert status if inventory is insufficient
-            update_column(:status, status_previously_was)
-            errors.add(:status, "Insufficient inventory: #{insufficient_items.map { |item|
-              "#{item[:product]} (need #{item[:requested]}, have #{item[:available]})"
-            }.join(', ')}")
-            return false
-          else
-            # Reduce stock and create sale items
-            allocation_data.flatten.each_with_index do |allocation, index|
-              inventory_service.reduce_stock([allocation])
-
-              # Create sale item for tracking
-              SaleItem.create!(
-                booking: self,
-                product: allocation[:batch].product,
-                stock_batch: allocation[:batch],
-                quantity: allocation[:quantity],
-                selling_price: allocation[:selling_price],
-                purchase_price: allocation[:purchase_price]
-              )
-            end
-
-            Rails.logger.info "Inventory allocated successfully for booking ##{booking_number}"
-          end
-        rescue InventoryService::InsufficientStockError => e
-          # Revert status if inventory allocation fails
-          update_column(:status, status_previously_was)
-          errors.add(:status, "Inventory allocation failed: #{e.message}")
-          return false
-        rescue => e
-          Rails.logger.error "Error allocating inventory for booking ##{booking_number}: #{e.message}"
-          # Don't revert status for other errors, just log them
-        end
-      end
+      perform_central_stock_allocation! unless skip_stock_check
     end
 
     # Free up inventory when order is cancelled or returned
@@ -902,6 +868,103 @@ class Booking < ApplicationRecord
         Rails.logger.error "Error releasing inventory for booking ##{booking_number}: #{e.message}"
       end
     end
+  end
+
+  # "Stock Allocation at Delivery" mode (SystemSetting.stock_allocation_at_delivery_enabled?):
+  # BookingItem no longer touches stock at all (see BookingItem#reduce_product_stock),
+  # so nothing is deducted until the booking is actually fulfilled:
+  #   - handed to a franchise for delivery: consume_franchise_stock! deducts
+  #     from that franchise's ledger at assignment time (see Admin::BookingsController#update_stage) —
+  #     this method just has to stay out of its way (delivery_franchise_id present).
+  #   - a franchise's own walk-in/self-service sale (booked_by == 'franchise'):
+  #     the "delivery" and the sale are the same moment, so it deducts from
+  #     their own FranchiseInventory the first time the booking reaches
+  #     delivered/completed (often immediately on create, for a walk-in).
+  #   - everything else (admin/customer/mobile/affiliate bookings not handed
+  #     to a franchise): deducted from central inventory the first time the
+  #     booking reaches delivered/completed — normally via the "Deliver from
+  #     Admin" button on manage_stage, but any path that sets that status works.
+  # stock_allocated_at makes each of these a one-time event per booking.
+  def allocate_inventory_at_delivery
+    if %w[cancelled returned].include?(status) && !%w[cancelled returned].include?(status_previously_was)
+      begin
+        release_allocated_inventory
+      rescue => e
+        Rails.logger.error "Error releasing inventory for booking ##{booking_number}: #{e.message}"
+      end
+      return
+    end
+
+    return if stock_allocated_at.present?
+    return unless %w[delivered completed].include?(status) && !%w[delivered completed].include?(status_previously_was)
+    return if delivery_franchise_id.present?
+
+    if booked_by == 'franchise' && franchise_id.present?
+      result = allocate_franchise_inventory
+      update_column(:stock_allocated_at, Time.current) unless result == false
+    else
+      update_column(:stock_allocated_at, Time.current) if perform_central_stock_allocation!
+    end
+  end
+
+  # Central inventory: FIFO-allocates each booking_item and mirrors the
+  # deduction into a SaleItem (profit tracking, and what release_allocated_inventory
+  # restores from on cancel/return). Reverts the status change and adds a
+  # validation error if any item can't be fully covered. Shared by the
+  # immediate ("confirmed") and deferred ("delivered"/"completed") allocation
+  # paths above — same mechanics, just triggered at a different status.
+  def perform_central_stock_allocation!
+    inventory_service = InventoryService.new
+
+    items = booking_items.map { |item| { product_id: item.product_id, quantity: item.quantity } }
+
+    insufficient_items = []
+    allocation_data = []
+
+    items.each do |item|
+      availability = inventory_service.check_availability(item[:product_id], item[:quantity])
+      if availability[:available]
+        allocation_data << inventory_service.allocate_stock(item[:product_id], item[:quantity])
+      else
+        insufficient_items << {
+          product: Product.find(item[:product_id]).name,
+          available: availability[:available_stock],
+          requested: item[:quantity],
+          shortage: availability[:shortage]
+        }
+      end
+    end
+
+    if insufficient_items.any?
+      update_column(:status, status_previously_was) if status_previously_was.present?
+      errors.add(:status, "Insufficient inventory: #{insufficient_items.map { |item|
+        "#{item[:product]} (need #{item[:requested]}, have #{item[:available]})"
+      }.join(', ')}")
+      return false
+    end
+
+    allocation_data.flatten.each do |allocation|
+      inventory_service.reduce_stock([allocation])
+
+      SaleItem.create!(
+        booking: self,
+        product: allocation[:batch].product,
+        stock_batch: allocation[:batch],
+        quantity: allocation[:quantity],
+        selling_price: allocation[:selling_price],
+        purchase_price: allocation[:purchase_price]
+      )
+    end
+
+    Rails.logger.info "Inventory allocated successfully for booking ##{booking_number}"
+    true
+  rescue InventoryService::InsufficientStockError => e
+    update_column(:status, status_previously_was) if status_previously_was.present?
+    errors.add(:status, "Inventory allocation failed: #{e.message}")
+    false
+  rescue => e
+    Rails.logger.error "Error allocating inventory for booking ##{booking_number}: #{e.message}"
+    false
   end
 
   def release_allocated_inventory
@@ -945,14 +1008,26 @@ class Booking < ApplicationRecord
   end
 
   def mark_payment_completed!(payment_details = {})
+    # A pre-booking still needs admin approval even once payment clears —
+    # see pending_pre_booking_approval? — so it stays at
+    # ordered_and_delivery_pending instead of jumping straight to confirmed.
+    post_payment_status = is_pre_booking? ? 'ordered_and_delivery_pending' : 'confirmed'
+
     update!(
       payment_status: 'paid',
       payment_completed_at: Time.current,
       cashfree_payment_id: payment_details[:cf_payment_id],
       payment_method: payment_details[:payment_method] || 'cashfree',
       gateway_response: payment_details.to_json,
-      status: 'confirmed'
+      status: post_payment_status
     )
+
+    # A still-pending pre-booking isn't confirmed yet — mark_as_confirmed!
+    # sends the confirmation email and generate_invoice_after_payment isn't
+    # meaningful until the admin approves it, so skip both here and let
+    # the approval step (Admin::BookingsController#approve_pre_booking) do it.
+    return if pending_pre_booking_approval?
+
     # Send booking confirmation email when payment is completed
     send_booking_confirmation_email
 

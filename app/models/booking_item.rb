@@ -23,7 +23,7 @@ class BookingItem < ApplicationRecord
 
   def check_stock_availability
     return unless quantity.present? && product.present?
-    return if booking&.skip_stock_check
+    return if booking&.skip_stock_check || SystemSetting.stock_allocation_at_delivery_enabled?
 
     available_stock = stock_batches_scope.sum(:quantity_remaining)
 
@@ -39,6 +39,9 @@ class BookingItem < ApplicationRecord
 
   def reduce_product_stock
     return unless quantity.present? && product.present?
+    # Stock allocation deferred to delivery/franchise-assignment time (see
+    # Booking#allocate_inventory_at_delivery) — nothing to reduce yet.
+    return if SystemSetting.stock_allocation_at_delivery_enabled?
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     remaining_to_allocate = quantity.to_f
@@ -102,6 +105,7 @@ class BookingItem < ApplicationRecord
 
   def handle_quantity_change
     return unless quantity_previously_changed? && product.present?
+    return if SystemSetting.stock_allocation_at_delivery_enabled?
 
     old_quantity = quantity_previously_was || 0
     new_quantity = quantity
@@ -188,6 +192,7 @@ class BookingItem < ApplicationRecord
 
   def restore_product_stock
     return unless quantity.present? && product.present?
+    return if SystemSetting.stock_allocation_at_delivery_enabled?
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     quantity_to_restore = quantity.to_f

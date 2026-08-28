@@ -403,6 +403,47 @@ class SystemSetting < ApplicationRecord
     setting
   end
 
+  # Stock Allocation At Delivery Feature Methods
+
+  # Check if stock should be allocated at time of delivery rather than at
+  # order confirmation. Off by default.
+  def self.stock_allocation_at_delivery_enabled?
+    cached_system_config&.stock_allocation_at_delivery_enabled || false
+  end
+
+  # Enable or disable stock allocation at delivery
+  def self.set_stock_allocation_at_delivery_enabled(enabled)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(stock_allocation_at_delivery_enabled: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
+
+  # Allow Pre Booking Feature Methods
+
+  # Check if allow pre booking feature is enabled. Off by default.
+  def self.allow_pre_booking_enabled?
+    cached_system_config&.allow_pre_booking_enabled || false
+  end
+
+  # Enable or disable allow pre booking feature
+  def self.set_allow_pre_booking_enabled(enabled)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(allow_pre_booking_enabled: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
+
   # Delivery Only At Shop Feature Methods
 
   # Check if delivery only at shop feature is enabled

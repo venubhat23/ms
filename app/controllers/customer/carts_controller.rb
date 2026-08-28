@@ -138,6 +138,10 @@ class Customer::CartsController < Customer::BaseController
   end
 
   def verify_stock
+    if SystemSetting.allow_pre_booking_enabled?
+      return render json: { success: true, out_of_stock: [], insufficient_stock: [], has_issues: false }
+    end
+
     cart_items = params[:cart_items] || []
     out_of_stock = []
     insufficient_stock = []

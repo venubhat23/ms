@@ -1,6 +1,6 @@
 class Admin::BookingsController < Admin::ApplicationController
   before_action :authenticate_user!
-  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :manage_stage, :update_stage]
+  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :manage_stage, :update_stage, :approve_pre_booking, :reject_pre_booking]
 
   LIST_STATE_PARAMS = %i[page search status date_from date_to customer_id b2b booked_by affiliate_id category_id].freeze
 
@@ -618,6 +618,26 @@ class Admin::BookingsController < Admin::ApplicationController
     redirect_to admin_booking_path(@booking, list_state_params), notice: 'Booking marked as fully paid!'
   end
 
+  def approve_pre_booking
+    unless @booking.pending_pre_booking_approval?
+      redirect_to admin_bookings_path(list_state_params), alert: 'This booking is not a pending pre-booking.'
+      return
+    end
+
+    @booking.approve_pre_booking!
+    redirect_to admin_bookings_path(list_state_params), notice: "Pre-booking ##{@booking.booking_number} approved — customer notified."
+  end
+
+  def reject_pre_booking
+    unless @booking.pending_pre_booking_approval?
+      redirect_to admin_bookings_path(list_state_params), alert: 'This booking is not a pending pre-booking.'
+      return
+    end
+
+    @booking.reject_pre_booking!(params[:reason])
+    redirect_to admin_bookings_path(list_state_params), notice: "Pre-booking ##{@booking.booking_number} rejected."
+  end
+
   def stage_transition
     @target_stage = params[:target_stage]
 
@@ -819,6 +839,11 @@ class Admin::BookingsController < Admin::ApplicationController
       # feature flag when build_stage_transition_data set delivery_mode.
       franchise = nil
       if transition_data[:delivery_mode] == 'franchise'
+        if @booking.delivery_franchise_id.present?
+          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "This booking is already assigned to a franchise for delivery."
+          return
+        end
+
         franchise = Franchise.active.find_by(id: transition_data[:delivery_franchise_id])
         unless franchise
           redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "Please select a valid franchise."
@@ -834,11 +859,24 @@ class Admin::BookingsController < Admin::ApplicationController
       end
 
       # Update booking with new status and transition data. When assigning a
-      # franchise, its stock is consumed in the same transaction as the
-      # status save, so a save failure can't leave stock deducted with
-      # nothing to show for it.
+      # franchise, the booking's items are transferred from central stock to
+      # the franchise's own ledger in the same transaction as the status
+      # save, so a save failure can't leave stock moved with nothing to show
+      # for it: central inventory is credited back (it was already deducted
+      # at booking creation, but the warehouse never actually ships this
+      # order now) and FranchiseInventory is debited by the same quantities.
+      #
+      # Under "Stock Allocation at Delivery" (SystemSetting.stock_allocation_at_delivery_enabled?),
+      # nothing was ever deducted from central stock at booking creation, so
+      # there's nothing to restore — just debit the franchise now, and mark
+      # stock_allocated_at so Booking#allocate_inventory_at_delivery treats
+      # this booking as already fulfilled.
       success = ActiveRecord::Base.transaction do
-        consume_franchise_stock!(franchise) if franchise
+        if franchise
+          restore_central_stock_for_franchise_transfer!(franchise) unless SystemSetting.stock_allocation_at_delivery_enabled?
+          consume_franchise_stock!(franchise)
+          @booking.update_column(:stock_allocated_at, Time.current) if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.stock_allocated_at.nil?
+        end
         update_booking_with_stage_transition(transition_data)
       end
 
@@ -1257,6 +1295,86 @@ class Admin::BookingsController < Admin::ApplicationController
         notes: "Delivery assignment for Booking ##{@booking.booking_number}"
       )
       raise "Insufficient stock for #{item.product&.name} at #{franchise.name}" unless consumed
+    end
+  end
+
+  # Central stock for every booking_item was already deducted at booking
+  # creation time (see BookingItem#reduce_product_stock), long before it
+  # ever reaches this stage. Once a franchise takes over delivery and
+  # fulfils it from their own on-shelf FranchiseInventory (see
+  # consume_franchise_stock!), the central warehouse is no longer shipping
+  # this order — so its stock claim on central inventory is released back.
+  #
+  # Mirrors the two restore patterns already used elsewhere: when a
+  # SaleItem ledger exists for this booking/product (Booking#allocate_inventory's
+  # confirmed-transition path), restore exactly into the batch it was drawn
+  # from, same as Booking#release_allocated_inventory. Otherwise, fall back
+  # to crediting the most recent active/exhausted batch, same approximation
+  # BookingItem#restore_product_stock uses since booking_items don't record
+  # which batch(es) they consumed.
+  def restore_central_stock_for_franchise_transfer!(franchise)
+    @booking.booking_items.includes(:product).each do |item|
+      product = item.product
+      next if product.blank? || item.quantity.to_f <= 0
+
+      sale_items = SaleItem.where(booking: @booking, product: product)
+
+      if sale_items.exists?
+        sale_items.find_each do |sale_item|
+          batch = sale_item.stock_batch
+          next unless batch
+
+          stock_before = batch.quantity_remaining
+          batch.quantity_remaining += sale_item.quantity
+          batch.status = 'active' if batch.exhausted? && batch.quantity_remaining > 0
+          batch.save!
+
+          StockMovement.create!(
+            product: product,
+            reference_type: 'franchise_delivery_assignment',
+            reference_id: @booking.id,
+            movement_type: 'added',
+            quantity: sale_item.quantity,
+            stock_before: stock_before,
+            stock_after: batch.quantity_remaining,
+            notes: "Stock returned to central inventory — Booking ##{@booking.booking_number} handed to #{franchise.name} for delivery"
+          )
+
+          sale_item.destroy
+        end
+      else
+        restore_scope = @booking.store_id.present? \
+          ? product.stock_batches.where(store_id: @booking.store_id).order(:batch_date, :created_at) \
+          : product.stock_batches.order(:batch_date, :created_at)
+
+        current_stock = restore_scope.sum(:quantity_remaining)
+        quantity_to_restore = item.quantity.to_f
+
+        restore_scope.reverse_each do |batch|
+          break if quantity_to_restore <= 0
+
+          if batch.status == 'exhausted' || batch.status == 'active'
+            batch.quantity_remaining += quantity_to_restore
+            batch.status = 'active'
+            batch.save!
+            quantity_to_restore = 0
+            break
+          end
+        end
+
+        StockMovement.create!(
+          product: product,
+          reference_type: 'franchise_delivery_assignment',
+          reference_id: @booking.id,
+          movement_type: 'added',
+          quantity: item.quantity.to_f,
+          stock_before: current_stock,
+          stock_after: current_stock + item.quantity.to_f,
+          notes: "Stock returned to central inventory — Booking ##{@booking.booking_number} handed to #{franchise.name} for delivery"
+        )
+      end
+
+      product.update_column(:stock, product.total_batch_stock)
     end
   end
 

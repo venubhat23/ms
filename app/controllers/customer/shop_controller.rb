@@ -153,6 +153,8 @@ class Customer::ShopController < Customer::BaseController
         @booking.customer_email = current_customer&.email
         @booking.customer_phone = current_customer&.mobile
         @booking.payment_method = params[:payment_method] || 'cod'
+        # Pre-booking: let the order through even at 0 stock.
+        @booking.skip_stock_check = true if SystemSetting.allow_pre_booking_enabled?
 
         # Create booking items from cart
         total_amount = 0
@@ -215,6 +217,9 @@ class Customer::ShopController < Customer::BaseController
     # Set initial status and payment status
     @booking.status = 'confirmed'
     @booking.payment_status = 'unpaid' # Default to unpaid, can be updated based on payment method
+    # Pre-booking: let the order through even at 0 stock.
+    pre_booking_enabled = SystemSetting.allow_pre_booking_enabled?
+    @booking.skip_stock_check = true if pre_booking_enabled
 
     begin
       if params[:booking_items].present?
@@ -242,7 +247,7 @@ class Customer::ShopController < Customer::BaseController
               end
 
               available_stock = stock_by_product[product.id] || 0
-              if quantity > available_stock
+              if !pre_booking_enabled && quantity > available_stock
                 flash[:error] = "Insufficient stock for #{product.name}. Only #{available_stock.to_i} available."
                 redirect_to customer_shop_path and return
               end

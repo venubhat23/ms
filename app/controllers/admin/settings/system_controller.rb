@@ -72,6 +72,12 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get customer wallet feature settings
     @customer_wallet_enabled = system_config&.customer_wallet_enabled || false
 
+    # Get stock allocation at delivery feature settings
+    @stock_allocation_at_delivery_enabled = system_config&.stock_allocation_at_delivery_enabled || false
+
+    # Get allow pre booking feature settings
+    @allow_pre_booking_enabled = system_config&.allow_pre_booking_enabled || false
+
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
@@ -311,6 +317,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       end
     end
 
+    # Handle allow pre booking feature toggle
+    if params[:allow_pre_booking_settings_update] == "true"
+      begin
+        allow_pre_booking_enabled = params[:allow_pre_booking_enabled] == "1"
+
+        SystemSetting.set_allow_pre_booking_enabled(allow_pre_booking_enabled)
+
+        if allow_pre_booking_enabled
+          success_messages << 'Allow Pre Booking enabled successfully!'
+        else
+          success_messages << 'Allow Pre Booking disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Allow Pre Booking settings: #{e.message}"
+        return
+      end
+    end
+
     # Handle customer wallet feature toggle
     if params[:customer_wallet_settings_update] == "true"
       begin
@@ -325,6 +349,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating Customer Wallet settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle stock allocation at delivery feature toggle
+    if params[:stock_allocation_at_delivery_settings_update] == "true"
+      begin
+        stock_allocation_at_delivery_enabled = params[:stock_allocation_at_delivery_enabled] == "1"
+
+        SystemSetting.set_stock_allocation_at_delivery_enabled(stock_allocation_at_delivery_enabled)
+
+        if stock_allocation_at_delivery_enabled
+          success_messages << 'Stock Allocation at Delivery feature enabled successfully!'
+        else
+          success_messages << 'Stock Allocation at Delivery feature disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Stock Allocation at Delivery settings: #{e.message}"
         return
       end
     end

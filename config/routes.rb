@@ -150,6 +150,8 @@ Rails.application.routes.draw do
         patch :mark_delivered
         patch :mark_completed
         patch :mark_fully_paid
+        patch :approve_pre_booking
+        patch :reject_pre_booking
         get :stage_transition
         get :manage_stage
         patch :process_stage_transition

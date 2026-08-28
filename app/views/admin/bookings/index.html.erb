@@ -590,6 +590,24 @@
                       <% status_text = booking.status&.humanize || 'Unknown' %>
                       <%= status_text.length > 12 ? status_text[0..11] + '...' : status_text %>
                     </span>
+                    <% if booking.is_pre_booking? %>
+                      <span class="badge bg-purple-subtle text-purple px-2 py-1" style="background-color:#f3e8ff;color:#7c3aed;" title="Placed ahead of stock via the storefront's Pre Booking option">
+                        <i class="bi bi-calendar-plus me-1"></i>Pre-Booking
+                      </span>
+                    <% end %>
+
+                    <% if booking.pending_pre_booking_approval? %>
+                      <%= button_to approve_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
+                            class: "btn btn-sm btn-success",
+                            data: { confirm: "Approve pre-booking ##{booking.booking_number}? This confirms the order and notifies the customer." } do %>
+                        <i class="bi bi-check-lg"></i> Approve
+                      <% end %>
+                      <%= button_to reject_pre_booking_admin_booking_path(booking, list_state: list_state), method: :patch,
+                            class: "btn btn-sm btn-outline-danger",
+                            data: { confirm: "Disapprove (cancel) pre-booking ##{booking.booking_number}?" } do %>
+                        <i class="bi bi-x-lg"></i> Disapprove
+                      <% end %>
+                    <% end %>
 
                     <% if next_statuses.any? %>
                       <div class="dropdown">

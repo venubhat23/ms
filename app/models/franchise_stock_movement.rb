@@ -9,7 +9,8 @@ class FranchiseStockMovement < ApplicationRecord
     ['wholesale_booking', 'Wholesale Booking (from HQ)'],
     ['franchise_booking', 'Franchise Booking'],
     ['adjustment', 'Manual Adjustment'],
-    ['franchise_return', 'Franchise Return (to HQ)']
+    ['franchise_return', 'Franchise Return (to HQ)'],
+    ['franchise_delivery_assignment', 'Franchise Delivery Assignment']
   ].freeze
 
   belongs_to :franchise

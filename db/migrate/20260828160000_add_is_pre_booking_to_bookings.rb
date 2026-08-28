@@ -1,0 +1,5 @@
+class AddIsPreBookingToBookings < ActiveRecord::Migration[8.0]
+  def change
+    add_column :bookings, :is_pre_booking, :boolean, default: false
+  end
+end

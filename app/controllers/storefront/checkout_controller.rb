@@ -6,6 +6,7 @@ class Storefront::CheckoutController < Storefront::BaseController
     @cart_total = cart_total
     @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?
     @available_stores = Store.available_for_collection if @collect_from_store_enabled
+    @allow_pre_booking_enabled = SystemSetting.allow_pre_booking_enabled?
 
     redirect_to storefront_cart_path, alert: 'Your cart is empty.' if @cart_items.blank?
   end
@@ -67,23 +68,35 @@ class Storefront::CheckoutController < Storefront::BaseController
     end
 
     booking_error = nil
+    # Only takes effect while the admin has the feature switched on (see
+    # SystemSetting.allow_pre_booking_enabled?) — otherwise treated as a
+    # normal (non-pre-booking) home delivery order regardless of what the
+    # client sent.
+    pre_booking_selected = params[:delivery_option] == 'pre_booking' && SystemSetting.allow_pre_booking_enabled?
 
     ActiveRecord::Base.transaction do
       @booking = Booking.new(
         customer: nil,
         booking_number: generate_booking_number,
         booking_date: Time.current,
-        status: 'confirmed',
+        # A pre-booking waits for admin approval (see
+        # Booking#pending_pre_booking_approval?) instead of going straight
+        # to confirmed, since it's for stock that isn't available yet.
+        status: pre_booking_selected ? 'ordered_and_delivery_pending' : 'confirmed',
         payment_method: payment_method_key,
         customer_name: params[:guest_name].to_s.strip,
         customer_email: params[:guest_email].to_s.strip,
         customer_phone: params[:guest_phone].to_s.strip,
         delivery_address: delivery_address_text,
         booked_by: 'public',
-        affiliate_id: referring_affiliate&.id
+        affiliate_id: referring_affiliate&.id,
+        is_pre_booking: pre_booking_selected
       )
       @booking.payment_status = :unpaid
       @booking.status = 'draft' if payment_method_key != 'cod'
+      # Pre-booking: let the order through even at 0 stock (see
+      # Product#can_fulfill_order?, which gates the check just below).
+      @booking.skip_stock_check = true if SystemSetting.allow_pre_booking_enabled?
 
       if params[:delivery_store_id].present?
         @booking.delivery_store = params[:delivery_store_id]

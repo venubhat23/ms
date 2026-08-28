@@ -11,7 +11,8 @@ class StockMovement < ApplicationRecord
     ['vendor_purchase', 'Vendor Purchase'],
     ['booking', 'Booking'],
     ['adjustment', 'Manual Adjustment'],
-    ['franchise_return', 'Franchise Return']
+    ['franchise_return', 'Franchise Return'],
+    ['franchise_delivery_assignment', 'Franchise Delivery Assignment']
   ].freeze
 
   belongs_to :product

@@ -474,6 +474,54 @@
       </div>
     </div>
 
+    <!-- Allow Pre Booking Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="bi bi-calendar-plus me-2"></i>
+          Allow Pre Booking
+        </h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "allow-pre-booking-form" do |form| %>
+          <%= form.hidden_field :allow_pre_booking_settings_update, value: "true" %>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-check form-switch mb-3">
+                <%= form.check_box :allow_pre_booking_enabled,
+                      { checked: @allow_pre_booking_enabled,
+                        class: "form-check-input",
+                        id: "allow_pre_booking_enabled",
+                        onchange: "handleAllowPreBookingToggle(this)" },
+                      "1", "0" %>
+                <label class="form-check-label" for="allow_pre_booking_enabled">
+                  <strong>Allow Pre Booking</strong>
+                </label>
+                <div class="form-text">
+                  When enabled: customers can place bookings ahead of stock availability. Disabled by default.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <div class="d-flex gap-2">
+                <%= form.submit "Update Allow Pre Booking Settings", class: "btn btn-primary" %>
+                <div class="alert alert-<%= @allow_pre_booking_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                  <small>
+                    <i class="bi bi-<%= @allow_pre_booking_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                    Status: <%= @allow_pre_booking_enabled ? 'Enabled' : 'Disabled' %>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
     <!-- Customer Wallet Feature Card -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-transparent border-0">
@@ -513,6 +561,54 @@
                   <small>
                     <i class="bi bi-<%= @customer_wallet_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
                     Status: <%= @customer_wallet_enabled ? 'Enabled' : 'Disabled' %>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- Stock Allocation At Delivery Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="bi bi-box-seam me-2"></i>
+          Stock Allocation at Delivery
+        </h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "stock-allocation-at-delivery-form" do |form| %>
+          <%= form.hidden_field :stock_allocation_at_delivery_settings_update, value: "true" %>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-check form-switch mb-3">
+                <%= form.check_box :stock_allocation_at_delivery_enabled,
+                      { checked: @stock_allocation_at_delivery_enabled,
+                        class: "form-check-input",
+                        id: "stock_allocation_at_delivery_enabled",
+                        onchange: "handleStockAllocationAtDeliveryToggle(this)" },
+                      "1", "0" %>
+                <label class="form-check-label" for="stock_allocation_at_delivery_enabled">
+                  <strong>Allocate Stock at Time of Delivery</strong>
+                </label>
+                <div class="form-text">
+                  When enabled: stock is allocated at delivery instead of at order confirmation. Disabled by default.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <div class="d-flex gap-2">
+                <%= form.submit "Update Stock Allocation at Delivery Settings", class: "btn btn-primary" %>
+                <div class="alert alert-<%= @stock_allocation_at_delivery_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                  <small>
+                    <i class="bi bi-<%= @stock_allocation_at_delivery_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                    Status: <%= @stock_allocation_at_delivery_enabled ? 'Enabled' : 'Disabled' %>
                   </small>
                 </div>
               </div>
@@ -2085,8 +2181,22 @@ function handleFranchiseDeliveryAssignmentToggle(checkbox) {
   }
 }
 
+function handleAllowPreBookingToggle(checkbox) {
+  const form = document.getElementById('allow-pre-booking-form');
+  if (form) {
+    form.submit();
+  }
+}
+
 function handleCustomerWalletToggle(checkbox) {
   const form = document.getElementById('customer-wallet-form');
+  if (form) {
+    form.submit();
+  }
+}
+
+function handleStockAllocationAtDeliveryToggle(checkbox) {
+  const form = document.getElementById('stock-allocation-at-delivery-form');
   if (form) {
     form.submit();
   }

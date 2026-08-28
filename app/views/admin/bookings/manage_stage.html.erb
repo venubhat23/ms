@@ -8,10 +8,27 @@
     <%= link_to admin_booking_path(@booking, list_state: @list_state), class: "btn btn-outline-primary" do %>
       <i class="bi bi-eye me-1"></i>View Order
     <% end %>
+    <% if @booking.pending_pre_booking_approval? %>
+      <%= button_to approve_pre_booking_admin_booking_path(@booking, list_state: @list_state), method: :patch, class: "btn btn-success",
+            data: { confirm: "Approve pre-booking ##{@booking.booking_number}? This confirms the order and notifies the customer." } do %>
+        <i class="bi bi-check-lg me-1"></i>Approve Pre-Booking
+      <% end %>
+      <%= button_to reject_pre_booking_admin_booking_path(@booking, list_state: @list_state), method: :patch, class: "btn btn-outline-danger",
+            data: { confirm: "Disapprove (cancel) pre-booking ##{@booking.booking_number}?" } do %>
+        <i class="bi bi-x-lg me-1"></i>Disapprove
+      <% end %>
+    <% end %>
     <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
       <button type="button" class="btn btn-outline-primary" id="assignToFranchiseBtn" onclick="toggleFranchiseAssignPanel()">
         <i class="bi bi-shop-window me-1"></i>Assign to Franchise
       </button>
+    <% end %>
+    <% if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.delivery_franchise.blank? && @booking.stock_allocated_at.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+      <%= button_to update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch,
+            params: { target_stage: 'delivered' }, class: "btn btn-success",
+            data: { confirm: "Deliver this order from admin? This deducts the items from central inventory now." } do %>
+        <i class="bi bi-box-seam me-1"></i>Deliver from Admin (Deduct Inventory)
+      <% end %>
     <% end %>
     <%= link_to admin_bookings_path(@list_state), class: "btn btn-outline-secondary" do %>
       <i class="bi bi-arrow-left me-1"></i>Back to Bookings

@@ -177,6 +177,10 @@ class Product < ApplicationRecord
   end
 
   def in_stock?
+    # Public/customer storefront pre-booking: show as available even at 0
+    # stock when the admin has turned this on (SystemSetting).
+    return true if SystemSetting.allow_pre_booking_enabled?
+
     cached_total_batch_stock > 0
   end
 
@@ -720,6 +724,10 @@ class Product < ApplicationRecord
   end
 
   def can_fulfill_order?(requested_quantity, variant_id: nil)
+    # Public/customer storefront pre-booking: let customers order ahead of
+    # stock availability when the admin has turned this on (SystemSetting).
+    return true if SystemSetting.allow_pre_booking_enabled?
+
     if has_multiple_quantities?
       if variant_id.present?
         variant = product_variants.find_by(id: variant_id)

@@ -432,6 +432,13 @@
                           </span>
                         </div>
                       <% end %>
+                      <% if booking.franchise_wholesale_pricing? %>
+                        <div class="mt-1">
+                          <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                            <i class="bi bi-shop-window me-1"></i>Booked for Franchise<%= " — #{booking.franchise.name}" if booking.franchise.present? %>
+                          </span>
+                        </div>
+                      <% end %>
                       <%# Booking source label %>
                       <div class="mt-1">
                         <% case booking.booked_by
@@ -524,6 +531,12 @@
                     <span class="badge bg-info-subtle text-info">
                       <%= pluralize(booking.booking_items.size, 'item') %>
                     </span>
+                    <% regular_total = @franchise_regular_totals[booking.id] %>
+                    <% if regular_total.present? && regular_total > (booking.total_amount || 0) %>
+                      <div class="text-muted text-decoration-line-through mt-1" style="font-size: 0.8rem;">
+                        ₹<%= number_with_delimiter(regular_total) %>
+                      </div>
+                    <% end %>
                     <div class="fw-medium text-success mt-1">
                       ₹<%= number_with_delimiter(booking.total_amount || 0) %>
                     </div>

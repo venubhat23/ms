@@ -846,9 +846,9 @@
             <!-- B2B wholesale savings row (informational — already baked into
                  Subtotal above via each item's B2B price, not subtracted again) -->
             <div id="franchiseDiscountRow" style="display: none;" class="mb-2">
-              <div class="d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shop-window me-1 text-primary"></i>B2B Savings</span>
-                <span class="fw-medium text-success">₹<span id="franchiseDiscountDisplay">0.00</span></span>
+              <div class="b2b-savings-summary d-flex justify-content-between align-items-center">
+                <span class="d-flex align-items-center gap-1"><i class="bi bi-shop-window text-primary"></i>B2B Savings</span>
+                <span class="fw-semibold text-success">₹<span id="franchiseDiscountDisplay">0.00</span></span>
               </div>
             </div>
 
@@ -1405,21 +1405,21 @@ function updateCheckoutDisplay() {
     }
 
     summaryHtml += `
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="pe-2">
           <div class="fw-medium">${item.name} ${isB2BPriced ? `<span class="badge b2b-price-badge">B2B</span>` : ''}</div>
           <small class="text-muted">₹${item.price.toFixed(2)} × ${item.quantity}</small>
           ${itemGSTRate > 0 ? `<br><small class="text-success">GST ${itemGSTRate}%: ₹${Math.abs(itemGSTAmount - Math.round(itemGSTAmount)) < 0.01 ? Math.round(itemGSTAmount) : itemGSTAmount.toFixed(2)}</small>` : ''}
           ${isB2BPriced ? `
-            <br><small class="b2b-price-breakdown">
-              Selling: <span class="text-decoration-line-through">₹${item.regularPrice.toFixed(2)}</span>
+            <div class="b2b-price-breakdown mt-1 d-flex align-items-center flex-wrap gap-1">
+              <span class="text-decoration-line-through text-muted">₹${item.regularPrice.toFixed(2)}</span>
               <i class="bi bi-arrow-right-short"></i>
-              B2B: <span class="fw-semibold text-primary">₹${item.price.toFixed(2)}</span>
-              — <span class="text-success fw-semibold">Save ₹${((item.regularPrice - item.price) * item.quantity).toFixed(2)}</span>
-            </small>
+              <span class="fw-semibold text-primary">₹${item.price.toFixed(2)}</span>
+              <span class="b2b-save-chip">Save ₹${((item.regularPrice - item.price) * item.quantity).toFixed(2)}</span>
+            </div>
           ` : ''}
         </div>
-        <span class="fw-medium">₹${itemTotal.toFixed(2)}</span>
+        <span class="fw-medium text-nowrap">₹${itemTotal.toFixed(2)}</span>
       </div>
     `;
 
@@ -1503,6 +1503,13 @@ function updateCheckoutTotals() {
     discount = 0;
     submittedDiscount = 0;
 
+    // Only items actually priced lower under B2B (the same condition that
+    // decides whether an item gets the "B2B" badge/breakdown above) count
+    // toward this total. A product whose b2bPrice happens to be set higher
+    // than its regular price still charges that higher price, but it isn't
+    // marketed as a "B2B saving" anywhere else — folding it in here used to
+    // let a couple of such items silently drag this figure negative while
+    // it was still labeled and colored as a savings amount.
     let wholesaleSavings = 0;
     let repricedItems = 0;
     let totalSellingPrice = 0;
@@ -1510,10 +1517,12 @@ function updateCheckoutTotals() {
     for (const item of Object.values(cart)) {
       const regular = item.regularPrice ?? item.price;
       const perItemSavings = regular - item.price;
-      wholesaleSavings += perItemSavings * item.quantity;
-      totalSellingPrice += regular * item.quantity;
-      totalB2BPrice += item.price * item.quantity;
-      if (perItemSavings > 0) repricedItems++;
+      if (perItemSavings > 0) {
+        wholesaleSavings += perItemSavings * item.quantity;
+        totalSellingPrice += regular * item.quantity;
+        totalB2BPrice += item.price * item.quantity;
+        repricedItems++;
+      }
     }
     const franchiseDisplay = document.getElementById('franchiseDiscountDisplay');
     if (franchiseDisplay) franchiseDisplay.textContent = wholesaleSavings.toFixed(2);
@@ -1677,6 +1686,28 @@ function removeCoupon() {
 // applied on a page the admin hasn't touched yet.
 window.addEventListener('pageshow', function(event) {
   if (event.persisted && document.getElementById('couponRow')) {
+    removeCoupon();
+  }
+});
+
+// This app navigates via Turbo Drive, which intercepts sidebar/link clicks
+// and swaps pages in without a full reload — so DOMContentLoaded (and the
+// pageshow listener above) never fire again after the very first hard load
+// of the session. Every later visit to this form only gets a turbo:load
+// event, so the reset has to happen there too, or a coupon "applied" from
+// an earlier visit stays showing on a form the admin hasn't touched yet.
+document.addEventListener('turbo:load', function() {
+  if (document.getElementById('couponRow')) {
+    removeCoupon();
+  }
+});
+
+// Turbo also caches a snapshot of this page's DOM to restore instantly on
+// back navigation, before the fresh copy replaces it — reset the coupon UI
+// right before that snapshot is taken so the cached version can't flash an
+// "applied" state either.
+document.addEventListener('turbo:before-cache', function() {
+  if (document.getElementById('couponRow')) {
     removeCoupon();
   }
 });
@@ -3851,6 +3882,25 @@ function stopCamera() {
   font-size: 0.78rem;
   color: #4338ca;
   font-weight: 500;
+}
+
+.b2b-save-chip {
+  display: inline-block;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+}
+
+.b2b-savings-summary {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 /* Payment method options rendered as selectable cards */

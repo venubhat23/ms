@@ -129,6 +129,20 @@ class Admin::BookingsController < Admin::ApplicationController
     # per-booking LIKE query; the index only needs booking_invoices (eager-loaded above).
     @bookings.each { |b| b.instance_variable_set(:@associated_invoice, nil) }
 
+    # Regular-price total for each Franchise Booking on this page, for the
+    # strikethrough shown next to its actual (wholesale) total — batched into
+    # one query across every franchise-wholesale booking on the page instead
+    # of calling Booking#franchise_regular_total per row, which would each
+    # fire their own booking_items/product queries against the remote DB.
+    franchise_booking_ids = @bookings.select(&:franchise_wholesale_pricing?).map(&:id)
+    @franchise_regular_totals = if franchise_booking_ids.any?
+      BookingItem.where(booking_id: franchise_booking_ids).includes(:product)
+                 .group_by(&:booking_id)
+                 .transform_values { |items| Booking.franchise_regular_total_for_items(items) }
+    else
+      {}
+    end
+
     @customers = Rails.cache.fetch('admin_bookings/filter_customers', expires_in: 2.minutes) do
       Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
               .order(:first_name, :last_name).to_a

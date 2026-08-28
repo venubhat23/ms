@@ -346,6 +346,52 @@ class Booking < ApplicationRecord
     convert_to_words(amount) + " Rupees Only"
   end
 
+  # True for a wholesale sale entered through the admin "New Booking" form
+  # with its Franchise Booking toggle on (which requires picking a franchise
+  # as the buyer) — as opposed to a franchise's own self-service booking
+  # (booked_by == 'franchise'), which is a different flow entirely.
+  def franchise_wholesale_pricing?
+    booked_by == 'admin' && franchise_id.present?
+  end
+
+  # Best-effort "what this would have cost at regular price" total for a
+  # Franchise Booking, for the strikethrough shown next to the actual total
+  # in the admin UI. The wholesale saving is baked straight into each
+  # booking_item's price at creation time and never stored separately
+  # anywhere, so this is recomputed from each item's *current* product price
+  # (same GST-inclusive convention as the Franchise Booking toggle uses) —
+  # it will drift from the true figure if a product's price has changed
+  # since, and must never be used for actual charge/refund math.
+  def franchise_regular_total
+    return nil unless franchise_wholesale_pricing?
+
+    self.class.franchise_regular_total_for_items(booking_items.includes(:product))
+  end
+
+  # Batched version of the above for a list of already-loaded booking_items
+  # (each with .product preloaded) spanning one or many bookings — lets the
+  # bookings index compute this for a whole page in one query instead of
+  # firing franchise_regular_total per row.
+  def self.franchise_regular_total_for_items(items)
+    items.sum do |item|
+      product = item.product
+      next item.price.to_f * item.quantity.to_f unless product
+
+      selling_price = if product.discount_price.present? && product.discount_price != product.price
+        product.discount_price
+      else
+        product.price
+      end
+
+      # Multi-quantity/variant products don't have a distinct B2B price (see
+      # Product#effective_b2b_price) — they were charged their regular price
+      # even under Franchise Booking, so there's no saving to show.
+      regular_unit = product.has_multiple_quantities? ? item.price.to_f : selling_price.to_f.round
+
+      regular_unit * item.quantity.to_f
+    end.round(2)
+  end
+
   # Status management methods
   def can_cancel?
     %w[draft ordered_and_delivery_pending confirmed processing].include?(status)

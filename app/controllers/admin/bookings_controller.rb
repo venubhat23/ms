@@ -28,7 +28,7 @@ class Admin::BookingsController < Admin::ApplicationController
     # (item count), which reads the booking_items_count counter cache instead of
     # preloading every item row for every booking on the page.
     # delivery_person avoids N+1 when booking.delivery_person.full_name is rendered
-    listing_includes = [:customer, { user: :franchise }, :store, :booking_invoices, :delivery_person]
+    listing_includes = [:customer, { user: :franchise }, :store, :booking_invoices, :delivery_person, :delivery_franchise]
     listing_includes << :franchise unless current_user.franchise?
 
     @bookings = base_scope.recent.includes(*listing_includes)
@@ -811,8 +811,38 @@ class Admin::BookingsController < Admin::ApplicationController
       # Build transition data
       transition_data = build_stage_transition_data
 
-      # Update booking with new status and transition data
-      if update_booking_with_stage_transition(transition_data)
+      # A franchise fulfills a delivery from their own on-shelf stock (see
+      # FranchiseInventory), not the central warehouse — block the
+      # assignment outright if they don't already hold enough of every
+      # item, rather than silently creating stock they were never actually
+      # given. franchise_delivery_mode_requested? already re-checked the
+      # feature flag when build_stage_transition_data set delivery_mode.
+      franchise = nil
+      if transition_data[:delivery_mode] == 'franchise'
+        franchise = Franchise.active.find_by(id: transition_data[:delivery_franchise_id])
+        unless franchise
+          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "Please select a valid franchise."
+          return
+        end
+
+        shortfall = franchise_stock_shortfall(franchise)
+        if shortfall.any?
+          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state),
+            alert: "#{franchise.name} doesn't have enough stock to fulfil this booking — #{shortfall.join('; ')}."
+          return
+        end
+      end
+
+      # Update booking with new status and transition data. When assigning a
+      # franchise, its stock is consumed in the same transaction as the
+      # status save, so a save failure can't leave stock deducted with
+      # nothing to show for it.
+      success = ActiveRecord::Base.transaction do
+        consume_franchise_stock!(franchise) if franchise
+        update_booking_with_stage_transition(transition_data)
+      end
+
+      if success
         success_notice = "Booking stage updated to #{@target_stage.humanize} successfully."
         if @target_stage == 'out_for_delivery' && transition_data[:delivery_mode] == 'franchise' && @booking.delivery_franchise.present?
           success_notice = "Franchise #{@booking.delivery_franchise.name} assigned and booking updated successfully."
@@ -1191,7 +1221,43 @@ class Admin::BookingsController < Admin::ApplicationController
   # franchise-delivery path — always re-checks the feature flag so a crafted
   # request can't set delivery_franchise_id while the feature is disabled.
   def franchise_delivery_mode_requested?
-    params[:delivery_mode] == 'franchise' && SystemSetting.franchise_commission_enabled?
+    params[:delivery_mode] == 'franchise' && SystemSetting.franchise_commission_enabled? &&
+      SystemSetting.franchise_delivery_assignment_enabled?
+  end
+
+  # A franchise assigned to deliver @booking fulfills it from their own
+  # FranchiseInventory stock, not the central warehouse — this is the gate
+  # that decides whether they're allowed to be assigned at all. Returns a
+  # list of human-readable shortfall strings (one per booking_item they
+  # don't have enough of), empty if they can cover every item.
+  def franchise_stock_shortfall(franchise)
+    @booking.booking_items.includes(:product).filter_map do |item|
+      next if item.product_id.blank? || item.quantity.to_f <= 0
+
+      available = FranchiseInventory.balance_for(franchise, item.product)
+      next if available >= item.quantity.to_f
+
+      "#{item.product&.name || 'item'} (needs #{item.quantity}, has #{available})"
+    end
+  end
+
+  # Deducts each of @booking's items from franchise's own inventory ledger.
+  # Only ever called after franchise_stock_shortfall has confirmed there's
+  # enough, so consume_stock! returning false here means a race — another
+  # assignment consumed the same stock between the check and this call —
+  # which raises to roll back the whole transaction this runs inside.
+  def consume_franchise_stock!(franchise)
+    @booking.booking_items.each do |item|
+      next if item.product_id.blank? || item.quantity.to_f <= 0
+
+      consumed = FranchiseInventory.consume_stock!(
+        franchise, item.product, item.quantity,
+        reference_type: 'franchise_delivery_assignment',
+        reference_id: @booking.id,
+        notes: "Delivery assignment for Booking ##{@booking.booking_number}"
+      )
+      raise "Insufficient stock for #{item.product&.name} at #{franchise.name}" unless consumed
+    end
   end
 
   def process_out_for_delivery_transition

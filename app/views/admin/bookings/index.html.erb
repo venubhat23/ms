@@ -496,6 +496,14 @@
                           </span>
                         </div>
                       <% end %>
+                      <%# Assigned delivery franchise badge %>
+                      <% if booking.delivery_franchise.present? %>
+                        <div class="mt-1">
+                          <span class="badge bg-info-subtle text-info border border-info-subtle" style="font-size:0.7rem;">
+                            <i class="bi bi-truck me-1"></i>Assigned Franchise: <%= booking.delivery_franchise.name %>
+                          </span>
+                        </div>
+                      <% end %>
                     </div>
                   </div>
                 </td>

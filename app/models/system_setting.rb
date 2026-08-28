@@ -359,6 +359,29 @@ class SystemSetting < ApplicationRecord
     setting
   end
 
+  # Franchise Delivery Assignment Feature Methods
+
+  # Check if admins can assign a booking's "Out for Delivery" stage to a
+  # franchise (see Admin::BookingsController#franchise_delivery_mode_requested?
+  # and the "Franchise Delivery" option on manage_stage) — a narrower
+  # kill-switch than franchise_commission_enabled, off by default.
+  def self.franchise_delivery_assignment_enabled?
+    cached_system_config&.franchise_delivery_assignment_enabled || false
+  end
+
+  # Enable or disable franchise delivery assignment
+  def self.set_franchise_delivery_assignment_enabled(enabled)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(franchise_delivery_assignment_enabled: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
+
   # Customer Wallet Feature Methods
 
   # Check if the customer wallet feature (sidebar, admin add/remove money,

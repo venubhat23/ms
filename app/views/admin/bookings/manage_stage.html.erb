@@ -78,6 +78,49 @@
   </div>
 </div>
 
+<!-- Assign to Franchise — quick action independent of the step-by-step stage
+     picker below, so an admin doesn't have to walk a booking through every
+     intermediate stage just to hand it off for franchise delivery. -->
+<% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0">
+      <h5 class="mb-0"><i class="bi bi-shop-window me-2 text-primary"></i>Franchise Delivery</h5>
+    </div>
+    <div class="card-body">
+      <% if @booking.delivery_franchise.present? %>
+        <div class="alert alert-info d-flex align-items-center mb-0">
+          <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+          <div>
+            Assigned to <strong><%= @booking.delivery_franchise.name %></strong> for delivery.
+          </div>
+        </div>
+      <% else %>
+        <%= form_with url: update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch, local: true, data: { turbo: false } do %>
+          <input type="hidden" name="target_stage" value="out_for_delivery">
+          <input type="hidden" name="delivery_mode" value="franchise">
+          <div class="d-flex gap-2 align-items-end flex-wrap">
+            <div style="min-width: 260px;">
+              <label class="form-label small text-muted mb-1">Nearest Franchise</label>
+              <select name="delivery_franchise_id" class="form-select" required>
+                <option value="">-- Select Franchise --</option>
+                <% Franchise.active.order(:name).each do |fr| %>
+                  <option value="<%= fr.id %>"><%= fr.name %> (<%= number_with_precision(fr.commission_percentage, precision: 2) %>% commission)</option>
+                <% end %>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-shop-window me-1"></i>Assign to Franchise
+            </button>
+          </div>
+          <div class="form-text mt-2">
+            Moves this booking straight to "Out for Delivery" and hands it to the selected franchise — they'll see it under their Deliveries list and earn a commission once they mark it delivered/completed.
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
 <!-- Main Content -->
 <div class="card border-0 shadow-sm">
   <div class="card-header bg-transparent border-0">
@@ -260,7 +303,7 @@
         <div id="out_for_deliveryFields" class="stage-fields" style="display: none;">
           <h6 class="mb-3 text-muted">Delivery Assignment</h6>
 
-          <% if SystemSetting.franchise_commission_enabled? %>
+          <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? %>
             <div class="mb-3">
               <div class="btn-group" role="group">
                 <input type="radio" class="btn-check" name="delivery_mode" id="delivery_mode_other" value="delivery_person" checked onchange="toggleDeliveryMode(this)">
@@ -306,7 +349,7 @@
             </div>
           </div>
 
-          <% if SystemSetting.franchise_commission_enabled? %>
+          <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? %>
             <div id="franchiseDeliveryFields" class="row g-3" style="display: none;">
               <div class="col-md-6">
                 <label class="form-label">Franchise <span class="text-danger">*</span></label>

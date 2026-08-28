@@ -66,6 +66,9 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get OTP login feature settings
     @otp_login_enabled = system_config&.otp_login_enabled || false
 
+    # Get franchise delivery assignment feature settings
+    @franchise_delivery_assignment_enabled = system_config&.franchise_delivery_assignment_enabled || false
+
     # Get customer wallet feature settings
     @customer_wallet_enabled = system_config&.customer_wallet_enabled || false
 
@@ -286,6 +289,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating OTP Login settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle franchise delivery assignment feature toggle
+    if params[:franchise_delivery_assignment_settings_update] == "true"
+      begin
+        franchise_delivery_assignment_enabled = params[:franchise_delivery_assignment_enabled] == "1"
+
+        SystemSetting.set_franchise_delivery_assignment_enabled(franchise_delivery_assignment_enabled)
+
+        if franchise_delivery_assignment_enabled
+          success_messages << 'Franchise Delivery Assignment enabled successfully!'
+        else
+          success_messages << 'Franchise Delivery Assignment disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Franchise Delivery Assignment settings: #{e.message}"
         return
       end
     end

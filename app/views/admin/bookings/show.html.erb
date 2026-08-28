@@ -416,7 +416,14 @@
                       <small class="text-muted d-block">pcs</small>
                     </td>
                     <td class="align-middle text-end">
-                      <span class="fw-medium">₹<%= number_with_delimiter(item.price&.to_f || 0) %></span>
+                      <% regular_unit = @booking.franchise_wholesale_pricing? ? Booking.regular_unit_price_for_item(item) : nil %>
+                      <% if regular_unit.present? && regular_unit > (item.price&.to_f || 0) %>
+                        <span class="text-muted text-decoration-line-through d-block" style="font-size: 0.8rem;">₹<%= number_with_delimiter(regular_unit) %></span>
+                        <span class="fw-medium text-primary">₹<%= number_with_delimiter(item.price&.to_f || 0) %></span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle mt-1">B2B</span>
+                      <% else %>
+                        <span class="fw-medium">₹<%= number_with_delimiter(item.price&.to_f || 0) %></span>
+                      <% end %>
                     </td>
                     <td class="align-middle text-end">
                       <span class="fw-bold text-success">₹<%= number_with_delimiter((item.quantity * item.price)&.to_f || 0) %></span>

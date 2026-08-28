@@ -96,6 +96,13 @@ class Booking < ApplicationRecord
   after_update :allocate_inventory, if: :saved_change_to_status?
   after_update :sync_invoice_payment_status, if: :saved_change_to_payment_status?
   after_update :credit_affiliate_commission, if: :saved_change_to_status?
+  # Same class of bug allocate_inventory/allocate_franchise_inventory above
+  # were already fixed for: admin/bookings/new's status select defaults to
+  # "completed", so a Franchise Booking is normally created directly into a
+  # stock-consuming status rather than reaching it via a later update — an
+  # after_update-only callback never sees that as a "confirmed" transition
+  # and silently never credits the franchise's inventory ledger.
+  after_create :credit_wholesale_stock_to_franchise
   after_update :credit_wholesale_stock_to_franchise, if: :saved_change_to_status?
   after_update :credit_franchise_commission, if: :saved_change_to_status?
   after_commit :bust_mobile_customer_cache
@@ -139,12 +146,18 @@ class Booking < ApplicationRecord
     end
   end
 
-  # Wholesale "Franchise Booking" from admin/bookings/new: once the sale is
-  # confirmed (stock already deducted from central inventory by
-  # allocate_inventory above), the same quantities are credited into the
-  # buying franchise's own inventory ledger.
+  # Wholesale "Franchise Booking" from admin/bookings/new: once the sale
+  # first reaches a stock-consuming status (stock already deducted from
+  # central inventory by allocate_inventory above), the same quantities are
+  # credited into the buying franchise's own inventory ledger. Checked
+  # against the same STOCK_CONSUMING_STATUSES set as allocate_franchise_
+  # inventory below (not a strict "confirmed" transition) since the booking
+  # is normally created directly into "completed", never passing through an
+  # update where status changes — wholesale_stock_credited_at makes this
+  # safe to check broadly, since it guarantees the credit still only ever
+  # happens once no matter how many stock-consuming statuses are crossed.
   def credit_wholesale_stock_to_franchise
-    return unless status == 'confirmed' && status_previously_was != 'confirmed'
+    return unless STOCK_CONSUMING_STATUSES.include?(status) && !STOCK_CONSUMING_STATUSES.include?(status_previously_was)
     return unless booked_by == 'admin' && franchise_id.present? && wholesale_stock_credited_at.nil?
     return unless SystemSetting.franchise_commission_enabled?
 
@@ -373,23 +386,29 @@ class Booking < ApplicationRecord
   # bookings index compute this for a whole page in one query instead of
   # firing franchise_regular_total per row.
   def self.franchise_regular_total_for_items(items)
-    items.sum do |item|
-      product = item.product
-      next item.price.to_f * item.quantity.to_f unless product
+    items.sum { |item| regular_unit_price_for_item(item) * item.quantity.to_f }.round(2)
+  end
 
-      selling_price = if product.discount_price.present? && product.discount_price != product.price
-        product.discount_price
-      else
-        product.price
-      end
+  # A single item's current regular (non-B2B) unit price — the per-line-item
+  # building block behind franchise_regular_total(_for_items), also used
+  # directly to show a Selling/B2B price breakdown per row on the booking
+  # detail page.
+  def self.regular_unit_price_for_item(item)
+    product = item.product
+    return item.price.to_f unless product
 
-      # Multi-quantity/variant products don't have a distinct B2B price (see
-      # Product#effective_b2b_price) — they were charged their regular price
-      # even under Franchise Booking, so there's no saving to show.
-      regular_unit = product.has_multiple_quantities? ? item.price.to_f : selling_price.to_f.round
+    # Multi-quantity/variant products don't have a distinct B2B price (see
+    # Product#effective_b2b_price) — they were charged their regular price
+    # even under Franchise Booking, so there's no saving to show.
+    return item.price.to_f if product.has_multiple_quantities?
 
-      regular_unit * item.quantity.to_f
-    end.round(2)
+    selling_price = if product.discount_price.present? && product.discount_price != product.price
+      product.discount_price
+    else
+      product.price
+    end
+
+    selling_price.to_f.round
   end
 
   # Status management methods

@@ -66,6 +66,34 @@ class Franchise < ApplicationRecord
   scope :active, -> { where(status: true) }
   scope :inactive, -> { where(status: false) }
 
+  # In-process (per-worker), short-TTL cache for the active-franchise list —
+  # re-queried from scratch on nearly every admin/bookings page load (the
+  # franchise-delivery dropdown), across every admin, every request. Only
+  # changes when an admin edits a franchise, so a few seconds of staleness
+  # is unnoticeable. See lib/local_ttl_cache.rb for why this beats
+  # Rails.cache here (Rails.cache is itself Solid Cache, backed by the same
+  # remote Postgres as the primary DB — a "hit" there still pays a full
+  # network round trip; a hit here is a plain Ruby array read).
+  LOCAL_CACHE = LocalTtlCache.new
+  LOCAL_TTL = 30.seconds
+
+  # Matches the exact shape Admin::BookingsController's franchise-delivery
+  # dropdown has always queried (a handful of display columns, no explicit
+  # order).
+  def self.active_for_booking_dropdown
+    LOCAL_CACHE.fetch("franchises/active_for_booking_dropdown", LOCAL_TTL) do
+      active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage).to_a
+    end
+  end
+
+  # Matches the exact shape manage_stage.html.erb's franchise <select>
+  # dropdowns have always queried (full columns, ordered by name).
+  def self.active_ordered_by_name
+    LOCAL_CACHE.fetch("franchises/active_ordered_by_name", LOCAL_TTL) do
+      active.order(:name).to_a
+    end
+  end
+
   # Search functionality
   pg_search_scope :search_franchises,
     against: [:name, :email, :mobile, :contact_person_name, :city, :state, :pan_no],

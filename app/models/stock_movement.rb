@@ -12,7 +12,8 @@ class StockMovement < ApplicationRecord
     ['booking', 'Booking'],
     ['adjustment', 'Manual Adjustment'],
     ['franchise_return', 'Franchise Return'],
-    ['franchise_delivery_assignment', 'Franchise Delivery Assignment']
+    ['franchise_delivery_assignment', 'Franchise Delivery Assignment'],
+    ['variant_split', 'Variant Stock Split/Merge']
   ].freeze
 
   belongs_to :product

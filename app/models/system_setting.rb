@@ -183,26 +183,22 @@ class SystemSetting < ApplicationRecord
 
   # Get default main agent commission as float
   def self.default_main_agent_commission
-    setting = find_by(key: 'system_config')
-    setting&.default_main_agent_commission || 0.0
+    cached_system_config&.default_main_agent_commission || 0.0
   end
 
   # Get default affiliate commission as float
   def self.default_affiliate_commission
-    setting = find_by(key: 'system_config')
-    setting&.default_affiliate_commission || 0.0
+    cached_system_config&.default_affiliate_commission || 0.0
   end
 
   # Get default ambassador commission as float
   def self.default_ambassador_commission
-    setting = find_by(key: 'system_config')
-    setting&.default_ambassador_commission || 0.0
+    cached_system_config&.default_ambassador_commission || 0.0
   end
 
   # Get default company expenses as float
   def self.default_company_expenses
-    setting = find_by(key: 'system_config')
-    setting&.default_company_expenses || 0.0
+    cached_system_config&.default_company_expenses || 0.0
   end
 
   # Update commission values

@@ -172,7 +172,7 @@ class Admin::BookingsController < Admin::ApplicationController
     # status and commission_percentage are included even though the view doesn't need them:
     # Franchise#set_defaults (after_initialize) reads both on every instantiation, and a
     # narrower select raises ActiveModel::MissingAttributeError.
-    @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+    @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
   end
 
   def create
@@ -221,7 +221,7 @@ class Admin::BookingsController < Admin::ApplicationController
           @categories = Category.where(status: true).order(:display_order, :name)
           @stores = Store.active.order(:name)
           @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-          @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+          @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
           flash.now[:alert] = "Could not create customer: #{customer.errors.full_messages.to_sentence}"
           render :new, status: :unprocessable_entity
           return
@@ -248,7 +248,7 @@ class Admin::BookingsController < Admin::ApplicationController
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
       @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+      @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
       return
@@ -276,7 +276,7 @@ class Admin::BookingsController < Admin::ApplicationController
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
       @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+      @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
       render :new, status: :unprocessable_entity
       return
     end
@@ -343,7 +343,7 @@ class Admin::BookingsController < Admin::ApplicationController
       @categories = Category.where(status: true).order(:display_order, :name)
       @stores = Store.active.order(:name)
       @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active.select(:id, :name, :mobile, :email, :address, :status, :commission_percentage) : Franchise.none
+      @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
     end

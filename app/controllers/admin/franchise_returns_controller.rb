@@ -19,7 +19,7 @@ class Admin::FranchiseReturnsController < Admin::ApplicationController
 
   def new
     @franchise_return = FranchiseReturn.new
-    @franchises = Franchise.active.select(:id, :name, :mobile, :status, :commission_percentage).order(:name)
+    @franchises = Franchise.active_ordered_by_name
     @products_json = cached_products_json
   end
 
@@ -29,7 +29,7 @@ class Admin::FranchiseReturnsController < Admin::ApplicationController
     if @franchise_return.save
       redirect_to admin_franchise_returns_path, notice: "Franchise return submitted."
     else
-      @franchises = Franchise.active.select(:id, :name, :mobile, :status, :commission_percentage).order(:name)
+      @franchises = Franchise.active_ordered_by_name
       @products_json = cached_products_json
       flash.now[:alert] = @franchise_return.errors.full_messages.to_sentence
       render :new, status: :unprocessable_entity

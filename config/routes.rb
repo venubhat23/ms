@@ -732,6 +732,7 @@ Rails.application.routes.draw do
     end
 
     resources :product_splits, only: [:index]
+    post 'product_splits/:product_id/transfer', to: 'product_splits#transfer', as: :product_split_transfer
 
     # QR Codes
     get 'qr_codes', to: 'qr_codes#index', as: :qr_codes

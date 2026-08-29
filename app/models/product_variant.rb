@@ -1,4 +1,6 @@
 class ProductVariant < ApplicationRecord
+  class TransferError < StandardError; end
+
   belongs_to :product
 
   UNIT_TYPES = Product::UNIT_TYPES
@@ -50,6 +52,68 @@ class ProductVariant < ApplicationRecord
 
   def in_stock?
     available_stock > 0
+  end
+
+  # Moves stock between variants of the same product — covers both splitting
+  # one variant into several smaller ones and merging several into one. Each
+  # side is a list of { variant:, quantity: } lines; the two sides must carry
+  # the same total weight (quantity * variant.weight) since nothing is being
+  # created or destroyed, only repackaged.
+  def self.transfer_stock!(product:, from_lines:, to_lines:)
+    raise TransferError, 'Select at least one source variant and quantity.' if from_lines.blank?
+    raise TransferError, 'Select at least one destination variant and quantity.' if to_lines.blank?
+
+    from_lines.each do |line|
+      raise TransferError, "#{line[:variant].label} does not belong to #{product.name}." unless line[:variant].product_id == product.id
+    end
+    to_lines.each do |line|
+      raise TransferError, "#{line[:variant].label} does not belong to #{product.name}." unless line[:variant].product_id == product.id
+    end
+
+    from_total_weight = from_lines.sum { |line| line[:quantity] * line[:variant].weight.to_f }
+    to_total_weight = to_lines.sum { |line| line[:quantity] * line[:variant].weight.to_f }
+
+    if (from_total_weight - to_total_weight).abs > 0.01
+      raise TransferError, "Quantities don't balance: source totals #{from_total_weight.round(2)}, destination totals #{to_total_weight.round(2)}. They must match."
+    end
+
+    from_lines.each do |line|
+      if line[:variant].available_stock < line[:quantity]
+        raise TransferError, "Not enough stock in #{line[:variant].label} (available #{line[:variant].available_stock}, requested #{line[:quantity]})."
+      end
+    end
+
+    transaction do
+      from_lines.each do |line|
+        variant = line[:variant]
+        stock_before = variant.available_stock
+        stock_after = stock_before - line[:quantity]
+        variant.update_column(:available_stock, stock_after)
+        product.stock_movements.create!(
+          reference_type: 'variant_split',
+          movement_type: 'consumed',
+          quantity: -line[:quantity],
+          stock_before: stock_before,
+          stock_after: stock_after,
+          notes: "Split/merge: moved #{line[:quantity]} x #{variant.label} out to other variant(s)"
+        )
+      end
+
+      to_lines.each do |line|
+        variant = line[:variant]
+        stock_before = variant.available_stock
+        stock_after = stock_before + line[:quantity]
+        variant.update_column(:available_stock, stock_after)
+        product.stock_movements.create!(
+          reference_type: 'variant_split',
+          movement_type: 'added',
+          quantity: line[:quantity],
+          stock_before: stock_before,
+          stock_after: stock_after,
+          notes: "Split/merge: received #{line[:quantity]} x #{variant.label} from other variant(s)"
+        )
+      end
+    end
   end
 
   private

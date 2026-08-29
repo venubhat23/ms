@@ -10,8 +10,10 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
     per_page = params[:per_page] || 20
     customers = customers.page(page).per(per_page)
 
+    wallet_balances = CustomerWallet.where(customer_id: customers.map(&:id)).pluck(:customer_id, :balance).to_h
+
     render_success(
-      customers: customers.map { |c| customer_response(c) },
+      customers: customers.map { |c| customer_response(c, wallet_balance: wallet_balances[c.id]) },
       pagination: {
         current_page: customers.current_page,
         total_pages: customers.total_pages,
@@ -24,7 +26,8 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/customers/:id
   def show
     customer = Customer.find(params[:id])
-    render_success(customer_response(customer, detailed: true))
+    wallet = CustomerWallet.find_by(customer_id: customer.id)
+    render_success(customer_response(customer, detailed: true, wallet_balance: wallet&.balance, wallet_history: wallet_history(wallet)))
   rescue ActiveRecord::RecordNotFound
     render_error('Customer not found', nil, :not_found)
   end
@@ -42,7 +45,7 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
 
   private
 
-  def customer_response(customer, detailed: false)
+  def customer_response(customer, detailed: false, wallet_balance: nil, wallet_history: nil)
     data = {
       id: customer.id,
       name: customer.display_name,
@@ -51,6 +54,7 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
       email: customer.email,
       mobile: customer.mobile,
       status: customer.status.nil? ? true : customer.status,
+      wallet_balance: (wallet_balance || 0).to_f,
       created_at: customer.created_at
     }
 
@@ -63,8 +67,28 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
       )
       data[:orders_count] = orders_count
       data[:total_spent] = total_spent.to_f
+      data[:wallet_history] = wallet_history || []
     end
 
     data
+  end
+
+  def wallet_history(wallet)
+    return [] unless wallet
+
+    wallet.wallet_transactions.recent.map do |txn|
+      {
+        id: txn.id,
+        transaction_type: txn.transaction_type,
+        amount: txn.amount.to_f,
+        formatted_amount: txn.formatted_amount,
+        balance_after: txn.balance_after.to_f,
+        description: txn.description,
+        reference_number: txn.reference_number,
+        booking_id: txn.booking_id,
+        booking_number: txn.booking&.booking_number,
+        created_at: txn.created_at.iso8601
+      }
+    end
   end
 end

@@ -128,7 +128,7 @@
                 "login"
               ]
             },
-            "description": "Login using email/mobile + password. Accepts email, mobile, or username identifier."
+            "description": "Login using email/mobile + password. Accepts email, mobile, or username identifier. Customer logins also return customer_wallet_enabled and is_pre_booking_enabled (whether the pre-booking feature is currently turned on) in the response data."
           }
         },
         {
@@ -220,7 +220,7 @@
                 "verify"
               ]
             },
-            "description": "Verifies the OTP and logs the user in, returning a bearer token. Auto-creates a minimal Customer/User account on first-time mobile numbers (is_new_user: true in the response) \u2014 prompt for profile completion via Settings > Update Profile afterward. Max 5 incorrect attempts before the OTP is invalidated."
+            "description": "Verifies the OTP and logs the user in, returning a bearer token. Auto-creates a minimal Customer/User account on first-time mobile numbers (is_new_user: true in the response) \u2014 prompt for profile completion via Settings > Update Profile afterward. Max 5 incorrect attempts before the OTP is invalidated. Also returns customer_wallet_enabled and is_pre_booking_enabled (whether the pre-booking feature is currently turned on)."
           }
         },
         {

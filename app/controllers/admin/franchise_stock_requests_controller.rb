@@ -29,7 +29,10 @@ class Admin::FranchiseStockRequestsController < Admin::ApplicationController
   end
 
   def approve
-    if @stock_request.approve!(current_user, discount_type: params[:discount_type], discount_value: params[:discount_value])
+    # Pricing is fully automatic now — Product#b2b_price (see
+    # FranchiseStockRequest#pricing_preview / resolved_unit_price) replaces
+    # the manual discount picker that used to live on this screen.
+    if @stock_request.approve!(current_user)
       redirect_to admin_franchise_stock_request_path(@stock_request), notice: "Request approved — a Franchise Booking was created and stock credited to the franchise's inventory."
     else
       redirect_to admin_franchise_stock_request_path(@stock_request), alert: @stock_request.errors.full_messages.to_sentence.presence || "Only pending requests can be approved."

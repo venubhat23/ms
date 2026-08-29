@@ -444,6 +444,26 @@ class SystemSetting < ApplicationRecord
     setting
   end
 
+  # Split Feature Methods
+
+  # Check if split feature is enabled. Off by default.
+  def self.split_feature_enabled?
+    cached_system_config&.split_feature_enabled || false
+  end
+
+  # Enable or disable split feature
+  def self.set_split_feature_enabled(enabled)
+    setting = find_or_create_by(key: 'system_config') do |s|
+      s.value = 'system configuration'
+      s.setting_type = 'configuration'
+      s.description = 'System configuration settings'
+    end
+
+    setting.update!(split_feature_enabled: enabled)
+    LOCAL_CACHE.delete(SYSTEM_CONFIG_KEY)
+    setting
+  end
+
   # Delivery Only At Shop Feature Methods
 
   # Check if delivery only at shop feature is enabled

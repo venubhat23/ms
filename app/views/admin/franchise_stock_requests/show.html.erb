@@ -85,6 +85,66 @@
   </div>
 
   <div class="col-lg-5">
+    <% if @stock_request.pending? %>
+      <% preview = @stock_request.pricing_preview %>
+      <% totals = @stock_request.pricing_totals(preview) %>
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Order Summary</h5>
+        </div>
+        <div class="card-body">
+          <% preview.each do |item| %>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="pe-2">
+                <div class="fw-medium">
+                  <%= item[:name] %>
+                  <% if item[:is_b2b_priced] %>
+                    <span class="badge b2b-price-badge"><i class="bi bi-shop-window me-1"></i>B2B</span>
+                  <% end %>
+                </div>
+                <small class="text-muted">₹<%= '%.2f' % item[:unit_price] %> &times; <%= item[:quantity] %></small>
+                <% if item[:gst_rate] > 0 %>
+                  <br><small class="text-success">GST <%= item[:gst_rate].to_i %>%: ₹<%= '%.2f' % item[:item_gst_amount] %></small>
+                <% end %>
+                <% if item[:is_b2b_priced] %>
+                  <div class="b2b-price-breakdown mt-1 d-flex align-items-center flex-wrap gap-1">
+                    <span class="text-decoration-line-through text-muted">₹<%= '%.2f' % item[:regular_total] %></span>
+                    <i class="bi bi-arrow-right-short"></i>
+                    <span class="fw-semibold text-primary">₹<%= '%.2f' % item[:item_total] %></span>
+                    <span class="b2b-save-chip">Save ₹<%= '%.2f' % item[:save_amount] %></span>
+                  </div>
+                <% end %>
+              </div>
+              <span class="fw-medium text-nowrap">₹<%= '%.2f' % item[:item_total] %></span>
+            </div>
+          <% end %>
+
+          <hr>
+
+          <div class="d-flex justify-content-between small mb-1">
+            <span>Subtotal</span>
+            <span>₹<%= '%.2f' % totals[:subtotal] %></span>
+          </div>
+          <% if totals[:gst_amount] > 0 %>
+            <div class="d-flex justify-content-between small mb-1 text-success">
+              <span>GST</span>
+              <span>₹<%= '%.2f' % totals[:gst_amount] %></span>
+            </div>
+          <% end %>
+          <div class="d-flex justify-content-between fw-semibold fs-5 mt-2">
+            <span>Total</span>
+            <span>₹<%= '%.2f' % totals[:total] %></span>
+          </div>
+
+          <% if totals[:savings] > 0 %>
+            <div class="b2b-savings-summary mt-3">
+              <i class="bi bi-piggy-bank me-1"></i>Franchise saves ₹<%= '%.2f' % totals[:savings] %> vs. regular pricing
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-transparent border-0">
         <h5 class="mb-0">Actions</h5>
@@ -92,32 +152,8 @@
       <div class="card-body">
         <% if @stock_request.pending? %>
           <%= form_with url: approve_admin_franchise_stock_request_path(@stock_request), method: :patch, local: true do |f| %>
-            <h6 class="mb-3"><i class="bi bi-percent me-2"></i>Wholesale Discount for Franchise</h6>
-            <div class="mb-3">
-              <label class="form-label small">Discount Type</label>
-              <div class="d-flex gap-3">
-                <div class="form-check">
-                  <input type="radio" name="discount_type" value="" id="discount_type_none" class="form-check-input" checked>
-                  <label class="form-check-label" for="discount_type_none">No Discount</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="discount_type" value="fixed" id="discount_type_fixed" class="form-check-input">
-                  <label class="form-check-label" for="discount_type_fixed">Fixed Amount</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="discount_type" value="percentage" id="discount_type_percentage" class="form-check-input">
-                  <label class="form-check-label" for="discount_type_percentage">Percentage</label>
-                </div>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label small">Discount Value</label>
-              <input type="number" name="discount_value" class="form-control" min="0" step="0.01" placeholder="0.00">
-              <div class="form-text small">Applied to the wholesale booking's bill total.</div>
-            </div>
-
             <%= f.submit "Approve & Create Booking", class: "btn btn-success w-100 mb-3",
-                data: { confirm: "Approve this request? A Franchise Booking will be created and the quantities credited to the franchise's inventory." } %>
+                data: { confirm: "Approve this request? A Franchise Booking will be created at these B2B prices and the quantities credited to the franchise's inventory." } %>
           <% end %>
 
           <%= form_with url: reject_admin_franchise_stock_request_path(@stock_request), method: :patch, local: true do |f| %>
@@ -149,3 +185,37 @@
     </div>
   </div>
 </div>
+
+<style>
+  .b2b-price-badge {
+    background: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.7rem;
+    vertical-align: middle;
+  }
+  .b2b-price-breakdown {
+    font-size: 0.78rem;
+    color: #4338ca;
+    font-weight: 500;
+  }
+  .b2b-save-chip {
+    display: inline-block;
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.4;
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+  }
+  .b2b-savings-summary {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9rem;
+    color: #15803d;
+    font-weight: 600;
+  }
+</style>

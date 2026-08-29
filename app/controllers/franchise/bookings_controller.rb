@@ -1,23 +1,43 @@
 class Franchise::BookingsController < Franchise::BaseController
-  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :manage_stage, :update_stage]
+  before_action :set_booking, only: [:edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order]
+  # Admin can hand a booking to this franchise purely for delivery
+  # (delivery_franchise_id, see FranchiseDeliveryAssignmentService) without
+  # it ever being one of the franchise's own bookings (franchise_id). Those
+  # deliveries still need to show up here and be movable through the stage
+  # workflow — but NOT through the ownership actions above (edit/destroy/
+  # cancel/etc.), which stay restricted to bookings this franchise actually
+  # placed.
+  before_action :set_deliverable_booking, only: [:show, :manage_stage, :update_stage, :mark_delivered, :mark_completed]
 
   def index
-    # All bookings belonging to this franchise
+    # All bookings belonging to this franchise, plus any booking admin
+    # handed to this franchise purely for delivery (delivery_franchise_id,
+    # see FranchiseDeliveryAssignmentService) even though it's someone
+    # else's booking — those need to show up here too so the franchise can
+    # see and progress them, not just in the separate /franchise/deliveries
+    # page.
     @all_bookings = Booking.where(franchise_id: current_franchise.id)
+                           .or(Booking.where(delivery_franchise_id: current_franchise.id))
                            .includes(:customer, :user, :booking_items, :store, :booking_invoices)
 
     # Franchise-created bookings
     franchise_bookings = @all_bookings.where(booked_by: 'franchise')
     # Online orders placed by customers and assigned to this franchise
     online_orders = @all_bookings.where(booked_by: 'customer')
+    # Someone else's booking, handed to this franchise only for delivery
+    admin_assigned_deliveries = @all_bookings.where(delivery_franchise_id: current_franchise.id)
+                                              .where.not(franchise_id: current_franchise.id)
 
-    # Source filter: 'franchise' = only franchise-created, 'online' = only customer orders, default = all
+    # Source filter: 'franchise' = only franchise-created, 'online' = only customer orders,
+    # 'admin_assigned' = admin-assigned deliveries, default = all
     @source_filter = params[:source].presence || 'all'
     base_scope = case @source_filter
                  when 'franchise'
                    franchise_bookings
                  when 'online'
                    online_orders
+                 when 'admin_assigned'
+                   admin_assigned_deliveries
                  else
                    @all_bookings
                  end
@@ -57,6 +77,7 @@ class Franchise::BookingsController < Franchise::BaseController
     booked_by_counts = @all_bookings.group(:booked_by).count
     @franchise_bookings_count = booked_by_counts['franchise'] || 0
     @online_orders_count = booked_by_counts['customer'] || 0
+    @admin_assigned_count = admin_assigned_deliveries.count
 
     status_counts = @all_bookings.group(:status).count
     @stats_draft_count = status_counts['draft'] || 0
@@ -382,6 +403,19 @@ class Franchise::BookingsController < Franchise::BaseController
     # Preloading booking_items: :product here (not just in #show) also fixes
     # the N+1 in the #invoice view, which walks @booking.booking_items/item.product directly.
     @booking = Booking.where(franchise_id: current_franchise.id).includes(booking_items: :product).find(params[:id])
+  rescue ActiveRecord::RecordNotFound
+    redirect_to franchise_bookings_path, alert: 'Booking not found'
+  end
+
+  # Same as set_booking, but also allows a booking this franchise doesn't
+  # own — just delivers, via delivery_franchise_id — so #show/#manage_stage/
+  # #update_stage/#mark_delivered/#mark_completed work for admin-assigned
+  # deliveries too.
+  def set_deliverable_booking
+    @booking = Booking.where(franchise_id: current_franchise.id)
+                       .or(Booking.where(delivery_franchise_id: current_franchise.id))
+                       .includes(booking_items: :product)
+                       .find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to franchise_bookings_path, alert: 'Booking not found'
   end

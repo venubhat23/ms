@@ -522,6 +522,54 @@
       </div>
     </div>
 
+    <!-- Split Feature Card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">
+          <i class="bi bi-scissors me-2"></i>
+          Split Feature
+        </h5>
+      </div>
+      <div class="card-body">
+        <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "split-feature-form" do |form| %>
+          <%= form.hidden_field :split_feature_settings_update, value: "true" %>
+
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-check form-switch mb-3">
+                <%= form.check_box :split_feature_enabled,
+                      { checked: @split_feature_enabled,
+                        class: "form-check-input",
+                        id: "split_feature_enabled",
+                        onchange: "handleSplitFeatureToggle(this)" },
+                      "1", "0" %>
+                <label class="form-check-label" for="split_feature_enabled">
+                  <strong>Enable Split Feature</strong>
+                </label>
+                <div class="form-text">
+                  When enabled: admins can split bulk product stock into smaller sellable units (e.g. split 25kg into 1kg/2kg/5kg packs). Disabled by default.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <div class="d-flex gap-2">
+                <%= form.submit "Update Split Feature Settings", class: "btn btn-primary" %>
+                <div class="alert alert-<%= @split_feature_enabled ? 'success' : 'secondary' %> mb-0 p-2 flex-grow-1">
+                  <small>
+                    <i class="bi bi-<%= @split_feature_enabled ? 'check-circle' : 'x-circle' %> me-1"></i>
+                    Status: <%= @split_feature_enabled ? 'Enabled' : 'Disabled' %>
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
     <!-- Customer Wallet Feature Card -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-transparent border-0">
@@ -2183,6 +2231,13 @@ function handleFranchiseDeliveryAssignmentToggle(checkbox) {
 
 function handleAllowPreBookingToggle(checkbox) {
   const form = document.getElementById('allow-pre-booking-form');
+  if (form) {
+    form.submit();
+  }
+}
+
+function handleSplitFeatureToggle(checkbox) {
+  const form = document.getElementById('split-feature-form');
   if (form) {
     form.submit();
   }

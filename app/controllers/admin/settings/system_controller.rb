@@ -78,6 +78,9 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get allow pre booking feature settings
     @allow_pre_booking_enabled = system_config&.allow_pre_booking_enabled || false
 
+    # Get split feature settings
+    @split_feature_enabled = system_config&.split_feature_enabled || false
+
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
@@ -331,6 +334,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         end
       rescue => e
         redirect_to admin_settings_system_path, alert: "Error updating Allow Pre Booking settings: #{e.message}"
+        return
+      end
+    end
+
+    # Handle split feature toggle
+    if params[:split_feature_settings_update] == "true"
+      begin
+        split_feature_enabled = params[:split_feature_enabled] == "1"
+
+        SystemSetting.set_split_feature_enabled(split_feature_enabled)
+
+        if split_feature_enabled
+          success_messages << 'Split feature enabled successfully!'
+        else
+          success_messages << 'Split feature disabled successfully!'
+        end
+      rescue => e
+        redirect_to admin_settings_system_path, alert: "Error updating Split feature settings: #{e.message}"
         return
       end
     end

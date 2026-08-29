@@ -136,6 +136,13 @@
       <span class="badge bg-success ms-1"><%= @online_orders_count %></span>
     <% end %>
   </li>
+  <li class="nav-item">
+    <%= link_to franchise_bookings_path(params.permit(:search, :status, :customer_id).merge(source: 'admin_assigned')),
+        class: "nav-link #{'active fw-semibold' if @source_filter == 'admin_assigned'}" do %>
+      <i class="bi bi-person-badge me-1"></i>Assigned by Admin
+      <span class="badge bg-warning text-dark ms-1"><%= @admin_assigned_count %></span>
+    <% end %>
+  </li>
 </ul>
 
 <!-- Stage Statistics Cards -->
@@ -352,6 +359,7 @@
           <tbody>
             <% @bookings.each do |booking| %>
               <% is_franchise_booking = booking.franchise_id == current_franchise.id %>
+              <% is_admin_assigned_delivery = !is_franchise_booking && booking.delivery_franchise_id == current_franchise.id %>
               <tr class="<%= is_franchise_booking ? 'franchise-booking' : '' %>">
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
@@ -365,7 +373,11 @@
                   </div>
                 </td>
                 <td class="align-middle">
-                  <% if is_franchise_booking %>
+                  <% if is_admin_assigned_delivery %>
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="This isn't your booking — admin handed it to you for delivery only">
+                      <i class="bi bi-person-badge me-1"></i>Assigned from Admin
+                    </span>
+                  <% elsif is_franchise_booking %>
                     <span class="badge bg-info-subtle text-info border border-info-subtle">
                       <i class="bi bi-building me-1"></i>Franchise
                     </span>
@@ -541,14 +553,20 @@
                       <%= link_to franchise_booking_path(booking), class: "action-icon view", title: "View Booking" do %>
                         <i class="bi bi-eye"></i>
                       <% end %>
-                      <!-- Edit functionality limited for franchises -->
-                      <span class="action-icon edit text-muted" title="Contact Admin to Edit" style="cursor: not-allowed; opacity: 0.5;">
-                        <i class="bi bi-pencil"></i>
-                      </span>
-                      <!-- Delete functionality not available for franchises -->
-                      <span class="action-icon delete text-muted" title="Contact Admin to Delete" style="cursor: not-allowed; opacity: 0.5;">
-                        <i class="bi bi-trash"></i>
-                      </span>
+                      <% if is_admin_assigned_delivery %>
+                        <%= link_to manage_stage_franchise_booking_path(booking), class: "action-icon edit", title: "Update Delivery Stage" do %>
+                          <i class="bi bi-truck"></i>
+                        <% end %>
+                      <% else %>
+                        <!-- Edit functionality limited for franchises -->
+                        <span class="action-icon edit text-muted" title="Contact Admin to Edit" style="cursor: not-allowed; opacity: 0.5;">
+                          <i class="bi bi-pencil"></i>
+                        </span>
+                        <!-- Delete functionality not available for franchises -->
+                        <span class="action-icon delete text-muted" title="Contact Admin to Delete" style="cursor: not-allowed; opacity: 0.5;">
+                          <i class="bi bi-trash"></i>
+                        </span>
+                      <% end %>
                       <% if booking.has_invoice? %>
                         <% if booking.invoice_link_path %>
                           <%= link_to booking.invoice_link_path, class: "action-icon invoice", title: "View Invoice", target: "_blank" do %>

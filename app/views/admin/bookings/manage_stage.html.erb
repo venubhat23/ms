@@ -184,6 +184,57 @@
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
+<% elsif @booking.stock_allocated_at.present? || %w[delivered completed].include?(@booking.status) %>
+  <!-- No franchise involved — either delivered straight from central stock
+       via "Deliver from Admin" (stock_allocated_at set) or walked through
+       the stage dropdown to delivered/completed without ever being handed
+       to a franchise. Either way there's no franchise button left to show,
+       so say plainly who's handling it. -->
+  <div class="card border-0 shadow-sm mb-4 admin-assigned-card">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center gap-3">
+        <div class="admin-assigned-icon">
+          <i class="bi bi-building"></i>
+        </div>
+        <div class="flex-grow-1">
+          <div class="text-uppercase small fw-semibold" style="letter-spacing:.06em;opacity:.85;">Fulfilled By</div>
+          <h4 class="mb-0 mt-1">Admin — Admin will deliver</h4>
+        </div>
+        <div class="admin-assigned-badge">
+          <i class="bi bi-truck"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .admin-assigned-card {
+      background: linear-gradient(135deg, #eaf2ff 0%, #f5f9ff 60%, #ffffff 100%);
+      border: 1px solid #bcd6fb !important;
+      animation: franchiseAssignedIn 0.5s ease;
+    }
+    .admin-assigned-icon {
+      width: 48px; height: 48px; flex: 0 0 48px;
+      border-radius: 50%;
+      background: #0d6efd;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 0 6px rgba(13, 110, 253, 0.15);
+    }
+    .admin-assigned-card h4 { color: #0b4fa8; }
+    .admin-assigned-badge {
+      width: 44px; height: 44px; flex: 0 0 44px;
+      border-radius: 12px;
+      background: rgba(13, 110, 253, 0.12);
+      color: #0d6efd;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+    }
+    @keyframes franchiseAssignedIn {
+      from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
 <% end %>
 
 <!-- Assign to Franchise panel — hidden until "Assign to Franchise" in the

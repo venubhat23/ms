@@ -18,12 +18,12 @@
         <i class="bi bi-x-lg me-1"></i>Disapprove
       <% end %>
     <% end %>
-    <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+    <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && @booking.delivery_person_id.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
       <button type="button" class="btn btn-outline-primary" id="assignToFranchiseBtn" onclick="toggleFranchiseAssignPanel()">
         <i class="bi bi-shop-window me-1"></i>Assign to Franchise
       </button>
     <% end %>
-    <% if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.delivery_franchise.blank? && @booking.stock_allocated_at.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+    <% if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.delivery_franchise.blank? && @booking.delivery_person_id.blank? && @booking.stock_allocated_at.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
       <%= button_to update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch,
             params: { target_stage: 'delivered' }, class: "btn btn-success",
             data: { confirm: "Deliver this order from admin? This deducts the items from central inventory now." } do %>
@@ -120,11 +120,12 @@
   </div>
 </div>
 
-<!-- Already assigned to a franchise — always visible, nothing to toggle.
+<!-- Delivery assignment confirmation — always visible, nothing to toggle.
      Replaces the Assign to Franchise / Deliver from Admin buttons (both
-     gated on delivery_franchise.blank? above) once assignment is done, so
-     there's nothing left to click — just a clear confirmation of where the
-     order went. -->
+     gated on delivery_franchise.blank? && delivery_person_id.blank? above)
+     once assignment is done via any of the three paths (franchise, a named
+     delivery person, or admin-fulfilled), so there's nothing left to click —
+     just a clear confirmation of where the order went. -->
 <% if @booking.delivery_franchise.present? %>
   <% franchise = @booking.delivery_franchise %>
   <div class="card border-0 shadow-sm mb-4 franchise-assigned-card">
@@ -184,12 +185,42 @@
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
   </style>
+<% elsif @booking.delivery_person_id.present? && @booking.delivery_person.present? %>
+  <% dp = @booking.delivery_person %>
+  <!-- Assigned to a delivery person from the "Out for Delivery" step
+       (delivery_mode: delivery_person) — replaces the Assign to Franchise
+       / Deliver from Admin buttons the same way the franchise card above
+       does, once update_stage has recorded delivery_person_id. -->
+  <div class="card border-0 shadow-sm mb-4 admin-assigned-card">
+    <div class="card-body p-4">
+      <div class="d-flex align-items-center gap-3">
+        <div class="admin-assigned-icon">
+          <i class="bi bi-person-badge"></i>
+        </div>
+        <div class="flex-grow-1">
+          <div class="text-uppercase small fw-semibold" style="letter-spacing:.06em;opacity:.85;">Assigned for Delivery</div>
+          <h4 class="mb-1 mt-1"><%= dp.full_name %></h4>
+          <div class="d-flex flex-wrap gap-3 small">
+            <% if dp.mobile.present? %>
+              <span><i class="bi bi-telephone-fill me-1"></i><%= dp.mobile %></span>
+            <% end %>
+            <% if dp.vehicle_info.present? %>
+              <span><i class="bi bi-truck me-1"></i><%= dp.vehicle_info %></span>
+            <% end %>
+          </div>
+        </div>
+        <div class="admin-assigned-badge">
+          <i class="bi bi-truck"></i>
+        </div>
+      </div>
+    </div>
+  </div>
 <% elsif @booking.stock_allocated_at.present? || %w[delivered completed].include?(@booking.status) %>
-  <!-- No franchise involved — either delivered straight from central stock
-       via "Deliver from Admin" (stock_allocated_at set) or walked through
-       the stage dropdown to delivered/completed without ever being handed
-       to a franchise. Either way there's no franchise button left to show,
-       so say plainly who's handling it. -->
+  <!-- No franchise or named delivery person involved — delivered straight
+       from central stock via "Deliver from Admin" (stock_allocated_at set)
+       or walked through the stage dropdown to delivered/completed without
+       either. Either way there's no assign button left to show, so say
+       plainly who's handling it. -->
   <div class="card border-0 shadow-sm mb-4 admin-assigned-card">
     <div class="card-body p-4">
       <div class="d-flex align-items-center gap-3">
@@ -241,7 +272,7 @@
      header is clicked, at which point it replaces the step-by-step stage
      picker below (toggleFranchiseAssignPanel), so an admin isn't shown two
      different ways to move the same booking forward at once. -->
-<% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+<% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && @booking.delivery_person_id.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
   <div class="card border-0 shadow-sm mb-4" id="franchiseAssignPanel" style="display: none;">
     <div class="card-header bg-transparent border-0">
       <div class="d-flex justify-content-between align-items-center">

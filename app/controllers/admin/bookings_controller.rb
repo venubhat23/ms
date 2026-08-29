@@ -864,6 +864,18 @@ class Admin::BookingsController < Admin::ApplicationController
       # Build transition data
       transition_data = build_stage_transition_data
 
+      # Delivery assignment (to a franchise, or to an admin-picked delivery
+      # person) is a one-time action on this page — once either has
+      # happened, block any further attempt to reassign via this action
+      # (header "Assign to Franchise" panel, the franchise radio in the
+      # stage form, or resubmitting "Out for Delivery") rather than
+      # silently overwriting who the booking was actually handed to.
+      if @target_stage == 'out_for_delivery' && (@booking.delivery_franchise_id.present? || @booking.delivery_person_id.present?)
+        assignee = @booking.delivery_franchise&.name || @booking.delivery_person&.full_name || 'someone'
+        redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "This booking has already been assigned to #{assignee} for delivery."
+        return
+      end
+
       # A franchise fulfills a delivery from their own on-shelf stock (see
       # FranchiseInventory), not the central warehouse — block the
       # assignment outright if they don't already hold enough of every
@@ -872,11 +884,6 @@ class Admin::BookingsController < Admin::ApplicationController
       # feature flag when build_stage_transition_data set delivery_mode.
       franchise = nil
       if transition_data[:delivery_mode] == 'franchise'
-        if @booking.delivery_franchise_id.present?
-          redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "This booking is already assigned to a franchise for delivery."
-          return
-        end
-
         franchise = Franchise.active.find_by(id: transition_data[:delivery_franchise_id])
         unless franchise
           redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "Please select a valid franchise."
@@ -1118,7 +1125,12 @@ class Admin::BookingsController < Admin::ApplicationController
     when 'delivered'
       @booking.delivery_time = transition_data[:delivery_time] if transition_data[:delivery_time].present?
       @booking.customer_satisfaction = transition_data[:customer_satisfaction] if transition_data[:customer_satisfaction].present?
-      @booking.delivery_person = transition_data[:delivery_person] if transition_data[:delivery_person].present?
+      # `delivery_person` is both a belongs_to association (delivery_person_id)
+      # and a free-text string column on this table; the association method
+      # shadows the column reader/writer, so `@booking.delivery_person = "name"`
+      # raises ActiveRecord::AssociationTypeMismatch. write_attribute bypasses
+      # the association method and writes the string column directly.
+      @booking.write_attribute(:delivery_person, transition_data[:delivery_person]) if transition_data[:delivery_person].present?
       @booking.delivered_to = transition_data[:delivered_to] if transition_data[:delivered_to].present?
     when 'cancelled'
       @booking.cancellation_reason = transition_data[:cancellation_reason] if transition_data[:cancellation_reason].present?
@@ -1139,7 +1151,9 @@ class Admin::BookingsController < Admin::ApplicationController
       if transition_data[:delivery_mode] == 'franchise'
         @booking.delivery_franchise_id = transition_data[:delivery_franchise_id] if transition_data[:delivery_franchise_id].present?
       else
-        @booking.delivery_person = transition_data[:delivery_person] if transition_data[:delivery_person].present?
+        # See the write_attribute note above — same association/column name
+        # collision applies here.
+        @booking.write_attribute(:delivery_person, transition_data[:delivery_person]) if transition_data[:delivery_person].present?
         @booking.delivery_contact = transition_data[:delivery_contact] if transition_data[:delivery_contact].present?
         @booking.delivery_person_id = transition_data[:delivery_person_id] if transition_data[:delivery_person_id].present?
       end

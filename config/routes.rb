@@ -731,6 +731,8 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :product_splits, only: [:index]
+
     # QR Codes
     get 'qr_codes', to: 'qr_codes#index', as: :qr_codes
     get 'qr_codes/lookup', to: 'qr_codes#lookup', as: :qr_codes_lookup

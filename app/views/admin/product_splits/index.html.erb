@@ -1,0 +1,115 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">Product Split</h2>
+    <p class="text-muted mb-0">Products, their variant packs, and available stock in store</p>
+  </div>
+</div>
+
+<!-- Search -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <%= form_with url: admin_product_splits_path, method: :get, local: true do %>
+      <div class="input-group">
+        <span class="input-group-text bg-white border-end-0">
+          <i class="bi bi-search"></i>
+        </span>
+        <input type="text" name="search" class="form-control border-start-0" placeholder="Search products..." value="<%= params[:search] %>">
+        <%= submit_tag "Search", class: "btn btn-primary" %>
+        <% if params[:search].present? %>
+          <%= link_to "Clear", admin_product_splits_path, class: "btn btn-outline-secondary" %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- Products & Variant Stock -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <% if @products.any? %>
+      <% @products.each do |product| %>
+        <% total_stock = product.available_quantity %>
+        <% variants = product.product_variants.sort_by { |v| v.weight.to_f } %>
+        <% variant_total = variants.sum { |v| v.available_stock.to_f } %>
+        <% mismatch = product.has_multiple_quantities? && variants.any? && variant_total.round(3) != total_stock.round(3) %>
+
+        <div class="border-bottom p-3">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-box-seam-fill text-primary fs-5"></i>
+              <div>
+                <h6 class="mb-0"><%= product.name %></h6>
+                <small class="text-muted">SKU: <%= product.sku %></small>
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-primary-subtle text-primary fs-6 px-3 py-2">
+                Total Stock: <%= number_with_precision(total_stock, precision: 2, strip_insignificant_zeros: true) %> <%= product.unit_type %>
+              </span>
+              <% if mismatch %>
+                <span class="badge bg-danger-subtle text-danger ms-2" title="Variant stock does not add up to total stock">
+                  <i class="bi bi-exclamation-triangle-fill"></i> Mismatch
+                </span>
+              <% end %>
+            </div>
+          </div>
+
+          <% if variants.any? %>
+            <div class="table-responsive mt-3">
+              <table class="table table-sm table-borderless align-middle mb-0">
+                <thead>
+                  <tr class="text-muted small text-uppercase">
+                    <th style="width: 40%">Variant</th>
+                    <th>Unit</th>
+                    <th>Available Stock</th>
+                    <th>Selling Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% variants.each do |variant| %>
+                    <tr>
+                      <td class="ps-4">
+                        <i class="bi bi-arrow-return-right text-muted me-1"></i>
+                        <%= variant.weight %> <%= variant.unit %>
+                        <% if variant.is_default? %>
+                          <span class="badge bg-secondary-subtle text-secondary ms-1">Default</span>
+                        <% end %>
+                      </td>
+                      <td><%= variant.unit %></td>
+                      <td>
+                        <span class="badge <%= variant.available_stock.to_f > 0 ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger' %>">
+                          <%= number_with_precision(variant.available_stock, precision: 2, strip_insignificant_zeros: true) %>
+                        </span>
+                      </td>
+                      <td>&#8377;<%= number_with_precision(variant.selling_price, precision: 2, strip_insignificant_zeros: true) %></td>
+                    </tr>
+                  <% end %>
+                  <tr class="border-top">
+                    <td class="ps-4 fw-semibold" colspan="2">Sum of variants</td>
+                    <td colspan="2" class="fw-semibold">
+                      <%= number_with_precision(variant_total, precision: 2, strip_insignificant_zeros: true) %>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          <% else %>
+            <div class="text-muted small mt-2 ps-4">No variants — sold as a single unit.</div>
+          <% end %>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        No products found.
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<% if respond_to?(:paginate) && @products.respond_to?(:total_pages) %>
+  <div class="d-flex justify-content-center mt-4">
+    <%= paginate @products %>
+  </div>
+<% end %>

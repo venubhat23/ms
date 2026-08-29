@@ -843,6 +843,21 @@
           </li>
         <% end %>
 
+        <!-- Product Split -->
+        <% if current_user.has_sidebar_permission?('products') && SystemSetting.split_feature_enabled? %>
+          <li class="nav-item">
+            <%= link_to admin_product_splits_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/product_splits')}" do %>
+              <div class="nav-icon-modern">
+                <div class="icon-bg gradient-sky">
+                  <i class="bi bi-scissors"></i>
+                </div>
+              </div>
+              <span class="nav-text">Product Split</span>
+              <div class="nav-indicator"></div>
+            <% end %>
+          </li>
+        <% end %>
+
         <!-- QR Codes -->
         <% if current_user.has_sidebar_permission?('qr_codes') %>
           <li class="nav-item">

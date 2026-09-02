@@ -731,6 +731,9 @@ Rails.application.routes.draw do
       end
     end
 
+    get   'product-summary', to: 'product_summary#index',  as: 'product_summary'
+    patch 'product-summary', to: 'product_summary#update'
+
     resources :product_splits, only: [:index]
     post 'product_splits/:product_id/transfer', to: 'product_splits#transfer', as: :product_split_transfer
 

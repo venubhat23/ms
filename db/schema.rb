@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_01_120100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -138,6 +138,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.index ["display_order"], name: "index_banners_on_display_order"
     t.index ["display_start_date", "display_end_date"], name: "index_banners_on_display_start_date_and_display_end_date"
     t.index ["status"], name: "index_banners_on_status"
+  end
+
+  create_table "booking_discounts", force: :cascade do |t|
+    t.bigint "booking_id", null: false
+    t.string "source", null: false
+    t.string "discount_type", null: false
+    t.decimal "value", precision: 10, scale: 2, default: "0.0", null: false
+    t.decimal "computed_amount", precision: 10, scale: 2, default: "0.0", null: false
+    t.bigint "coupon_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["booking_id", "source"], name: "index_booking_discounts_on_booking_and_source", unique: true
+    t.index ["booking_id"], name: "index_booking_discounts_on_booking_id"
+    t.index ["coupon_id"], name: "index_booking_discounts_on_coupon_id"
   end
 
   create_table "booking_invoices", force: :cascade do |t|
@@ -286,6 +300,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.datetime "franchise_commission_credited_at"
     t.decimal "wallet_amount_used", precision: 10, scale: 2, default: "0.0"
     t.bigint "wallet_transaction_id"
+    t.bigint "coupon_id"
+    t.string "coupon_code"
+    t.decimal "coupon_discount_amount", precision: 10, scale: 2, default: "0.0"
+    t.datetime "stock_allocated_at"
+    t.boolean "is_pre_booking", default: false
     t.index ["affiliate_id"], name: "index_bookings_on_affiliate_id"
     t.index ["booked_by"], name: "index_bookings_on_booked_by"
     t.index ["booking_date"], name: "index_bookings_on_booking_date"
@@ -293,6 +312,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.index ["booking_schedule_id"], name: "index_bookings_on_booking_schedule_id"
     t.index ["cashfree_order_id"], name: "index_bookings_on_cashfree_order_id"
     t.index ["cashfree_payment_id"], name: "index_bookings_on_cashfree_payment_id"
+    t.index ["coupon_id"], name: "index_bookings_on_coupon_id"
     t.index ["courier_service"], name: "index_bookings_on_courier_service"
     t.index ["created_at"], name: "index_bookings_on_created_at"
     t.index ["customer_id"], name: "index_bookings_on_customer_id"
@@ -576,6 +596,33 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.index ["product_id"], name: "index_franchise_inventories_on_product_id"
   end
 
+  create_table "franchise_return_items", force: :cascade do |t|
+    t.bigint "franchise_return_id", null: false
+    t.bigint "product_id", null: false
+    t.decimal "quantity", precision: 10, scale: 2, null: false
+    t.decimal "unit_price", precision: 10, scale: 2, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_return_id"], name: "idx_franchise_return_items_return"
+    t.index ["product_id"], name: "index_franchise_return_items_on_product_id"
+  end
+
+  create_table "franchise_returns", force: :cascade do |t|
+    t.bigint "franchise_id", null: false
+    t.string "status", default: "pending", null: false
+    t.decimal "total_amount", precision: 10, scale: 2, default: "0.0"
+    t.text "notes"
+    t.text "rejection_reason"
+    t.bigint "reviewed_by_id"
+    t.datetime "reviewed_at"
+    t.integer "items_count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["franchise_id"], name: "index_franchise_returns_on_franchise_id"
+    t.index ["reviewed_by_id"], name: "index_franchise_returns_on_reviewed_by_id"
+    t.index ["status"], name: "index_franchise_returns_on_status"
+  end
+
   create_table "franchise_stock_movements", force: :cascade do |t|
     t.bigint "franchise_id", null: false
     t.bigint "product_id", null: false
@@ -622,6 +669,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.datetime "updated_at", null: false
     t.index ["booking_id"], name: "index_franchise_stock_requests_on_booking_id"
     t.index ["franchise_id", "status"], name: "idx_franchise_stock_requests_franchise_status"
+    t.index ["reviewed_by_id"], name: "index_franchise_stock_requests_on_reviewed_by_id"
     t.index ["status"], name: "index_franchise_stock_requests_on_status"
   end
 
@@ -1005,9 +1053,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.boolean "verified_purchase", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["customer_id", "product_id"], name: "index_product_ratings_on_customer_id_and_product_id", unique: true, where: "(customer_id IS NOT NULL)"
     t.index ["customer_id"], name: "index_product_ratings_on_customer_id"
     t.index ["product_id", "rating"], name: "index_product_ratings_on_product_id_and_rating"
     t.index ["product_id", "status"], name: "index_product_ratings_on_product_id_and_status"
+    t.index ["user_id", "product_id"], name: "index_product_ratings_on_user_id_and_product_id", unique: true, where: "(user_id IS NOT NULL)"
     t.index ["user_id"], name: "index_product_ratings_on_user_id"
   end
 
@@ -1054,6 +1104,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.decimal "gst_percentage", precision: 5, scale: 2
     t.decimal "gst_amount", precision: 10, scale: 2
     t.decimal "final_price_with_gst", precision: 10, scale: 2
+    t.integer "low_stock_threshold", default: 10
     t.index ["is_default"], name: "index_product_variants_on_is_default"
     t.index ["product_id", "weight", "unit"], name: "index_product_variants_uniqueness", unique: true
     t.index ["product_id"], name: "index_product_variants_on_product_id"
@@ -1120,6 +1171,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.text "r2_additional_images"
     t.boolean "has_multiple_quantities", default: false, null: false
     t.string "barcode"
+    t.decimal "b2b_price", precision: 10, scale: 2
     t.index ["barcode"], name: "index_products_on_barcode", unique: true
     t.index ["category_id"], name: "index_products_on_category_id"
     t.index ["created_at"], name: "index_products_on_created_at"
@@ -1369,7 +1421,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "store_id"
+    t.bigint "product_variant_id"
     t.index ["product_id", "store_id"], name: "index_stock_batches_on_product_id_and_store_id"
+    t.index ["product_variant_id"], name: "index_stock_batches_on_product_variant_id"
     t.index ["store_id", "status"], name: "index_stock_batches_on_store_id_and_status"
     t.index ["store_id"], name: "index_stock_batches_on_store_id"
     t.index ["vendor_id"], name: "index_stock_batches_on_vendor_id"
@@ -1418,6 +1472,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.index ["status"], name: "index_stock_transfers_on_status"
     t.index ["to_store_id"], name: "index_stock_transfers_on_to_store_id"
     t.index ["transfer_group_id"], name: "index_stock_transfers_on_transfer_group_id"
+  end
+
+  create_table "store_inventories", force: :cascade do |t|
+    t.bigint "store_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "product_variant_id"
+    t.decimal "quantity", precision: 12, scale: 3, default: "0.0", null: false
+    t.integer "low_stock_threshold", default: 10, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["product_id"], name: "index_store_inventories_on_product_id"
+    t.index ["product_variant_id"], name: "index_store_inventories_on_product_variant_id"
+    t.index ["store_id", "product_id", "product_variant_id"], name: "index_store_inventories_uniqueness", unique: true
+    t.index ["store_id"], name: "index_store_inventories_on_store_id"
   end
 
   create_table "stores", force: :cascade do |t|
@@ -1551,6 +1619,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
     t.string "client3_story_image_url"
     t.string "client3_testimonial1_image_url"
     t.string "client3_testimonial2_image_url"
+    t.string "client3_video1_id"
+    t.string "client3_video2_id"
+    t.string "client3_video3_id"
+    t.boolean "franchise_delivery_assignment_enabled", default: false
+    t.boolean "stock_allocation_at_delivery_enabled", default: false
+    t.boolean "allow_pre_booking_enabled", default: false
+    t.boolean "split_feature_enabled", default: false
     t.index ["key"], name: "index_system_settings_on_key", unique: true
   end
 
@@ -1752,6 +1827,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "booking_discounts", "bookings"
   add_foreign_key "booking_invoices", "bookings"
   add_foreign_key "booking_invoices", "customers"
   add_foreign_key "booking_schedules", "customers"
@@ -1814,6 +1890,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
   add_foreign_key "staff_attendances", "staff_members"
   add_foreign_key "staff_members", "stores"
   add_foreign_key "staff_payments", "staff_members"
+  add_foreign_key "stock_batches", "product_variants"
   add_foreign_key "stock_batches", "products"
   add_foreign_key "stock_batches", "stores"
   add_foreign_key "stock_batches", "vendor_purchases"
@@ -1824,6 +1901,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_23_164850) do
   add_foreign_key "stock_transfers", "stores", column: "to_store_id"
   add_foreign_key "stock_transfers", "users", column: "approved_by_id"
   add_foreign_key "stock_transfers", "users", column: "requested_by_id"
+  add_foreign_key "store_inventories", "product_variants"
+  add_foreign_key "store_inventories", "products"
+  add_foreign_key "store_inventories", "stores"
   add_foreign_key "subscription_templates", "customers"
   add_foreign_key "subscription_templates", "delivery_people"
   add_foreign_key "subscription_templates", "products"

@@ -7,6 +7,7 @@ class Store < ApplicationRecord
   belongs_to :store_admin_user, class_name: 'User', foreign_key: 'store_admin_user_id', optional: true
   has_many :store_staff, class_name: 'User', foreign_key: 'assigned_store_id', dependent: :nullify
   has_many :expenses, dependent: :destroy
+  has_many :store_inventories, dependent: :destroy
   has_many :stock_batches, foreign_key: :store_id, dependent: :nullify
   has_many :stock_transfers_received, class_name: 'StockTransfer', foreign_key: :to_store_id, dependent: :destroy
   has_many :stock_transfers_sent, class_name: 'StockTransfer', foreign_key: :from_store_id, dependent: :destroy

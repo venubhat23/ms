@@ -466,9 +466,10 @@
                         </div>
                       <% end %>
                       <% if booking.is_pre_booking? %>
+                        <% pre_booking_from_mobile = booking.booked_by == 'mobile_api' %>
                         <div class="mt-1">
-                          <span class="badge bg-purple-subtle text-purple px-2 py-1" style="background-color:#f3e8ff;color:#7c3aed;" title="Placed ahead of stock via the storefront's Pre Booking option">
-                            <i class="bi bi-calendar-plus me-1"></i>Pre-Booking
+                          <span class="badge bg-purple-subtle text-purple px-2 py-1" style="background-color:#f3e8ff;color:#7c3aed;" title="<%= pre_booking_from_mobile ? 'Pre-booking placed from the mobile app — needs admin approval' : "Placed ahead of stock via the storefront's Pre Booking option" %>">
+                            <i class="bi bi-calendar-plus me-1"></i><%= pre_booking_from_mobile ? 'Pre-Booking · Mobile App' : 'Pre-Booking' %>
                           </span>
                         </div>
                       <% end %>

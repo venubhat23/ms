@@ -45,9 +45,17 @@ class Api::V1::Mobile::BaseController < ApplicationController
 
       case role
       when 'customer'
-        # For customers, user_id is the User record ID, need to find associated Customer
-        user_record = User.find(user_id)
-        @current_user = Customer.find_by(email: user_record.email)
+        # Customer tokens are minted by two different login paths: the
+        # User-based login (auth/login matching a User) stores the User id in
+        # user_id, while the direct-Customer login and OTP login store the
+        # Customer id. Resolve either shape instead of assuming a User id
+        # (User.find would raise RecordNotFound -> "User not found" 401).
+        user_record = User.find_by(id: user_id)
+        @current_user = if user_record
+                          Customer.find_by(email: user_record.email)
+                        else
+                          Customer.find_by(id: user_id)
+                        end
         if @current_user.nil?
           return render json: {
             success: false,

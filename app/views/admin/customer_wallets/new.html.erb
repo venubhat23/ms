@@ -108,25 +108,42 @@
 
 <!-- Initialize Select2 -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  if (typeof $ !== 'undefined' && $.fn.select2) {
-    $('.select2').select2({
-      theme: 'bootstrap-5',
-      placeholder: 'Search and select customer...',
-      allowClear: true
-    });
+(function() {
+  function initCustomerWalletForm() {
+    var $select = (typeof $ !== 'undefined' && $.fn.select2) ? $('#customer_wallet_customer_id') : null;
+    if ($select && $select.length) {
+      // Re-init cleanly on Turbo navigations (avoids a stale/duplicate widget)
+      if ($select.hasClass('select2-hidden-accessible')) {
+        $select.select2('destroy');
+      }
+      $select.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Search and select customer...',
+        allowClear: true
+      });
+    }
+
+    // Form validation
+    var form = document.querySelector('.needs-validation');
+    if (form && !form.dataset.validationBound) {
+      form.dataset.validationBound = 'true';
+      form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      });
+    }
   }
 
-  // Form validation
-  const form = document.querySelector('.needs-validation');
-  if (form) {
-    form.addEventListener('submit', function(event) {
-      if (!form.checkValidity()) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      form.classList.add('was-validated');
-    });
+  // This inline script is re-evaluated by Turbo Drive on every visit to the
+  // page (DOMContentLoaded only fires on a full reload), so just run it now.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCustomerWalletForm);
+  } else {
+    initCustomerWalletForm();
   }
-});
+})();
 </script>

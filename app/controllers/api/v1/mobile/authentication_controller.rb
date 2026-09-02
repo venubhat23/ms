@@ -57,6 +57,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
               email: user.email,
               mobile: user.mobile,
               customer_wallet_enabled: SystemSetting.customer_wallet_enabled?,
+              wallet_balance: CustomerWallet.for_customer(customer).balance.to_f,
               is_pre_booking_enabled: SystemSetting.allow_pre_booking_enabled?,
               portfolio_summary: {
                 total_policies: portfolio_stats[:total_policies],
@@ -125,6 +126,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           email: customer.email,
           mobile: customer.mobile,
           customer_wallet_enabled: SystemSetting.customer_wallet_enabled?,
+          wallet_balance: CustomerWallet.for_customer(customer).balance.to_f,
           is_pre_booking_enabled: SystemSetting.allow_pre_booking_enabled?,
           profile: {
             first_name: customer.first_name,
@@ -700,6 +702,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           mobile: user.mobile,
           is_new_user: is_new_user,
           customer_wallet_enabled: SystemSetting.customer_wallet_enabled?,
+          wallet_balance: CustomerWallet.for_customer(customer).balance.to_f,
           is_pre_booking_enabled: SystemSetting.allow_pre_booking_enabled?
         }
       })

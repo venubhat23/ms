@@ -175,7 +175,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   def create_booking
     booking_params = params.require(:booking).permit(
       :customer_id, :customer_name, :customer_email, :customer_phone, :delivery_address,
-      :payment_method, :notes, :pincode, :latitude, :longitude, :use_wallet,
+      :payment_method, :notes, :pincode, :latitude, :longitude, :use_wallet, :wallet_amount,
+      :is_pre_booking,
       booking_items_attributes: [:product_id, :product_variant_id, :quantity, :price]
     )
 
@@ -303,8 +304,18 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       wallet_requested = ActiveModel::Type::Boolean.new.cast(booking_params[:use_wallet])
       wallet_note = nil
 
+      # Pre-booking: a reservation that waits for admin approval
+      # (Booking#pending_pre_booking_approval?). Only honoured while the admin
+      # has the feature switched on (SystemSetting.allow_pre_booking_enabled?,
+      # surfaced to the app as `is_pre_booking_enabled` at login) — otherwise
+      # the flag is ignored and a normal booking is created. Wallet payment
+      # (use_wallet / wallet_amount) is still allowed on a pre-booking.
+      pre_booking_requested = ActiveModel::Type::Boolean.new.cast(booking_params[:is_pre_booking]) &&
+                              SystemSetting.allow_pre_booking_enabled?
+
       ActiveRecord::Base.transaction do
-        @booking = Booking.new(booking_params.except(:pincode, :latitude, :longitude, :use_wallet))
+        @booking = Booking.new(booking_params.except(:pincode, :latitude, :longitude, :use_wallet, :wallet_amount, :is_pre_booking))
+        @booking.is_pre_booking = pre_booking_requested
 
         # Ensure customer association is properly set
         @booking.customer_id = customer.id
@@ -337,7 +348,38 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         if wallet_requested
           if SystemSetting.customer_wallet_enabled?
             wallet = CustomerWallet.for_customer(customer)
-            deduction = [wallet.balance.to_f, @booking.total_amount.to_f].min.round(2)
+            wallet_balance = wallet.balance.to_f
+            booking_total  = @booking.total_amount.to_f
+
+            # When the caller passes an explicit wallet_amount, apply exactly
+            # that amount (validated against the wallet balance and the
+            # booking total); otherwise apply the maximum possible (the whole
+            # balance, capped at the booking total).
+            if booking_params[:wallet_amount].present?
+              deduction = booking_params[:wallet_amount].to_f.round(2)
+
+              if deduction <= 0
+                render json: {
+                  success: false,
+                  message: 'wallet_amount must be greater than 0'
+                }, status: :unprocessable_entity
+                raise ActiveRecord::Rollback
+              elsif deduction > wallet_balance
+                render json: {
+                  success: false,
+                  message: "Insufficient wallet balance. Available #{wallet.formatted_balance}, requested ₹#{deduction}"
+                }, status: :unprocessable_entity
+                raise ActiveRecord::Rollback
+              elsif deduction > booking_total
+                render json: {
+                  success: false,
+                  message: "wallet_amount (₹#{deduction}) cannot exceed the booking total (₹#{booking_total.round(2)})"
+                }, status: :unprocessable_entity
+                raise ActiveRecord::Rollback
+              end
+            else
+              deduction = [wallet_balance, booking_total].min.round(2)
+            end
 
             if deduction > 0
               wallet_deduction_txn = wallet.deduct_money(
@@ -392,7 +434,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
           },
           available_products: available_products,
           stock_updated: true,
-          wallet_note: wallet_note
+          wallet_note: wallet_note,
+          wallet_balance: CustomerWallet.for_customer(customer).balance.to_f
         })
 
         render json: {
@@ -1792,6 +1835,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       booking_number: booking.booking_number,
       booking_date: booking.booking_date,
       status: booking.status,
+      is_pre_booking: booking.is_pre_booking?,
+      pending_pre_booking_approval: booking.pending_pre_booking_approval?,
       payment_status: booking.payment_status,
       payment_method: booking.payment_method,
       subtotal: booking.subtotal.to_f,

@@ -181,13 +181,13 @@
                   <td colspan="3" class="text-end fw-bold">Subtotal:</td>
                   <td class="text-end fw-bold">₹<%= number_with_delimiter(@booking.subtotal&.to_f || 0, delimiter: ',') %></td>
                 </tr>
-                <% if @booking.tax_amount&.to_f > 0 %>
+                <% if (@booking.tax_amount&.to_f || 0) > 0 %>
                   <tr>
                     <td colspan="3" class="text-end">Tax:</td>
                     <td class="text-end">₹<%= number_with_delimiter(@booking.tax_amount&.to_f, delimiter: ',') %></td>
                   </tr>
                 <% end %>
-                <% if @booking.discount_amount&.to_f > 0 %>
+                <% if (@booking.discount_amount&.to_f || 0) > 0 %>
                   <tr>
                     <td colspan="3" class="text-end text-success">Discount:</td>
                     <td class="text-end text-success">-₹<%= number_with_delimiter(@booking.discount_amount&.to_f, delimiter: ',') %></td>

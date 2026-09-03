@@ -90,7 +90,7 @@
                 <% end %>
               </tbody>
               <tfoot class="table-light">
-                <% if @booking.discount_amount&.to_f > 0 %>
+                <% if (@booking.discount_amount&.to_f || 0) > 0 %>
                   <tr>
                     <td colspan="3" class="text-end px-4">Subtotal:</td>
                     <td class="text-end px-4">₹<%= @booking.subtotal&.to_f&.to_i || 0 %></td>

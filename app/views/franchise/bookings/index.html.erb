@@ -458,25 +458,6 @@
                         <%= status_text.length > 15 ? status_text[0..14] + '...' : status_text %>
                       </span>
 
-                      <% if booking.next_possible_statuses.any? %>
-                        <div class="dropdown">
-                          <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Quick Stage Update">
-                            <i class="bi bi-gear"></i>
-                          </button>
-                          <ul class="dropdown-menu">
-                            <li class="dropdown-header">Quick Stage Update</li>
-                            <% booking.next_possible_statuses.each do |status| %>
-                              <li>
-                                <!-- Status updates limited for franchise users -->
-                                <span class="dropdown-item text-muted" style="cursor: not-allowed;">
-                                  <i class="bi bi-arrow-right me-2"></i>
-                                  <%= status.humanize %> (Contact Admin)
-                                </span>
-                              </li>
-                            <% end %>
-                          </ul>
-                        </div>
-                      <% end %>
                     </div>
                   </div>
                 </td>
@@ -543,10 +524,9 @@
                 <td class="align-middle">
                   <div class="d-flex gap-2 align-items-center">
                     <!-- Stage Management Icon -->
-                    <!-- Stage management limited for franchise users -->
-                    <span class="btn btn-sm btn-outline-secondary" title="Contact Admin for Stage Management" style="cursor: not-allowed;">
+                    <%= link_to manage_stage_franchise_booking_path(booking), class: "btn btn-sm btn-outline-secondary", title: "Manage Stage" do %>
                       <i class="bi bi-arrows-move"></i>
-                    </span>
+                    <% end %>
 
                     <!-- Actions Icons -->
                     <div class="action-icons">
@@ -558,14 +538,15 @@
                           <i class="bi bi-truck"></i>
                         <% end %>
                       <% else %>
-                        <!-- Edit functionality limited for franchises -->
-                        <span class="action-icon edit text-muted" title="Contact Admin to Edit" style="cursor: not-allowed; opacity: 0.5;">
+                        <%= link_to edit_franchise_booking_path(booking), class: "action-icon edit", title: "Edit Booking" do %>
                           <i class="bi bi-pencil"></i>
-                        </span>
-                        <!-- Delete functionality not available for franchises -->
-                        <span class="action-icon delete text-muted" title="Contact Admin to Delete" style="cursor: not-allowed; opacity: 0.5;">
+                        <% end %>
+                        <%= button_to franchise_booking_path(booking), method: :delete,
+                              class: "action-icon delete", title: "Delete Booking",
+                              form: { style: "display:contents;" },
+                              data: { turbo_confirm: "Delete booking ##{booking.booking_number}? This cannot be undone." } do %>
                           <i class="bi bi-trash"></i>
-                        </span>
+                        <% end %>
                       <% end %>
                       <% if booking.has_invoice? %>
                         <% if booking.invoice_link_path %>

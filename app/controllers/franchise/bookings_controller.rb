@@ -16,9 +16,21 @@ class Franchise::BookingsController < Franchise::BaseController
     # else's booking — those need to show up here too so the franchise can
     # see and progress them, not just in the separate /franchise/deliveries
     # page.
-    @all_bookings = Booking.where(franchise_id: current_franchise.id)
-                           .or(Booking.where(delivery_franchise_id: current_franchise.id))
-                           .includes(:customer, :user, :booking_items, :store, :booking_invoices)
+    #
+    # Excluded: the wholesale "Franchise Booking" that FranchiseStockRequest#approve!
+    # builds to move HQ stock into this franchise's inventory ledger (e.g. the
+    # auto-generated restock FranchiseStockAutoReplenishJob creates when an
+    # admin-assigned delivery finds a stock shortfall). That's a stock
+    # transfer, not an order to fulfil — it belongs under Stock Requests, and
+    # showing it here just looked like a duplicate of the order being assigned.
+    restock_booking_ids = FranchiseStockRequest.where(franchise_id: current_franchise.id)
+                                               .where.not(booking_id: nil)
+                                               .pluck(:booking_id)
+
+    scope = Booking.where(franchise_id: current_franchise.id)
+                   .or(Booking.where(delivery_franchise_id: current_franchise.id))
+    scope = scope.where.not(id: restock_booking_ids) if restock_booking_ids.any?
+    @all_bookings = scope.includes(:customer, :user, :booking_items, :store, :booking_invoices)
 
     # Franchise-created bookings
     franchise_bookings = @all_bookings.where(booked_by: 'franchise')

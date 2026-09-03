@@ -435,6 +435,7 @@
                   <th class="border-0 fw-semibold ps-3">Variant</th>
                   <th class="border-0 fw-semibold">Buying Price</th>
                   <th class="border-0 fw-semibold">Selling Price</th>
+                  <th class="border-0 fw-semibold">B2B Price</th>
                   <th class="border-0 fw-semibold">Discount</th>
                   <th class="border-0 fw-semibold">After Discount</th>
                   <th class="border-0 fw-semibold">GST %</th>
@@ -462,6 +463,12 @@
                       <% end %>
                     </td>
                     <td class="fw-medium">₹<%= '%.2f' % v.selling_price %></td>
+                    <td>
+                      ₹<%= '%.2f' % v.effective_b2b_price %>
+                      <% unless v.b2b_selling_price.present? %>
+                        <small class="text-muted d-block">Same as selling</small>
+                      <% end %>
+                    </td>
                     <td>
                       <% if v.discount_enabled? && v.discount_amount.to_f > 0 %>
                         <span class="text-success fw-medium">

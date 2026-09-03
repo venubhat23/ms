@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_01_120100) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_03_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1105,6 +1105,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_01_120100) do
     t.decimal "gst_amount", precision: 10, scale: 2
     t.decimal "final_price_with_gst", precision: 10, scale: 2
     t.integer "low_stock_threshold", default: 10
+    t.decimal "b2b_selling_price", precision: 10, scale: 2
     t.index ["is_default"], name: "index_product_variants_on_is_default"
     t.index ["product_id", "weight", "unit"], name: "index_product_variants_uniqueness", unique: true
     t.index ["product_id"], name: "index_product_variants_on_product_id"
@@ -1183,5 +1184,118 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_01_120100) do
     t.index ["product_type"], name: "index_products_on_product_type"
     t.index ["sku"], name: "index_products_on_sku", unique: true
     t.index ["status"], name: "index_products_on_status"
+  end
+
+  create_table "referrals", force: :cascade do |t|
+    t.bigint "affiliate_id"
+    t.string "referred_name"
+    t.string "referred_mobile"
+    t.string "referred_email"
+    t.date "referral_date"
+    t.string "status"
+    t.text "notes"
+    t.datetime "converted_at"
+    t.bigint "customer_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "referring_customer_id"
+    t.string "referral_source", default: "affiliate"
+    t.index ["affiliate_id"], name: "index_referrals_on_affiliate_id"
+    t.index ["created_at"], name: "index_referrals_on_created_at"
+    t.index ["customer_id"], name: "index_referrals_on_customer_id"
+    t.index ["referral_source"], name: "index_referrals_on_referral_source"
+    t.index ["referred_email"], name: "index_referrals_on_referred_email", unique: true
+    t.index ["referred_mobile"], name: "index_referrals_on_referred_mobile", unique: true
+    t.index ["referring_customer_id"], name: "index_referrals_on_referring_customer_id"
+    t.index ["status"], name: "index_referrals_on_status"
+  end
+
+  create_table "roles", force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.boolean "status"
+    t.text "permissions"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_roles_on_name", unique: true
+    t.index ["status"], name: "index_roles_on_status"
+  end
+
+  create_table "sale_items", force: :cascade do |t|
+    t.bigint "booking_id", null: false
+    t.bigint "product_id", null: false
+    t.bigint "stock_batch_id", null: false
+    t.decimal "quantity"
+    t.decimal "selling_price"
+    t.decimal "purchase_price"
+    t.decimal "profit_amount"
+    t.decimal "line_total"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["booking_id"], name: "index_sale_items_on_booking_id"
+    t.index ["product_id"], name: "index_sale_items_on_product_id"
+    t.index ["stock_batch_id"], name: "index_sale_items_on_stock_batch_id"
+  end
+
+  create_table "solid_cache_entries", force: :cascade do |t|
+    t.binary "key", null: false
+    t.binary "value", null: false
+    t.datetime "created_at", null: false
+    t.bigint "key_hash", null: false
+    t.integer "byte_size", null: false
+    t.index ["byte_size"], name: "index_solid_cache_entries_on_byte_size"
+    t.index ["key_hash", "byte_size"], name: "index_solid_cache_entries_on_key_hash_and_byte_size"
+    t.index ["key_hash"], name: "index_solid_cache_entries_on_key_hash", unique: true
+  end
+
+  create_table "solid_queue_blocked_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "concurrency_key", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["concurrency_key", "priority", "job_id"], name: "index_solid_queue_blocked_executions_for_release"
+    t.index ["expires_at", "concurrency_key"], name: "index_solid_queue_blocked_executions_for_maintenance"
+    t.index ["job_id"], name: "index_solid_queue_blocked_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_claimed_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.bigint "process_id"
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_claimed_executions_on_job_id", unique: true
+    t.index ["process_id", "job_id"], name: "index_solid_queue_claimed_executions_on_process_id_and_job_id"
+  end
+
+  create_table "solid_queue_failed_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_failed_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_jobs", force: :cascade do |t|
+    t.string "queue_name", null: false
+    t.string "class_name", null: false
+    t.text "arguments"
+    t.integer "priority", default: 0, null: false
+    t.string "active_job_id"
+    t.datetime "scheduled_at"
+    t.datetime "finished_at"
+    t.string "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
+    t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
+    t.index ["finished_at"], name: "index_solid_queue_jobs_on_finished_at"
+    t.index ["queue_name", "finished_at"], name: "index_solid_queue_jobs_for_filtering"
+    t.index ["scheduled_at", "finished_at"], name: "index_solid_queue_jobs_for_alerting"
+  end
+
+  create_table "solid_queue_pauses", force: :cascade do |t|
+    t.string "queue_name", null: false
+    t.datetime "created_at", null: false
+    t.index ["queue_name"], name: "index_solid_queue_pauses_on_queue_name", unique: true
   end
 

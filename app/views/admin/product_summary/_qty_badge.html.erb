@@ -1,0 +1,19 @@
+<%#
+  locals:
+    qty     – Numeric or nil (nil => not stocked)
+    status  – :ok | :low | :out | nil (nil => neutral, e.g. roll-up header)
+%>
+<%
+  fmt = ->(n) { n.to_f == n.to_i ? n.to_i.to_s : n.to_f.round(2).to_s }
+%>
+<% if qty.nil? %>
+  <span class="psum-badge none">—</span>
+<% elsif status.nil? %>
+  <span class="psum-badge ok" style="background:#eef1f4;color:#55606b;"><%= fmt.call(qty) %></span>
+<% elsif status == :out %>
+  <span class="psum-badge out"><i class="bi bi-x-octagon-fill"></i><%= fmt.call(qty) %></span>
+<% elsif status == :low %>
+  <span class="psum-badge low"><i class="bi bi-exclamation-triangle-fill"></i><%= fmt.call(qty) %></span>
+<% else %>
+  <span class="psum-badge ok"><%= fmt.call(qty) %></span>
+<% end %>

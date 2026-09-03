@@ -1,0 +1,78 @@
+<div class="psum-stats">
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-blue"><i class="bi bi-box-seam-fill"></i></div>
+    <div><div class="psum-stat-val"><%= number_with_delimiter @stats[:products] %></div><div class="psum-stat-lbl">Products</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-grey"><i class="bi bi-diagram-3-fill"></i></div>
+    <div><div class="psum-stat-val"><%= number_with_delimiter @stats[:variants] %></div><div class="psum-stat-lbl">Variants</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-teal"><i class="bi bi-boxes"></i></div>
+    <div><div class="psum-stat-val"><%= number_with_delimiter @stats[:units].round %></div><div class="psum-stat-lbl">Units on hand</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-amber"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <div><div class="psum-stat-val"><%= @stats[:low] %></div><div class="psum-stat-lbl">Low stock</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-red"><i class="bi bi-x-octagon-fill"></i></div>
+    <div><div class="psum-stat-val"><%= @stats[:out] %></div><div class="psum-stat-lbl">Out of stock</div></div>
+  </div>
+</div>
+
+<div class="psum-card">
+  <div class="psum-card-head">
+    <i class="bi bi-building text-success"></i> Main Admin Store — HQ warehouse
+    <span class="sub ms-auto">Central batch stock &amp; low-stock alerts</span>
+  </div>
+
+  <% if @rows.empty? %>
+    <div class="psum-empty"><i class="bi bi-inbox"></i>No products found.</div>
+  <% else %>
+    <div class="psum-scroll">
+      <table class="psum-table">
+        <thead>
+          <tr>
+            <th>Product / Variant</th>
+            <th>SKU</th>
+            <th>Category</th>
+            <th class="num">Available stock</th>
+            <th class="num">Low-stock alert</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @rows.each do |row| %>
+            <tr class="<%= 'psum-header' if row[:variants].any? %>">
+              <td class="psum-name"><%= row[:product].name %></td>
+              <td class="psum-meta"><%= row[:sku] %></td>
+              <td class="psum-meta"><%= row[:category] %></td>
+              <td class="num"><%= render "qty_badge", qty: row[:stock], status: (row[:variants].any? ? nil : row[:status]) %></td>
+              <td class="num psum-meta"><%= row[:threshold].presence || "—" %></td>
+              <td>
+                <% if row[:status] == :out %><span class="psum-badge out">Out of stock</span>
+                <% elsif row[:status] == :low %><span class="psum-badge low">Low</span>
+                <% else %><span class="psum-badge ok">In stock</span><% end %>
+              </td>
+            </tr>
+            <% row[:variants].each do |v| %>
+              <tr class="psum-sub">
+                <td><i class="bi bi-arrow-return-right me-1"></i><%= v[:label] %></td>
+                <td></td>
+                <td></td>
+                <td class="num"><%= render "qty_badge", qty: v[:stock], status: v[:status] %></td>
+                <td class="num psum-meta"><%= v[:threshold].presence || "—" %></td>
+                <td>
+                  <% if v[:status] == :out %><span class="psum-badge out">Out</span>
+                  <% elsif v[:status] == :low %><span class="psum-badge low">Low</span>
+                  <% else %><span class="psum-badge ok">OK</span><% end %>
+                </td>
+              </tr>
+            <% end %>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

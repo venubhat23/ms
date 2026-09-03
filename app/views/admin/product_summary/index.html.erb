@@ -1,271 +1,121 @@
 <% content_for :title, "Product Summary" %>
 
 <style>
-  #pse-table th, #pse-table td { white-space: nowrap; }
-  #pse-table thead th { position: sticky; top: 0; z-index: 2; }
+  .psum { font-family: inherit; }
 
-  /* Read-only by default: inputs look like plain text until you click the pencil */
-  .pse-cell { display: inline-flex; align-items: center; gap: 2px; }
-  .pse-input {
-    width: 58px;
-    padding: 1px 4px;
-    border-color: transparent;
-    background: transparent;
-    box-shadow: none;
-    cursor: default;
-    -moz-appearance: textfield;
-    appearance: textfield;
+  .psum-hero {
+    background: linear-gradient(135deg, #1C7C54 0%, #10b981 100%);
+    border-radius: 18px;
+    padding: 1.75rem 2rem 0;
+    color: #fff;
+    margin-bottom: 1.75rem;
+    position: relative;
+    overflow: hidden;
   }
-  .pse-input::-webkit-outer-spin-button,
-  .pse-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-  .pse-input:read-only { pointer-events: none; }
-  .pse-input.pse-editing {
-    border-color: #86b7fe;
-    background: #fff;
-    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
-    cursor: text;
+  .psum-hero::after {
+    content: ''; position: absolute; top: -50px; right: -30px;
+    width: 190px; height: 190px; background: rgba(255,255,255,.08); border-radius: 50%;
   }
-  .pse-input.pse-dirty {
-    border-color: #ffc107;
-    background: #fff3cd;
+  .psum-hero h2 { font-weight: 700; margin: 0; font-size: 1.6rem; }
+  .psum-hero p  { margin: .25rem 0 1.25rem; opacity: .85; font-size: .9rem; }
+
+  .psum-tabs { display: flex; gap: .4rem; flex-wrap: wrap; position: relative; z-index: 1; }
+  .psum-tab {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .7rem 1.15rem; border-radius: 12px 12px 0 0;
+    background: rgba(255,255,255,.14); color: #fff; text-decoration: none;
+    font-weight: 600; font-size: .9rem; transition: background .15s, transform .15s;
   }
-  .pse-edit-cell {
-    visibility: hidden;
-    border: 0;
-    background: none;
-    color: #6c757d;
-    line-height: 1;
-    padding: 0;
-    font-size: .78rem;
+  .psum-tab:hover { background: rgba(255,255,255,.24); color: #fff; }
+  .psum-tab.is-active { background: #f6f9f8; color: #1C7C54; }
+  .psum-tab .psum-tab-count {
+    background: rgba(0,0,0,.12); border-radius: 999px; padding: .05rem .5rem;
+    font-size: .78rem; font-weight: 700;
   }
-  #pse-table td:hover .pse-edit-cell { visibility: visible; }
-  .pse-input.pse-editing + .pse-edit-cell,
-  .pse-input.pse-dirty + .pse-edit-cell { visibility: visible; color: #0d6efd; }
+  .psum-tab.is-active .psum-tab-count { background: rgba(28,124,84,.14); }
+
+  .psum-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+  .psum-stat {
+    background: #fff; border-radius: 14px; padding: 1.1rem 1.25rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06); display: flex; align-items: center; gap: .9rem;
+  }
+  .psum-stat-ic {
+    width: 44px; height: 44px; border-radius: 12px; flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+  }
+  .psum-stat-val { font-size: 1.4rem; font-weight: 700; line-height: 1; }
+  .psum-stat-lbl { font-size: .78rem; color: #6c757d; margin-top: .2rem; }
+
+  .psum-ic-blue   { background: #e7f1ff; color: #0d6efd; }
+  .psum-ic-teal   { background: #d9f2ec; color: #1C7C54; }
+  .psum-ic-amber  { background: #fff3cd; color: #b8860b; }
+  .psum-ic-red    { background: #fde2e1; color: #dc3545; }
+  .psum-ic-grey   { background: #eef1f4; color: #55606b; }
+
+  .psum-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,.06); overflow: hidden; margin-bottom: 1.25rem; }
+  .psum-card-head {
+    padding: .9rem 1.25rem; border-bottom: 1px solid #eef0f2;
+    display: flex; align-items: center; gap: .6rem; font-weight: 700;
+  }
+  .psum-card-head .sub { font-weight: 500; color: #8a929b; font-size: .82rem; }
+
+  table.psum-table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  .psum-table th, .psum-table td { padding: .6rem .85rem; text-align: left; white-space: nowrap; }
+  .psum-table thead th {
+    background: #f6f8f9; color: #55606b; font-weight: 600; font-size: .78rem;
+    text-transform: uppercase; letter-spacing: .03em; position: sticky; top: 0; z-index: 1;
+  }
+  .psum-table tbody tr { border-top: 1px solid #eef0f2; }
+  .psum-table tbody tr:hover { background: #f9fbfa; }
+  .psum-table td.num, .psum-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .psum-table tr.psum-sub td:first-child { padding-left: 2.1rem; color: #6c757d; }
+  .psum-table tr.psum-header td { background: #f3f6f5; font-weight: 700; }
+  .psum-table tfoot td { border-top: 2px solid #e3e7ea; font-weight: 700; background: #fafbfc; }
+
+  .psum-scroll { overflow-x: auto; max-height: 74vh; }
+
+  .psum-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .15rem .5rem; border-radius: 999px; font-size: .78rem; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .psum-badge.ok   { background: #e6f5ee; color: #1C7C54; }
+  .psum-badge.low  { background: #fff3cd; color: #9a7400; }
+  .psum-badge.out  { background: #fde2e1; color: #c62828; }
+  .psum-badge.none { background: transparent; color: #c3cad1; font-weight: 500; }
+
+  .psum-name { font-weight: 600; }
+  .psum-meta { font-size: .76rem; color: #8a929b; }
+
+  .psum-pill { font-size: .7rem; font-weight: 700; padding: .1rem .45rem; border-radius: 6px; background: #eef1f4; color: #55606b; }
+  .psum-pill.off { background: #fde2e1; color: #c62828; }
+
+  .psum-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+
+  .psum-empty { text-align: center; padding: 3rem 1rem; color: #8a929b; }
+  .psum-empty i { font-size: 2.5rem; display: block; margin-bottom: .5rem; opacity: .5; }
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-  <div>
-    <h2 class="mb-1">
-      <i class="bi bi-table text-primary me-2"></i>Product Summary
-    </h2>
-    <p class="text-muted mb-0">Main store &amp; per-store stock and low-stock thresholds for every product and variant</p>
-  </div>
-  <div class="d-flex gap-2">
-    <button type="button" class="btn btn-primary" id="pse-bulk-btn">
-      <i class="bi bi-pencil-square me-1"></i>Bulk Edit
-    </button>
-    <%= link_to admin_products_path, class: "btn btn-outline-secondary" do %>
-      <i class="bi bi-box-seam me-1"></i>All Products
-    <% end %>
-  </div>
-</div>
-
-<div class="alert alert-info py-2 px-3 small pse-edit-hint">
-  <i class="bi bi-info-circle me-1"></i>
-  The table is read-only. Click the <i class="bi bi-pencil"></i> pencil on a cell to edit that one value, or hit
-  <strong>Bulk Edit</strong> to open every cell at once, then <strong>Save Changes</strong>.
-  Increasing a <strong>Main Store</strong> stock value adds a new stock batch for the difference;
-  decreasing it draws the difference down from existing batches (FIFO). Store values are set directly.
-  For a product <strong>with variants</strong>, editing the parent row's Main Store stock applies the
-  change to its default variant, and editing a parent store value writes the product-level store row
-  (the parent figure shown is a roll-up, so it may not echo the exact number you typed).
-</div>
-
-<%= form_with url: admin_product_summary_path, method: :patch, local: true, html: { id: "pse-form", class: "pse-form" } do %>
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-transparent d-flex justify-content-end align-items-center gap-2 pse-actions d-none">
-      <span class="small text-muted me-auto"><span class="pse-dirty-count">0</span> unsaved change(s)</span>
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="pse-cancel-btn">Cancel</button>
-      <button type="submit" class="btn btn-success btn-sm">
-        <i class="bi bi-check-lg me-1"></i>Save Changes
-      </button>
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive" style="max-height: 78vh;">
-        <table class="table table-hover table-bordered align-middle mb-0" id="pse-table" style="font-size: 0.83rem;">
-          <thead class="table-light">
-            <tr>
-              <th rowspan="2" class="ps-3">Product / Variant</th>
-              <th rowspan="2">SKU</th>
-              <th rowspan="2">Category</th>
-              <th colspan="2" class="text-center bg-primary-subtle">Main Store</th>
-              <% @stores.each do |store| %>
-                <th colspan="2" class="text-center bg-success-subtle"><%= store.name %></th>
-              <% end %>
-            </tr>
-            <tr>
-              <th class="text-center bg-primary-subtle">Stock</th>
-              <th class="text-center bg-primary-subtle">Low Threshold</th>
-              <% @stores.each do |_store| %>
-                <th class="text-center bg-success-subtle">Stock</th>
-                <th class="text-center bg-success-subtle">Low Threshold</th>
-              <% end %>
-            </tr>
-          </thead>
-          <tbody>
-            <% @products.each do |product| %>
-              <%
-                variants   = product.sorted_variants
-                main_stock = @main_stock[product.id].to_f
-                main_thr   = product.minimum_stock_alert
-              %>
-              <tr>
-                <td class="ps-3 fw-semibold"><%= product.name %></td>
-                <td><%= product.sku %></td>
-                <td><%= product.category&.name %></td>
-
-                <%= render "num_cell",
-                      value: main_stock,
-                      name: "main_products[#{product.id}][stock]",
-                      editable: true,
-                      danger: (main_thr && main_stock <= main_thr.to_f) %>
-                <%= render "num_cell",
-                      value: main_thr,
-                      name: "main_products[#{product.id}][threshold]",
-                      editable: true %>
-
-                <% @stores.each do |store| %>
-                  <% s_qty = @store_prod_qty[[store.id, product.id]] %>
-                  <% s_thr = @store_threshold[[store.id, product.id, nil]] %>
-                  <%= render "num_cell",
-                        value: s_qty,
-                        name: "store_products[#{store.id}][#{product.id}][qty]",
-                        editable: true,
-                        danger: (s_qty && s_thr && s_qty <= s_thr.to_f) %>
-                  <%= render "num_cell",
-                        value: s_thr,
-                        name: "store_products[#{store.id}][#{product.id}][threshold]",
-                        editable: true %>
-                <% end %>
-              </tr>
-
-              <% variants.each do |variant| %>
-                <%
-                  v_stock = variant.available_stock.to_f
-                  v_thr   = variant.low_stock_threshold
-                %>
-                <tr class="table-light">
-                  <td class="ps-4 text-muted">
-                    <i class="bi bi-arrow-return-right me-1"></i><%= variant.label %>
-                  </td>
-                  <td></td>
-                  <td></td>
-
-                  <%= render "num_cell",
-                        value: v_stock,
-                        name: "main_variants[#{variant.id}][stock]",
-                        editable: true,
-                        danger: (v_thr && v_stock <= v_thr.to_f) %>
-                  <%= render "num_cell",
-                        value: v_thr,
-                        name: "main_variants[#{variant.id}][threshold]",
-                        editable: true %>
-
-                  <% @stores.each do |store| %>
-                    <% sv_qty = @store_qty[[store.id, product.id, variant.id]] %>
-                    <% sv_thr = @store_threshold[[store.id, product.id, variant.id]] %>
-                    <%= render "num_cell",
-                          value: sv_qty,
-                          name: "store_variants[#{store.id}][#{variant.id}][qty]",
-                          editable: true,
-                          danger: (sv_qty && sv_thr && sv_qty.to_f <= sv_thr.to_f) %>
-                    <%= render "num_cell",
-                          value: sv_thr,
-                          name: "store_variants[#{store.id}][#{variant.id}][threshold]",
-                          editable: true %>
-                  <% end %>
-                </tr>
-              <% end %>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
+<div class="psum">
+  <div class="psum-hero">
+    <h2><i class="bi bi-boxes me-2"></i>Product Summary</h2>
+    <p>Live inventory across the HQ warehouse, franchises and stores</p>
+    <div class="psum-tabs">
+      <%
+        tab_defs = [
+          ["main",       "Main Admin Store", "bi-building"],
+          ["franchises", "Franchises",       "bi-shop-window"],
+          ["stores",     "Stores",           "bi-shop"]
+        ]
+      %>
+      <% tab_defs.each do |key, label, icon| %>
+        <%= link_to admin_product_summary_path(tab: key), class: "psum-tab #{'is-active' if @tab == key}" do %>
+          <i class="bi <%= icon %>"></i><%= label %>
+          <span class="psum-tab-count"><%= @tab_counts[key] %></span>
+        <% end %>
+      <% end %>
     </div>
   </div>
-<% end %>
 
-<script>
-  (function () {
-    var form      = document.getElementById('pse-form');
-    var table     = document.getElementById('pse-table');
-    var actions   = document.querySelector('.pse-actions');
-    var cancelBtn = document.getElementById('pse-cancel-btn');
-    var counter   = document.querySelector('.pse-dirty-count');
-    var bulkBtn   = document.getElementById('pse-bulk-btn');
-    var bulkMode  = false;
-
-    function refresh() {
-      var n = form.querySelectorAll('.pse-input.pse-dirty').length;
-      if (counter) counter.textContent = n;
-      actions.classList.toggle('d-none', n === 0 && !bulkMode);
-    }
-
-    function startEditing(input) {
-      input.classList.add('pse-editing');
-      input.readOnly = false;
-      input.focus();
-      input.select();
-    }
-
-    function resetInput(input) {
-      input.value = input.dataset.original;
-      input.classList.remove('pse-editing', 'pse-dirty');
-      input.readOnly = true;
-    }
-
-    // Click the pencil -> make just that one cell editable
-    table.addEventListener('click', function (e) {
-      var btn = e.target.closest('.pse-edit-cell');
-      if (!btn) return;
-      var input = btn.parentElement.querySelector('.pse-input');
-      if (input) startEditing(input);
-    });
-
-    table.addEventListener('input', function (e) {
-      var input = e.target;
-      if (!input.classList || !input.classList.contains('pse-input')) return;
-      var changed = String(input.value) !== String(input.dataset.original);
-      input.classList.toggle('pse-dirty', changed);
-      refresh();
-    });
-
-    // Leaving a field that wasn't changed puts it back to read-only
-    // (skipped in bulk mode, where every cell stays open)
-    table.addEventListener('focusout', function (e) {
-      if (bulkMode) return;
-      var input = e.target;
-      if (!input.classList || !input.classList.contains('pse-input')) return;
-      if (String(input.value) === String(input.dataset.original)) resetInput(input);
-    });
-
-    function setBulkMode(on) {
-      bulkMode = on;
-      form.querySelectorAll('.pse-input').forEach(function (input) {
-        if (on) {
-          input.readOnly = false;
-          input.classList.add('pse-editing');
-        } else if (String(input.value) === String(input.dataset.original)) {
-          resetInput(input);
-        }
-      });
-      bulkBtn.classList.toggle('btn-primary', !on);
-      bulkBtn.classList.toggle('btn-warning', on);
-      bulkBtn.innerHTML = on
-        ? '<i class="bi bi-x-lg me-1"></i>Exit Bulk Edit'
-        : '<i class="bi bi-pencil-square me-1"></i>Bulk Edit';
-      refresh();
-    }
-
-    if (bulkBtn) {
-      bulkBtn.addEventListener('click', function () { setBulkMode(!bulkMode); });
-    }
-
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', function () {
-        form.querySelectorAll('.pse-input').forEach(resetInput);
-        if (bulkMode) setBulkMode(false);
-        refresh();
-      });
-    }
-  })();
-</script>
+  <%= render "tab_#{@tab}" %>
+</div>

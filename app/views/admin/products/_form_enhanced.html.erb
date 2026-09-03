@@ -897,6 +897,11 @@
                     <%= vf.label :selling_price, "Selling Price ₹", class: "form-label small fw-semibold mb-1" %>
                     <%= vf.number_field :selling_price, class: "form-control variant-selling-price", step: 0.01, min: 0, placeholder: "0.00", required: true %>
                   </div>
+                  <div class="col-6 col-md-3">
+                    <%= vf.label :b2b_selling_price, "B2B Selling Price ₹", class: "form-label small fw-semibold mb-1" %>
+                    <%= vf.number_field :b2b_selling_price, class: "form-control", step: 0.01, min: 0, placeholder: "0.00" %>
+                    <div class="form-text">Wholesale/franchise price — blank uses the Selling Price</div>
+                  </div>
 
                   <!-- Discount toggle -->
                   <div class="col-12">
@@ -996,6 +1001,11 @@
               <label class="form-label small fw-semibold mb-1">Selling Price ₹</label>
               <input type="number" name="product[product_variants_attributes][NEW_IDX][selling_price]" class="form-control variant-selling-price" step="0.01" min="0" placeholder="0.00" required>
             </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small fw-semibold mb-1">B2B Selling Price ₹</label>
+              <input type="number" name="product[product_variants_attributes][NEW_IDX][b2b_selling_price]" class="form-control" step="0.01" min="0" placeholder="0.00">
+              <div class="form-text">Wholesale/franchise price — blank uses the Selling Price</div>
+            </div>
 
             <div class="col-12">
               <div class="form-check form-switch">
@@ -1042,7 +1052,7 @@
         </div>
       </template>
 
-      <!-- Single pricing fields (hidden when multi-qty ON) -->
+      <!-- Single pricing fields (hidden when multi-qty ON — B2B is per-variant in that mode) -->
       <div id="single_pricing_section" style="<%= @product.has_multiple_quantities? ? 'display:none;' : '' %>">
       <div class="form-grid form-grid-2">
         <div class="form-group">

@@ -1,0 +1,132 @@
+<%#
+  locals: icon, title, blurb
+  reads:  @matrix, @unit_word
+%>
+<%
+  m   = @matrix
+  fmt = ->(n) { n.nil? ? "—" : (n.to_f == n.to_i ? n.to_i.to_s : n.to_f.round(2).to_s) }
+%>
+
+<div class="psum-stats">
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-teal"><i class="bi <%= icon %>"></i></div>
+    <div><div class="psum-stat-val"><%= m[:entities].size %></div><div class="psum-stat-lbl">Active <%= @unit_word.pluralize %></div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-grey"><i class="bi bi-list-ul"></i></div>
+    <div><div class="psum-stat-val"><%= m[:lines].count { |l| !l[:header] } %></div><div class="psum-stat-lbl">Stocked lines</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-blue"><i class="bi bi-boxes"></i></div>
+    <div><div class="psum-stat-val"><%= number_with_delimiter m[:units].round %></div><div class="psum-stat-lbl">Units on hand</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-amber"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <div><div class="psum-stat-val"><%= m[:low] %></div><div class="psum-stat-lbl">Low-stock cells</div></div>
+  </div>
+  <div class="psum-stat">
+    <div class="psum-stat-ic psum-ic-red"><i class="bi bi-x-octagon-fill"></i></div>
+    <div><div class="psum-stat-val"><%= m[:out] %></div><div class="psum-stat-lbl">Out-of-stock cells</div></div>
+  </div>
+</div>
+
+<% if m[:entities].empty? %>
+  <div class="psum-card"><div class="psum-empty">
+    <i class="bi bi-shop"></i>No active <%= @unit_word.pluralize %> yet.
+  </div></div>
+<% elsif m[:lines].empty? %>
+  <div class="psum-card"><div class="psum-empty">
+    <i class="bi bi-inbox"></i>No stock recorded for any <%= @unit_word %> yet.
+  </div></div>
+
+<% elsif m[:layout] == :combined %>
+  <%# up to 2 entities -> one combined matrix %>
+  <div class="psum-card">
+    <div class="psum-card-head">
+      <i class="bi <%= icon %> text-success"></i> <%= title %> — combined view
+      <span class="sub ms-auto"><%= m[:entities].size %> <%= @unit_word.pluralize(m[:entities].size) %> side by side</span>
+    </div>
+    <div class="psum-scroll">
+      <table class="psum-table">
+        <thead>
+          <tr>
+            <th>Product<%= " / Variant" if @unit_word == "store" %></th>
+            <% m[:entities].each do |e| %>
+              <th class="num">
+                <%= e[:name] %>
+                <% unless e[:active] %><span class="psum-pill off">inactive</span><% end %>
+              </th>
+            <% end %>
+            <th class="num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% m[:lines].each do |line| %>
+            <tr class="<%= 'psum-sub' if line[:sub] %> <%= 'psum-header' if line[:header] %>">
+              <td>
+                <% if line[:sub] %><i class="bi bi-arrow-return-right me-1"></i><% end %>
+                <span class="<%= 'psum-name' unless line[:sub] %>"><%= line[:label] %></span>
+                <% if line[:meta].present? %><div class="psum-meta"><%= line[:meta] %></div><% end %>
+              </td>
+              <% m[:entities].each do |e| %>
+                <% cell = m[:cells][[e[:id], line[:id]]] %>
+                <td class="num"><%= render "qty_badge", qty: cell&.dig(:qty), status: cell&.dig(:status) %></td>
+              <% end %>
+              <td class="num"><strong><%= fmt.call(m[:line_totals][line[:id]]) unless line[:header] %></strong></td>
+            </tr>
+          <% end %>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Total units</td>
+            <% m[:entities].each do |e| %>
+              <td class="num"><%= fmt.call(m[:entity_totals][e[:id]]) %></td>
+            <% end %>
+            <td class="num"><%= fmt.call(m[:units]) %></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+<% else %>
+  <%# more than 2 entities -> one card per entity %>
+  <div class="psum-cards-grid">
+    <% m[:entities].each do |e| %>
+      <% entity_lines = m[:lines].reject { |l| l[:header] }.select { |l| m[:cells].key?([e[:id], l[:id]]) } %>
+      <div class="psum-card">
+        <div class="psum-card-head">
+          <i class="bi <%= icon %> text-success"></i>
+          <%= e[:name] %>
+          <% if e[:sub].present? %><span class="psum-meta"><%= e[:sub] %></span><% end %>
+          <% unless e[:active] %><span class="psum-pill off">inactive</span><% end %>
+          <span class="sub ms-auto"><%= fmt.call(m[:entity_totals][e[:id]]) %> units</span>
+        </div>
+        <% if entity_lines.empty? %>
+          <div class="psum-empty" style="padding:2rem 1rem;"><i class="bi bi-inbox"></i>No stock recorded.</div>
+        <% else %>
+          <div class="psum-scroll">
+            <table class="psum-table">
+              <thead>
+                <tr><th>Product<%= " / Variant" if @unit_word == "store" %></th><th class="num">Qty</th></tr>
+              </thead>
+              <tbody>
+                <% entity_lines.each do |line| %>
+                  <% cell = m[:cells][[e[:id], line[:id]]] %>
+                  <tr class="<%= 'psum-sub' if line[:sub] %>">
+                    <td>
+                      <% if line[:sub] %><i class="bi bi-arrow-return-right me-1"></i><% end %>
+                      <span class="<%= 'psum-name' unless line[:sub] %>"><%= line[:label] %></span>
+                      <% if line[:meta].present? %><div class="psum-meta"><%= line[:meta] %></div><% end %>
+                    </td>
+                    <td class="num"><%= render "qty_badge", qty: cell[:qty], status: cell[:status] %></td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

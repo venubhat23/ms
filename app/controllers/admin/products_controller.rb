@@ -737,7 +737,7 @@ class Admin::ProductsController < Admin::ApplicationController
       remove_images: [],
       cloudinary_images: [],
       product_variants_attributes: [
-        :id, :weight, :unit, :buying_price, :selling_price,
+        :id, :weight, :unit, :buying_price, :selling_price, :b2b_selling_price,
         :discount_enabled, :discount_type, :discount_value, :discount_amount,
         :available_stock, :is_default, :display_order,
         :gst_percentage, :gst_amount, :final_price_with_gst, :_destroy

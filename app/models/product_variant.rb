@@ -7,6 +7,7 @@ class ProductVariant < ApplicationRecord
 
   validates :weight, presence: true, numericality: { greater_than: 0 }
   validates :selling_price, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  validates :b2b_selling_price, numericality: { greater_than: 0 }, allow_blank: true
   validates :unit, presence: true
   validates :available_stock, numericality: { greater_than_or_equal_to: 0 }
 
@@ -35,6 +36,13 @@ class ProductVariant < ApplicationRecord
     else
       selling_price
     end
+  end
+
+  # Price charged on wholesale/franchise orders for this variant. Mirrors
+  # Product#effective_b2b_price: falls back to the regular selling_price
+  # whenever no explicit B2B price is set.
+  def effective_b2b_price
+    b2b_selling_price.presence || selling_price
   end
 
   def effective_gst_percentage

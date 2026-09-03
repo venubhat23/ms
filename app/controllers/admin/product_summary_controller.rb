@@ -1,303 +1,214 @@
 class Admin::ProductSummaryController < Admin::ApplicationController
   before_action :authenticate_user!
 
-  # Single editable table: every product (with its variants) alongside main-store
-  # stock / low-stock threshold and the on-hand quantity for each physical store.
+  TABS = %w[main franchises stores].freeze
+
+  # Read-only inventory summary with three views:
+  #   main       – central/HQ warehouse stock for every product & variant
+  #   franchises – on-hand quantity per active franchise (product level)
+  #   stores     – on-hand quantity per active physical store (product + variant)
   #
-  # Stock edits are reconciled the same way the rest of the app does it: an
-  # increase creates a new FIFO StockBatch for the delta, a decrease draws the
-  # delta down from existing batches.
+  # Franchise / store views switch layout on the number of entities shown:
+  # up to 2 -> one combined matrix (entities as columns); more -> one card
+  # per entity.
   def index
-    load_summary
-  end
+    @tab = TABS.include?(params[:tab]) ? params[:tab] : "main"
 
-  def update
-    load_summary
-    @errors = []
-    changed = 0
+    @tab_counts = {
+      "main"       => Product.count,
+      "franchises" => Franchise.active.count,
+      "stores"     => Store.active.where(is_main_inventory: [false, nil]).count
+    }
 
-    ActiveRecord::Base.transaction do
-      changed += apply_main_product_changes
-      changed += apply_main_variant_changes
-      changed += apply_store_changes
-      raise ActiveRecord::Rollback if @errors.any?
-    end
-
-    if @errors.any?
-      redirect_to admin_product_summary_path, alert: "No changes saved. #{@errors.first(5).join(' | ')}"
-    else
-      redirect_to admin_product_summary_path, notice: "#{changed} change(s) saved."
+    case @tab
+    when "main"       then load_main
+    when "franchises" then load_franchises
+    when "stores"     then load_stores
     end
   end
 
   private
 
-  # ---- loading -------------------------------------------------------------
+  DEFAULT_THRESHOLD = 10
 
-  def load_summary
-    @stores = Store.order(:name).to_a
-    @products = Product.includes(:product_variants, :category).order(:name).to_a
-    product_ids = @products.map(&:id)
+  # ---- main / HQ warehouse ------------------------------------------------
 
-    # Per-store inventory rows (store_inventories).
-    @store_qty       = {} # [store_id, product_id, variant_id] => quantity
-    @store_threshold = {} # [store_id, product_id, variant_id] => low_stock_threshold
-    StoreInventory.where(product_id: product_ids).each do |row|
-      key = [row.store_id, row.product_id, row.product_variant_id]
-      @store_qty[key] = row.quantity
-      @store_threshold[key] = row.low_stock_threshold
-    end
+  def load_main
+    products = Product.includes(:product_variants, :category).order(:name).to_a
 
-    # Main-store stock per product (canonical fulfilment fields the app keeps).
-    @main_stock = {}
-    # Aggregated per-store quantity per product (variant rows + plain row);
-    # nil when the store has no inventory row for that product at all.
-    @store_prod_qty = {}
-    @products.each do |product|
-      @main_stock[product.id] =
-        if product.has_multiple_quantities?
-          product.product_variants.sum { |v| v.available_stock.to_f }
-        else
-          product.stock.to_f
-        end
+    @rows = products.map { |product| build_main_row(product) }
 
-      @stores.each do |store|
-        keys = [[store.id, product.id, nil]] +
-               product.product_variants.map { |v| [store.id, product.id, v.id] }
-        next unless keys.any? { |k| @store_qty.key?(k) }
-        @store_prod_qty[[store.id, product.id]] = keys.sum { |k| @store_qty[k].to_f }
-      end
-    end
+    @stats = {
+      products: products.size,
+      variants: products.sum { |p| p.product_variants.size },
+      units:    @rows.sum { |r| r[:stock] },
+      low:      @rows.count { |r| r[:status] == :low },
+      out:      @rows.count { |r| r[:status] == :out }
+    }
   end
 
-  # ---- writing ------------------------------------------------------------
-
-  def apply_main_product_changes
-    count = 0
-    (params[:main_products] || {}).each do |pid, attrs|
-      product = @products.find { |p| p.id.to_s == pid.to_s }
-      next unless product
-
-      if attrs[:threshold].present? && attrs[:threshold].to_i != product.minimum_stock_alert.to_i
-        product.update_column(:minimum_stock_alert, attrs[:threshold].to_i)
-        count += 1
-      end
-
-      next if attrs[:stock].blank?
-      new_stock = attrs[:stock].to_f
-
-      if product.has_multiple_quantities?
-        count += apply_variant_product_main_stock(product, new_stock)
-        next
-      end
-
-      old_stock = product.stock.to_f
-      next if new_stock == old_stock
-
-      err = reconcile_stock(product, nil, old_stock, new_stock,
-                            cost: product.buying_price || product.price,
-                            sell: product.price,
-                            label: "#{product.name}: main stock #{fmt(old_stock)} → #{fmt(new_stock)}")
-      err ? (@errors << err) : (count += 1)
-    end
-    count
-  end
-
-  # Parent row of a variant product shows an aggregate Main Store stock. Editing
-  # it reconciles the delta against the default variant so the roll-up still adds
-  # up. Returns 1 on a successful change, 0 otherwise (errors go on @errors).
-  def apply_variant_product_main_stock(product, new_total)
-    target = product.sorted_variants.first
-    return 0 unless target
-
-    old_total = product.product_variants.sum { |v| v.available_stock.to_f }
-    delta = new_total - old_total
-    return 0 if delta.zero?
-
-    target_old = target.available_stock.to_f
-    target_new = target_old + delta
-    if target_new.negative?
-      @errors << "#{product.name}: can't lower Main Store stock below the other variants' total"
-      return 0
+  def build_main_row(product)
+    variants = product.sorted_variants.map do |variant|
+      stock = variant.available_stock.to_f
+      thr   = variant.low_stock_threshold.to_f
+      { variant: variant, label: variant.label, stock: stock,
+        threshold: variant.low_stock_threshold, status: stock_status(stock, thr) }
     end
 
-    err = reconcile_stock(product, target, target_old, target_new,
-                          cost: target.buying_price || target.selling_price,
-                          sell: target.selling_price,
-                          label: "#{product.name} #{target.label}: main stock #{fmt(target_old)} → #{fmt(target_new)} (parent total edit)")
-    if err
-      @errors << err
-      0
+    if product.has_multiple_quantities?
+      total = variants.sum { |v| v[:stock] }
+      thr   = product.minimum_stock_alert.to_f
+      status = if total <= 0 then :out
+               elsif variants.any? { |v| v[:status] != :ok } || (thr.positive? && total <= thr) then :low
+               else :ok
+               end
     else
-      target.update_column(:available_stock, target_new.to_i)
-      1
-    end
-  end
-
-  def apply_main_variant_changes
-    count = 0
-    (params[:main_variants] || {}).each do |vid, attrs|
-      variant = @products.flat_map(&:product_variants).find { |v| v.id.to_s == vid.to_s }
-      next unless variant
-
-      if attrs[:threshold].present? && attrs[:threshold].to_i != variant.low_stock_threshold.to_i
-        variant.update_column(:low_stock_threshold, attrs[:threshold].to_i)
-        count += 1
-      end
-
-      next if attrs[:stock].blank?
-      new_stock = attrs[:stock].to_f
-      old_stock = variant.available_stock.to_f
-      next if new_stock == old_stock
-
-      err = reconcile_stock(variant.product, variant, old_stock, new_stock,
-                            cost: variant.buying_price || variant.selling_price,
-                            sell: variant.selling_price,
-                            label: "#{variant.product.name} #{variant.label}: main stock #{fmt(old_stock)} → #{fmt(new_stock)}")
-      if err
-        @errors << err
-      else
-        variant.update_column(:available_stock, new_stock.to_i)
-        count += 1
-      end
-    end
-    count
-  end
-
-  def apply_store_changes
-    count = 0
-    count += apply_store_scope(params[:store_products], variant_scoped: false)
-    count += apply_store_scope(params[:store_variants], variant_scoped: true)
-    count
-  end
-
-  # store_products: { store_id => { product_id => { qty:, threshold: } } }
-  # store_variants: { store_id => { variant_id => { qty:, threshold: } } }
-  def apply_store_scope(scope, variant_scoped:)
-    count = 0
-    (scope || {}).each do |sid, rows|
-      store = @stores.find { |s| s.id.to_s == sid.to_s }
-      next unless store
-
-      rows.each do |rid, attrs|
-        if variant_scoped
-          variant = @products.flat_map(&:product_variants).find { |v| v.id.to_s == rid.to_s }
-          next unless variant
-          product_id, variant_id = variant.product_id, variant.id
-        else
-          product = @products.find { |p| p.id.to_s == rid.to_s }
-          next unless product
-          product_id, variant_id = product.id, nil
-        end
-
-        qty_in = attrs[:qty]
-        thr_in = attrs[:threshold]
-        next if qty_in.blank? && thr_in.blank?
-
-        inv = StoreInventory.find_or_initialize_by(
-          store_id: store.id, product_id: product_id, product_variant_id: variant_id
-        )
-        old_qty = inv.quantity.to_f
-        touched = false
-
-        if qty_in.present? && qty_in.to_f != old_qty
-          inv.quantity = qty_in.to_f
-          touched = true
-        end
-        if thr_in.present? && thr_in.to_i != inv.low_stock_threshold.to_i
-          inv.low_stock_threshold = thr_in.to_i
-          touched = true
-        end
-        next unless touched
-
-        if inv.save
-          if inv.quantity.to_f != old_qty
-            prod = @products.find { |p| p.id == product_id }
-            log_movement(prod, inv.quantity.to_f - old_qty, inv.quantity.to_f,
-                         "#{store.name}: stock #{fmt(old_qty)} → #{fmt(inv.quantity)}") if prod
-          end
-          count += 1
-        else
-          @errors << "#{store.name} / #{inv.label rescue product_id}: #{inv.errors.full_messages.join(', ')}"
-        end
-      end
-    end
-    count
-  end
-
-  # Reconciles central (main-store) stock for a product/variant to new_stock.
-  # Returns an error string on failure, nil on success.
-  def reconcile_stock(product, variant, old_stock, new_stock, cost:, sell:, label:)
-    delta = new_stock - old_stock
-    return nil if delta.zero?
-
-    if delta.positive?
-      cost_f = cost.to_f
-      sell_f = sell.to_f
-      sell_f = cost_f if sell_f <= 0
-      return "#{label}: set a cost/buying price before adding stock" if cost_f <= 0
-
-      product.stock_batches.create!(
-        vendor: default_stock_vendor,
-        product_variant_id: variant&.id,
-        quantity_purchased: delta,
-        quantity_remaining: delta,
-        purchase_price: cost_f,
-        selling_price: sell_f,
-        batch_date: Date.current,
-        status: 'active'
-      )
-    else
-      reduce_central_batches(product, variant, delta.abs)
+      total  = product.stock.to_f
+      thr    = product.minimum_stock_alert.to_f
+      status = stock_status(total, thr)
     end
 
-    # Keep the displayed field in step with the user's target value. Batches are
-    # adjusted for the delta above (best effort when column/batches disagree).
-    product.update_column(:stock, new_stock) unless product.has_multiple_quantities?
-
-    log_movement(product, delta, new_stock, label)
-    nil
-  rescue ActiveRecord::RecordInvalid => e
-    "#{label}: #{e.message}"
+    { product: product, category: product.category&.name, sku: product.sku,
+      stock: total, threshold: product.minimum_stock_alert, status: status,
+      variants: variants }
   end
 
-  def reduce_central_batches(product, variant, amount)
-    scope = product.stock_batches.central.active.by_fifo
-    scope = scope.where(product_variant_id: variant.id) if variant
-    remaining = amount
-    scope.each do |batch|
-      break if remaining <= 0
-      take = [batch.quantity_remaining, remaining].min
-      batch.reduce_stock!(take)
-      remaining -= take
+  # ---- franchises -------------------------------------------------------
+
+  def load_franchises
+    @franchises = Franchise.active.order(:name).to_a
+    rows = FranchiseInventory.where(franchise_id: @franchises.map(&:id)).includes(:product).to_a
+
+    qty = Hash.new(0.0)  # [franchise_id, product_id] => quantity
+    product_ids = []
+    rows.each do |r|
+      qty[[r.franchise_id, r.product_id]] += r.quantity.to_f
+      product_ids << r.product_id
     end
-  end
 
-  def log_movement(product, delta, new_total, note)
-    product.stock_movements.create!(
-      reference_type: 'adjustment',
-      reference_id: nil,
-      movement_type: delta.positive? ? 'added' : 'adjusted',
-      quantity: delta,
-      stock_before: new_total - delta,
-      stock_after: new_total,
-      notes: "Product Summary edit: #{note}"
+    products = Product.where(id: product_ids.uniq).includes(:category).order(:name).to_a
+
+    lines = products.map do |product|
+      thr = franchise_threshold(product)
+      { id: "p#{product.id}", label: product.name, sub: false,
+        meta: [product.category&.name, product.sku].compact.join(" · "), threshold: thr }
+    end
+
+    build_matrix(
+      entities: @franchises.map { |f| { id: f.id, name: f.name, active: f.active?, sub: f.city } },
+      lines: lines,
+      quantity: ->(entity_id, line) {
+        product_id = line[:id].delete_prefix("p").to_i
+        qty.key?([entity_id, product_id]) ? qty[[entity_id, product_id]] : nil
+      }
     )
-  rescue => e
-    Rails.logger.error "Product Summary movement log failed (Product ##{product.id}): #{e.message}"
+
+    @unit_word = "franchise"
   end
 
-  def default_stock_vendor
-    @default_stock_vendor ||= Vendor.find_or_create_by(name: 'System Default') do |v|
-      v.email = 'system@default.com'
-      v.phone = '0000000000'
-      v.address = 'System Generated'
-      v.payment_type = 'Cash'
-      v.status = true
+  def franchise_threshold(product)
+    product.minimum_stock_alert.to_i.positive? ? product.minimum_stock_alert.to_i : DEFAULT_THRESHOLD
+  end
+
+  # ---- stores ---------------------------------------------------------
+
+  def load_stores
+    @stores = Store.active.where(is_main_inventory: [false, nil]).order(:name).to_a
+    rows = StoreInventory.where(store_id: @stores.map(&:id))
+                         .includes(:product, :product_variant).to_a
+
+    qty = {}  # [store_id, product_id, variant_id] => quantity
+    thr = {}  # [product_id, variant_id] => threshold (last one wins; fine for display)
+    product_ids = []
+    rows.each do |r|
+      qty[[r.store_id, r.product_id, r.product_variant_id]] = r.quantity.to_f
+      thr[[r.product_id, r.product_variant_id]] = r.low_stock_threshold.to_i
+      product_ids << r.product_id
     end
+
+    products = Product.where(id: product_ids.uniq).includes(:product_variants, :category).order(:name).to_a
+
+    lines = []
+    products.each do |product|
+      meta = [product.category&.name, product.sku].compact.join(" · ")
+      variant_ids_present = rows.select { |r| r.product_id == product.id && r.product_variant_id }
+                                .map(&:product_variant_id).uniq
+
+      if variant_ids_present.any?
+        # Roll-up header row + one indented row per stocked variant.
+        lines << { id: "p#{product.id}", label: product.name, sub: false,
+                   meta: meta, threshold: nil, header: true }
+        product.sorted_variants.each do |variant|
+          next unless variant_ids_present.include?(variant.id)
+          lines << { id: "p#{product.id}v#{variant.id}", label: variant.label, sub: true,
+                     meta: nil, threshold: thr[[product.id, variant.id]] || DEFAULT_THRESHOLD }
+        end
+      else
+        lines << { id: "p#{product.id}", label: product.name, sub: false,
+                   meta: meta, threshold: thr[[product.id, nil]] || DEFAULT_THRESHOLD }
+      end
+    end
+
+    build_matrix(
+      entities: @stores.map { |s| { id: s.id, name: s.name, active: s.status, sub: s.city } },
+      lines: lines,
+      quantity: ->(entity_id, line) {
+        pid, vid = parse_line_id(line[:id])
+        if line[:header]
+          keys = qty.keys.select { |sid, p, _v| sid == entity_id && p == pid }
+          keys.empty? ? nil : keys.sum { |k| qty[k] }
+        else
+          qty.key?([entity_id, pid, vid]) ? qty[[entity_id, pid, vid]] : nil
+        end
+      }
+    )
+
+    @unit_word = "store"
   end
 
-  def fmt(n)
-    n.to_f == n.to_i ? n.to_i.to_s : n.to_f.round(2).to_s
+  def parse_line_id(id)
+    m = id.match(/\Ap(\d+)(?:v(\d+))?\z/)
+    [m[1].to_i, m[2]&.to_i]
+  end
+
+  # ---- shared matrix builder -----------------------------------------
+
+  # Produces @matrix consumed by the franchise / store views.
+  def build_matrix(entities:, lines:, quantity:)
+    cells = {}         # [entity_id, line_id] => { qty:, status: }
+    line_totals = Hash.new(0.0)
+    entity_totals = Hash.new(0.0)
+
+    entities.each do |entity|
+      lines.each do |line|
+        q = quantity.call(entity[:id], line)
+        next if q.nil?
+
+        status = line[:header] ? nil : stock_status(q, line[:threshold].to_f)
+        cells[[entity[:id], line[:id]]] = { qty: q, status: status }
+        unless line[:header]
+          line_totals[line[:id]] += q
+          entity_totals[entity[:id]] += q
+        end
+      end
+    end
+
+    @matrix = {
+      layout: entities.size <= 2 ? :combined : :cards,
+      entities: entities,
+      lines: lines,
+      cells: cells,
+      line_totals: line_totals,
+      entity_totals: entity_totals,
+      low: cells.values.count { |c| c[:status] == :low },
+      out: cells.values.count { |c| c[:status] == :out },
+      units: entity_totals.values.sum
+    }
+  end
+
+  def stock_status(stock, threshold)
+    return :out if stock <= 0
+    return :low if threshold.positive? && stock <= threshold
+    :ok
   end
 end

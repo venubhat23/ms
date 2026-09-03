@@ -136,13 +136,11 @@ class FranchiseStockRequest < ApplicationRecord
     errors.add(:base, "Add at least one product to request") if active_items.empty?
   end
 
-  # Variants don't have a distinct B2B price (see Product#effective_b2b_price
-  # vs. ProductVariant#effective_price — only Product has a b2b_price
-  # column), so a variant item is charged its regular effective_price;
-  # a plain product item gets its b2b_price (falling back to selling_price
-  # when unset).
+  # A variant item is charged its own B2B price (ProductVariant#b2b_selling_price,
+  # falling back to the variant's selling_price when unset); a plain product item
+  # gets Product#b2b_price (falling back to its selling_price when unset).
   def resolved_unit_price(item)
-    item.product_variant&.effective_price || item.product.effective_b2b_price
+    item.product_variant&.effective_b2b_price || item.product.effective_b2b_price
   end
 
   def build_wholesale_booking(discount_type, discount_value)

@@ -341,9 +341,13 @@
           <% available_stages = all_stages.reject { |stage| stage == @booking.status || (stage == 'paid' && @booking.payment_status_paid?) } %>
 
           <% available_stages.each do |stage| %>
-            <option value="<%= stage %>">
-              <%= stage.humanize %> - <%= stage_description_full(stage) %>
-            </option>
+            <% if stage == 'confirmed' && @booking.pending_pre_booking_approval? %>
+              <option value="confirmed">✅ Approve Pre-Booking (Admin Confirmed) - confirms the order and notifies the customer</option>
+            <% else %>
+              <option value="<%= stage %>">
+                <%= stage.humanize %> - <%= stage_description_full(stage) %>
+              </option>
+            <% end %>
           <% end %>
         </select>
         <div class="form-text">Available stages based on current order status</div>

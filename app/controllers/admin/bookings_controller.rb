@@ -9,10 +9,16 @@ class Admin::BookingsController < Admin::ApplicationController
     base_scope = current_user.franchise? ? Booking.where(user_id: current_user.id) : Booking.all
     franchise_scope_key = current_user.franchise? ? "franchise_#{current_user.id}" : 'all'
 
+    # Bumped on every booking create/update/destroy (see
+    # Booking#bust_admin_bookings_cache) so a booking change — a new booking,
+    # a status move, a franchise delivery assignment — shows on this list
+    # immediately instead of after the short cache TTL lapses.
+    cache_gen = Booking.admin_bookings_cache_generation
+
     # Status counts only depend on franchise scope, not on the listing filters
     # below, so they're cached separately under a coarser key — a search/date/
     # category filter change shouldn't force a re-count of every status.
-    status_counts_cache_key = "admin_bookings/status_counts/#{franchise_scope_key}"
+    status_counts_cache_key = "admin_bookings/status_counts/#{franchise_scope_key}/gen=#{cache_gen}"
     status_counts_cached = Rails.cache.read(status_counts_cache_key)
 
     # Single GROUP BY replaces 6 separate COUNT queries fired in the view.
@@ -88,7 +94,7 @@ class Admin::BookingsController < Admin::ApplicationController
     # the query itself, so a cached hit skips the connection entirely. Kept
     # short (1 min) since bookings are actively created/updated by staff.
     filters_key = LIST_STATE_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&')
-    listing_cache_key = "admin_bookings/index_listing/#{franchise_scope_key}/#{filters_key}/per=#{@per_page}"
+    listing_cache_key = "admin_bookings/index_listing/#{franchise_scope_key}/#{filters_key}/per=#{@per_page}/gen=#{cache_gen}"
     cached_listing = Rails.cache.read(listing_cache_key)
 
     @bookings = @bookings.page(params[:page]).per(@per_page)
@@ -861,6 +867,17 @@ class Admin::BookingsController < Admin::ApplicationController
         return
       end
 
+      # A pending pre-booking's "2nd stage" (Admin Confirmed) is its approval
+      # step — route it through approve_pre_booking! so it fires the same
+      # confirmation email / side effects as the header "Approve Pre-Booking"
+      # button and the index-page tick, instead of the generic status write
+      # below which would silently skip them.
+      if @target_stage == 'confirmed' && @booking.pending_pre_booking_approval?
+        @booking.approve_pre_booking!
+        redirect_to admin_bookings_path(@list_state), notice: "Pre-booking ##{@booking.booking_number} approved — customer notified."
+        return
+      end
+
       # Build transition data
       transition_data = build_stage_transition_data
 
@@ -899,6 +916,13 @@ class Admin::BookingsController < Admin::ApplicationController
           # runs can be slow, with a token the manage_stage page polls to
           # show a progress bar.
           token = SecureRandom.hex(10)
+          # Seed the progress entry synchronously so the poller can tell
+          # "queued, waiting for a worker" apart from "job finished and its
+          # entry expired" — without this a missing entry is ambiguous and
+          # the page used to read it as success even when no worker ever ran.
+          Rails.cache.write("franchise_stock_replenish_progress:#{token}",
+            { step: 'Queued — waiting for background worker…', percent: 5, done: false, enqueued_at: Time.current.to_f },
+            expires_in: 30.minutes)
           FranchiseStockAutoReplenishJob.perform_later(@booking.id, franchise.id, current_user.id, transition_data, token)
 
           respond_to do |format|

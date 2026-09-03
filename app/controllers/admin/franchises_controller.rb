@@ -25,7 +25,7 @@ class Admin::FranchisesController < Admin::ApplicationController
       }
     end
 
-    @franchises = paginate_records(franchises_scope.order(:name))
+    @franchises = paginate_records(franchises_scope.order(created_at: :desc, id: :desc))
   end
 
   def show

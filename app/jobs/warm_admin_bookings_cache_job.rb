@@ -25,6 +25,9 @@ class WarmAdminBookingsCacheJob < ApplicationJob
               .order(:first_name, :last_name).to_a
     end
 
-    Rails.cache.write('admin_bookings/status_counts/all', Booking.group(:status).count, expires_in: 3.minutes)
+    # Key must match Admin::BookingsController#index — it folds in the
+    # generation token bumped on every booking write (Booking#bust_admin_bookings_cache).
+    cache_gen = Booking.admin_bookings_cache_generation
+    Rails.cache.write("admin_bookings/status_counts/all/gen=#{cache_gen}", Booking.group(:status).count, expires_in: 3.minutes)
   end
 end

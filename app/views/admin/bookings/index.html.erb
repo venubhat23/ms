@@ -442,7 +442,7 @@
                     </div>
                     <div>
                       <h6 class="mb-0">#<%= booking.booking_number %></h6>
-                      <small class="text-muted"><%= booking.created_at.strftime("%d %b %Y") if booking.created_at %></small>
+                      <small class="text-muted"><%= booking.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p IST") if booking.created_at %></small>
                       <% if booking.user&.franchise? %>
                         <div class="mt-1">
                           <span class="badge bg-info-subtle text-info">
@@ -712,17 +712,6 @@
                           <i class="bi bi-x-lg"></i>
                         <% end %>
                       <% else %>
-                        <% if booking.is_pre_booking? %>
-                          <% if booking.status == 'cancelled' %>
-                            <span class="action-icon disapprove" title="Pre-booking was disapproved" style="cursor:default;">
-                              <i class="bi bi-x-lg"></i>
-                            </span>
-                          <% else %>
-                            <span class="action-icon approve" title="Pre-booking was approved" style="cursor:default;">
-                              <i class="bi bi-check-lg"></i>
-                            </span>
-                          <% end %>
-                        <% end %>
                         <%= link_to edit_admin_booking_path(booking, list_state: list_state), class: "action-icon edit", title: "Edit Booking" do %>
                           <i class="bi bi-pencil"></i>
                         <% end %>

@@ -106,6 +106,13 @@ class Booking < ApplicationRecord
   after_update :credit_wholesale_stock_to_franchise, if: :saved_change_to_status?
   after_update :credit_franchise_commission, if: :saved_change_to_status?
   after_commit :bust_mobile_customer_cache
+  # Admin::BookingsController#index caches its paginated listing and status
+  # counts (the DB is remote — a cache hit skips a ~200-400ms round trip).
+  # Nothing expired those on write, so an admin returning to /admin/bookings
+  # right after creating a booking or assigning it to a franchise saw a
+  # stale list (old status, missing "Assigned Franchise" badge) for up to a
+  # minute. Bust both here so the change shows immediately.
+  after_commit :bust_admin_bookings_cache, on: [:create, :update, :destroy]
 
   # Covers every booking-creation path (customer checkout, admin, franchise,
   # mobile API, affiliate, subscriptions, ...) in one place instead of each
@@ -230,7 +237,27 @@ class Booking < ApplicationRecord
     MobileApiCache.bust_booking!(cid)
   end
 
-  scope :recent, -> { order(created_at: :desc) }
+  # Admin::BookingsController#index folds this generation token into its
+  # listing/status-count cache keys, so bumping it here makes every cached
+  # variation (per filter/page/franchise) unreachable at once. Done this way
+  # rather than Rails.cache.delete_matched because :solid_cache_store (used
+  # in production) raises NotImplementedError for delete_matched. Stale
+  # entries just age out on their own short TTL.
+  ADMIN_BOOKINGS_CACHE_GENERATION_KEY = 'admin_bookings/cache_generation'
+
+  def self.admin_bookings_cache_generation
+    Rails.cache.read(ADMIN_BOOKINGS_CACHE_GENERATION_KEY) || '0'
+  end
+
+  def bust_admin_bookings_cache
+    Rails.cache.write(ADMIN_BOOKINGS_CACHE_GENERATION_KEY, Time.now.to_f.to_s, expires_in: 1.hour)
+  rescue StandardError => e
+    Rails.logger.warn "bust_admin_bookings_cache failed: #{e.message}"
+  end
+
+  # id: :desc is a tiebreaker so the newest booking is reliably on top even
+  # when several share the same created_at second (bulk/pre-booking imports).
+  scope :recent, -> { order(created_at: :desc, id: :desc) }
   scope :today, -> { where(created_at: Date.current.all_day) }
   scope :active, -> { where.not(status: [:cancelled, :returned]) }
   scope :completed_orders, -> { where(status: [:delivered, :completed]) }

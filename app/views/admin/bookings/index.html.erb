@@ -712,6 +712,12 @@
                           <i class="bi bi-x-lg"></i>
                         <% end %>
                       <% else %>
+                        <% if booking.pre_booking_decision_label %>
+                          <span class="badge <%= booking.pre_booking_approved? ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' %> px-2 py-1"
+                                title="<%= booking.pre_booking_decision_label %>">
+                            <i class="bi <%= booking.pre_booking_approved? ? 'bi-check-lg' : 'bi-x-lg' %> me-1"></i><%= booking.pre_booking_decision_label %>
+                          </span>
+                        <% end %>
                         <%= link_to edit_admin_booking_path(booking, list_state: list_state), class: "action-icon edit", title: "Edit Booking" do %>
                           <i class="bi bi-pencil"></i>
                         <% end %>

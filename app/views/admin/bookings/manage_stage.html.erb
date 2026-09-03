@@ -8,16 +8,6 @@
     <%= link_to admin_booking_path(@booking, list_state: @list_state), class: "btn btn-outline-primary" do %>
       <i class="bi bi-eye me-1"></i>View Order
     <% end %>
-    <% if @booking.pending_pre_booking_approval? %>
-      <%= button_to approve_pre_booking_admin_booking_path(@booking, list_state: @list_state), method: :patch, class: "btn btn-success",
-            data: { confirm: "Approve pre-booking ##{@booking.booking_number}? This confirms the order and notifies the customer." } do %>
-        <i class="bi bi-check-lg me-1"></i>Approve Pre-Booking
-      <% end %>
-      <%= button_to reject_pre_booking_admin_booking_path(@booking, list_state: @list_state), method: :patch, class: "btn btn-outline-danger",
-            data: { confirm: "Disapprove (cancel) pre-booking ##{@booking.booking_number}?" } do %>
-        <i class="bi bi-x-lg me-1"></i>Disapprove
-      <% end %>
-    <% end %>
     <% if SystemSetting.franchise_commission_enabled? && SystemSetting.franchise_delivery_assignment_enabled? && @booking.delivery_franchise.blank? && @booking.delivery_person_id.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
       <button type="button" class="btn btn-outline-primary" id="assignToFranchiseBtn" onclick="toggleFranchiseAssignPanel()">
         <i class="bi bi-shop-window me-1"></i>Assign to Franchise
@@ -52,6 +42,16 @@
         <% end %>
       </div>
       <div class="form-text mt-2">Same stage sequence shown to the customer on their order tracking page.</div>
+
+      <% if @booking.pre_booking_decision_label %>
+        <div class="mt-3">
+          <span class="badge <%= @booking.pre_booking_approved? ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-danger-subtle text-danger border border-danger-subtle' %> px-3 py-2">
+            <i class="bi <%= @booking.pre_booking_approved? ? 'bi-check-lg' : 'bi-x-lg' %> me-1"></i><%= @booking.pre_booking_decision_label %>
+          </span>
+        </div>
+      <% elsif @booking.pending_pre_booking_approval? %>
+        <div class="form-text mt-2">Awaiting admin approval — approve or reject this pre-booking from the bookings list.</div>
+      <% end %>
     </div>
   </div>
 <% end %>

@@ -466,6 +466,26 @@ class Booking < ApplicationRecord
     cancel_order!(reason.presence || 'Pre-booking rejected by admin') if pending_pre_booking_approval?
   end
 
+  # Once an admin has acted on a pending pre-booking, the approve/reject
+  # buttons are replaced by a static "Approved by admin" / "Rejected by
+  # admin" label (admin bookings list + manage_stage page).
+  def pre_booking_approved?
+    is_pre_booking? && !draft? && !cancelled? && !ordered_and_delivery_pending?
+  end
+
+  def pre_booking_rejected?
+    is_pre_booking? && cancelled?
+  end
+
+  # nil while still pending approval (or not a pre-booking) — the buttons
+  # show in that case instead.
+  def pre_booking_decision_label
+    return 'Approved by admin' if pre_booking_approved?
+    return 'Rejected by admin' if pre_booking_rejected?
+
+    nil
+  end
+
   # Pre-booking tracker steps shown to the customer on /track-order and
   # referenced on the admin manage_stage page, so both stay in sync.
   PRE_BOOKING_TRACKING_STEPS = [

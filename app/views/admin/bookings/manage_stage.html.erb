@@ -1326,14 +1326,38 @@ function toggleDeliveryMode(radio) {
     bar.textContent = pct + '%';
   }
 
+  function failReplenish(message) {
+    clearInterval(pollTimer);
+    document.getElementById('franchiseReplenishBar').classList.remove('progress-bar-animated', 'bg-primary');
+    document.getElementById('franchiseReplenishBar').classList.add('bg-danger');
+    document.getElementById('franchiseReplenishTitle').textContent = 'Assignment did not complete';
+    document.getElementById('franchiseReplenishStep').textContent = message;
+    setIcon(failedIcon);
+  }
+
   function startPolling(token) {
+    // Watchdog: if the job never makes progress (e.g. no background worker is
+    // running — `bin/jobs` from Procfile.dev), don't spin forever. Bail out
+    // with a clear message instead of leaving the admin staring at a bar.
+    var lastPercent = -1;
+    var lastProgressAt = Date.now();
+    var STALL_MS = 45000;
+
     pollTimer = setInterval(function() {
+      if (Date.now() - lastProgressAt > STALL_MS) {
+        failReplenish('No progress for 45s — the background job worker may not be running. The booking has NOT been assigned. Start the jobs process and try again.');
+        return;
+      }
       fetch('<%= franchise_replenish_progress_admin_bookings_path %>?token=' + encodeURIComponent(token), {
         headers: { 'Accept': 'application/json' }
       })
         .then(function(r) { return r.json(); })
         .then(function(progress) {
           updateBar(progress.percent);
+          if (typeof progress.percent === 'number' && progress.percent !== lastPercent) {
+            lastPercent = progress.percent;
+            lastProgressAt = Date.now();
+          }
           if (progress.step) {
             document.getElementById('franchiseReplenishStep').textContent = progress.step;
           }

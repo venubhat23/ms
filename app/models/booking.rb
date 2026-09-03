@@ -928,7 +928,20 @@ class Booking < ApplicationRecord
       # that, or block/revert the status this booking is being confirmed
       # into, so skip it entirely for these bookings (no SaleItem records
       # either, same as the franchise-ledger path above).
-      perform_central_stock_allocation! unless skip_stock_check
+      #
+      # is_pre_booking? is the persisted equivalent: a pre-booking was
+      # created with skip_stock_check on (see Storefront::CheckoutController
+      # #create / the mobile ecommerce controller) and already pushed stock
+      # negative at creation, but the admin approval that flips it to
+      # "confirmed" (#approve_pre_booking!) runs in a *later* request where
+      # the in-memory skip_stock_check flag is gone. Without this, that
+      # approval would double-deduct or — the normal out-of-stock case —
+      # trip perform_central_stock_allocation!'s insufficient-inventory
+      # branch, which reverts status to ordered_and_delivery_pending via
+      # update_column while #update! still reports success. The booking then
+      # silently stays a pending pre-booking (approve/reject buttons keep
+      # showing) even though the confirmation email already went out.
+      perform_central_stock_allocation! unless skip_stock_check || is_pre_booking?
     end
 
     # Free up inventory when order is cancelled or returned

@@ -830,7 +830,13 @@ class Admin::BookingsController < Admin::ApplicationController
   def franchise_replenish_progress
     progress = Rails.cache.read("franchise_stock_replenish_progress:#{params[:token]}")
     if progress.nil?
-      render json: { done: true, missing: true, percent: 100 }
+      # The entry is seeded synchronously before the job is enqueued (see
+      # #update_stage) and kept for 30 min after it finishes, so a genuinely
+      # missing entry means "gone/expired", not "succeeded". Report it as a
+      # non-success terminal state — never as a silent success, which used
+      # to let the page redirect as though the assignment had happened.
+      render json: { done: true, success: false, missing: true, percent: 100,
+                     error: 'Lost track of this assignment — it may not have completed. Reload the booking and check whether a franchise is assigned before retrying.' }
       return
     end
 

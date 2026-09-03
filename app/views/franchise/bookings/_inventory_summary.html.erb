@@ -1,0 +1,98 @@
+<%#
+  Franchise's own on-hand stock summary for the booking screen.
+  Uses @products (sellable_products_scope) — each row carries `cached_stock`,
+  the franchise's FranchiseInventory quantity when the commission feature is on,
+  otherwise the central warehouse quantity.
+%>
+<%
+  inv_products = (@products || []).to_a
+  inv_rows = inv_products.map do |p|
+    qty = p.cached_total_batch_stock.to_f
+    status = if qty <= 0 then :out
+             elsif qty <= p.minimum_stock_threshold.to_f then :low
+             else :ok
+             end
+    { product: p, qty: qty, threshold: p.minimum_stock_threshold, status: status }
+  end
+  inv_total_units = inv_rows.sum { |r| r[:qty] }
+  inv_low  = inv_rows.count { |r| r[:status] == :low }
+  inv_out  = inv_rows.count { |r| r[:status] == :out }
+  inv_sorted = inv_rows.sort_by { |r| [{ out: 0, low: 1, ok: 2 }[r[:status]], r[:product].name.to_s.downcase] }
+  fmt_qty = ->(n) { n.to_f == n.to_i ? n.to_i.to_s : n.to_f.round(2).to_s }
+%>
+
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-3">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2 me-auto">
+        <span class="badge rounded-circle bg-primary-subtle text-primary p-2 fs-6"><i class="bi bi-box-seam"></i></span>
+        <div>
+          <div class="fw-bold lh-1">My Inventory</div>
+          <small class="text-muted">What you have in stock right now</small>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <span class="badge bg-light text-dark border py-2 px-3">
+          <i class="bi bi-grid-3x3-gap me-1 text-secondary"></i>
+          <%= inv_rows.size %> <span class="text-muted">products</span>
+        </span>
+        <span class="badge bg-light text-dark border py-2 px-3">
+          <i class="bi bi-boxes me-1 text-primary"></i>
+          <%= fmt_qty.call(inv_total_units) %> <span class="text-muted">units</span>
+        </span>
+        <span class="badge <%= inv_low.positive? ? 'bg-warning text-dark' : 'bg-light text-dark border' %> py-2 px-3">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          <%= inv_low %> <span class="<%= 'text-dark-emphasis' if inv_low.positive? %>">low stock</span>
+        </span>
+        <span class="badge <%= inv_out.positive? ? 'bg-danger' : 'bg-light text-dark border' %> py-2 px-3">
+          <i class="bi bi-x-octagon me-1"></i>
+          <%= inv_out %> <span class="<%= inv_out.positive? ? 'text-white-50' : 'text-muted' %>">out</span>
+        </span>
+      </div>
+
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="collapse" data-bs-target="#invSummaryDetail" aria-expanded="false">
+        <i class="bi bi-list-ul me-1"></i>Details
+      </button>
+    </div>
+
+    <div class="collapse mt-3" id="invSummaryDetail">
+      <% if inv_sorted.empty? %>
+        <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>No stock has been credited to your franchise yet.</p>
+      <% else %>
+        <div class="table-responsive" style="max-height: 340px;">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Product</th>
+                <th>Category</th>
+                <th class="text-end">In stock</th>
+                <th class="text-end">Alert at</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% inv_sorted.each do |r| %>
+                <tr class="<%= 'table-danger' if r[:status] == :out %><%= 'table-warning' if r[:status] == :low %>">
+                  <td class="fw-semibold"><%= r[:product].name %></td>
+                  <td class="text-muted small"><%= r[:product].category&.name %></td>
+                  <td class="text-end fw-bold"><%= fmt_qty.call(r[:qty]) %></td>
+                  <td class="text-end text-muted"><%= r[:threshold] %></td>
+                  <td>
+                    <% if r[:status] == :out %>
+                      <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Out of stock</span>
+                    <% elsif r[:status] == :low %>
+                      <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle me-1"></i>Low</span>
+                    <% else %>
+                      <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>In stock</span>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

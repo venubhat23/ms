@@ -19,8 +19,11 @@ class FranchiseStockMovement < ApplicationRecord
   validates :reference_type, presence: true, inclusion: { in: REFERENCE_TYPES.map(&:first) }
   validates :movement_type, presence: true, inclusion: { in: MOVEMENT_TYPES.map(&:first) }
   validates :quantity, presence: true, numericality: { not_equal_to: 0 }
-  validates :stock_before, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  validates :stock_after, presence: true, numericality: { greater_than_or_equal_to: 0 }
+  # stock_before/stock_after can be negative: a booking handed to a franchise
+  # for delivery before they're restocked drives the ledger below zero (the
+  # negative figure is what they owe HQ). See FranchiseInventory#consume_stock!.
+  validates :stock_before, presence: true, numericality: true
+  validates :stock_after, presence: true, numericality: true
 
   validate :validate_quantity_direction
 

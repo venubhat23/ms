@@ -24,23 +24,21 @@ class FranchiseDeliveryAssignmentService
 
   private
 
-  # Deducts each of @booking's items from franchise's own inventory ledger.
-  # Only ever called after the caller has confirmed there's enough (or just
-  # topped it up via an auto-approved FranchiseStockRequest), so
-  # consume_stock! returning false here means a race — another assignment
-  # consumed the same stock in between — which raises to roll back the
-  # whole transaction this runs inside.
+  # Deducts each of @booking's items from the franchise's own inventory
+  # ledger. Shortfalls are allowed to push the balance negative rather than
+  # blocking the assignment (allow_negative: true) — the negative figure is
+  # the stock the franchise now owes HQ, cleared next time they're restocked.
   def consume_franchise_stock!
     @booking.booking_items.each do |item|
       next if item.product_id.blank? || item.quantity.to_f <= 0
 
-      consumed = FranchiseInventory.consume_stock!(
+      FranchiseInventory.consume_stock!(
         @franchise, item.product, item.quantity,
         reference_type: 'franchise_delivery_assignment',
         reference_id: @booking.id,
-        notes: "Delivery assignment for Booking ##{@booking.booking_number}"
+        notes: "Delivery assignment for Booking ##{@booking.booking_number}",
+        allow_negative: true
       )
-      raise "Insufficient stock for #{item.product&.name} at #{@franchise.name}" unless consumed
     end
   end
 

@@ -1119,6 +1119,9 @@ Rails.application.routes.draw do
         get :manage_stage
         patch :process_stage_transition
         patch :update_stage
+        # GET fallback for direct/bookmarked navigation to the update_stage URL
+        # (update_stage itself is PATCH-only, submitted by the manage_stage form).
+        get :update_stage, to: redirect { |params, _req| "/franchise/bookings/#{params[:id]}/manage_stage" }
       end
       collection do
         get :search_products

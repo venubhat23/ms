@@ -483,6 +483,12 @@ class Franchise::BookingsController < Franchise::BaseController
     nil
   end
 
+  # Routed endpoints below (AJAX pickers + delivery-stage management). These
+  # must stay public — a private method isn't dispatchable as a controller
+  # action (Rails raises AbstractController::ActionNotFound), which is exactly
+  # what broke PATCH /franchise/bookings/:id/update_stage.
+  public
+
   # AJAX endpoints
   def search_products
     @products = Product.active
@@ -595,13 +601,15 @@ class Franchise::BookingsController < Franchise::BaseController
     }
   end
 
+  private
+
   def build_stage_transition_data
     {
       from_stage: @booking.status,
       to_stage: @target_stage,
       timestamp: Time.current,
-      user_id: current_user.id,
-      user_name: current_user.email,
+      user_id: current_user&.id,
+      user_name: current_user&.email,
       notes: params[:transition_notes]
     }
   end
@@ -609,7 +617,9 @@ class Franchise::BookingsController < Franchise::BaseController
   def update_booking_with_stage_transition(transition_data)
     @booking.status = @target_stage
     @booking.stage_updated_at = transition_data[:timestamp]
-    @booking.stage_updated_by = transition_data[:user_name]
+    # stage_updated_by is an integer (user id) column — matches
+    # Admin::BookingsController and FranchiseDeliveryAssignmentService.
+    @booking.stage_updated_by = transition_data[:user_id]
     @booking.transition_notes = transition_data[:notes] if transition_data[:notes].present?
     @booking.save
   end

@@ -900,44 +900,16 @@ class Admin::BookingsController < Admin::ApplicationController
       end
 
       # A franchise fulfills a delivery from their own on-shelf stock (see
-      # FranchiseInventory), not the central warehouse — block the
-      # assignment outright if they don't already hold enough of every
-      # item, rather than silently creating stock they were never actually
-      # given. franchise_delivery_mode_requested? already re-checked the
-      # feature flag when build_stage_transition_data set delivery_mode.
+      # FranchiseInventory), not the central warehouse. If they're short on
+      # any item the assignment still goes through — FranchiseInventory is
+      # allowed to go negative (see FranchiseDeliveryAssignmentService), the
+      # negative figure being the stock they now owe HQ. This runs inline in
+      # the same transaction as the status save below (no background job).
       franchise = nil
       if transition_data[:delivery_mode] == 'franchise'
         franchise = Franchise.active.find_by(id: transition_data[:delivery_franchise_id])
         unless franchise
           redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state), alert: "Please select a valid franchise."
-          return
-        end
-
-        shortfall = franchise_stock_shortfall(franchise)
-        if shortfall.any?
-          # Rather than block the assignment, auto-request and auto-approve
-          # exactly the missing stock from HQ on the franchise's behalf (see
-          # FranchiseStockAutoReplenishJob), then finish the assignment —
-          # backgrounded since the wholesale booking + stock transfer it
-          # runs can be slow, with a token the manage_stage page polls to
-          # show a progress bar.
-          token = SecureRandom.hex(10)
-          # Seed the progress entry synchronously so the poller can tell
-          # "queued, waiting for a worker" apart from "job finished and its
-          # entry expired" — without this a missing entry is ambiguous and
-          # the page used to read it as success even when no worker ever ran.
-          Rails.cache.write("franchise_stock_replenish_progress:#{token}",
-            { step: 'Queued — waiting for background worker…', percent: 5, done: false, enqueued_at: Time.current.to_f },
-            expires_in: 30.minutes)
-          FranchiseStockAutoReplenishJob.perform_later(@booking.id, franchise.id, current_user.id, transition_data, token)
-
-          respond_to do |format|
-            format.json { render json: { token: token, total: shortfall.size, franchise_name: franchise.name } }
-            format.html do
-              redirect_to manage_stage_admin_booking_path(@booking, list_state: @list_state),
-                notice: "#{franchise.name} was short on stock for this booking — auto-requesting and approving replenishment from HQ, then assigning. Refresh in a few moments."
-            end
-          end
           return
         end
       end

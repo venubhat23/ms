@@ -95,7 +95,13 @@ class Booking < ApplicationRecord
   after_create :allocate_inventory
   after_update :allocate_inventory, if: :saved_change_to_status?
   after_update :sync_invoice_payment_status, if: :saved_change_to_payment_status?
-  after_update :credit_affiliate_commission, if: :saved_change_to_status?
+  # after_save (not just after_update on a status change): a booking born
+  # directly into "delivered"/"completed" — affiliate-portal sales, admin
+  # walk-ins — never passes through a status-changing update, and admin's
+  # two-phase create (save, recompute totals, save!) sets total_amount on
+  # the second write. credit_affiliate_commission is fully idempotent via
+  # affiliate_commission_credited_at, so running it on every save is safe.
+  after_save :credit_affiliate_commission
   # Same class of bug allocate_inventory/allocate_franchise_inventory above
   # were already fixed for: admin/bookings/new's status select defaults to
   # "completed", so a Franchise Booking is normally created directly into a
@@ -132,21 +138,29 @@ class Booking < ApplicationRecord
     self.affiliate_id ||= customer&.referred_by_affiliate_id
   end
 
-  # Pays the referring affiliate their cut once the sale is final. Guarded by
-  # affiliate_commission_credited_at so this can never double-credit even if
-  # the status-change callback somehow fires more than once for the same
-  # completed booking.
+  # Pays the referring affiliate their commission once the referred
+  # customer's booking is delivered (or completed). The "referring affiliate"
+  # is Customer#referred_by_affiliate_id, copied onto the booking as
+  # affiliate_id by attribute_to_referring_affiliate at creation; an
+  # affiliate-portal booking already carries its own affiliate_id and is paid
+  # exactly the same way. Commission = booking total_amount * the affiliate's
+  # configured commission_percentage (e.g. a ₹1,000 booking at 2% credits
+  # ₹20). Guarded by affiliate_commission_credited_at so it credits exactly
+  # once no matter how many times after_save fires.
   def credit_affiliate_commission
-    return unless completed? && affiliate_id.present? && affiliate_commission_credited_at.nil?
+    return unless (delivered? || completed?) && affiliate_id.present?
+    return unless affiliate_commission_credited_at.nil?
 
-    commission_amount = (total_amount.to_f * affiliate.commission_percentage.to_f / 100.0).round(2)
+    rate = affiliate&.commission_percentage.to_f
+    commission_amount = (total_amount.to_f * rate / 100.0).round(2)
     return unless commission_amount.positive?
 
     transaction do
       update_column(:affiliate_commission_credited_at, Time.current)
-      affiliate.affiliate_wallet.add_money(
+      wallet = affiliate.affiliate_wallet || affiliate.create_affiliate_wallet!(balance: 0)
+      wallet.add_money(
         commission_amount,
-        "Commission for Booking ##{booking_number}",
+        "Referral commission (#{rate.to_s.sub(/\.0$/, '')}%) for Booking ##{booking_number} — #{customer_name}",
         "COMM-BK-#{id}",
         booking_id: id
       )

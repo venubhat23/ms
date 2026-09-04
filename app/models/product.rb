@@ -181,6 +181,13 @@ class Product < ApplicationRecord
     # stock when the admin has turned this on (SystemSetting).
     return true if SystemSetting.allow_pre_booking_enabled?
 
+    # Multi-quantity products carry their stock on the variants
+    # (product_variants.available_stock), not on stock_batches, so the batch
+    # total is always 0 for them — check the variants instead.
+    if has_multiple_quantities?
+      return product_variants.loaded? ? product_variants.any? { |v| v.available_stock.to_f > 0 } : product_variants.where('available_stock > 0').exists?
+    end
+
     cached_total_batch_stock > 0
   end
 

@@ -109,9 +109,31 @@ class Admin::ReferralsController < ApplicationController
   end
 
   # PATCH /admin/referrals/1/mark_converted
+  #
+  # Converting a referral is the point the referred lead becomes a real
+  # customer: if nothing is linked yet (the affiliate portal's "mark as
+  # registered" only flips the status, it never creates a Customer), build
+  # one from the referral's captured contact details — tagged with the
+  # referring affiliate for commission tracking — or link the existing
+  # account when that email/mobile already belongs to one.
   def mark_converted
+    if @referral.customer.blank?
+      customer = build_customer_from_referral(@referral)
+
+      if customer.save
+        @referral.update!(customer: customer)
+        created_note = " New customer \"#{customer.display_name}\" created."
+      elsif (existing = find_conflicting_customer(customer))
+        @referral.update!(customer: existing)
+        created_note = " Linked to existing customer \"#{existing.display_name}\"."
+      else
+        redirect_to admin_referral_path(@referral),
+                    alert: "Could not create customer: #{customer.errors.full_messages.to_sentence}" and return
+      end
+    end
+
     @referral.mark_as_converted!
-    redirect_to admin_referral_path(@referral), notice: 'Referral marked as converted successfully.'
+    redirect_to admin_referral_path(@referral), notice: "Referral marked as converted successfully.#{created_note}"
   end
 
   # GET /admin/referrals/affiliate_referrals

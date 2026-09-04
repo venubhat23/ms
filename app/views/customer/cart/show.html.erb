@@ -276,6 +276,7 @@
       <div class="col-lg-8">
         <div class="cart-card mb-4">
           <% @cart_items.each do |item| %>
+            <% line_key = [item['product_id'], item['variant_id'].presence].compact.join('-') %>
             <div class="cart-item">
               <div class="row align-items-center">
                 <!-- Product Image -->
@@ -291,7 +292,7 @@
 
                 <!-- Product Details -->
                 <div class="col-md-4 col-9">
-                  <h6 class="product-name"><%= item['product_name'] %></h6>
+                  <h6 class="product-name"><%= item['product_name'] %><%= " — #{item['variant_label']}" if item['variant_label'].present? %></h6>
                   <p class="product-price mb-0">₹<%= item['price'] %></p>
                 </div>
 
@@ -299,8 +300,9 @@
                 <div class="col-md-3 col-6">
                   <%= form_with url: update_item_customer_cart_path, method: :patch, local: true, class: "d-flex align-items-center" do |f| %>
                     <%= f.hidden_field :product_id, value: item['product_id'] %>
+                    <%= f.hidden_field :variant_id, value: item['variant_id'] %>
                     <div class="quantity-controls">
-                      <button type="button" class="quantity-btn" onclick="decreaseCartQuantity(<%= item['product_id'] %>)">
+                      <button type="button" class="quantity-btn" onclick="decreaseCartQuantity('<%= line_key %>')">
                         <i class="fas fa-minus"></i>
                       </button>
                       <%= f.number_field :quantity,
@@ -308,9 +310,10 @@
                                         min: 1,
                                         max: 10,
                                         class: "quantity-input",
-                                        id: "cart_quantity_#{item['product_id']}",
-                                        onchange: "updateCartQuantity(#{item['product_id']})" %>
-                      <button type="button" class="quantity-btn" onclick="increaseCartQuantity(<%= item['product_id'] %>)">
+                                        id: "cart_quantity_#{line_key}",
+                                        data: { product_id: item['product_id'], variant_id: item['variant_id'] },
+                                        onchange: "updateCartQuantity('#{line_key}')" %>
+                      <button type="button" class="quantity-btn" onclick="increaseCartQuantity('<%= line_key %>')">
                         <i class="fas fa-plus"></i>
                       </button>
                     </div>
@@ -324,7 +327,7 @@
                              method: :delete,
                              data: {
                                confirm: 'Remove this item from cart?',
-                               params: { product_id: item['product_id'] }
+                               params: { product_id: item['product_id'], variant_id: item['variant_id'] }
                              },
                              class: "remove-btn" do %>
                     <i class="fas fa-trash"></i>
@@ -447,26 +450,26 @@
 </div>
 
 <script>
-function decreaseCartQuantity(productId) {
-  const input = document.getElementById(`cart_quantity_${productId}`);
+function decreaseCartQuantity(lineKey) {
+  const input = document.getElementById(`cart_quantity_${lineKey}`);
   const currentValue = parseInt(input.value);
   if (currentValue > 1) {
     input.value = currentValue - 1;
-    updateCartQuantity(productId);
+    updateCartQuantity(lineKey);
   }
 }
 
-function increaseCartQuantity(productId) {
-  const input = document.getElementById(`cart_quantity_${productId}`);
+function increaseCartQuantity(lineKey) {
+  const input = document.getElementById(`cart_quantity_${lineKey}`);
   const currentValue = parseInt(input.value);
   if (currentValue < 10) {
     input.value = currentValue + 1;
-    updateCartQuantity(productId);
+    updateCartQuantity(lineKey);
   }
 }
 
-function updateCartQuantity(productId) {
-  const input = document.getElementById(`cart_quantity_${productId}`);
+function updateCartQuantity(lineKey) {
+  const input = document.getElementById(`cart_quantity_${lineKey}`);
   const quantity = input.value;
 
   // Create a form and submit it
@@ -489,12 +492,17 @@ function updateCartQuantity(productId) {
   methodInput.value = 'patch';
   form.appendChild(methodInput);
 
-  // Add product_id
-  const productInput = document.createElement('input');
-  productInput.type = 'hidden';
-  productInput.name = 'product_id';
-  productInput.value = productId;
-  form.appendChild(productInput);
+  // Add product_id + variant_id (from the input's data attributes)
+  ['product_id', 'variant_id'].forEach(function(name) {
+    const dataKey = name === 'product_id' ? 'productId' : 'variantId';
+    const val = input.dataset[dataKey];
+    if (val === undefined || val === '') return;
+    const el = document.createElement('input');
+    el.type = 'hidden';
+    el.name = name;
+    el.value = val;
+    form.appendChild(el);
+  });
 
   // Add quantity
   const quantityInput = document.createElement('input');

@@ -344,7 +344,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
                   ₹<%= product.selling_price %>
                 <% end %>
               </div>
-              <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+              <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
             </div>
           </div>
         <% end %>
@@ -386,7 +386,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
                 ₹<%= product.selling_price %>
               <% end %>
             </div>
-            <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+            <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
           </div>
         </div>
       <% end %>
@@ -454,7 +454,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
               ₹<%= product.selling_price %>
             <% end %>
           </div>
-          <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+          <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
         </div>
       </div>
     <% end %>
@@ -483,7 +483,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.75)}
             <h4 title="<%= product.name %>"><%= product.name %></h4>
             <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
             <div class="pprice">₹<%= product.selling_price %></div>
-            <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)">Add to Cart</button>
+            <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
           </div>
         </div>
       <% end %>

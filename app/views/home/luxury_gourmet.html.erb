@@ -336,7 +336,7 @@ footer{background:var(--black);color:var(--muted);padding:70px 52px 32px;border-
             <% end %>
           </div>
           <% if product.in_stock? %>
-            <button class="btn-add" onclick="addToCart(<%= product.id %>,'<%= j product.name %>',this)">Add to Cart</button>
+            <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
           <% else %>
             <button class="btn-add" disabled style="opacity:.4;cursor:not-allowed">Out of Stock</button>
           <% end %>

@@ -110,7 +110,7 @@ class Storefront::CheckoutController < Storefront::BaseController
       end
 
       product_ids = cart_items.map { |i| i['product_id'].to_i }.uniq
-      products_by_id = Product.where(id: product_ids).index_by(&:id)
+      products_by_id = Product.where(id: product_ids).includes(:product_variants).index_by(&:id)
 
       cart_items.each do |item|
         product = products_by_id[item['product_id'].to_i]
@@ -119,13 +119,23 @@ class Storefront::CheckoutController < Storefront::BaseController
           raise ActiveRecord::Rollback
         end
 
+        variant_id = item['variant_id'].presence&.to_i
+        variant = variant_id ? product.product_variants.find { |v| v.id == variant_id } : nil
+
         quantity = item['quantity'].to_f
-        unless product.can_fulfill_order?(quantity)
-          booking_error = "Only #{product.available_quantity} units of #{product.name} available."
+        unless product.can_fulfill_order?(quantity, variant_id: variant&.id)
+          label = variant ? "#{product.name} (#{variant.label})" : product.name
+          available = variant ? variant.available_stock : product.available_quantity
+          booking_error = "Only #{available} units of #{label} available."
           raise ActiveRecord::Rollback
         end
 
-        @booking.booking_items.build(product: product, quantity: quantity, price: product.selling_price)
+        @booking.booking_items.build(
+          product: product,
+          product_variant: variant,
+          quantity: quantity,
+          price: (item['price'].presence || (variant ? variant.effective_price : product.selling_price))
+        )
       end
 
       unless @booking.save

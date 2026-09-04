@@ -1,0 +1,109 @@
+<%#
+  Shared "Add to Cart" control for the public storefront.
+
+  For a product with 2+ variants it renders a Flipkart-style row of option
+  chips (500g / 1kg / ...), a live price, and an Add button that posts the
+  chosen variant. For every other product it renders exactly the plain button
+  the themes used before, so nothing changes for single-option products.
+
+  Locals:
+    product  - the Product
+    label    - button text ("Add to Cart" / "Add to Bag" / ...)
+    cart_url - POST endpoint (add_item_storefront_cart_path or the customer one)
+
+  The <style>/<script> block is emitted once per request (guarded by an ivar).
+%>
+<% label    = local_assigns.fetch(:label, "Add to Cart") %>
+<% cart_url = local_assigns.fetch(:cart_url) %>
+<% variants = product.has_multiple_quantities? ? product.sorted_variants : [] %>
+
+<% unless @__sv_assets_rendered %>
+  <% @__sv_assets_rendered = true %>
+  <style>
+    .sv-picker{display:flex;flex-direction:column;gap:8px;width:100%}
+    .sv-chips{display:flex;flex-wrap:wrap;gap:6px}
+    .sv-chip{font:inherit;font-size:11.5px;font-weight:700;line-height:1;letter-spacing:.2px;
+      padding:7px 12px;border-radius:999px;border:1.5px solid rgba(0,0,0,.28);
+      background:transparent;color:inherit;cursor:pointer;transition:all .15s}
+    .sv-chip:hover{border-color:rgba(0,0,0,.55)}
+    .sv-chip.is-active{background:#1c7a3e;border-color:#1c7a3e}
+    .sv-chip.is-active span{color:#fff}
+    .sv-chip.is-oos{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+    .sv-price{font-weight:800;font-size:15px}
+  </style>
+  <script>
+    (function(){
+      function toast(msg){
+        var t=document.getElementById('toast');
+        if(!t){ return; }
+        t.textContent=msg;
+        t.classList.add('show');
+        setTimeout(function(){ t.classList.remove('show'); },2200);
+      }
+      function bumpBadge(count){
+        var b=document.querySelector('.cart-badge');
+        if(b){ b.textContent=count; return; }
+        if(count>0){
+          var link=document.querySelector('.cart-link, .nicon[aria-label="Cart"], a[href$="/storefront/cart"], a[href$="/cart"]');
+          if(link){ var s=document.createElement('span'); s.className='cart-badge'; s.textContent=count; link.appendChild(s); }
+        }
+      }
+      window.svSelectChip=function(chip){
+        var wrap=chip.closest('.sv-chips');
+        wrap.querySelectorAll('.sv-chip').forEach(function(c){ c.classList.remove('is-active'); });
+        chip.classList.add('is-active');
+        var picker=chip.closest('.sv-picker');
+        var priceEl=picker.querySelector('[data-sv-price]');
+        if(priceEl){ priceEl.textContent=Math.round(parseFloat(chip.dataset.price)).toLocaleString('en-IN'); }
+      };
+      window.svAddToCart=function(btn){
+        var picker=btn.closest('.sv-picker');
+        var active=picker.querySelector('.sv-chip.is-active')||picker.querySelector('.sv-chip');
+        var orig=btn.textContent;
+        btn.disabled=true; btn.textContent='Adding…';
+        fetch(picker.dataset.cartUrl,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+          body:JSON.stringify({
+            product_id:parseInt(picker.dataset.productId,10),
+            variant_id:active?parseInt(active.dataset.variantId,10):null,
+            quantity:1
+          })
+        }).then(function(r){ return r.json(); }).then(function(data){
+          if(!data.success){
+            alert(data.error||'Could not add item to cart.');
+            btn.disabled=false; btn.textContent=orig; return;
+          }
+          toast('✓ '+(picker.dataset.name||'Item')+' added to cart!');
+          bumpBadge(data.cart_count);
+          btn.textContent='✓ Added!';
+          setTimeout(function(){ btn.disabled=false; btn.textContent=orig; },1600);
+        }).catch(function(){
+          alert('Could not add item to cart.');
+          btn.disabled=false; btn.textContent=orig;
+        });
+      };
+    })();
+  </script>
+<% end %>
+
+<% if variants.size >= 2 %>
+  <% default_v = variants.find { |v| v.available_stock.to_f > 0 } || product.default_variant || variants.first %>
+  <div class="sv-picker" data-product-id="<%= product.id %>" data-cart-url="<%= cart_url %>" data-name="<%= j product.name %>">
+    <div class="sv-chips">
+      <% variants.each do |v| %>
+        <% oos = v.available_stock.to_f <= 0 %>
+        <button type="button"
+                class="sv-chip<%= ' is-active' if v.id == default_v.id %><%= ' is-oos' if oos %>"
+                data-variant-id="<%= v.id %>"
+                data-price="<%= v.effective_price %>"
+                <%= 'disabled' if oos %>
+                onclick="svSelectChip(this)"><span><%= v.label %></span></button>
+      <% end %>
+    </div>
+    <div class="sv-price">₹<span data-sv-price><%= number_with_delimiter(default_v.effective_price.round) %></span></div>
+    <button type="button" class="btn-add" onclick="svAddToCart(this)"><%= label %></button>
+  </div>
+<% else %>
+  <button class="btn-add" onclick="addToCart(<%= product.id %>, '<%= j product.name %>', this)"><%= label %></button>
+<% end %>

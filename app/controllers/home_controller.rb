@@ -144,7 +144,7 @@ class HomeController < ApplicationController
     products = Product.active
                        .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
                        .joins("LEFT JOIN (#{stock_subquery.to_sql}) sq ON sq.product_id = products.id")
-                       .includes(:category, image_attachment: :blob)
+                       .includes(:category, :product_variants, image_attachment: :blob)
                        .references(:category)
                        .order(Arel.sql("categories.display_order ASC NULLS LAST, categories.name ASC, products.name ASC"))
                        .to_a

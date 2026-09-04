@@ -197,6 +197,20 @@
                         <%= form_with url: add_item_customer_cart_path, method: :post, local: true, class: "flex-grow-1" do |f| %>
                           <%= f.hidden_field :product_id, value: product.id %>
                           <%= f.hidden_field :quantity, value: 1 %>
+                          <% if product.has_multiple_quantities? && (variants = product.sorted_variants).size >= 2 %>
+                            <% default_v = variants.find { |v| v.available_stock.to_f > 0 } || variants.first %>
+                            <div class="btn-group btn-group-sm flex-wrap mb-2 w-100" role="group" aria-label="Choose option">
+                              <% variants.each do |v| %>
+                                <% oos = v.available_stock.to_f <= 0 %>
+                                <input type="radio" class="btn-check" name="variant_id" id="v-<%= product.id %>-<%= v.id %>"
+                                       value="<%= v.id %>" autocomplete="off"
+                                       <%= 'checked' if v.id == default_v.id %> <%= 'disabled' if oos %>>
+                                <label class="btn btn-outline-primary <%= 'text-decoration-line-through' if oos %>" for="v-<%= product.id %>-<%= v.id %>">
+                                  <%= v.label %> · ₹<%= v.effective_price.round %>
+                                </label>
+                              <% end %>
+                            </div>
+                          <% end %>
                           <%= f.submit "Add to Cart", class: "btn btn-primary btn-sm w-100" %>
                         <% end %>
                       <% else %>

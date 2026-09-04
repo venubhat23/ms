@@ -123,8 +123,7 @@ class Affiliate::BookingsController < Affiliate::ApplicationController
         product_id:          item[:product_id],
         product_variant_id:  item[:product_variant_id].presence,
         quantity:            qty,
-        price:               price,
-        total_price:         (qty * price).round(2)
+        price:               price
       )
     end
 

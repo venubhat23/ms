@@ -177,7 +177,7 @@ class Customer::CheckoutController < Customer::BaseController
 
         # Pre-load all products in ONE query (was N separate Product.find calls)
         product_ids = cart_items.map { |i| (i[:id] || i['id']).to_i }
-        products_by_id = Product.where(id: product_ids).index_by(&:id)
+        products_by_id = Product.where(id: product_ids).includes(:product_variants).index_by(&:id)
 
         # Build booking items — pass product object so calculate_totals has associations in memory
         cart_items.each do |item|
@@ -189,11 +189,15 @@ class Customer::CheckoutController < Customer::BaseController
             raise ActiveRecord::Rollback
           end
 
+          raw_variant = item[:variantId] || item['variantId'] || item[:variant_id] || item['variant_id']
+          variant = raw_variant.present? ? product.product_variants.find { |v| v.id == raw_variant.to_i } : nil
+
           quantity = (item[:quantity] || item['quantity']).to_f
           price    = (item[:price]    || item['price']).to_f
+          price    = (variant ? variant.effective_price : product.selling_price).to_f if price <= 0
 
-          @booking.booking_items.build(product: product, quantity: quantity, price: price)
-          Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
+          @booking.booking_items.build(product: product, product_variant: variant, quantity: quantity, price: price)
+          Rails.logger.info "Added booking item: #{product.name}#{" (#{variant.label})" if variant} x #{quantity} @ ₹#{price}"
         end
 
         # Single save — before_validation :calculate_totals fires automatically
@@ -351,7 +355,7 @@ class Customer::CheckoutController < Customer::BaseController
 
     # Pre-load all cart products in ONE query instead of N separate finds
     product_ids = @cart[:items].map { |i| i['product_id'].to_i }.uniq
-    products_by_id = Product.where(id: product_ids).index_by(&:id)
+    products_by_id = Product.where(id: product_ids).includes(:product_variants).index_by(&:id)
 
     # Build booking items — pass product object so calculate_totals has associations in memory
     @cart[:items].each do |item|
@@ -361,11 +365,14 @@ class Customer::CheckoutController < Customer::BaseController
         return nil
       end
 
-      quantity = item['quantity'].to_f
-      price    = product.selling_price.to_f
+      variant_id = item['variant_id'].presence&.to_i
+      variant = variant_id ? product.product_variants.find { |v| v.id == variant_id } : nil
 
-      booking.booking_items.build(product: product, quantity: quantity, price: price)
-      Rails.logger.info "Added booking item: #{product.name} x #{quantity} @ ₹#{price}"
+      quantity = item['quantity'].to_f
+      price    = (item['price'].presence || (variant ? variant.effective_price : product.selling_price)).to_f
+
+      booking.booking_items.build(product: product, product_variant: variant, quantity: quantity, price: price)
+      Rails.logger.info "Added booking item: #{product.name}#{" (#{variant.label})" if variant} x #{quantity} @ ₹#{price}"
     end
 
     # Single save — before_validation :calculate_totals fires automatically

@@ -137,6 +137,8 @@
   transition: all 0.2s ease;
   border: none;
   cursor: pointer;
+  padding: 0;
+  font: inherit;
 }
 
 .ref-action-icon:hover {
@@ -368,9 +370,11 @@
                         <i class="bi bi-person-check"></i>
                       <% end %>
                     <% end %>
-                    <% if referral.status == 'registered' && referral.customer.blank? %>
-                      <%= link_to mark_converted_admin_referral_path(referral),
-                          data: { turbo_method: :patch, turbo_confirm: "Mark this referral as converted?" },
+                    <% if referral.status == 'registered' %>
+                      <%= button_to mark_converted_admin_referral_path(referral),
+                          method: :patch,
+                          form: { style: "display:contents",
+                                  data: { turbo_confirm: "Mark this referral as converted?#{' A customer record will be created for the referred person.' if referral.customer.blank?}" } },
                           class: "ref-action-icon convert", title: "Mark as Converted" do %>
                         <i class="bi bi-check-circle"></i>
                       <% end %>

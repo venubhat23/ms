@@ -5,7 +5,7 @@ class Customer::ProductsController < Customer::BaseController
     # :stock_batches preloaded so in_stock?/available_quantity (called per
     # card in the view) use Product#cached_total_batch_stock's already-built
     # "loaded?" fast path instead of a fresh SUM query per product.
-    @products = Product.active.includes(:category, :approved_reviews, :stock_batches, image_attachment: :blob)
+    @products = Product.active.includes(:category, :approved_reviews, :stock_batches, :product_variants, image_attachment: :blob)
 
     # Apply filters
     @products = @products.by_category(params[:category_id]) if params[:category_id].present?

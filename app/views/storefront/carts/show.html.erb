@@ -40,21 +40,24 @@ h1.page-title{font-size:24px;font-weight:700;margin-bottom:20px}
     <% if @cart_items.blank? %>
       <div class="empty">Your cart is empty. <a href="/" style="color:#b08d3f;font-weight:600;">Start shopping →</a></div>
     <% else %>
-      <% @cart_items.each do |item| %>
-        <div class="item" data-product-id="<%= item['product_id'] %>">
+      <% @cart_items.each_with_index do |item, i| %>
+        <div class="item" data-row="<%= i %>">
           <img src="<%= item['image_url'] %>" alt="" onerror="this.style.display='none'">
           <div class="info">
-            <div class="name"><%= item['product_name'] %></div>
+            <div class="name"><%= item['product_name'] %><%= " — #{item['variant_label']}" if item['variant_label'].present? %></div>
             <div class="price">₹<%= item['price'] %> each</div>
           </div>
           <div class="qty-ctrl">
-            <button onclick="changeQty(<%= item['product_id'] %>, -1)">−</button>
+            <button onclick="changeQty(<%= i %>, -1)">−</button>
             <span><%= item['quantity'].to_i %></span>
-            <button onclick="changeQty(<%= item['product_id'] %>, 1)">+</button>
+            <button onclick="changeQty(<%= i %>, 1)">+</button>
           </div>
-          <button class="remove-link" onclick="removeItem(<%= item['product_id'] %>)">Remove</button>
+          <button class="remove-link" onclick="removeItem(<%= i %>)">Remove</button>
         </div>
       <% end %>
+      <script>
+        window.__cartRows = <%= raw @cart_items.map { |it| { product_id: it['product_id'].to_i, variant_id: it['variant_id'].presence&.to_i } }.to_json %>;
+      </script>
       <div class="tot-row"><span>Total</span><span>₹<%= @cart_total.round(2) %></span></div>
       <a href="<%= storefront_checkout_path %>" class="btn">Proceed to Checkout</a>
     <% end %>
@@ -62,28 +65,30 @@ h1.page-title{font-size:24px;font-weight:700;margin-bottom:20px}
 </div>
 
 <script>
-function currentQty(productId) {
-  const row = document.querySelector(`.item[data-product-id="${productId}"]`);
+function currentQty(rowIndex) {
+  const row = document.querySelector(`.item[data-row="${rowIndex}"]`);
   return row ? parseInt(row.querySelector('.qty-ctrl span').textContent) : 0;
 }
 
-async function changeQty(productId, delta) {
-  const newQty = currentQty(productId) + delta;
+async function changeQty(rowIndex, delta) {
+  const line = window.__cartRows[rowIndex] || {};
+  const newQty = currentQty(rowIndex) + delta;
   const res = await fetch('<%= update_item_storefront_cart_path %>', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: productId, quantity: newQty })
+    body: JSON.stringify({ product_id: line.product_id, variant_id: line.variant_id, quantity: newQty })
   });
   const data = await res.json();
   if (data.success) window.location.reload();
   else alert(data.error || 'Could not update cart.');
 }
 
-async function removeItem(productId) {
+async function removeItem(rowIndex) {
+  const line = window.__cartRows[rowIndex] || {};
   const res = await fetch('<%= remove_item_storefront_cart_path %>', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: productId })
+    body: JSON.stringify({ product_id: line.product_id, variant_id: line.variant_id })
   });
   const data = await res.json();
   if (data.success) window.location.reload();

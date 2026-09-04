@@ -1003,6 +1003,13 @@ class Booking < ApplicationRecord
     return unless %w[delivered completed].include?(status) && !%w[delivered completed].include?(status_previously_was)
     return if delivery_franchise_id.present?
 
+    # Admin-side wholesale "Franchise Booking" (approved franchise stock
+    # request, or admin/bookings/new's Franchise Booking toggle): central
+    # stock was already deducted from the main store at creation by
+    # BookingItem#reduce_product_stock, which runs for these even in
+    # allocation-at-delivery mode. Deducting again here would double-count.
+    return if franchise_wholesale_pricing?
+
     if booked_by == 'franchise' && franchise_id.present?
       result = allocate_franchise_inventory
       update_column(:stock_allocated_at, Time.current) unless result == false
@@ -1013,62 +1020,94 @@ class Booking < ApplicationRecord
 
   # Central inventory: FIFO-allocates each booking_item and mirrors the
   # deduction into a SaleItem (profit tracking, and what release_allocated_inventory
-  # restores from on cancel/return). Reverts the status change and adds a
-  # validation error if any item can't be fully covered. Shared by the
-  # immediate ("confirmed") and deferred ("delivered"/"completed") allocation
-  # paths above — same mechanics, just triggered at a different status.
+  # restores from on cancel/return). Shared by the immediate ("confirmed") and
+  # deferred ("delivered"/"completed") allocation paths above — same mechanics,
+  # just triggered at a different status.
+  #
+  # Admin bookings (and any skip_stock_check booking) are allowed to oversell:
+  # whatever the central pool can't cover is pushed onto a batch as negative
+  # quantity_remaining instead of blocking, mirroring
+  # BookingItem#reduce_product_stock's overflow branch. Every other channel
+  # (customer/public/mobile) keeps the old behaviour — revert the status change
+  # and add a validation error when an item can't be fully covered.
   def perform_central_stock_allocation!
-    inventory_service = InventoryService.new
+    oversell_allowed = booked_by == 'admin' || skip_stock_check
 
-    items = booking_items.map { |item| { product_id: item.product_id, quantity: item.quantity } }
+    unless oversell_allowed
+      insufficient_items = booking_items.filter_map do |item|
+        next if item.product_id.blank? || item.quantity.to_f <= 0
+        avail = StockBatch.total_available(item.product_id)
+        next if avail >= item.quantity.to_f
+        { product: item.product&.name, available: avail, requested: item.quantity }
+      end
 
-    insufficient_items = []
-    allocation_data = []
-
-    items.each do |item|
-      availability = inventory_service.check_availability(item[:product_id], item[:quantity])
-      if availability[:available]
-        allocation_data << inventory_service.allocate_stock(item[:product_id], item[:quantity])
-      else
-        insufficient_items << {
-          product: Product.find(item[:product_id]).name,
-          available: availability[:available_stock],
-          requested: item[:quantity],
-          shortage: availability[:shortage]
-        }
+      if insufficient_items.any?
+        update_column(:status, status_previously_was) if status_previously_was.present?
+        errors.add(:status, "Insufficient inventory: #{insufficient_items.map { |i|
+          "#{i[:product]} (need #{i[:requested]}, have #{i[:available]})"
+        }.join(', ')}")
+        return false
       end
     end
 
-    if insufficient_items.any?
-      update_column(:status, status_previously_was) if status_previously_was.present?
-      errors.add(:status, "Insufficient inventory: #{insufficient_items.map { |item|
-        "#{item[:product]} (need #{item[:requested]}, have #{item[:available]})"
-      }.join(', ')}")
-      return false
+    booking_items.each do |item|
+      next if item.product_id.blank? || item.quantity.to_f <= 0
+
+      product = item.product
+      result  = StockBatch.fifo_allocation(item.product_id, item.quantity.to_f)
+
+      result[:allocation].each do |line|
+        line[:batch].reduce_stock!(line[:quantity])
+        record_central_sale_item(line[:batch], line[:quantity], line[:purchase_price], line[:selling_price])
+      end
+
+      shortage = result[:shortage].to_f
+      if shortage.positive?
+        overflow = result[:allocation].last&.dig(:batch) ||
+                   product&.stock_batches&.order(:batch_date, :created_at)&.last
+        if overflow
+          # update_columns, not save! — deliberately pushes quantity_remaining
+          # negative, which StockBatch's own validation would otherwise reject.
+          overflow.update_columns(
+            quantity_remaining: overflow.quantity_remaining.to_f - shortage,
+            status: 'exhausted'
+          )
+          record_central_sale_item(overflow, shortage, overflow.purchase_price, overflow.selling_price)
+        else
+          Rails.logger.warn "Booking ##{booking_number}: #{product&.name} oversold by #{shortage}, no batch to absorb it"
+        end
+      end
+
+      # Denormalised products.stock: deduct the full line quantity so it
+      # reflects the deficit (goes negative on an oversell), atomically in case
+      # the same product appears on more than one line.
+      Product.where(id: item.product_id).update_all(["stock = COALESCE(stock, 0) - ?", item.quantity.to_f])
     end
 
-    allocation_data.flatten.each do |allocation|
-      inventory_service.reduce_stock([allocation])
-
-      SaleItem.create!(
-        booking: self,
-        product: allocation[:batch].product,
-        stock_batch: allocation[:batch],
-        quantity: allocation[:quantity],
-        selling_price: allocation[:selling_price],
-        purchase_price: allocation[:purchase_price]
-      )
-    end
-
-    Rails.logger.info "Inventory allocated successfully for booking ##{booking_number}"
+    Rails.logger.info "Inventory allocated for booking ##{booking_number}#{' (oversell permitted)' if oversell_allowed}"
     true
-  rescue InventoryService::InsufficientStockError => e
-    update_column(:status, status_previously_was) if status_previously_was.present?
-    errors.add(:status, "Inventory allocation failed: #{e.message}")
-    false
   rescue => e
     Rails.logger.error "Error allocating inventory for booking ##{booking_number}: #{e.message}"
     false
+  end
+
+  # SaleItem needs a batch and strictly-positive prices. Skip (with a log) when
+  # an overflow/oversold line can't supply valid ones rather than aborting the
+  # whole allocation — the stock movement itself already happened.
+  def record_central_sale_item(batch, quantity, purchase_price, selling_price)
+    return if batch.nil? || quantity.to_f <= 0
+    return if purchase_price.to_f <= 0 || selling_price.to_f <= 0
+
+    SaleItem.create!(
+      booking: self,
+      product: batch.product,
+      stock_batch: batch,
+      quantity: quantity,
+      selling_price: selling_price,
+      purchase_price: purchase_price
+    )
+  rescue => e
+    Rails.logger.error "Booking ##{booking_number}: could not record SaleItem for batch ##{batch&.id}: #{e.message}"
   end
 
   def release_allocated_inventory

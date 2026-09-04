@@ -253,57 +253,55 @@
                     end
                   %>
                   <div class="mt-3" id="booking-stock-section-<%= product.id %>">
-                    <% if effective_stock > 0 %>
-                      <!-- Quantity Selector -->
-                      <div class="mb-3">
-                        <label class="form-label fw-bold small">
-                          Quantity
-                          <span class="badge bg-info-subtle text-info ms-1" id="booking-max-stock-<%= product.id %>">
-                            Max: <%= effective_stock.to_i %>
-                          </span>
-                        </label>
-                        <div class="input-group">
-                          <button class="btn btn-outline-primary" type="button" onclick="decreaseQuantity(<%= product.id %>)" style="width: 45px; height: 45px; border-radius: 8px 0 0 8px;">
-                            <i class="bi bi-dash fw-bold"></i>
-                          </button>
-                          <input type="number" id="qty-<%= product.id %>" value="1" min="0.1" step="0.1" max="<%= effective_stock %>" class="form-control text-center fw-bold" style="height: 45px; font-size: 1.1rem;" onchange="validateQuantity(<%= product.id %>, <%= effective_stock %>)">
-                          <button class="btn btn-outline-primary" type="button" onclick="increaseQuantity(<%= product.id %>)" style="width: 45px; height: 45px; border-radius: 0 8px 8px 0;">
-                            <i class="bi bi-plus fw-bold"></i>
-                          </button>
-                        </div>
-
-                        <% if product.low_stock? && !product.has_multiple_quantities? %>
-                          <small class="text-warning d-block mt-1">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            <strong>Low Stock!</strong> Only <%= current_stock.to_i %> left
-                          </small>
-                        <% end %>
-                      </div>
-
-                      <!-- Add to Cart Button -->
-                      <%
-                        cart_final_price = rounded_final
-                        cart_base_price = rounded_base
-                        cart_gst_rate = gst_rate
-                      %>
-                      <button class="btn btn-primary w-100"
-                              id="booking-add-btn-<%= product.id %>"
-                              onclick="bookingAddToCart(<%= product.id %>, '<%= j(product.name) %>', <%= cart_final_price %>, <%= effective_stock %>, <%= cart_base_price %>, <%= cart_gst_rate %>, <%= b2b_rounded_final %>)"
-                              data-base-price="<%= cart_base_price %>"
-                              data-gst-rate="<%= cart_gst_rate %>"
-                              data-final-price="<%= cart_final_price %>"
-                              data-has-variants="<%= product.has_multiple_quantities? ? 'true' : 'false' %>"
-                              <%= 'disabled' if effective_stock <= 0 %>>
-                        <i class="bi bi-cart-plus me-2"></i>Add to Cart
-                      </button>
-                    <% else %>
-                      <div class="text-center">
-                        <button class="btn btn-danger w-100" disabled>
-                          <i class="bi bi-x-circle me-2"></i>SOLD OUT
+                    <%# Admin bookings can oversell — an out-of-stock product still
+                        books and its stock goes negative (see BookingsController
+                        #create skip_stock_check). So no "SOLD OUT" lock-out here. %>
+                    <!-- Quantity Selector -->
+                    <div class="mb-3">
+                      <label class="form-label fw-bold small">
+                        Quantity
+                        <span class="badge <%= effective_stock > 0 ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning' %> ms-1" id="booking-max-stock-<%= product.id %>">
+                          <%= effective_stock > 0 ? "Max: #{effective_stock.to_i}" : 'Backorder' %>
+                        </span>
+                      </label>
+                      <div class="input-group">
+                        <button class="btn btn-outline-primary" type="button" onclick="decreaseQuantity(<%= product.id %>)" style="width: 45px; height: 45px; border-radius: 8px 0 0 8px;">
+                          <i class="bi bi-dash fw-bold"></i>
                         </button>
-                        <small class="text-muted mt-1 d-block">Product is currently out of stock</small>
+                        <input type="number" id="qty-<%= product.id %>" value="1" min="0.1" step="0.1" max="<%= effective_stock > 0 ? effective_stock : '' %>" class="form-control text-center fw-bold" style="height: 45px; font-size: 1.1rem;" onchange="validateQuantity(<%= product.id %>, <%= effective_stock %>)">
+                        <button class="btn btn-outline-primary" type="button" onclick="increaseQuantity(<%= product.id %>)" style="width: 45px; height: 45px; border-radius: 0 8px 8px 0;">
+                          <i class="bi bi-plus fw-bold"></i>
+                        </button>
                       </div>
-                    <% end %>
+
+                      <% if effective_stock <= 0 %>
+                        <small class="text-warning d-block mt-1">
+                          <i class="bi bi-exclamation-triangle-fill"></i>
+                          <strong>Out of stock.</strong> Booking anyway — stock will go negative.
+                        </small>
+                      <% elsif product.low_stock? && !product.has_multiple_quantities? %>
+                        <small class="text-warning d-block mt-1">
+                          <i class="bi bi-exclamation-triangle-fill"></i>
+                          <strong>Low Stock!</strong> Only <%= current_stock.to_i %> left
+                        </small>
+                      <% end %>
+                    </div>
+
+                    <!-- Add to Cart Button -->
+                    <%
+                      cart_final_price = rounded_final
+                      cart_base_price = rounded_base
+                      cart_gst_rate = gst_rate
+                    %>
+                    <button class="btn btn-primary w-100"
+                            id="booking-add-btn-<%= product.id %>"
+                            onclick="bookingAddToCart(<%= product.id %>, '<%= j(product.name) %>', <%= cart_final_price %>, <%= effective_stock %>, <%= cart_base_price %>, <%= cart_gst_rate %>, <%= b2b_rounded_final %>)"
+                            data-base-price="<%= cart_base_price %>"
+                            data-gst-rate="<%= cart_gst_rate %>"
+                            data-final-price="<%= cart_final_price %>"
+                            data-has-variants="<%= product.has_multiple_quantities? ? 'true' : 'false' %>">
+                      <i class="bi bi-cart-plus me-2"></i>Add to Cart
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1029,18 +1027,22 @@ function bookingUpdateVariant(selectEl, productId) {
   const hiddenInput = document.getElementById(`booking-selected-variant-${productId}`);
   if (hiddenInput) hiddenInput.value = variantId;
 
-  // Update stock max & badge
+  // Update stock max & badge. stock <= 0 => oversell/backorder: no max, no lock.
+  const hasStock = stock > 0;
   const qtyInput = document.getElementById(`qty-${productId}`);
-  if (qtyInput) { qtyInput.max = stock; qtyInput.value = 1; }
+  if (qtyInput) { qtyInput.max = hasStock ? stock : ''; qtyInput.value = 1; }
   const maxBadge = document.getElementById(`booking-max-stock-${productId}`);
-  if (maxBadge) maxBadge.textContent = 'Max: ' + stock;
+  if (maxBadge) {
+    maxBadge.textContent = hasStock ? 'Max: ' + stock : 'Backorder';
+    maxBadge.className = 'badge ms-1 ' + (hasStock ? 'bg-info-subtle text-info' : 'bg-warning-subtle text-warning');
+  }
 
   // Update add button
   const btn = document.getElementById(`booking-add-btn-${productId}`);
   if (btn) {
     const gstRateVal = parseFloat(btn.dataset.gstRate || 0);
     const deflatedBasePrice = gstRateVal > 0 ? price / (1 + gstRateVal / 100) : price;
-    btn.disabled = stock <= 0;
+    btn.disabled = false;
     btn.dataset.finalPrice = price;
     btn.dataset.basePrice = deflatedBasePrice;
     btn.onclick = function() {
@@ -1254,7 +1256,9 @@ function removeFromCart(productId) {
 // Increase cart item quantity
 function increaseCartQuantity(productId) {
   if (cart[productId]) {
-    if (cart[productId].quantity < cart[productId].stock) {
+    // stock <= 0 means the product is being oversold on purpose (admin
+    // backorder) — no ceiling to enforce.
+    if (!(cart[productId].stock > 0) || cart[productId].quantity < cart[productId].stock) {
       cart[productId].quantity += 1;
       cart[productId].quantity = parseFloat(cart[productId].quantity.toFixed(1));
       updateCartDisplay();
@@ -2444,7 +2448,8 @@ function increaseQuantity(productId) {
   const input = document.getElementById(`qty-${productId}`);
   const max = parseFloat(input.max);
   const current = parseFloat(input.value) || 1;
-  if (current < max) {
+  // No `max` attribute (or a non-positive one) => out-of-stock backorder, no ceiling.
+  if (!(max > 0) || current < max) {
     input.value = (current + 1).toFixed(1);
   }
 }
@@ -2464,7 +2469,7 @@ function validateQuantity(productId, maxStock) {
   const input = document.getElementById(`qty-${productId}`);
   const value = parseFloat(input.value) || 1;
 
-  if (value > maxStock) {
+  if (maxStock > 0 && value > maxStock) {
     input.value = maxStock;
     showNotification(`Maximum ${maxStock} items available for this product`, 'warning');
   } else if (value < 0.1) {

@@ -23,7 +23,14 @@ class BookingItem < ApplicationRecord
 
   def check_stock_availability
     return unless quantity.present? && product.present?
-    return if booking&.skip_stock_check || SystemSetting.stock_allocation_at_delivery_enabled?
+    # skip_stock_check bookings (storefront/mobile pre-bookings, and the
+    # franchise-stock-request approval booking) are always allowed to
+    # oversell. Otherwise, allocation-at-delivery mode skips this check for
+    # customer sales — but not for an admin-side wholesale Franchise Booking,
+    # which deducts central stock at creation (see reduce_product_stock) and
+    # so still needs its availability validated up front.
+    return if booking&.skip_stock_check ||
+              (SystemSetting.stock_allocation_at_delivery_enabled? && !booking&.franchise_wholesale_pricing?)
 
     available_stock = stock_batches_scope.sum(:quantity_remaining)
 
@@ -41,7 +48,16 @@ class BookingItem < ApplicationRecord
     return unless quantity.present? && product.present?
     # Stock allocation deferred to delivery/franchise-assignment time (see
     # Booking#allocate_inventory_at_delivery) — nothing to reduce yet.
-    return if SystemSetting.stock_allocation_at_delivery_enabled?
+    #
+    # Exception: an admin-side wholesale "Franchise Booking" — the one built
+    # by FranchiseStockRequest#approve! and by admin/bookings/new's Franchise
+    # Booking toggle — is a real stock movement OUT of the main store the
+    # moment it's created/approved, not a customer sale awaiting delivery. It
+    # always deducts central stock now regardless of this setting, going
+    # negative if the main store is short (the skip_stock_check overflow
+    # branch below). Booking#allocate_inventory_at_delivery skips these to
+    # avoid a second deduction.
+    return if SystemSetting.stock_allocation_at_delivery_enabled? && !booking&.franchise_wholesale_pricing?
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     remaining_to_allocate = quantity.to_f

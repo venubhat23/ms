@@ -159,9 +159,14 @@ class Admin::BookingsController < Admin::ApplicationController
     @booking = Booking.new
     @booking.booking_items.build
 
+    # Stock shown here is every active batch for the product, regardless of
+    # which store it sits in — the same number Product#total_batch_stock and
+    # /admin/product-summary report, so the booking screen no longer disagrees
+    # with the rest of the admin panel when a product's only stock happens to
+    # be assigned to a store rather than the central (store_id IS NULL) pool.
     @products = Product.active
                        .includes(:category, :product_variants, image_attachment: :blob)
-                       .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0 AND stock_batches.store_id IS NULL")
+                       .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0")
                        .select(
                          "products.*,
                           COALESCE(SUM(stock_batches.quantity_remaining), 0) as cached_stock"
@@ -184,6 +189,12 @@ class Admin::BookingsController < Admin::ApplicationController
   def create
     @booking = Booking.new(booking_params.except(:discount_amount, :coupon_code))
     @booking.user = current_user
+
+    # Admin bookings sell like franchise self-service bookings: never blocked by
+    # "out of stock". BookingItem#reduce_product_stock pushes the batch (and the
+    # denormalized products.stock) negative for the unmet shortfall instead of
+    # refusing to save. See Booking#skip_stock_check.
+    @booking.skip_stock_check = true
 
     # Auto-set franchise_id for franchise users
     if current_user.franchise?
@@ -372,6 +383,9 @@ class Admin::BookingsController < Admin::ApplicationController
 
   def update
     @list_state = list_state_params
+
+    # Same oversell rule as #create — edits are never blocked by stock either.
+    @booking.skip_stock_check = true
 
     unless validate_stock_availability(@booking, is_update: true)
       @products = Product.active
@@ -1200,62 +1214,12 @@ class Admin::BookingsController < Admin::ApplicationController
     params.require(:customer).permit(:first_name, :last_name, :email, :mobile)
   end
 
-  def validate_stock_availability(booking, is_update: false)
-    stock_errors = []
-
-    active_items = booking.booking_items.reject(&:marked_for_destruction?)
-                          .select { |i| i.product_id.present? && i.quantity.present? && i.quantity > 0 }
-
-    product_ids  = active_items.map(&:product_id).uniq
-    variant_ids  = active_items.map(&:product_variant_id).compact.uniq
-
-    products_by_id = Product.where(id: product_ids).index_by(&:id)
-    variants_by_id = variant_ids.any? ? ProductVariant.where(id: variant_ids).index_by(&:id) : {}
-
-    active_items.each do |item|
-      product = products_by_id[item.product_id]
-      next unless product
-
-      # Admin bookings sell from central inventory only (store_id IS NULL)
-      if product.has_multiple_quantities? && item.product_variant_id.present?
-        variant = variants_by_id[item.product_variant_id]
-        available_stock = variant ? variant.available_stock.to_f : 0.0
-      else
-        available_stock = StockBatch.available_for_product(product.id, store_id: nil).sum(:quantity_remaining).to_f
-      end
-
-      # For updates, add back the current item's quantity if it exists
-      if is_update && item.persisted? && item.quantity_changed?
-        available_stock += (item.quantity_was || 0)
-      end
-
-      if item.quantity > available_stock
-        stock_errors << {
-          product: product,
-          requested: item.quantity,
-          available: available_stock,
-          item: item
-        }
-      end
-    end
-
-    if stock_errors.any?
-      stock_errors.each do |error|
-        booking.errors.add(:base,
-          "#{error[:product].name}: Only #{error[:available]} units available, but #{error[:requested]} requested")
-
-        # Also add error to the specific booking item
-        error[:item].errors.add(:quantity,
-          "only #{error[:available]} units available")
-      end
-
-      flash.now[:alert] = "Stock validation failed: #{stock_errors.map { |e|
-        "#{e[:product].name} (Available: #{e[:available]}, Requested: #{e[:requested]})"
-      }.join(', ')}"
-
-      return false
-    end
-
+  # Admin bookings are never blocked by stock (see #create — skip_stock_check).
+  # An out-of-stock product still books; BookingItem#reduce_product_stock pushes
+  # the batch and products.stock negative for the shortfall. Kept as a method
+  # (rather than deleting the two call sites) so the create/update flow reads
+  # the same as before — it just always says "yes".
+  def validate_stock_availability(_booking, is_update: false)
     true
   end
 

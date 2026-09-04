@@ -8,6 +8,10 @@
 .fsr-cart-item { background:#f9fafb; border-radius:10px; padding:0.75rem 1rem; margin-bottom:0.5rem; position:relative; }
 .fsr-cart-remove { position:absolute;top:0.5rem;right:0.5rem;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:1.1rem; }
 .fsr-cart-remove:hover { color:#dc3545; }
+/* Hide native number spinners — we use our own +/- buttons, and the spinner clips the digits in a narrow field */
+.fsr-qty::-webkit-outer-spin-button,
+.fsr-qty::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.fsr-qty { -moz-appearance:textfield; appearance:textfield; font-size:0.95rem; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -125,7 +129,7 @@ function fsrRenderCard(p) {
         <div class="mt-auto">
           <div class="input-group input-group-sm mb-2">
             <button class="btn btn-outline-secondary" type="button" onclick="fsrDec(${p.id})" style="border-radius:6px 0 0 6px;"><i class="bi bi-dash"></i></button>
-            <input type="number" id="fsr-qty-${p.id}" value="1" min="1" step="1" class="form-control text-center fw-bold" style="max-width:54px;">
+            <input type="number" id="fsr-qty-${p.id}" value="1" min="1" step="1" class="form-control text-center fw-bold fsr-qty" style="max-width:60px;">
             <button class="btn btn-outline-secondary" type="button" onclick="fsrInc(${p.id})" style="border-radius:0 6px 6px 0;"><i class="bi bi-plus"></i></button>
           </div>
           <button class="btn btn-primary btn-sm w-100" onclick="fsrAdd(${p.id})"><i class="bi bi-plus-lg me-1"></i>Add to Request</button>
@@ -187,6 +191,7 @@ function fsrAdd(id){
 
 function fsrRemove(idx){ fsrCart=fsrCart.filter(i=>i.idx!==idx); fsrRenderCart(); fsrUpdateBadge(); }
 function fsrQtyChange(idx,val){ const i=fsrCart.find(i=>i.idx===idx); if(i){i.qty=Math.max(1,parseInt(val)||1);} fsrRenderHiddenFields(); }
+function fsrCartStep(idx,delta){ const i=fsrCart.find(i=>i.idx===idx); if(!i) return; i.qty=Math.max(1,i.qty+delta); fsrRenderCart(); fsrUpdateBadge(); }
 
 function fsrRenderCart(){
   const items=document.getElementById('fsrCartItems');
@@ -200,9 +205,11 @@ function fsrRenderCart(){
         <div class="flex-grow-1">
           <div class="fw-semibold small">${esc(item.name)}</div>
         </div>
-        <div style="width:90px;">
+        <div class="input-group input-group-sm" style="width:104px;">
+          <button class="btn btn-outline-secondary" type="button" onclick="fsrCartStep(${item.idx},-1)"><i class="bi bi-dash"></i></button>
           <input type="number" value="${item.qty}" min="1" step="1"
-                 class="form-control form-control-sm text-center" onchange="fsrQtyChange(${item.idx},this.value)">
+                 class="form-control text-center fw-bold fsr-qty" onchange="fsrQtyChange(${item.idx},this.value)">
+          <button class="btn btn-outline-secondary" type="button" onclick="fsrCartStep(${item.idx},1)"><i class="bi bi-plus"></i></button>
         </div>
       </div>
     </div>`).join('');

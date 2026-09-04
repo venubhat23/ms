@@ -418,7 +418,7 @@
   }
 
   document.addEventListener('click', function(e) {
-    var addBtn = e.target.closest('.add-row');
+    var addBtn = e.target.closest('.add-row-btn');
     if (addBtn) {
       var modalContent = addBtn.closest('.modal-content');
       var container = modalContent.querySelector('.' + addBtn.getAttribute('data-target') + '-rows');

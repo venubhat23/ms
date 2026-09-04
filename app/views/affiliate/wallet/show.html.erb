@@ -68,6 +68,7 @@
               <th class="border-0">Date</th>
               <th class="border-0">Description</th>
               <th class="border-0">Type</th>
+              <th class="border-0">Booking Amount</th>
               <th class="border-0">Amount</th>
               <th class="border-0">Balance After</th>
             </tr>
@@ -81,6 +82,13 @@
                   <span class="badge bg-<%= txn.transaction_color %>">
                     <i class="fas fa-<%= txn.transaction_icon %> me-1"></i><%= txn.transaction_type.capitalize %>
                   </span>
+                </td>
+                <td class="small text-muted">
+                  <% if txn.booking %>
+                    ₹<%= number_with_precision(txn.booking.total_amount, precision: 2) %>
+                  <% else %>
+                    —
+                  <% end %>
                 </td>
                 <td class="fw-semibold"><%= txn.credit? ? '+' : '-' %><%= txn.formatted_amount %></td>
                 <td>₹<%= number_with_precision(txn.balance_after, precision: 2) %></td>

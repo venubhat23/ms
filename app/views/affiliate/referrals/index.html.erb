@@ -192,10 +192,10 @@ function applyFilters() {
                       <i class="fas fa-eye"></i>
                     <% end %>
 
-                    <% if referral.status == 'pending' %>
+                    <% if referral.status == 'pending' || (referral.status == 'registered' && referral.customer.blank?) %>
                       <%= button_to mark_registered_affiliate_referral_path(referral), method: :patch,
-                          class: "btn btn-sm btn-outline-info", title: "Mark as Registered",
-                          data: { confirm: "Mark this referral as registered?" },
+                          class: "btn btn-sm btn-outline-info", title: "Mark as Registered & create customer",
+                          data: { confirm: "This will create a customer record for this referral. Continue?" },
                           form: { style: "display: inline;" } do %>
                         <i class="fas fa-user-check"></i>
                       <% end %>

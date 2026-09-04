@@ -365,12 +365,12 @@
                         <i class="bi bi-person-lines-fill"></i>
                       <% end %>
                     <% end %>
-                    <% if referral.status == 'pending' %>
+                    <% if referral.status == 'pending' && referral.customer.blank? %>
                       <%= link_to register_admin_referral_path(referral), class: "ref-action-icon register", title: "Mark as Registered" do %>
                         <i class="bi bi-person-check"></i>
                       <% end %>
                     <% end %>
-                    <% if referral.status == 'registered' %>
+                    <% if referral.status == 'registered' || (referral.status == 'pending' && referral.customer.present?) %>
                       <%= button_to mark_converted_admin_referral_path(referral),
                           method: :patch,
                           form: { style: "display:contents",

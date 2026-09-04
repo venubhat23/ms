@@ -318,9 +318,10 @@ class Franchise::BookingsController < Franchise::BaseController
   def convert_to_order
     if @booking.order.present?
       redirect_to franchise_order_path(@booking.order), notice: 'Order already exists for this booking.'
-    else
-      order = @booking.convert_to_order!
+    elsif (order = @booking.convert_to_order!)
       redirect_to franchise_order_path(order), notice: 'Order created successfully!'
+    else
+      redirect_to franchise_booking_path(@booking), alert: 'Converting a booking into an order is currently unavailable.'
     end
   end
 

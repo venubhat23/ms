@@ -711,6 +711,16 @@ class Booking < ApplicationRecord
     # Do nothing for now
   end
 
+  # Booking → Order conversion is currently disabled (the orders table has no
+  # booking_id column yet and #order above is stubbed to nil). Kept as a no-op
+  # rather than removed because several controllers still call it on the
+  # "payment received + create order" path — returning nil lets those flows
+  # finish creating the booking instead of 500ing on an undefined method.
+  def convert_to_order!
+    Rails.logger.warn "Booking ##{id}: convert_to_order! called but Booking→Order conversion is disabled — skipping."
+    nil
+  end
+
   # Find the associated invoice created by the consolidated invoice generation system
   def associated_invoice
     return @associated_invoice if defined?(@associated_invoice)

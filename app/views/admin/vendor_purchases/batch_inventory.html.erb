@@ -147,8 +147,8 @@
             <div class="d-flex align-items-center">
               <div class="me-3 position-relative">
                 <% begin %>
-                  <% if stat[:product].main_image.present? && stat[:product].main_image.is_a?(String) %>
-                    <%= image_tag stat[:product].main_image, class: "rounded-3 shadow-sm", style: "width: 60px; height: 60px; object-fit: cover; border: 3px solid #fff;" %>
+                  <% if stat[:product].main_image_url.present? %>
+                    <%= image_tag stat[:product].main_image_url, class: "rounded-3 shadow-sm", style: "width: 60px; height: 60px; object-fit: cover; border: 3px solid #fff;" %>
                   <% else %>
                     <div class="bg-primary bg-opacity-20 rounded-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 60px; height: 60px; border: 3px solid #fff;">
                       <i class="bi bi-box text-primary fs-4"></i>

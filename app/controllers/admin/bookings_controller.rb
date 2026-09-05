@@ -784,7 +784,7 @@ class Admin::BookingsController < Admin::ApplicationController
         out_of_stock: p.out_of_stock?,
         low_stock: p.low_stock?,
         minimum_threshold: p.minimum_stock_threshold,
-        image_url: p.main_image ? url_for(p.main_image) : nil
+        image_url: p.main_image_url
       }
     }
   end

@@ -2141,50 +2141,23 @@ function checkRecommendedSize(input, files, errorDiv) {
   }
 })();
 
-// Tab Management - Manual implementation to ensure it works
+// Tab Management - cooperates with Bootstrap's own pill/tab handling
+// (data-bs-toggle="pill" above) instead of duplicating it, so classes
+// only ever get toggled by one system. Just persists the active tab
+// across reloads via localStorage, using Bootstrap's Tab API.
 document.addEventListener('DOMContentLoaded', function() {
-  const tabs = document.querySelectorAll('#systemTabs button');
-  const panes = document.querySelectorAll('.tab-pane');
+  const tabButtons = document.querySelectorAll('#systemTabs button[data-bs-target]');
 
-  function showTab(targetId) {
-    // Hide all panes and deactivate all tabs
-    panes.forEach(pane => {
-      pane.classList.remove('show', 'active');
-    });
-    tabs.forEach(tab => {
-      tab.classList.remove('active');
-      tab.setAttribute('aria-selected', 'false');
-    });
-
-    // Show the target pane and activate the corresponding tab
-    const targetPane = document.querySelector(targetId);
-    const targetTab = document.querySelector(`[data-bs-target="${targetId}"]`);
-
-    if (targetPane && targetTab) {
-      targetPane.classList.add('show', 'active');
-      targetTab.classList.add('active');
-      targetTab.setAttribute('aria-selected', 'true');
-    }
-  }
-
-  // Add click listeners to tabs
-  tabs.forEach(tab => {
-    tab.addEventListener('click', function(e) {
-      e.preventDefault();
-      const target = this.getAttribute('data-bs-target');
-      if (target) {
-        showTab(target);
-        localStorage.setItem('systemActiveTab', target);
-      }
+  tabButtons.forEach(function(button) {
+    button.addEventListener('shown.bs.tab', function(event) {
+      localStorage.setItem('systemActiveTab', event.target.getAttribute('data-bs-target'));
     });
   });
 
-  // Show default tab (Business Settings) or restore from localStorage
-  const savedTab = localStorage.getItem('systemActiveTab');
-  if (savedTab && document.querySelector(savedTab)) {
-    showTab(savedTab);
-  } else {
-    showTab('#business-settings');
+  const savedTarget = localStorage.getItem('systemActiveTab');
+  const savedButton = savedTarget && document.querySelector(`[data-bs-target="${savedTarget}"]`);
+  if (savedButton) {
+    bootstrap.Tab.getOrCreateInstance(savedButton).show();
   }
 });
 

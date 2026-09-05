@@ -117,28 +117,31 @@ class DeliveryPerson < ApplicationRecord
   def mobile_number_format
     return if mobile.blank?
 
-    cleaned = mobile.to_s.gsub(/\D/, '')
-    unless cleaned.match?(/\A\d{10}\z/) || cleaned.match?(/\A\d{12}\z/)
-      errors.add(:mobile, 'must be a 10 or 12 digit number')
+    unless mobile.match?(/\A\d{10}\z/)
+      errors.add(:mobile, 'must be exactly 10 digits')
     end
   end
 
   def emergency_contact_mobile_format
     return if emergency_contact_mobile.blank?
 
-    cleaned = emergency_contact_mobile.to_s.gsub(/\D/, '')
-    unless cleaned.match?(/\A\d{10}\z/) || cleaned.match?(/\A\d{12}\z/)
-      errors.add(:emergency_contact_mobile, 'must be a 10 or 12 digit number')
+    unless emergency_contact_mobile.match?(/\A\d{10}\z/)
+      errors.add(:emergency_contact_mobile, 'must be exactly 10 digits')
     end
   end
 
+  # Strips a leading "91" country code so mobile is always stored as a bare
+  # 10-digit number — same normalization Customer#normalize_indian_mobile
+  # uses. Storing "917975918232" instead of "7975918232" is what broke
+  # mobile-number login for delivery people (Api::V1::Mobile::
+  # AuthenticationController#find_by_mobile_variants never generated that
+  # exact bare-91-prefix format as a candidate).
   def normalize_mobile_number(number)
     return nil if number.blank?
 
-    # Remove all non-digit characters
     cleaned = number.to_s.gsub(/\D/, '')
-
-    # Accept 10 or 12 digits as is, keep other lengths for storage
+    cleaned = cleaned[2..-1] if cleaned.length == 12 && cleaned.start_with?('91')
+    cleaned = cleaned[2..-1] if cleaned.length == 11 && cleaned.start_with?('91')
     cleaned
   end
 end

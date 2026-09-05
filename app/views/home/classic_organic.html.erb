@@ -95,22 +95,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px
 .cat-info h3{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:700;color:var(--white);margin-bottom:18px;text-shadow:0 2px 8px rgba(0,0,0,.3)}
 
 /* ── PRODUCT GRID ── */
-.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:1280px;margin:0 auto 72px;padding:0 28px}
-
-/* ── CATEGORY TABS + CAROUSEL (ported from client3 theme) ── */
-.pill-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;padding:0 20px 36px;max-width:1280px;margin:0 auto}
-.pill-btn{flex:0 0 auto;padding:10px 22px;border-radius:30px;border:1.5px solid var(--green-mid);color:var(--green-dark);font-size:12.5px;font-weight:600;letter-spacing:.3px;background:var(--white);cursor:pointer;font-family:'Jost',sans-serif;transition:background .2s,color .2s}
-.pill-btn:hover{background:var(--green-light)}
-.pill-btn.active{background:var(--green-dark);border-color:var(--green-dark);color:var(--white)}
-.carousel-wrap{position:relative;width:100%;max-width:1280px;margin:0 auto 26px;padding:0 48px}
-.carousel-row{display:flex;gap:20px;overflow-x:auto;scroll-behavior:smooth;padding:6px 4px 14px;scrollbar-width:none}
-.carousel-row::-webkit-scrollbar{display:none}
-.carousel-arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;font-size:16px;font-weight:700;color:var(--dark);z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.18)}
-.carousel-arrow:hover{background:var(--gold-light)}
-.carousel-arrow.prev{left:8px}
-.carousel-arrow.next{right:8px}
-.carousel-row .pcard{flex:0 0 270px}
-
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;width:100%;margin:0 0 72px;padding:0 40px}
 .pcard{background:var(--white);border:1px solid #e8e8e8;border-radius:6px;overflow:hidden;transition:box-shadow .25s,transform .22s;cursor:pointer}
 .pcard:hover{box-shadow:0 14px 40px rgba(0,0,0,.13);transform:translateY(-5px)}
 .pcard-img{position:relative;height:250px;overflow:hidden;background:var(--cream);display:flex;align-items:center;justify-content:center}
@@ -250,13 +235,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 52px
 .mailing-form button{padding:14px 28px;background:var(--gold);color:var(--dark);border:none;cursor:pointer;font-family:'Jost',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;border-radius:0 30px 30px 0;transition:background .2s}
 .mailing-form button:hover{background:var(--gold-light)}
 
-/* ── VIDEO SHOWCASE (ported from client3 theme) ── */
-.video-wrap{max-width:1240px;margin:0 auto 70px;padding:0 28px}
-.video-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px}
-.video-card{border-radius:12px;overflow:hidden;background:var(--gray);box-shadow:0 8px 24px rgba(0,0,0,.08)}
-.video-frame{position:relative;width:100%;padding-top:56.25%;background:#000}
-.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.video-card h4{padding:14px 16px;font-size:14.5px;font-weight:700;color:var(--text);font-family:'Cormorant Garamond',serif}
+/* ── CATEGORY PILL NAV ── */
+.cat-pill-row{display:flex;gap:12px;overflow-x:auto;padding:4px 40px 40px;width:100%;margin:0;scrollbar-width:thin}
+.cat-pill{flex:0 0 auto;padding:10px 22px;border-radius:30px;border:1.5px solid var(--green-mid);color:var(--green-dark);font-size:12.5px;font-weight:600;text-decoration:none;letter-spacing:.3px;white-space:nowrap;transition:background .2s,color .2s}
+.cat-pill:hover{background:var(--green-light)}
+.cat-pill.active{background:var(--green-dark);border-color:var(--green-dark);color:var(--white)}
 
 /* ── TORN PAPER EDGE (below footer) ── */
 .torn-edge{height:44px;background-color:#cdb491;background-repeat:repeat-x;background-position:top;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='44'%3E%3Cpolygon points='0,0 12,44 24,0 36,44 48,0' fill='%231b5e20'/%3E%3C/svg%3E");display:flex;align-items:flex-end;justify-content:center;font-size:22px;padding-bottom:6px}
@@ -338,12 +321,9 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
   .split-text{padding:40px 32px}
   .feat-wrap{padding:0 20px}
   .reviews{padding:60px 20px}
-  .carousel-wrap{padding:0 44px}
-  .video-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:600px){
   .cats,.pgrid,.reviews-grid,.arrivals,.blog-grid,.feat-wrap,.footer-grid,.gallery-grid,.why-strip{grid-template-columns:1fr}
-  .video-grid{grid-template-columns:1fr}
   nav{height:auto;min-height:78px;padding:12px 16px}
   .logo-circle{width:56px;height:56px}
   .logo-text .lt1{font-size:14px}
@@ -500,86 +480,55 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
 </p>
 
 <% if @products_by_category.present? %>
-  <div class="pill-row">
-    <button type="button" class="pill-btn active" data-cat="all" onclick="selectCategory(this)">All</button>
-    <% @products_by_category.keys.each do |cat_name| %>
-      <button type="button" class="pill-btn" data-cat="<%= cat_name.parameterize %>" onclick="selectCategory(this)"><%= cat_name %></button>
+  <div class="cat-pill-row">
+    <% @products_by_category.keys.each_with_index do |cat_name, idx| %>
+      <a href="#cat-<%= cat_name.parameterize %>" class="cat-pill<%= ' active' if idx == 0 %>"><%= cat_name %></a>
     <% end %>
   </div>
-
-  <% [['all', 'row-cat-all', @products_by_category.values.flatten.uniq.first(20)]].concat(
-       @products_by_category.map { |category_name, products| [category_name.parameterize, "row-cat-#{category_name.parameterize}", products] }
-     ).each do |cat_slug, row_id, products| %>
-    <div id="cat-panel-<%= cat_slug %>" class="carousel-wrap cat-panel" data-cat="<%= cat_slug %>"<%= ' style="display:none"' if cat_slug != 'all' %>>
-      <button class="carousel-arrow prev" onclick="scrollRow('<%= row_id %>',-1)" aria-label="Scroll left">‹</button>
-      <div class="carousel-row" id="<%= row_id %>">
-        <% products.each do |product| %>
-          <div class="pcard">
-            <div class="pcard-img">
-              <% if product.main_image_url %>
-                <%= image_tag product.main_image_url, alt: product.name %>
-              <% else %>
-                <span class="no-image">🌿</span>
-              <% end %>
-              <% if !product.in_stock? %>
-                <span class="ptag oos">Out of Stock</span>
-              <% elsif @best_seller_ids.include?(product.id) %>
-                <span class="ptag best">★ Best Seller</span>
-              <% elsif @new_arrival_ids.include?(product.id) %>
-                <span class="ptag super">🆕 New Arrival</span>
-              <% elsif product.discounted? %>
-                <span class="ptag new"><%= product.discount_percentage.to_i %>% OFF</span>
-              <% end %>
-            </div>
-            <div class="pcard-body">
-              <h4><%= product.name %></h4>
-              <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
-              <div class="pprice">
-                <% if product.discounted? %>
-                  <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
-                <% else %>
-                  ₹<%= product.selling_price %>
-                <% end %>
-              </div>
-              <% if product.in_stock? %>
-                <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
-              <% else %>
-                <button class="btn-add out" disabled>Out of Stock</button>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
-      </div>
-      <button class="carousel-arrow next" onclick="scrollRow('<%= row_id %>',1)" aria-label="Scroll right">›</button>
-    </div>
-  <% end %>
 <% end %>
 
-<!-- VIDEO SHOWCASE (admin-managed via Admin > Settings > System > Website Images > Client3 Theme Images; falls back to a built-in default per slot) -->
-<div class="video-wrap">
-  <h2 class="sec-title" style="padding-top:0">See It In Action<span class="sec-line"></span></h2>
-  <p class="sec-sub">A closer look at how we source, craft and deliver every product</p>
-  <div class="video-grid">
-    <div class="video-card">
-      <div class="video-frame">
-        <iframe src="<%= SystemSetting.client3_video1_embed_url %>" title="Farm to Bottle Journey" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+<% @products_by_category.each do |category_name, products| %>
+  <h2 class="sec-title" id="cat-<%= category_name.parameterize %>" style="padding:28px 20px 4px;font-size:24px"><%= category_name %><span class="sec-line"></span></h2>
+  <p class="sec-sub" style="padding-bottom:28px"><%= pluralize(products.size, 'item') %></p>
+  <div class="pgrid">
+    <% products.each do |product| %>
+      <div class="pcard">
+        <div class="pcard-img">
+          <% if product.main_image_url %>
+            <%= image_tag product.main_image_url, alt: product.name %>
+          <% else %>
+            <span class="no-image">🌿</span>
+          <% end %>
+          <% if !product.in_stock? %>
+            <span class="ptag oos">Out of Stock</span>
+          <% elsif @best_seller_ids.include?(product.id) %>
+            <span class="ptag best">★ Best Seller</span>
+          <% elsif @new_arrival_ids.include?(product.id) %>
+            <span class="ptag super">🆕 New Arrival</span>
+          <% elsif product.discounted? %>
+            <span class="ptag new"><%= product.discount_percentage.to_i %>% OFF</span>
+          <% end %>
+        </div>
+        <div class="pcard-body">
+          <h4><%= product.name %></h4>
+          <p class="psub"><%= [product.unit_type, product.sku].compact_blank.join(' · ') %></p>
+          <div class="pprice">
+            <% if product.discounted? %>
+              <s>₹<%= product.price %></s> ₹<%= product.selling_price %>
+            <% else %>
+              ₹<%= product.selling_price %>
+            <% end %>
+          </div>
+          <% if product.in_stock? %>
+            <%= render "storefront/add_to_cart_control", product: product, label: "Add to Cart", cart_url: add_item_storefront_cart_path %>
+          <% else %>
+            <button class="btn-add out" disabled>Out of Stock</button>
+          <% end %>
+        </div>
       </div>
-      <h4>Farm to Bottle Journey</h4>
-    </div>
-    <div class="video-card">
-      <div class="video-frame">
-        <iframe src="<%= SystemSetting.client3_video2_embed_url %>" title="Meet the Makers" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
-      </div>
-      <h4>Meet the Makers</h4>
-    </div>
-    <div class="video-card">
-      <div class="video-frame">
-        <iframe src="<%= SystemSetting.client3_video3_embed_url %>" title="Customer Stories" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
-      </div>
-      <h4>Customer Stories</h4>
-    </div>
+    <% end %>
   </div>
-</div>
+<% end %>
 
 <!-- BRAND BANNER -->
 <div class="banner">
@@ -855,98 +804,6 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
     const mobileNav = document.getElementById('mobileNav');
     mobileNav.classList.toggle('mobile-open');
   }
-
-  function scrollRow(id, dir){
-    const row = document.getElementById(id);
-    if (row) row.scrollBy({ left: dir * 320, behavior: 'smooth' });
-  }
-
-  // ── CATEGORY TABS ── clicking a pill shows only that category's product
-  // panel (or all of them merged, for "All") instead of stacking every
-  // category's carousel on the page at once.
-  function applyActiveCategoryVisibility(){
-    const activePill = document.querySelector('.pill-row .pill-btn.active');
-    const cat = activePill ? activePill.dataset.cat : 'all';
-    document.querySelectorAll('.cat-panel').forEach(panel => {
-      panel.style.display = panel.dataset.cat === cat ? '' : 'none';
-    });
-  }
-
-  function selectCategory(btn){
-    document.querySelectorAll('.pill-row .pill-btn').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    applyActiveCategoryVisibility();
-    window.dispatchEvent(new Event('resize'));
-  }
-
-  // ── PRODUCT ROW AUTO-SCROLL ── every carousel-row auto-advances
-  // right-to-left by one "page" every 10s, looping back to the start.
-  // Pauses on hover/touch and restarts its own timer if the user clicks
-  // an arrow.
-  (function initCarouselAutoScroll(){
-    const AUTO_SCROLL_INTERVAL_MS = 10000;
-
-    // A short category (e.g. only 2-3 products) doesn't fill the full-width
-    // row, which strands the arrow buttons — anchored to the wrap's far
-    // edges — way off in empty space. Hide the arrows (and skip
-    // auto-scrolling) whenever a row has nothing to scroll to.
-    function syncArrowVisibility(row) {
-      const wrap = row.closest('.carousel-wrap');
-      if (!wrap) return true;
-      const hasOverflow = row.scrollWidth > row.clientWidth + 1;
-      wrap.querySelectorAll('.carousel-arrow').forEach(btn => {
-        btn.style.display = hasOverflow ? '' : 'none';
-      });
-      return hasOverflow;
-    }
-
-    const rows = Array.from(document.querySelectorAll('.carousel-row'));
-
-    rows.forEach(row => {
-      let timer = null;
-
-      const advance = () => {
-        if (!syncArrowVisibility(row)) return;
-        const atEnd = row.scrollLeft + row.clientWidth >= row.scrollWidth - 1;
-        if (atEnd) {
-          row.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          row.scrollBy({ left: row.clientWidth, behavior: 'smooth' });
-        }
-      };
-
-      const start = () => {
-        if (timer) return;
-        timer = setInterval(advance, AUTO_SCROLL_INTERVAL_MS);
-      };
-
-      const stop = () => {
-        clearInterval(timer);
-        timer = null;
-      };
-
-      row.addEventListener('mouseenter', stop);
-      row.addEventListener('mouseleave', start);
-      row.addEventListener('touchstart', stop, { passive: true });
-      row.addEventListener('touchend', start);
-
-      const wrap = row.closest('.carousel-wrap');
-      if (wrap) {
-        wrap.querySelectorAll('.carousel-arrow').forEach(btn => {
-          btn.addEventListener('click', () => { stop(); start(); });
-        });
-      }
-
-      syncArrowVisibility(row);
-      start();
-    });
-
-    let resizeTimer = null;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => rows.forEach(syncArrowVisibility), 150);
-    });
-  })();
 
   async function addToCart(productId, name, btn) {
     const orig = btn.textContent;

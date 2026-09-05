@@ -448,7 +448,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
 <div class="cats">
   <% if @top_category %>
     <div class="cat">
-      <img src="<%= @top_category.display_image_url %>" alt="<%= @top_category.name %>">
+      <img src="https://images.pexels.com/photos/2662116/pexels-photo-2662116.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="<%= @top_category.name %>">
       <div class="cat-shade"></div>
       <div class="cat-info">
         <div class="cat-badge">★ Best Seller</div>
@@ -459,7 +459,7 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
   <% end %>
   <% if @secondary_category %>
     <div class="cat">
-      <img src="<%= @secondary_category.display_image_url %>" alt="<%= @secondary_category.name %>">
+      <img src="https://images.pexels.com/photos/4198567/pexels-photo-4198567.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="<%= @secondary_category.name %>">
       <div class="cat-shade"></div>
       <div class="cat-info">
         <div class="cat-badge">Also Popular</div>
@@ -736,15 +736,6 @@ footer{background:var(--green-dark);color:rgba(255,255,255,.82)}
 
 <!-- FOOTER -->
 <footer>
-  <div class="mailing">
-    <div class="mailing-left">
-      <h3>Sign Up To Get Updates</h3>
-      <p>Offers, new arrivals and organic living tips — straight to your inbox.</p>
-    </div>
-    <form class="mailing-form" onsubmit="event.preventDefault();document.getElementById('toast').textContent='✓ Subscribed! Thank you.';document.getElementById('toast').classList.add('show');setTimeout(()=>document.getElementById('toast').classList.remove('show'),2200);this.reset();">
-      <input type="email" placeholder="Enter Your Email Address..." required>
-    </form>
-  </div>
   <div class="footer-grid">
     <div class="fbrand">
       <div class="fbrand-name">Marali Santhe</div>

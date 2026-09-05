@@ -15,16 +15,16 @@ development:
   primary:
     <<: *default
     pool: 15
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   cable:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   queue:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   cache:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
 
 test:
   primary:
@@ -43,13 +43,13 @@ test:
 production:
   primary:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   cable:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   queue:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   cache:
     <<: *default
-    url: <%= ENV['DATABASE_URL'] || 'postgresql://ms_backup_user:99BM9iJVC5OJ7WrU0gRYa48yQyvQhoeH@dpg-d9q2tk6gekts73ccqkqg-a.singapore-postgres.render.com:5432/ms_backup' %>
+    url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>

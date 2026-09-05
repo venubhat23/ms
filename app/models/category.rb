@@ -58,8 +58,7 @@ class Category < ApplicationRecord
     if image.attached?
       Rails.application.routes.url_helpers.rails_blob_url(image, only_path: true)
     else
-      # Return a default category image URL
-      "/assets/category-placeholder.png"
+      ActionController::Base.helpers.asset_path("category-placeholder.png")
     end
   end
 

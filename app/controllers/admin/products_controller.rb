@@ -14,12 +14,15 @@ class Admin::ProductsController < Admin::ApplicationController
     id name sku status price discount_price discount_type discount_value
     discount_amount original_price is_discounted buying_price stock
     unit_type image_url r2_image_url category_id created_at
+    has_multiple_quantities
   ].freeze
 
   def index
     # additional_images is never read on the index view (only in new/edit forms),
     # so it's deliberately excluded here to avoid an unused eager-load round trip.
-    @products = Product.select(*INDEX_PRODUCT_COLUMNS).includes(:category, image_attachment: :blob)
+    # product_variants IS needed here (unlike the excluded columns above) — the
+    # bulk-edit modal reads each row's variants straight off the rendered JSON.
+    @products = Product.select(*INDEX_PRODUCT_COLUMNS).includes(:category, :product_variants, image_attachment: :blob)
 
     if params[:search].present?
       @products = @products.search(params[:search])
@@ -50,6 +53,8 @@ class Admin::ProductsController < Admin::ApplicationController
     if params[:search].blank? && params[:category_id].blank? && params[:status].blank? && params[:stock_status].blank?
       @products.instance_variable_set(:@total_count, Rails.cache.fetch('admin_products/total_count', expires_in: 2.minutes) { Product.count })
     end
+
+    @categories = Category.active.ordered
   end
 
   def show
@@ -145,33 +150,7 @@ class Admin::ProductsController < Admin::ApplicationController
 
   def destroy
     product_name = @product.name
-
-    ActiveRecord::Base.transaction do
-      # Preserve historical booking/order records — clear product reference instead of deleting
-      @product.booking_items.update_all(product_id: nil)
-      @product.order_items.update_all(product_id: nil) if @product.respond_to?(:order_items)
-      InvoiceItem.where(product_id: @product.id).update_all(product_id: nil)
-
-      # Milk delivery tasks/schedules require product_id, so they can't be nullified —
-      # unlink the historical records that point at them, then remove them with the product.
-      task_ids = MilkDeliveryTask.where(product_id: @product.id).pluck(:id)
-      InvoiceItem.where(milk_delivery_task_id: task_ids).update_all(milk_delivery_task_id: nil) if task_ids.any?
-      MilkDeliveryTask.where(id: task_ids).delete_all
-      MilkSubscription.where(product_id: @product.id).delete_all
-
-      schedule_ids = BookingSchedule.where(product_id: @product.id).pluck(:id)
-      Booking.where(booking_schedule_id: schedule_ids).update_all(booking_schedule_id: nil) if schedule_ids.any?
-      BookingSchedule.where(id: schedule_ids).delete_all
-
-      # These only ever make sense in the context of this product — remove them with it.
-      Wishlist.where(product_id: @product.id).delete_all
-      SubscriptionTemplate.where(product_id: @product.id).delete_all
-      CustomerFormat.where(product_id: @product.id).delete_all
-      StockTransfer.where(product_id: @product.id).delete_all
-
-      @product.destroy!
-    end
-
+    purge_and_destroy_product!(@product)
     redirect_to admin_products_path, notice: "Product '#{product_name}' was deleted successfully."
   rescue ActiveRecord::InvalidForeignKey => e
     blocking_table = e.message[/referenced from table "(\w+)"/, 1] || e.message.scan(/table "(\w+)"/).flatten.last || 'related records'
@@ -236,18 +215,80 @@ class Admin::ProductsController < Admin::ApplicationController
     case params[:bulk_action]
     when 'activate'
       Product.where(id: params[:product_ids]).update_all(status: 'active')
-      message = 'Products activated successfully'
+      redirect_to admin_products_path, notice: 'Products activated successfully'
     when 'deactivate'
       Product.where(id: params[:product_ids]).update_all(status: 'inactive')
-      message = 'Products deactivated successfully'
+      redirect_to admin_products_path, notice: 'Products deactivated successfully'
     when 'delete'
-      Product.where(id: params[:product_ids]).destroy_all
-      message = 'Products deleted successfully'
+      products = Product.where(id: params[:product_ids]).to_a
+      errors = []
+      deleted = 0
+      products.each do |product|
+        purge_and_destroy_product!(product)
+        deleted += 1
+      rescue => e
+        errors << "#{product.name}: #{e.message}"
+      end
+
+      if errors.empty?
+        redirect_to admin_products_path, notice: "#{deleted} product(s) deleted successfully"
+      else
+        redirect_to admin_products_path, alert: "Deleted #{deleted}. Could not delete: #{errors.join(' | ')}"
+      end
     else
-      message = 'Invalid action'
+      redirect_to admin_products_path, alert: 'Invalid action'
+    end
+  end
+
+  # POST /admin/products/bulk_update
+  #
+  # Row-level edits from the index page's "Bulk Edit" modal. Products with
+  # variants keep price/stock disabled client-side (they're variant-driven),
+  # so only their name/status/category ever arrive here for those rows.
+  # Stock reconciliation on a plain product is handled entirely by
+  # Product#update_stock_batch (an after_update callback) — no manual batch
+  # bookkeeping needed here, unlike variant stock which IS the source of
+  # truth for a multi-quantity product and just gets written directly.
+  def bulk_update
+    product_updates = params[:products] || {}
+    variant_updates  = params[:variants] || {}
+    updated = 0
+    errors  = []
+
+    product_updates.each do |id, attrs|
+      product = Product.find_by(id: id)
+      next unless product
+
+      permitted = attrs.permit(:name, :price, :buying_price, :stock, :unit_type, :status, :category_id)
+      permitted = permitted.except(:price, :stock) if product.has_multiple_quantities?
+
+      if product.update(permitted)
+        updated += 1
+      else
+        errors << "#{product.name}: #{product.errors.full_messages.join(', ')}"
+      end
     end
 
-    redirect_to admin_products_path, notice: message
+    variant_updates.each do |vid, attrs|
+      variant = ProductVariant.find_by(id: vid)
+      next unless variant
+
+      permitted = attrs.permit(:selling_price, :buying_price, :available_stock)
+
+      if variant.update(permitted)
+        updated += 1
+      else
+        errors << "#{variant.product&.name} #{variant.label}: #{variant.errors.full_messages.join(', ')}"
+      end
+    end
+
+    if errors.empty?
+      redirect_to admin_products_path, notice: "#{updated} row(s) updated successfully"
+    else
+      redirect_to admin_products_path, alert: "Updated #{updated}. Issues: #{errors.join(' | ')}"
+    end
+  rescue => e
+    redirect_to admin_products_path, alert: "Bulk update failed: #{e.message}"
   end
 
   def products_chart
@@ -561,6 +602,36 @@ class Admin::ProductsController < Admin::ApplicationController
 
   def set_product
     @product = Product.includes(:product_variants).find(params[:id])
+  end
+
+  # Shared by #destroy and the bulk "Delete Selected" action so both paths
+  # clean up the same dependent records instead of hitting a bare FK error.
+  def purge_and_destroy_product!(product)
+    ActiveRecord::Base.transaction do
+      # Preserve historical booking/order records — clear product reference instead of deleting
+      product.booking_items.update_all(product_id: nil)
+      product.order_items.update_all(product_id: nil) if product.respond_to?(:order_items)
+      InvoiceItem.where(product_id: product.id).update_all(product_id: nil)
+
+      # Milk delivery tasks/schedules require product_id, so they can't be nullified —
+      # unlink the historical records that point at them, then remove them with the product.
+      task_ids = MilkDeliveryTask.where(product_id: product.id).pluck(:id)
+      InvoiceItem.where(milk_delivery_task_id: task_ids).update_all(milk_delivery_task_id: nil) if task_ids.any?
+      MilkDeliveryTask.where(id: task_ids).delete_all
+      MilkSubscription.where(product_id: product.id).delete_all
+
+      schedule_ids = BookingSchedule.where(product_id: product.id).pluck(:id)
+      Booking.where(booking_schedule_id: schedule_ids).update_all(booking_schedule_id: nil) if schedule_ids.any?
+      BookingSchedule.where(id: schedule_ids).delete_all
+
+      # These only ever make sense in the context of this product — remove them with it.
+      Wishlist.where(product_id: product.id).delete_all
+      SubscriptionTemplate.where(product_id: product.id).delete_all
+      CustomerFormat.where(product_id: product.id).delete_all
+      StockTransfer.where(product_id: product.id).delete_all
+
+      product.destroy!
+    end
   end
 
   def calculate_market_stats

@@ -422,8 +422,7 @@
           <thead class="table-light">
             <tr>
               <th class="border-0 fw-semibold">Booking Details</th>
-              <th class="border-0 fw-semibold">Customer</th>
-              <th class="border-0 fw-semibold">Items & Amount</th>
+              <th class="border-0 fw-semibold">Customer & Order</th>
               <th class="border-0 fw-semibold">Payment & Status</th>
               <th class="border-0 fw-semibold">Progress</th>
               <th class="border-0 fw-semibold">Actions</th>
@@ -572,8 +571,7 @@
                       </small>
                     <% end %>
                   </div>
-                </td>
-                <td class="align-middle">
+                  <hr class="my-2">
                   <div>
                     <span class="badge bg-info-subtle text-info">
                       <%= pluralize(booking.booking_items.size, 'item') %>

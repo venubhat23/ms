@@ -806,6 +806,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
   def find_by_mobile_variants(klass, formatted_mobile)
     variants = [
       formatted_mobile,
+      "91#{formatted_mobile}",
       "+91#{formatted_mobile}",
       "+91 #{formatted_mobile}",
       "#{formatted_mobile[0..4]} #{formatted_mobile[5..9]}",

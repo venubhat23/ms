@@ -323,23 +323,35 @@ class DashboardController < ApplicationController
     h[:active_categories] = Category.where(status: true).count
 
     # ── Booking counts by status (4 queries → 1) ──────────────────────────────
-    h[:booking_counts]    = Booking.group(:status).count
-    h[:total_bookings]    = h[:booking_counts].values.sum
-    h[:pending_bookings]   = h[:booking_counts]['pending']   || 0
-    h[:completed_bookings] = h[:booking_counts]['completed'] || 0
-    h[:cancelled_bookings] = h[:booking_counts]['cancelled'] || 0
+    h[:booking_counts] = Booking.group(:status).count
+    h[:total_bookings] = h[:booking_counts].values.sum
+    # Booking has no literal "pending" status — draft and
+    # ordered_and_delivery_pending are the two pre-processing ones. The old
+    # `h[:booking_counts]['pending']` lookup here never matched anything, so
+    # "Pending Orders" on the dashboard always showed 0.
+    h[:pending_bookings]   = (h[:booking_counts]['draft'] || 0) + (h[:booking_counts]['ordered_and_delivery_pending'] || 0)
+    # "Completed" = done, whichever way it got there — mirrors the same
+    # definition the /dashboard/stats JSON action already uses for its
+    # order_status_data (see below in #stats). The old version only counted
+    # status == 'completed' and silently excluded 'delivered' bookings, which
+    # is why a booking sitting in Recent Orders as "Delivered" never showed up
+    # in the "Completed Orders" tile above it.
+    h[:completed_bookings] = (h[:booking_counts]['completed'] || 0) + (h[:booking_counts]['delivered'] || 0)
+    h[:cancelled_bookings] = (h[:booking_counts]['cancelled'] || 0) + (h[:booking_counts]['returned'] || 0)
 
-    # ── Order counts by status (5 queries → 1) ────────────────────────────────
-    begin
-      order_counts = Order.group(:status).count
-      h[:total_orders]     = order_counts.values.sum
-      h[:pending_orders]   = order_counts['pending']   || 0
-      h[:shipped_orders]   = order_counts['shipped']   || 0
-      h[:delivered_orders] = order_counts['delivered'] || 0
-      h[:cancelled_orders] = order_counts['cancelled'] || 0
-    rescue
-      h[:total_orders] = h[:pending_orders] = h[:shipped_orders] = h[:delivered_orders] = h[:cancelled_orders] = 0
-    end
+    # ── "Order" tiles ──────────────────────────────────────────────────────────
+    # Derived from h[:booking_counts] (Booking is the real, live order record —
+    # Total Orders/Revenue/Recent Orders/Top Customers on this same dashboard
+    # are all Booking-based). This used to count the separate `Order` table
+    # instead, which Booking↔Order conversion never actually populates
+    # (Booking#order is a permanent stub returning nil — see
+    # Booking#convert_to_order!), so "Shipped Orders" etc. here disagreed with
+    # every other number on the page. No extra query: reuses h[:booking_counts].
+    h[:pending_orders]   = h[:pending_bookings]
+    h[:shipped_orders]   = (h[:booking_counts]['shipped'] || 0) + (h[:booking_counts]['out_for_delivery'] || 0)
+    h[:delivered_orders] = h[:booking_counts]['delivered'] || 0
+    h[:cancelled_orders] = h[:cancelled_bookings]
+    h[:total_orders]     = h[:total_bookings]
 
     # ── Revenue metrics ────────────────────────────────────────────────────────
     h[:total_revenue] = Booking.sum(:total_amount) || 0

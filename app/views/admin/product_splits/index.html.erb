@@ -162,7 +162,7 @@
     <% if @products.any? %>
       <% @products.each do |product| %>
         <% total_stock = product.available_quantity %>
-        <% variants = product.product_variants.sort_by { |v| v.weight.to_f } %>
+        <% variants = product.product_variants.sort_by { |v| -v.weight.to_f } %>
         <% variant_total = variants.sum { |v| v.available_stock.to_f } %>
         <% mismatch = product.has_multiple_quantities? && variants.any? && variant_total.round(3) != total_stock.round(3) %>
 
@@ -230,7 +230,7 @@
             <div class="text-muted small mt-2 ps-4">No variants — sold as a single unit.</div>
           <% end %>
 
-          <% if variants.size >= 2 %>
+          <% if variants.size >= 1 %>
             <button type="button" class="btn btn-sm btn-transfer-gradient mt-3" data-bs-toggle="modal" data-bs-target="#transferModal-<%= product.id %>">
               <i class="bi bi-arrow-left-right me-1"></i> Transfer / Split Stock
             </button>
@@ -293,7 +293,18 @@
                                   <%= v.label %> (available: <%= v.available_stock %>)
                                 </option>
                               <% end %>
+                              <option value="new" data-weight="0">+ Create new variant&hellip;</option>
                             </select>
+                            <div class="new-variant-fields mt-2 d-none">
+                              <div class="row g-1">
+                                <div class="col-6">
+                                  <input type="number" step="0.001" min="0.001" name="to_new_weights[]" class="form-control form-control-sm new-weight-input" placeholder="Weight (<%= product.unit_type %>)">
+                                </div>
+                                <div class="col-6">
+                                  <input type="number" step="0.01" min="0.01" name="to_new_prices[]" class="form-control form-control-sm new-price-input" placeholder="Selling price ₹">
+                                </div>
+                              </div>
+                            </div>
                           </div>
                           <div class="col-3">
                             <input type="number" name="to_quantities[]" class="form-control form-control-sm qty-input" min="1" placeholder="Qty">
@@ -371,11 +382,29 @@
       var select = row.querySelector('.variant-select');
       var qtyInput = row.querySelector('.qty-input');
       var qty = parseFloat(qtyInput.value) || 0;
-      var opt = select.options[select.selectedIndex];
-      var weight = opt ? (parseFloat(opt.getAttribute('data-weight')) || 0) : 0;
+      var weight = 0;
+      if (select.value === 'new') {
+        var weightInput = row.querySelector('.new-weight-input');
+        weight = weightInput ? (parseFloat(weightInput.value) || 0) : 0;
+      } else {
+        var opt = select.options[select.selectedIndex];
+        weight = opt ? (parseFloat(opt.getAttribute('data-weight')) || 0) : 0;
+      }
       total += qty * weight;
     });
     return total;
+  }
+
+  function toggleNewVariantFields(select) {
+    var row = select.closest('.transfer-row');
+    var fields = row.querySelector('.new-variant-fields');
+    if (!fields) return;
+    if (select.value === 'new') {
+      fields.classList.remove('d-none');
+    } else {
+      fields.classList.add('d-none');
+      fields.querySelectorAll('input').forEach(function(el) { el.value = ''; });
+    }
   }
 
   function recalcBalance(modalContent) {
@@ -427,6 +456,8 @@
       clone.querySelectorAll('select, input').forEach(function(el) {
         if (el.tagName === 'SELECT') { el.selectedIndex = 0; } else { el.value = ''; }
       });
+      var clonedFields = clone.querySelector('.new-variant-fields');
+      if (clonedFields) clonedFields.classList.add('d-none');
       container.appendChild(clone);
       recalcBalance(modalContent);
       return;
@@ -443,19 +474,22 @@
         row.querySelectorAll('select, input').forEach(function(el) {
           if (el.tagName === 'SELECT') { el.selectedIndex = 0; } else { el.value = ''; }
         });
+        var fields = row.querySelector('.new-variant-fields');
+        if (fields) fields.classList.add('d-none');
       }
       recalcBalance(modalContent);
     }
   });
 
   document.addEventListener('input', function(e) {
-    if (e.target.classList.contains('qty-input')) {
+    if (e.target.classList.contains('qty-input') || e.target.classList.contains('new-weight-input')) {
       recalcBalance(e.target.closest('.modal-content'));
     }
   });
 
   document.addEventListener('change', function(e) {
     if (e.target.classList.contains('variant-select')) {
+      toggleNewVariantFields(e.target);
       recalcBalance(e.target.closest('.modal-content'));
     }
   });

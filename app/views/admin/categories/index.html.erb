@@ -113,21 +113,21 @@
                 </td>
                 <td class="align-middle">
                   <% if category.image.attached? %>
-                    <%= image_tag category.image, class: "rounded", style: "width: 50px; height: 50px; object-fit: cover;",
+                    <%= image_tag category.image, class: "rounded-circle shadow-sm", style: "width: 50px; height: 50px; object-fit: cover;",
                         onerror: "this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';" %>
-                    <div class="bg-light rounded align-items-center justify-content-center d-none" style="width: 50px; height: 50px;">
-                      <i class="bi bi-image text-muted"></i>
+                    <div class="rounded-circle align-items-center justify-content-center d-none shadow-sm" style="width: 50px; height: 50px; <%= category.gradient_style %>">
+                      <i class="bi <%= category.icon_class %> text-white fs-5"></i>
                     </div>
                   <% else %>
-                    <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                      <i class="bi bi-image text-muted"></i>
+                    <div class="rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 50px; height: 50px; <%= category.gradient_style %>">
+                      <i class="bi <%= category.icon_class %> text-white fs-5"></i>
                     </div>
                   <% end %>
                 </td>
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
-                    <div class="avatar-sm bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center me-3">
-                      <i class="bi bi-tag text-primary"></i>
+                    <div class="avatar-sm rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="<%= category.gradient_style %>">
+                      <i class="bi <%= category.icon_class %> text-white"></i>
                     </div>
                     <div>
                       <h6 class="mb-0"><%= category.name %></h6>

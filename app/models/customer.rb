@@ -44,6 +44,8 @@ has_many :pending_amounts, dependent: :destroy
   # Password support for customer login
   has_secure_password validations: false
 
+  DEFAULT_PASSWORD = 'ms@123'.freeze
+
   # Virtual attribute for status if column doesn't exist yet
   attr_accessor :status unless column_names.include?('status')
 
@@ -108,6 +110,7 @@ has_many :pending_amounts, dependent: :destroy
 
   # Callbacks
   before_validation :normalize_blank_values, :normalize_mobile_numbers
+  before_validation :set_default_password, on: :create
   before_save :calculate_age
 
   # Search
@@ -243,6 +246,13 @@ has_many :pending_amounts, dependent: :destroy
   def bust_cache
     Rails.cache.delete("customer_#{id}_full_name")
     Rails.cache.delete("customer_#{id}_display_name")
+  end
+
+  def set_default_password
+    return if password.present?
+
+    self.password = DEFAULT_PASSWORD
+    self.password_confirmation = DEFAULT_PASSWORD
   end
 
   def normalize_blank_values

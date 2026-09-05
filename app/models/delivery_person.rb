@@ -104,13 +104,14 @@ class DeliveryPerson < ApplicationRecord
     self.status = true if status.nil?
   end
 
+  DEFAULT_PASSWORD = "ms@123"
+
   def generate_password
     return if password.present?
 
-    generated_password = "#{first_name&.downcase}#{mobile&.last(4) || rand(1000..9999)}"
-    self.auto_generated_password = generated_password
-    self.password = generated_password
-    self.password_confirmation = generated_password
+    self.auto_generated_password = DEFAULT_PASSWORD
+    self.password = DEFAULT_PASSWORD
+    self.password_confirmation = DEFAULT_PASSWORD
   end
 
   def mobile_number_format

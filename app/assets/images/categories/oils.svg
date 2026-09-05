@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3D6"/>
+      <stop offset="100%" stop-color="#F2C94C"/>
+    </linearGradient>
+    <linearGradient id="bottle" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F2994A"/>
+      <stop offset="100%" stop-color="#D9770B"/>
+    </linearGradient>
+    <linearGradient id="oil" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFD98E"/>
+      <stop offset="100%" stop-color="#F2A93B"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <circle cx="500" cy="150" r="140" fill="#FFFFFF" opacity="0.2"/>
+  <circle cx="110" cy="500" r="120" fill="#8E4A0B" opacity="0.1"/>
+
+  <!-- bottle -->
+  <g transform="translate(255,120)">
+    <path d="M55 0 H95 V38 L118 70 V300 Q118 325 95 325 H55 Q32 325 32 300 V70 L55 38 Z"
+          fill="url(#bottle)" stroke="#B25A00" stroke-width="4"/>
+    <rect x="60" y="0" width="30" height="24" rx="6" fill="#8E4A0B"/>
+    <path d="M55 38 H95 L118 70 H32 Z" fill="#FFFFFF" opacity="0.25"/>
+    <!-- oil level inside -->
+    <path d="M40 120 H110 V295 Q110 312 95 312 H55 Q40 312 40 295 Z" fill="url(#oil)" opacity="0.9"/>
+    <!-- label -->
+    <rect x="45" y="150" width="60" height="70" rx="6" fill="#FFF7E6" opacity="0.95"/>
+    <circle cx="75" cy="175" r="12" fill="#F2994A"/>
+    <rect x="55" y="195" width="40" height="6" rx="3" fill="#F2C94C"/>
+    <rect x="58" y="207" width="34" height="5" rx="2.5" fill="#F2C94C" opacity="0.7"/>
+  </g>
+
+  <!-- drizzle -->
+  <path d="M420 230 q40 40 10 90 q-10 -40 -10 -90 Z" fill="url(#oil)" opacity="0.9"/>
+  <ellipse cx="418" cy="345" rx="26" ry="16" fill="url(#oil)" opacity="0.9"/>
+  <path d="M470 300 q26 26 6 58 q-8 -26 -6 -58 Z" fill="#FFFFFF" opacity="0.5"/>
+</svg>

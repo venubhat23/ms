@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBF3DC"/>
+      <stop offset="100%" stop-color="#E2C177"/>
+    </linearGradient>
+    <linearGradient id="stalk" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B98A2E"/>
+      <stop offset="100%" stop-color="#7A5A1E"/>
+    </linearGradient>
+    <radialGradient id="grain" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#F6E3A8"/>
+      <stop offset="100%" stop-color="#C99A3E"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <circle cx="500" cy="140" r="140" fill="#FFFFFF" opacity="0.18"/>
+  <circle cx="120" cy="500" r="120" fill="#7A5A1E" opacity="0.12"/>
+
+  <g transform="translate(320,470)">
+    <!-- three stalks fanning out -->
+    <path d="M0 0 C -10 -120 -60 -180 -95 -260" fill="none" stroke="url(#stalk)" stroke-width="7" stroke-linecap="round"/>
+    <path d="M0 0 C 0 -140 0 -220 0 -300" fill="none" stroke="url(#stalk)" stroke-width="7" stroke-linecap="round"/>
+    <path d="M0 0 C 10 -120 60 -180 95 -260" fill="none" stroke="url(#stalk)" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- ribbon tie -->
+    <ellipse cx="0" cy="-4" rx="26" ry="12" fill="#B9812E"/>
+
+    <!-- grains on left stalk -->
+    <g>
+      <ellipse cx="-45" cy="-150" rx="13" ry="20" fill="url(#grain)" transform="rotate(-25 -45 -150)"/>
+      <ellipse cx="-62" cy="-180" rx="13" ry="20" fill="url(#grain)" transform="rotate(-25 -62 -180)"/>
+      <ellipse cx="-78" cy="-210" rx="13" ry="20" fill="url(#grain)" transform="rotate(-25 -78 -210)"/>
+      <ellipse cx="-90" cy="-240" rx="13" ry="20" fill="url(#grain)" transform="rotate(-25 -90 -240)"/>
+    </g>
+    <!-- grains on center stalk -->
+    <g>
+      <ellipse cx="-16" cy="-170" rx="14" ry="22" fill="url(#grain)" transform="rotate(-10 -16 -170)"/>
+      <ellipse cx="16" cy="-170" rx="14" ry="22" fill="url(#grain)" transform="rotate(10 16 -170)"/>
+      <ellipse cx="-14" cy="-210" rx="14" ry="22" fill="url(#grain)" transform="rotate(-10 -14 -210)"/>
+      <ellipse cx="14" cy="-210" rx="14" ry="22" fill="url(#grain)" transform="rotate(10 14 -210)"/>
+      <ellipse cx="-12" cy="-250" rx="13" ry="21" fill="url(#grain)" transform="rotate(-8 -12 -250)"/>
+      <ellipse cx="12" cy="-250" rx="13" ry="21" fill="url(#grain)" transform="rotate(8 12 -250)"/>
+      <ellipse cx="0" cy="-290" rx="13" ry="22" fill="url(#grain)"/>
+    </g>
+    <!-- grains on right stalk -->
+    <g>
+      <ellipse cx="45" cy="-150" rx="13" ry="20" fill="url(#grain)" transform="rotate(25 45 -150)"/>
+      <ellipse cx="62" cy="-180" rx="13" ry="20" fill="url(#grain)" transform="rotate(25 62 -180)"/>
+      <ellipse cx="78" cy="-210" rx="13" ry="20" fill="url(#grain)" transform="rotate(25 78 -210)"/>
+      <ellipse cx="90" cy="-240" rx="13" ry="20" fill="url(#grain)" transform="rotate(25 90 -240)"/>
+    </g>
+  </g>
+
+  <!-- a few loose scattered grains for texture -->
+  <ellipse cx="150" cy="480" rx="10" ry="15" fill="url(#grain)" transform="rotate(-30 150 480)" opacity="0.85"/>
+  <ellipse cx="180" cy="510" rx="9" ry="14" fill="url(#grain)" transform="rotate(15 180 510)" opacity="0.75"/>
+  <ellipse cx="480" cy="500" rx="10" ry="15" fill="url(#grain)" transform="rotate(20 480 500)" opacity="0.8"/>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DCEEFB"/>
+      <stop offset="100%" stop-color="#8FD3F4"/>
+    </linearGradient>
+    <linearGradient id="bottle" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#EAF6FF"/>
+    </linearGradient>
+    <linearGradient id="milk" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1FAFF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="640" height="640" fill="url(#bg)"/>
+  <circle cx="480" cy="140" r="150" fill="#FFFFFF" opacity="0.18"/>
+  <circle cx="120" cy="520" r="120" fill="#2F80ED" opacity="0.12"/>
+
+  <!-- glass of milk -->
+  <g transform="translate(155,300)">
+    <path d="M10 40 L100 40 L92 230 Q55 245 18 230 Z" fill="url(#milk)" stroke="#BFE3FA" stroke-width="4"/>
+    <path d="M10 40 L100 40 L96 78 L14 78 Z" fill="#FFFFFF"/>
+    <ellipse cx="55" cy="78" rx="45" ry="9" fill="#EAF6FF" stroke="#BFE3FA" stroke-width="3"/>
+    <ellipse cx="55" cy="40" rx="45" ry="9" fill="#FFFFFF" stroke="#BFE3FA" stroke-width="3"/>
+  </g>
+
+  <!-- milk bottle -->
+  <g transform="translate(300,150)">
+    <path d="M60 0 H120 V45 L145 90 V300 Q145 320 125 320 H55 Q35 320 35 300 V90 L60 45 Z"
+          fill="url(#bottle)" stroke="#BFE3FA" stroke-width="5"/>
+    <rect x="55" y="0" width="70" height="26" rx="8" fill="#2F80ED"/>
+    <rect x="35" y="150" width="110" height="90" rx="4" fill="#2F80ED" opacity="0.85"/>
+    <text x="90" y="203" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="#FFFFFF" text-anchor="middle">MILK</text>
+    <path d="M60 45 L120 45 L145 90 H35 Z" fill="#FFFFFF" opacity="0.6"/>
+  </g>
+
+  <!-- droplet accents -->
+  <path d="M470 260 q18 24 0 40 q-18 -16 0 -40 Z" fill="#FFFFFF" opacity="0.85"/>
+  <path d="M500 340 q14 18 0 30 q-14 -12 0 -30 Z" fill="#FFFFFF" opacity="0.6"/>
+</svg>

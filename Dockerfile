@@ -13,6 +13,18 @@ ENV RAILS_ENV="production" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test"
 
+# ruby:3.2.0-slim is Debian bullseye, whose LTS ended Aug 2026 — its repos moved
+# from deb.debian.org to archive.debian.org, so point apt there.
+RUN . /etc/os-release && \
+    if [ "$VERSION_CODENAME" = "bullseye" ]; then \
+      rm -f /etc/apt/sources.list.d/debian.sources && \
+      printf '%s\n' \
+        "deb http://archive.debian.org/debian bullseye main" \
+        "deb http://archive.debian.org/debian-security bullseye-security main" \
+        > /etc/apt/sources.list && \
+      echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive; \
+    fi
+
 # ---- build stage -----------------------------------------------------------
 FROM base AS build
 
@@ -20,11 +32,14 @@ RUN for i in 1 2 3; do \
       apt-get update -qq && \
       apt-get install --no-install-recommends -y \
         build-essential git pkg-config curl libpq-dev libyaml-dev ca-certificates gnupg \
-      && break || sleep 5; \
+      && break; \
+      [ "$i" = 3 ] && exit 1; sleep 5; \
     done && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh && \
+    bash /tmp/nodesource_setup.sh && rm /tmp/nodesource_setup.sh && \
     for i in 1 2 3; do \
-      apt-get install --no-install-recommends -y nodejs && break || { apt-get update -qq; sleep 5; }; \
+      apt-get install --no-install-recommends -y nodejs && break; \
+      [ "$i" = 3 ] && exit 1; apt-get update -qq; sleep 5; \
     done && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
@@ -51,7 +66,8 @@ RUN for i in 1 2 3; do \
       apt-get install --no-install-recommends -y \
         curl libpq5 libjemalloc2 imagemagick \
         libxrender1 libxext6 libfontconfig1 fontconfig fonts-dejavu-core libjpeg62-turbo \
-      && break || sleep 5; \
+      && break; \
+      [ "$i" = 3 ] && exit 1; sleep 5; \
     done && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 

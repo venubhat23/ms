@@ -20,6 +20,10 @@ class Admin::ProductSummaryController < Admin::ApplicationController
       "stores"     => Store.active.where(is_main_inventory: [false, nil]).count
     }
 
+    # Options for the Select2 product search in the hero (filters the visible
+    # table client-side, so every tab uses the same full product list).
+    @search_products = Product.order(:name).pluck(:id, :name, :sku)
+
     case @tab
     when "main"       then load_main
     when "franchises" then load_franchises

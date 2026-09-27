@@ -44,7 +44,7 @@
         </thead>
         <tbody>
           <% @rows.each do |row| %>
-            <tr class="<%= 'psum-header' if row[:variants].any? %>">
+            <tr class="<%= 'psum-header' if row[:variants].any? %>" data-psum-product="<%= row[:product].id %>">
               <td class="psum-name"><%= row[:product].name %></td>
               <td class="psum-meta"><%= row[:sku] %></td>
               <td class="psum-meta"><%= row[:category] %></td>
@@ -57,7 +57,7 @@
               </td>
             </tr>
             <% row[:variants].each do |v| %>
-              <tr class="psum-sub">
+              <tr class="psum-sub" data-psum-product="<%= row[:product].id %>">
                 <td><i class="bi bi-arrow-return-right me-1"></i><%= v[:label] %></td>
                 <td></td>
                 <td></td>

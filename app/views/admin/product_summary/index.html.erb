@@ -94,6 +94,10 @@
 
   .psum-empty { text-align: center; padding: 3rem 1rem; color: #8a929b; }
   .psum-empty i { font-size: 2.5rem; display: block; margin-bottom: .5rem; opacity: .5; }
+
+  .psum-search { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .psum-search .select2-container { min-width: 320px; }
+  .psum-search-hint { font-size: .8rem; color: #b8860b; font-weight: 600; }
 </style>
 
 <div class="psum">
@@ -117,5 +121,69 @@
     </div>
   </div>
 
+  <div class="psum-search">
+    <select id="psum-search" data-placeholder="Search a product…">
+      <option value=""></option>
+      <% @search_products.each do |id, name, sku| %>
+        <option value="<%= id %>"><%= name %><%= " — #{sku}" if sku.present? %></option>
+      <% end %>
+    </select>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="psum-search-clear">
+      <i class="bi bi-x-circle me-1"></i>Show all
+    </button>
+    <span class="psum-search-hint" id="psum-search-hint"></span>
+  </div>
+
   <%= render "tab_#{@tab}" %>
 </div>
+
+<script>
+  (function () {
+    if (typeof window.jQuery === 'undefined' || !jQuery.fn.select2) return;
+    var $search = jQuery('#psum-search');
+    if (!$search.length) return;
+
+    $search.select2({
+      theme: 'bootstrap-5',
+      width: '320px',
+      allowClear: true,
+      placeholder: $search.data('placeholder')
+    });
+
+    var hint = document.getElementById('psum-search-hint');
+
+    function rows() {
+      return Array.prototype.slice.call(document.querySelectorAll('tr[data-psum-product]'));
+    }
+
+    function apply(pid) {
+      var all = rows();
+      if (!pid) {
+        all.forEach(function (tr) { tr.hidden = false; });
+        document.querySelectorAll('.psum-cards-grid > .psum-card').forEach(function (c) { c.hidden = false; });
+        if (hint) hint.textContent = '';
+        return;
+      }
+      var shown = 0, first = null;
+      all.forEach(function (tr) {
+        var match = tr.getAttribute('data-psum-product') === String(pid);
+        tr.hidden = !match;
+        if (match) { shown++; if (!first) first = tr; }
+      });
+      // In the per-entity "cards" layout, hide cards with nothing to show.
+      document.querySelectorAll('.psum-cards-grid > .psum-card').forEach(function (card) {
+        var any = card.querySelector('tr[data-psum-product]:not([hidden])');
+        card.hidden = !any;
+      });
+      if (hint) hint.textContent = shown ? '' : 'Not stocked in this view';
+      if (first) first.scrollIntoView({ block: 'center' });
+    }
+
+    $search.on('change', function () { apply($search.val()); });
+
+    var clearBtn = document.getElementById('psum-search-clear');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () { $search.val('').trigger('change'); });
+    }
+  })();
+</script>

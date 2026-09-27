@@ -62,7 +62,7 @@
         </thead>
         <tbody>
           <% m[:lines].each do |line| %>
-            <tr class="<%= 'psum-sub' if line[:sub] %> <%= 'psum-header' if line[:header] %>">
+            <tr class="<%= 'psum-sub' if line[:sub] %> <%= 'psum-header' if line[:header] %>" data-psum-product="<%= line[:id].to_s[/\Ap(\d+)/, 1] %>">
               <td>
                 <% if line[:sub] %><i class="bi bi-arrow-return-right me-1"></i><% end %>
                 <span class="<%= 'psum-name' unless line[:sub] %>"><%= line[:label] %></span>
@@ -113,7 +113,7 @@
               <tbody>
                 <% entity_lines.each do |line| %>
                   <% cell = m[:cells][[e[:id], line[:id]]] %>
-                  <tr class="<%= 'psum-sub' if line[:sub] %>">
+                  <tr class="<%= 'psum-sub' if line[:sub] %>" data-psum-product="<%= line[:id].to_s[/\Ap(\d+)/, 1] %>">
                     <td>
                       <% if line[:sub] %><i class="bi bi-arrow-return-right me-1"></i><% end %>
                       <span class="<%= 'psum-name' unless line[:sub] %>"><%= line[:label] %></span>

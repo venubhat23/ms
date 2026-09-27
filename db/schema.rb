@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_03_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1767,7 +1767,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_03_140000) do
     t.decimal "line_total"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "product_variant_id"
     t.index ["product_id"], name: "index_vendor_purchase_items_on_product_id"
+    t.index ["product_variant_id"], name: "index_vendor_purchase_items_on_product_variant_id"
     t.index ["vendor_purchase_id"], name: "index_vendor_purchase_items_on_vendor_purchase_id"
   end
 
@@ -1911,6 +1913,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_03_140000) do
   add_foreign_key "vendor_invoices", "vendor_purchases"
   add_foreign_key "vendor_payments", "vendor_purchases"
   add_foreign_key "vendor_payments", "vendors"
+  add_foreign_key "vendor_purchase_items", "product_variants"
   add_foreign_key "vendor_purchase_items", "products"
   add_foreign_key "vendor_purchase_items", "vendor_purchases"
   add_foreign_key "vendor_purchases", "vendors"

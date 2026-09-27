@@ -351,14 +351,14 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
 
   def set_vendors_and_products
     @vendors = Vendor.active.order(:name)
-    @products = Product.active.order(:name)
+    @products = Product.active.includes(:product_variants).order(:name)
     @categories = Category.active.ordered
   end
 
   def vendor_purchase_params
     params.require(:vendor_purchase).permit(:vendor_id, :purchase_date, :notes, :status, :paid_amount,
       vendor_purchase_items_attributes: [
-        :id, :product_id, :quantity, :purchase_price, :selling_price, :_destroy
+        :id, :product_id, :product_variant_id, :quantity, :purchase_price, :selling_price, :_destroy
       ]
     )
   end

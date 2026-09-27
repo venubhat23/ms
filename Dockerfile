@@ -14,13 +14,15 @@ ENV RAILS_ENV="production" \
     BUNDLE_WITHOUT="development:test"
 
 # ruby:3.2.0-slim is Debian bullseye, whose LTS ended Aug 2026 — its repos moved
-# from deb.debian.org to archive.debian.org, so point apt there.
+# from deb.debian.org to archive.debian.org, so point apt there. The security
+# suite hasn't been archived yet (404 on archive.debian.org as of 2026-09-27) and
+# still lives on security.debian.org.
 RUN . /etc/os-release && \
     if [ "$VERSION_CODENAME" = "bullseye" ]; then \
       rm -f /etc/apt/sources.list.d/debian.sources && \
       printf '%s\n' \
         "deb http://archive.debian.org/debian bullseye main" \
-        "deb http://archive.debian.org/debian-security bullseye-security main" \
+        "deb http://security.debian.org/debian-security bullseye-security main" \
         > /etc/apt/sources.list && \
       echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive; \
     fi

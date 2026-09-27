@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1
 
-# Rails 8 app — Ruby 3.2.0, Postgres, Solid Queue/Cache/Cable, cssbundling-rails
+# Rails 8 app — Ruby 3.2.11, Postgres, Solid Queue/Cache/Cable, cssbundling-rails
 # (sass/postcss), wkhtmltopdf-binary + ImageMagick for PDF/image processing.
 
-ARG RUBY_VERSION=3.2.0
-FROM ruby:$RUBY_VERSION-slim AS base
+# Pinned to bookworm: the old 3.2.0 image was Debian bullseye, whose apt repos
+# went dead after its LTS ended (Aug 2026).
+ARG RUBY_VERSION=3.2.11
+FROM ruby:$RUBY_VERSION-slim-bookworm AS base
 
 WORKDIR /rails
 
@@ -12,20 +14,6 @@ ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test"
-
-# ruby:3.2.0-slim is Debian bullseye, whose LTS ended Aug 2026 — its repos moved
-# from deb.debian.org to archive.debian.org, so point apt there. The security
-# suite hasn't been archived yet (404 on archive.debian.org as of 2026-09-27) and
-# still lives on security.debian.org.
-RUN . /etc/os-release && \
-    if [ "$VERSION_CODENAME" = "bullseye" ]; then \
-      rm -f /etc/apt/sources.list.d/debian.sources && \
-      printf '%s\n' \
-        "deb http://archive.debian.org/debian bullseye main" \
-        "deb http://security.debian.org/debian-security bullseye-security main" \
-        > /etc/apt/sources.list && \
-      echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99archive; \
-    fi
 
 # ---- build stage -----------------------------------------------------------
 FROM base AS build

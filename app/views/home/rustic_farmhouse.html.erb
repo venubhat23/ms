@@ -348,11 +348,7 @@ footer{background:var(--wood-dark);color:rgba(255,255,255,.65);padding:64px 44px
               ₹<%= product.selling_price %>
             <% end %>
           </div>
-          <% if product.in_stock? %>
-            <%= render "storefront/add_to_cart_control", product: product, label: "Add to Basket", cart_url: add_item_storefront_cart_path %>
-          <% else %>
-            <button class="btn-add out" disabled>Out of Stock</button>
-          <% end %>
+          <%= render "storefront/add_to_cart_control", product: product, label: "Add to Basket", cart_url: add_item_storefront_cart_path %>
         </div>
       </div>
     <% end %>

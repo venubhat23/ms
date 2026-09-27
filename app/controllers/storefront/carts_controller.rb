@@ -16,18 +16,12 @@ class Storefront::CartsController < Storefront::BaseController
       return render json: { success: false, error: 'Please choose an option before adding to cart.' }, status: :unprocessable_entity
     end
 
-    unless product.can_fulfill_order?(quantity, variant_id: variant&.id)
-      return render json: { success: false, error: "Only #{available_label(product, variant)} available in stock." }, status: :unprocessable_entity
-    end
-
+    # Public storefront never blocks on stock: out-of-stock (0 or negative)
+    # items can be added and ordered; stock goes negative at allocation.
     existing_item = cart_items.find { |item| same_line?(item, product.id, variant&.id) }
 
     if existing_item
-      new_quantity = existing_item['quantity'].to_i + quantity
-      unless product.can_fulfill_order?(new_quantity, variant_id: variant&.id)
-        return render json: { success: false, error: "Cannot add more items. Only #{available_label(product, variant)} available." }, status: :unprocessable_entity
-      end
-      existing_item['quantity'] = new_quantity
+      existing_item['quantity'] = existing_item['quantity'].to_i + quantity
     else
       @cart[:items] << {
         'product_id' => product.id,
@@ -62,12 +56,6 @@ class Storefront::CartsController < Storefront::BaseController
       return render json: { success: true, cart_count: cart_count, cart_total: cart_total }
     end
 
-    product = Product.find(product_id)
-    unless product.can_fulfill_order?(quantity, variant_id: variant_id)
-      variant = variant_id ? product.product_variants.find_by(id: variant_id) : nil
-      return render json: { success: false, error: "Only #{available_label(product, variant)} available." }, status: :unprocessable_entity
-    end
-
     item['quantity'] = quantity
     save_cart
     render json: { success: true, cart_count: cart_count, cart_total: cart_total }
@@ -99,10 +87,5 @@ class Storefront::CartsController < Storefront::BaseController
   def resolve_variant(product, raw_id)
     return nil if raw_id.blank?
     product.product_variants.find_by(id: raw_id)
-  end
-
-  def available_label(product, variant)
-    qty = variant ? variant.available_stock : product.available_quantity
-    "#{qty} units#{" of #{variant.label}" if variant}"
   end
 end

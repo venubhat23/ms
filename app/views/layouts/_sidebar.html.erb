@@ -1039,8 +1039,8 @@
         </li>
         <% end %>
 
-        <!-- Delivery Settings -->
-        <% if current_user.has_sidebar_permission?('delivery_settings') %>
+        <!-- Delivery Settings (also shown to anyone with Delivery People access) -->
+        <% if current_user.has_sidebar_permission?('delivery_settings') || current_user.has_sidebar_permission?('delivery_people') %>
         <li class="nav-item">
           <%= link_to admin_delivery_settings_path, class: "nav-link-modern #{'active' if request.path.include?('/admin/delivery_settings')}" do %>
             <div class="nav-icon-modern">

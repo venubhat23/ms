@@ -28,7 +28,7 @@
     .sv-chip:hover{border-color:rgba(0,0,0,.55)}
     .sv-chip.is-active{background:#1c7a3e;border-color:#1c7a3e}
     .sv-chip.is-active span{color:#fff}
-    .sv-chip.is-oos{opacity:.4;text-decoration:line-through;cursor:not-allowed}
+    .sv-chip.is-oos{opacity:.55;border-style:dashed}
     .sv-price{font-weight:800;font-size:15px}
   </style>
   <script>
@@ -97,7 +97,7 @@
                 class="sv-chip<%= ' is-active' if v.id == default_v.id %><%= ' is-oos' if oos %>"
                 data-variant-id="<%= v.id %>"
                 data-price="<%= v.effective_price %>"
-                <%= 'disabled' if oos %>
+                <% if oos %>title="Out of stock"<% end %>
                 onclick="svSelectChip(this)"><span><%= v.label %></span></button>
       <% end %>
     </div>

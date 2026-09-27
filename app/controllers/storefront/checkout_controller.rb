@@ -94,9 +94,9 @@ class Storefront::CheckoutController < Storefront::BaseController
       )
       @booking.payment_status = :unpaid
       @booking.status = 'draft' if payment_method_key != 'cod'
-      # Pre-booking: let the order through even at 0 stock (see
-      # Product#can_fulfill_order?, which gates the check just below).
-      @booking.skip_stock_check = true if SystemSetting.allow_pre_booking_enabled?
+      # Public storefront orders are always accepted regardless of stock
+      # (0 / out-of-stock included); allocation oversells into negative.
+      @booking.skip_stock_check = true
 
       if params[:delivery_store_id].present?
         @booking.delivery_store = params[:delivery_store_id]
@@ -123,12 +123,6 @@ class Storefront::CheckoutController < Storefront::BaseController
         variant = variant_id ? product.product_variants.find { |v| v.id == variant_id } : nil
 
         quantity = item['quantity'].to_f
-        unless product.can_fulfill_order?(quantity, variant_id: variant&.id)
-          label = variant ? "#{product.name} (#{variant.label})" : product.name
-          available = variant ? variant.available_stock : product.available_quantity
-          booking_error = "Only #{available} units of #{label} available."
-          raise ActiveRecord::Rollback
-        end
 
         @booking.booking_items.build(
           product: product,

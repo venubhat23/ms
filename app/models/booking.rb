@@ -1048,14 +1048,14 @@ class Booking < ApplicationRecord
   # deferred ("delivered"/"completed") allocation paths above — same mechanics,
   # just triggered at a different status.
   #
-  # Admin bookings (and any skip_stock_check booking) are allowed to oversell:
-  # whatever the central pool can't cover is pushed onto a batch as negative
-  # quantity_remaining instead of blocking, mirroring
+  # Admin and public-storefront bookings (and any skip_stock_check booking) are
+  # allowed to oversell: whatever the central pool can't cover is pushed onto a
+  # batch as negative quantity_remaining instead of blocking, mirroring
   # BookingItem#reduce_product_stock's overflow branch. Every other channel
-  # (customer/public/mobile) keeps the old behaviour — revert the status change
-  # and add a validation error when an item can't be fully covered.
+  # (customer/mobile) keeps the old behaviour — revert the status change and
+  # add a validation error when an item can't be fully covered.
   def perform_central_stock_allocation!
-    oversell_allowed = booked_by == 'admin' || skip_stock_check
+    oversell_allowed = %w[admin public].include?(booked_by) || skip_stock_check
 
     unless oversell_allowed
       insufficient_items = booking_items.filter_map do |item|

@@ -1,6 +1,10 @@
 class Admin::DeliverySettingsController < ApplicationController
   before_action :authenticate_admin
-  before_action { require_sidebar_permission!('delivery_settings') }
+  # Delivery People access also grants Delivery Settings (same sidebar section).
+  before_action do
+    next if current_user&.has_sidebar_permission?('delivery_people')
+    require_sidebar_permission!('delivery_settings')
+  end
   before_action :set_delivery_charge, only: [:edit, :update]
 
   def index

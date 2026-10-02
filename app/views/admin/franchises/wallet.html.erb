@@ -1,0 +1,96 @@
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h2 class="mb-1">
+      <i class="bi bi-wallet2 me-2 text-success"></i>
+      Franchise Wallet
+    </h2>
+    <p class="text-muted mb-0"><%= @franchise.display_name %> — Franchise ID: #<%= @franchise.id %></p>
+  </div>
+  <div class="d-flex gap-2">
+    <%= link_to admin_franchise_path(@franchise), class: "btn btn-outline-secondary" do %>
+      <i class="bi bi-arrow-left me-1"></i>
+      Back to Franchise
+    <% end %>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <small class="text-muted d-block">Current Balance</small>
+        <h3 class="text-success mb-0"><%= @franchise_wallet.formatted_balance %></h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <small class="text-muted d-block">Total Credited</small>
+        <h4 class="text-primary mb-0">₹<%= number_with_precision(@total_credits, precision: 2, delimiter: ',') %></h4>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body text-center">
+        <small class="text-muted d-block">Total Debited</small>
+        <h4 class="text-danger mb-0">₹<%= number_with_precision(@total_debits, precision: 2, delimiter: ',') %></h4>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transactions -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-transparent border-0">
+    <h5 class="mb-0">Transactions</h5>
+  </div>
+  <div class="card-body p-0">
+    <% if @transactions.any? %>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Reference</th>
+              <th>Booking</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end">Balance After</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @transactions.each do |txn| %>
+              <tr>
+                <td class="text-nowrap"><%= txn.created_at.strftime("%b %d, %Y %I:%M %p") %></td>
+                <td><%= txn.description.presence || '-' %></td>
+                <td><small class="text-muted"><%= txn.reference_number.presence || '-' %></small></td>
+                <td>
+                  <% if txn.booking %>
+                    <%= link_to "##{txn.booking.booking_number}", admin_booking_path(txn.booking) %>
+                  <% else %>
+                    -
+                  <% end %>
+                </td>
+                <td class="text-end">
+                  <span class="badge bg-<%= txn.transaction_color %>-subtle text-<%= txn.transaction_color %>">
+                    <%= txn.credit? ? '+' : '-' %><%= txn.formatted_amount %>
+                  </span>
+                </td>
+                <td class="text-end">₹<%= number_with_precision(txn.balance_after, precision: 2, delimiter: ',') %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <div class="p-3">
+        <%= paginate @transactions %>
+      </div>
+    <% else %>
+      <p class="text-muted text-center py-4 mb-0">No wallet transactions yet.</p>
+    <% end %>
+  </div>
+</div>

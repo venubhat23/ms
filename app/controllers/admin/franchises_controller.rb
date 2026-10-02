@@ -1,6 +1,6 @@
 class Admin::FranchisesController < Admin::ApplicationController
   include ConfigurablePagination
-  before_action :set_franchise, only: [:show, :edit, :update, :destroy, :toggle_status, :reset_password]
+  before_action :set_franchise, only: [:show, :wallet, :edit, :update, :destroy, :toggle_status, :reset_password]
 
   def index
     franchises_scope = Franchise.all
@@ -34,6 +34,16 @@ class Admin::FranchisesController < Admin::ApplicationController
       @franchise_wallet_transactions = @franchise_wallet.franchise_wallet_transactions.recent.limit(10)
       @franchise_inventories = @franchise.franchise_inventories.includes(:product).references(:product).order('products.name')
     end
+  end
+
+  # Full wallet statement for one franchise — the show page only lists the
+  # last 10 transactions.
+  def wallet
+    @franchise_wallet = @franchise.franchise_wallet || @franchise.create_franchise_wallet!(balance: 0)
+    transactions = @franchise_wallet.franchise_wallet_transactions.includes(:booking)
+    @total_credits = transactions.credits.sum(:amount)
+    @total_debits = transactions.debits.sum(:amount)
+    @transactions = transactions.recent.page(params[:page]).per(25)
   end
 
   def new

@@ -44,13 +44,11 @@
             <%= f.text_field :mobile, class: "form-control", required: true %>
           </div>
 
-          <% if SystemSetting.franchise_commission_enabled? %>
-            <div class="mb-3">
-              <%= f.label :commission_percentage, "Commission (%)", class: "form-label" %>
-              <%= f.number_field :commission_percentage, class: "form-control", min: 0, max: 100, step: "0.01" %>
-              <small class="text-muted">Paid to this franchise when they deliver a booking.</small>
-            </div>
-          <% end %>
+          <div class="mb-3">
+            <%= f.label :commission_percentage, "Commission (%)", class: "form-label" %>
+            <%= f.number_field :commission_percentage, class: "form-control", min: 0.01, max: 100, step: "0.01", placeholder: Franchise::DEFAULT_COMMISSION_PERCENTAGE %>
+            <small class="text-muted">Paid to this franchise when they deliver a booking. Leave blank to use the default <%= Franchise::DEFAULT_COMMISSION_PERCENTAGE %>%.</small>
+          </div>
         </div>
 
         <!-- Address Information -->

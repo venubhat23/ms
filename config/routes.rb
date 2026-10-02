@@ -552,6 +552,7 @@ Rails.application.routes.draw do
       end
       member do
         patch :toggle_status
+        get :wallet
       end
     end
 

@@ -11,6 +11,10 @@
     </p>
   </div>
   <div class="d-flex gap-2">
+    <%= link_to wallet_admin_franchise_path(@franchise), class: "btn btn-success" do %>
+      <i class="bi bi-wallet2 me-1"></i>
+      View Wallet
+    <% end %>
     <%= link_to edit_admin_franchise_path(@franchise), class: "btn btn-warning" do %>
       <i class="bi bi-pencil me-1"></i>
       Edit Franchise
@@ -421,11 +425,12 @@
     <% if SystemSetting.franchise_commission_enabled? %>
       <!-- Franchise Wallet -->
       <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-transparent border-0">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
           <h6 class="mb-0">
             <i class="bi bi-wallet2 me-1 text-success"></i>
             Franchise Wallet
           </h6>
+          <%= link_to "View all", wallet_admin_franchise_path(@franchise), class: "small" %>
         </div>
         <div class="card-body">
           <div class="text-center mb-3">

@@ -62,63 +62,37 @@ class ProductVariant < ApplicationRecord
     available_stock > 0
   end
 
-  # Moves stock between variants of the same product — covers both splitting
-  # one variant into several smaller ones and merging several into one. Each
-  # side is a list of { variant:, quantity: } lines; the two sides must carry
-  # the same total weight (quantity * variant.weight) since nothing is being
-  # created or destroyed, only repackaged.
-  def self.transfer_stock!(product:, from_lines:, to_lines:)
-    raise TransferError, 'Select at least one source variant and quantity.' if from_lines.blank?
-    raise TransferError, 'Select at least one destination variant and quantity.' if to_lines.blank?
-
-    from_lines.each do |line|
-      raise TransferError, "#{line[:variant].label} does not belong to #{product.name}." unless line[:variant].product_id == product.id
-    end
-    to_lines.each do |line|
-      raise TransferError, "#{line[:variant].label} does not belong to #{product.name}." unless line[:variant].product_id == product.id
-    end
-
-    from_total_weight = from_lines.sum { |line| line[:quantity] * line[:variant].weight.to_f }
-    to_total_weight = to_lines.sum { |line| line[:quantity] * line[:variant].weight.to_f }
-
-    if (from_total_weight - to_total_weight).abs > 0.01
-      raise TransferError, "Quantities don't balance: source totals #{from_total_weight.round(2)}, destination totals #{to_total_weight.round(2)}. They must match."
-    end
-
-    from_lines.each do |line|
-      if line[:variant].available_stock < line[:quantity]
-        raise TransferError, "Not enough stock in #{line[:variant].label} (available #{line[:variant].available_stock}, requested #{line[:quantity]})."
-      end
+  # Moves stock straight from one variant of a product to another: the source
+  # loses `quantity` and the destination gains the same amount, so the
+  # product's total stock is unchanged.
+  def self.transfer_stock!(product:, from:, to:, quantity:)
+    quantity = quantity.to_i
+    raise TransferError, 'Select the variant to move stock from.' if from.blank?
+    raise TransferError, 'Select the variant to move stock to.' if to.blank?
+    raise TransferError, 'Enter a quantity greater than 0.' if quantity <= 0
+    raise TransferError, 'From and To must be different variants.' if from.id == to.id
+    [from, to].each do |variant|
+      raise TransferError, "#{variant.label} does not belong to #{product.name}." unless variant.product_id == product.id
     end
 
     transaction do
-      from_lines.each do |line|
-        variant = line[:variant]
-        stock_before = variant.available_stock
-        stock_after = stock_before - line[:quantity]
-        variant.update_column(:available_stock, stock_after)
-        product.stock_movements.create!(
-          reference_type: 'variant_split',
-          movement_type: 'consumed',
-          quantity: -line[:quantity],
-          stock_before: stock_before,
-          stock_after: stock_after,
-          notes: "Split/merge: moved #{line[:quantity]} x #{variant.label} out to other variant(s)"
-        )
+      from.lock!
+      to.lock!
+      if from.available_stock < quantity
+        raise TransferError, "Not enough stock in #{from.label} (available #{from.available_stock}, requested #{quantity})."
       end
 
-      to_lines.each do |line|
-        variant = line[:variant]
+      [[from, -quantity], [to, quantity]].each do |variant, delta|
         stock_before = variant.available_stock
-        stock_after = stock_before + line[:quantity]
+        stock_after = stock_before + delta
         variant.update_column(:available_stock, stock_after)
         product.stock_movements.create!(
           reference_type: 'variant_split',
-          movement_type: 'added',
-          quantity: line[:quantity],
+          movement_type: delta.negative? ? 'consumed' : 'added',
+          quantity: delta,
           stock_before: stock_before,
           stock_after: stock_after,
-          notes: "Split/merge: received #{line[:quantity]} x #{variant.label} from other variant(s)"
+          notes: delta.negative? ? "Transfer: moved #{quantity} from #{from.label} to #{to.label}" : "Transfer: received #{quantity} from #{from.label} into #{to.label}"
         )
       end
     end

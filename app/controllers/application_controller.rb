@@ -98,7 +98,7 @@ class ApplicationController < ActionController::Base
   def capture_referral_code
     return if params[:ref].blank?
 
-    affiliate = Affiliate.active.find_by(affiliate_code: params[:ref])
+    affiliate = Affiliate.find_by_referral_code(params[:ref])
     session[:referral_affiliate_code] = affiliate.affiliate_code if affiliate
   end
 

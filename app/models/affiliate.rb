@@ -24,7 +24,24 @@ class Affiliate < ApplicationRecord
   # the app doesn't have routes.default_url_options configured for a fixed
   # host, so this can't safely build an absolute URL on its own.
   def referral_link(base_url)
-    "#{base_url}/?ref=#{affiliate_code}"
+    "#{base_url}/?ref=#{ERB::Util.url_encode(affiliate_code)}"
+  end
+
+  # Resolves a referral code from a ?ref= link or the registration form.
+  # Codes default to the affiliate's mobile, which some older rows store as
+  # "+91 98981 81818" — a "+" in an unescaped link arrives as a space, so
+  # after an exact match fails, fall back to comparing the last 10 digits.
+  def self.find_by_referral_code(code)
+    code = code.to_s.strip
+    return nil if code.blank?
+
+    exact = active.find_by(affiliate_code: code)
+    return exact if exact
+
+    digits = code.gsub(/\D/, '').last(10)
+    return nil unless digits.length == 10
+
+    active.where("RIGHT(regexp_replace(affiliate_code, '\\D', '', 'g'), 10) = :d OR RIGHT(regexp_replace(mobile, '\\D', '', 'g'), 10) = :d", d: digits).first
   end
 
   def display_name

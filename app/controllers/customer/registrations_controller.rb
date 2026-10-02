@@ -36,7 +36,7 @@ class Customer::RegistrationsController < Customer::BaseController
     code = params[:customer][:affiliate_code].presence || session[:referral_affiliate_code]
     return nil if code.blank?
 
-    Affiliate.active.find_by(affiliate_code: code)
+    Affiliate.find_by_referral_code(code)
   end
 
   def customer_params

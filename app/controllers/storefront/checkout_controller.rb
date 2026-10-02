@@ -244,6 +244,6 @@ class Storefront::CheckoutController < Storefront::BaseController
     code = session[:referral_affiliate_code]
     return nil if code.blank?
 
-    Affiliate.active.find_by(affiliate_code: code)
+    Affiliate.find_by_referral_code(code)
   end
 end

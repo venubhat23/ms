@@ -149,62 +149,70 @@
     </div>
   </div>
 
+  <%= render "layouts/sidebar_search", scope: "store_admin" %>
+
   <div class="sidebar-scrollable">
-    <div class="nav-section-title">
-      <i class="fas fa-store me-2"></i>Store Management
-    </div>
-
-    <%= link_to store_admin_root_path,
-        class: "nav-link-modern #{'active' if current_page?(store_admin_root_path)}" do %>
-      <div class="icon-bg"><i class="bi bi-speedometer2"></i></div>
-      <span class="nav-text">Dashboard</span>
-    <% end %>
-
-    <%= link_to store_admin_bookings_path,
-        class: "nav-link-modern #{'active' if controller_name == 'bookings'}" do %>
-      <div class="icon-bg"><i class="bi bi-cart-check"></i></div>
-      <span class="nav-text">Bookings</span>
-    <% end %>
-
-    <%= link_to store_admin_expenses_path,
-        class: "nav-link-modern #{'active' if controller_name == 'expenses'}" do %>
-      <div class="icon-bg"><i class="bi bi-receipt"></i></div>
-      <span class="nav-text">Expenses</span>
-    <% end %>
-
-    <%= link_to store_admin_customers_path,
-        class: "nav-link-modern #{'active' if controller_name == 'customers'}" do %>
-      <div class="icon-bg"><i class="bi bi-people"></i></div>
-      <span class="nav-text">Customers</span>
-    <% end %>
-
-    <% if current_user.can_manage_inventory? %>
+    <div class="nav-section">
       <div class="nav-section-title">
-        <i class="fas fa-boxes me-2"></i>Inventory
+        <i class="fas fa-store me-2"></i>Store Management
       </div>
 
-      <%= link_to store_admin_inventory_index_path,
-          class: "nav-link-modern #{'active' if controller_name == 'inventory'}" do %>
-        <div class="icon-bg"><i class="bi bi-boxes"></i></div>
-        <span class="nav-text">Stock Levels</span>
+      <%= link_to store_admin_root_path,
+          class: "nav-link-modern #{'active' if current_page?(store_admin_root_path)}" do %>
+        <div class="icon-bg"><i class="bi bi-speedometer2"></i></div>
+        <span class="nav-text">Dashboard</span>
       <% end %>
 
-      <%= link_to store_admin_stock_transfers_path,
-          class: "nav-link-modern #{'active' if controller_name == 'stock_transfers'}" do %>
-        <div class="icon-bg"><i class="bi bi-arrow-left-right"></i></div>
-        <span class="nav-text">Stock Transfers</span>
+      <%= link_to store_admin_bookings_path,
+          class: "nav-link-modern #{'active' if controller_name == 'bookings'}" do %>
+        <div class="icon-bg"><i class="bi bi-cart-check"></i></div>
+        <span class="nav-text">Bookings</span>
       <% end %>
-    <% end %>
 
-    <div class="nav-section-title">
-      <i class="fas fa-users me-2"></i>HR
+      <%= link_to store_admin_expenses_path,
+          class: "nav-link-modern #{'active' if controller_name == 'expenses'}" do %>
+        <div class="icon-bg"><i class="bi bi-receipt"></i></div>
+        <span class="nav-text">Expenses</span>
+      <% end %>
+
+      <%= link_to store_admin_customers_path,
+          class: "nav-link-modern #{'active' if controller_name == 'customers'}" do %>
+        <div class="icon-bg"><i class="bi bi-people"></i></div>
+        <span class="nav-text">Customers</span>
+      <% end %>
     </div>
 
-    <%= link_to store_admin_staff_members_path,
-        class: "nav-link-modern #{'active' if controller_name == 'staff_members'}" do %>
-      <div class="icon-bg"><i class="bi bi-person-badge"></i></div>
-      <span class="nav-text">Staff Payout</span>
+    <% if current_user.can_manage_inventory? %>
+      <div class="nav-section">
+        <div class="nav-section-title">
+          <i class="fas fa-boxes me-2"></i>Inventory
+        </div>
+
+        <%= link_to store_admin_inventory_index_path,
+            class: "nav-link-modern #{'active' if controller_name == 'inventory'}" do %>
+          <div class="icon-bg"><i class="bi bi-boxes"></i></div>
+          <span class="nav-text">Stock Levels</span>
+        <% end %>
+
+        <%= link_to store_admin_stock_transfers_path,
+            class: "nav-link-modern #{'active' if controller_name == 'stock_transfers'}" do %>
+          <div class="icon-bg"><i class="bi bi-arrow-left-right"></i></div>
+          <span class="nav-text">Stock Transfers</span>
+        <% end %>
+      </div>
     <% end %>
+
+    <div class="nav-section">
+      <div class="nav-section-title">
+        <i class="fas fa-users me-2"></i>HR
+      </div>
+
+      <%= link_to store_admin_staff_members_path,
+          class: "nav-link-modern #{'active' if controller_name == 'staff_members'}" do %>
+        <div class="icon-bg"><i class="bi bi-person-badge"></i></div>
+        <span class="nav-text">Staff Payout</span>
+      <% end %>
+    </div>
   </div>
 
   <div class="sidebar-footer">

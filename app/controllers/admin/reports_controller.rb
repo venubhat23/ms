@@ -757,8 +757,8 @@ class Admin::ReportsController < Admin::ApplicationController
 
     # Count assignments (invoice items)
     assignments = invoice_type == 'BookingInvoice' ?
-                  (invoice.respond_to?(:booking) ? invoice.booking&.booking_items&.count || 0 : 0) :
-                  invoice.invoice_items.count
+                  (invoice.respond_to?(:booking) ? invoice.booking&.booking_items&.size || 0 : 0) :
+                  invoice.invoice_items.size
 
     {
       customer_name: customer&.display_name || 'N/A',

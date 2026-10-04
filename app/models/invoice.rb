@@ -52,12 +52,21 @@ class Invoice < ApplicationRecord
     booking.update(shipping_charges: delivery_charge)
   end
 
+  # Booking sharing this invoice_number (walk-in name/phone/address source).
+  # Memoized; listing pages can assign it in bulk via related_booking= to
+  # avoid one lookup per invoice.
+  def related_booking
+    return @related_booking if defined?(@related_booking)
+
+    @related_booking = Booking.find_by(invoice_number: invoice_number)
+  end
+  attr_writer :related_booking
+
   # Get customer display name (customer or walk-in from booking)
   def customer_display_name
     return customer.display_name if customer.present?
 
     # For walk-in customers, get name from related booking
-    related_booking = Booking.find_by(invoice_number: invoice_number)
     return related_booking.customer_name if related_booking&.customer_name.present?
 
     'Walk-in Customer'
@@ -68,7 +77,6 @@ class Invoice < ApplicationRecord
     return customer.address if customer&.address.present?
 
     # For walk-in customers, get address from related booking
-    related_booking = Booking.find_by(invoice_number: invoice_number)
     return related_booking.delivery_address if related_booking&.delivery_address.present?
 
     'Walk-in Address'
@@ -79,7 +87,6 @@ class Invoice < ApplicationRecord
     return customer.mobile if customer&.mobile.present?
 
     # For walk-in customers, get mobile from related booking
-    related_booking = Booking.find_by(invoice_number: invoice_number)
     return related_booking.customer_phone if related_booking&.customer_phone.present?
 
     nil

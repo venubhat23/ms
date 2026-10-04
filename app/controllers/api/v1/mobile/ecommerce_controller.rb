@@ -471,8 +471,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     per_page = params[:per_page]&.to_i || 20
     per_page = [per_page, 50].min
 
-    # Mobile API is only for customers
-    customer = Customer.find_by(email: @current_user&.email) if @current_user
+    # Mobile API is only for customers. authenticate_customer! already
+    # resolved a customer token to a Customer — reuse it instead of
+    # re-querying; other token roles keep the email match.
+    customer = current_customer || (Customer.find_by(email: @current_user.email) if @current_user)
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
     @bookings = customer.bookings.recent.includes(:franchise, booking_items: :product)
@@ -481,10 +483,11 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     # Filter by status if provided
     @bookings = @bookings.where(status: params[:status]) if params[:status].present?
 
-    total_count = @bookings.count
+    total_count = @bookings.async_count # overlaps with the page query below
     @bookings = @bookings.offset((page - 1) * per_page).limit(per_page)
 
     bookings_data = @bookings.map { |booking| format_booking_data(booking) }
+    total_count = total_count.value
 
     json_response({
       success: true,
@@ -564,15 +567,19 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     # Get statistics — collapsed from 3 round trips (orders count, bookings
     # count, orders sum) into 2, one per table, matching the same fix in
     # authentication_controller.rb#get_customer_portfolio_stats.
-    total_orders, total_spent = customer.orders.pick(Arel.sql(<<~SQL.squish))
+    # All four are independent, so they're fired together (async) and their
+    # round trips overlap instead of running back to back.
+    order_stats = customer.orders.async_pick(Arel.sql(<<~SQL.squish))
       COUNT(*),
       COALESCE(SUM(total_amount) FILTER (WHERE status NOT IN ('cancelled', 'returned')), 0)
     SQL
-    total_bookings = customer.bookings.count
+    bookings_count = customer.bookings.async_count
 
     # Get recent activity
-    recent_orders = customer.orders.recent.limit(5)
-    recent_bookings = customer.bookings.recent.includes(:franchise).limit(5)
+    recent_orders = customer.orders.recent.limit(5).load_async
+    recent_bookings = customer.bookings.recent.includes(:franchise).limit(5).load_async
+    total_orders, total_spent = order_stats.value
+    total_bookings = bookings_count.value
 
     profile_data = {
       id: customer.id,
@@ -1702,7 +1709,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   def with_product_listing_preloads(scope)
     scope.select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
          .joins("LEFT JOIN (#{stock_subquery.to_sql}) sq ON sq.product_id = products.id")
-         .includes(:product_variants, :category, :approved_reviews, image_attachment: :blob, additional_images_attachments: :blob)
+         # Single-row associations JOINed into the same query (1 round trip
+         # instead of 3); has_many ones stay as separate preloads.
+         .eager_load(:category, image_attachment: :blob)
+         .preload(:product_variants, :approved_reviews, additional_images_attachments: :blob)
   end
 
   # Re-fetches a page of products (by id, already filtered/sorted/paginated

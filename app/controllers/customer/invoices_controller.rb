@@ -35,8 +35,10 @@ class Customer::InvoicesController < Customer::BaseController
     # Get pagination settings
     @per_page = SystemSetting.default_pagination_per_page || 20
 
-    # Paginate the filtered results
-    @invoices = @invoices.page(params[:page]).per(@per_page)
+    # Paginate the filtered results. load_async: the page loads on a
+    # background connection while the stats query below runs, and the view's
+    # `.any?` then reads the loaded records instead of a separate EXISTS query.
+    @invoices = @invoices.page(params[:page]).per(@per_page).load_async
 
     # Use all_invoices for statistics — one combined query instead of the
     # view's old 5 separate .count/.sum calls against the same relation.

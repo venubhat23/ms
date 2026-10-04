@@ -8,6 +8,7 @@ class Customer::BaseController < ApplicationController
 
   before_action :authenticate_customer!
   before_action :ensure_customer_role
+  before_action :preload_layout_customer_addresses
   layout 'customer'
 
   protected
@@ -46,6 +47,16 @@ class Customer::BaseController < ApplicationController
     if current_customer.blank?
       redirect_to customer_login_path, alert: 'Access denied. Customer account required.'
     end
+  end
+
+  # The customer layout embeds the cart drawer's address list on every HTML
+  # page. Start that query now on a background connection so its round trip
+  # overlaps the action's own queries instead of running last, at render time.
+  def preload_layout_customer_addresses
+    return unless request.get? && request.format.html? && current_customer
+
+    @layout_customer_addresses = current_customer.customer_addresses
+                                                 .order(is_default: :desc, created_at: :asc).load_async
   end
 
   # Cart helper methods

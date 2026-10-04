@@ -23,7 +23,14 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
   end
 
   def show
-    @stock_batches = @vendor_purchase.stock_batches.includes(:product)
+    # Batches load in the background while the purchase's own graph
+    # (vendor, line items, their products/variants) is preloaded — the view
+    # walks all of it, which was one product query per line item.
+    @stock_batches = @vendor_purchase.stock_batches.eager_load(:product).load_async
+    ActiveRecord::Associations::Preloader.new(
+      records: [@vendor_purchase],
+      associations: [:vendor, { vendor_purchase_items: [:product, :product_variant] }]
+    ).call
   end
 
   def new
@@ -212,7 +219,10 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
 
   def batch_inventory
     # Get all stock batches with filters
-    stock_batches_query = StockBatch.includes(:product, :vendor, :vendor_purchase)
+    # Preload product category + image attachment/blob: the view renders both
+    # per product row (main_image_url, category&.name) — without this it was
+    # ~2 extra queries per product.
+    stock_batches_query = StockBatch.includes({ product: [:category, { image_attachment: :blob }] }, :vendor, :vendor_purchase)
                                    .order(:batch_date, :created_at)
 
     stock_batches_query = stock_batches_query.joins(:product).where('products.name ILIKE ?', "%#{params[:search]}%") if params[:search].present?

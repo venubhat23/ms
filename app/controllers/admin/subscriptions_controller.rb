@@ -14,15 +14,19 @@ class Admin::SubscriptionsController < Admin::ApplicationController
     @subscriptions = @subscriptions.order(created_at: :desc).page(params[:page]).per(20)
 
     # For filter options — cached since these change rarely relative to page views
-    @customers = Rails.cache.fetch('admin_subscriptions/filter_customers', expires_in: 5.minutes) do
-      Customer.order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
-    end
-    @products = Rails.cache.fetch('admin_subscriptions/filter_products', expires_in: 5.minutes) do
-      Product.where(product_type: 'milk').order(:name).pluck(:name, :id)
-    end
-    @delivery_people = Rails.cache.fetch('admin_subscriptions/filter_delivery_people', expires_in: 5.minutes) do
-      DeliveryPerson.where(status: true).order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
-    end
+    # fetch_multi: one Solid Cache round trip for all three (each separate
+    # Rails.cache read is its own query against the remote DB).
+    filter_keys = %w[admin_subscriptions/filter_customers admin_subscriptions/filter_products admin_subscriptions/filter_delivery_people]
+    @customers, @products, @delivery_people = Rails.cache.fetch_multi(*filter_keys, expires_in: 5.minutes) do |key|
+      case key
+      when filter_keys[0]
+        Customer.order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+      when filter_keys[1]
+        Product.where(product_type: 'milk').order(:name).pluck(:name, :id)
+      else
+        DeliveryPerson.where(status: true).order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+      end
+    end.values_at(*filter_keys)
 
     # Summary statistics
     @stats = calculate_subscription_stats

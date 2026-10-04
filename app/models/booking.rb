@@ -739,12 +739,13 @@ class Booking < ApplicationRecord
   def associated_invoice
     return @associated_invoice if defined?(@associated_invoice)
 
-    # Look for invoice items that reference this booking by booking number in the description
-    invoice_item = InvoiceItem.joins(:invoice)
-                             .where('description LIKE ?', "%#{booking_number}%")
-                             .first
-
-    @associated_invoice = invoice_item&.invoice
+    # Look for invoice items that reference this booking by booking number in
+    # the description — fetches the invoice of the first matching item
+    # (lowest invoice_items.id) in one query instead of item, then invoice.
+    @associated_invoice = Invoice.joins(:invoice_items)
+                                 .where('invoice_items.description LIKE ?', "%#{booking_number}%")
+                                 .order('invoice_items.id')
+                                 .first
   end
 
   # Check if this booking has an associated invoice (either BookingInvoice or regular Invoice)

@@ -18,7 +18,7 @@ class Admin::CategoriesController < Admin::ApplicationController
   end
 
   def show
-    @products = @category.products.includes(:category).recent.limit(10)
+    @products = Product.preload_batch_stock(@category.products.includes(:category, image_attachment: :blob).recent.limit(10))
   end
 
   def new

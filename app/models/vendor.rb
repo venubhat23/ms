@@ -19,11 +19,19 @@ class Vendor < ApplicationRecord
   # sum when it isn't preloaded, so this stays correct (just not extra-fast) anywhere
   # else it's called.
   def total_purchases
-    @total_purchases ||= vendor_purchases.loaded? ? vendor_purchases.sum(&:total_amount) : vendor_purchases.sum(:total_amount)
+    @total_purchases ||= vendor_purchases.loaded? ? vendor_purchases.sum(&:total_amount) : purchase_and_paid_sums.first
   end
 
   def total_paid
-    @total_paid ||= vendor_purchases.loaded? ? vendor_purchases.sum(&:paid_amount) : vendor_purchases.sum(:paid_amount)
+    @total_paid ||= vendor_purchases.loaded? ? vendor_purchases.sum(&:paid_amount) : purchase_and_paid_sums.last
+  end
+
+  # Both sums in one query (they're nearly always read together, e.g. via
+  # outstanding_balance) instead of one round trip each.
+  def purchase_and_paid_sums
+    @purchase_and_paid_sums ||= vendor_purchases.pick(
+      Arel.sql('COALESCE(SUM(total_amount), 0)'), Arel.sql('COALESCE(SUM(paid_amount), 0)')
+    )
   end
 
   def outstanding_balance

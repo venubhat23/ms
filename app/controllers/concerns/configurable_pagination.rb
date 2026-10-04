@@ -3,14 +3,11 @@ module ConfigurablePagination
 
   private
 
-  # Cached: this concern is included by 13+ index actions, each of which was
-  # paying its own ~250-300ms round trip to the remote DB for the exact same
-  # setting on every single page load. Busted in Admin::Settings::SystemController#update
-  # when the value actually changes.
+  # SystemSetting.get_value is already fronted by an in-process LocalTtlCache
+  # (written through on save), so this is a hash read — wrapping it in
+  # Rails.cache (Solid Cache = a DB round trip per read) only made it slower.
   def default_per_page
-    Rails.cache.fetch('system_setting/default_pagination_per_page', expires_in: 5.minutes) do
-      SystemSetting.default_pagination_per_page
-    end
+    @default_per_page ||= SystemSetting.default_pagination_per_page
   end
 
   def per_page_param

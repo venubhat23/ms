@@ -115,7 +115,7 @@
     </div>
 
     <!-- Login Credentials -->
-    <% user = User.find_by(email: @customer.email) %>
+    <% user = @login_user_query.first %>
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
@@ -429,25 +429,25 @@
         <div class="row g-3">
           <div class="col-md-4">
             <div class="text-center">
-              <h4 class="text-primary mb-1"><%= @customer.bookings.count %></h4>
+              <h4 class="text-primary mb-1"><%= @bookings_count.value %></h4>
               <small class="text-muted">Total Bookings</small>
             </div>
           </div>
           <div class="col-md-4">
             <div class="text-center">
-              <h4 class="text-success mb-1"><%= @customer.orders.count %></h4>
+              <h4 class="text-success mb-1"><%= @orders_count.value %></h4>
               <small class="text-muted">Total Orders</small>
             </div>
           </div>
           <div class="col-md-4">
             <div class="text-center">
-              <h4 class="text-info mb-1"><%= @customer.booking_schedules.count %></h4>
+              <h4 class="text-info mb-1"><%= @booking_schedules_count.value %></h4>
               <small class="text-muted">Subscriptions</small>
             </div>
           </div>
         </div>
 
-        <% if @customer.bookings.any? %>
+        <% if @recent_bookings.any? %>
           <hr>
           <h6 class="mb-3">Recent Bookings</h6>
           <div class="table-responsive">
@@ -462,7 +462,7 @@
                 </tr>
               </thead>
               <tbody>
-                <% @customer.bookings.order(created_at: :desc).limit(5).each do |booking| %>
+                <% @recent_bookings.each do |booking| %>
                   <tr>
                     <td><%= booking.booking_number || "##{booking.id}" %></td>
                     <td><%= booking.created_at.strftime("%b %d, %Y") %></td>
@@ -510,11 +510,11 @@
           <hr>
           <div class="col-6">
             <small class="text-muted d-block">Total Bookings</small>
-            <h5 class="text-primary mb-0"><%= @customer.bookings.count %></h5>
+            <h5 class="text-primary mb-0"><%= @bookings_count.value %></h5>
           </div>
           <div class="col-6">
             <small class="text-muted d-block">Total Orders</small>
-            <h5 class="text-success mb-0"><%= @customer.orders.count %></h5>
+            <h5 class="text-success mb-0"><%= @orders_count.value %></h5>
           </div>
         </div>
       </div>

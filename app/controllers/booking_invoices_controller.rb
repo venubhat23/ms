@@ -1,4 +1,6 @@
 class BookingInvoicesController < ActionController::Base
+  include TracksPageViews
+  track_page_views only: :public_view
   # Public controller - no authentication required
   layout false
   protect_from_forgery with: :exception

@@ -26,7 +26,9 @@ class Franchise::BaseController < ApplicationController
 
   def current_franchise
     if session[:franchise_id] && session[:user_id]
-      @current_user ||= User.find_by(id: session[:user_id])
+      # eager_load: user + franchise in a single JOIN query instead of two
+      # sequential round trips on every franchise-portal request.
+      @current_user ||= User.eager_load(:franchise).find_by(id: session[:user_id])
       @current_franchise ||= @current_user&.franchise if @current_user&.franchise?
     end
   end

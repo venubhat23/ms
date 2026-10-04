@@ -221,6 +221,9 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
         { key: 'user_roles', name: 'User Roles' },
         { key: 'banners', name: 'Banners' },
         { key: 'client_requests', name: 'Client Requests' }
+      ],
+      'Website Traffic' => [
+        { key: 'traffic_analytics', name: 'Views & Traffic' }
       ]
     }
   end

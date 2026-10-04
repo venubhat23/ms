@@ -52,11 +52,13 @@ class StoreAdmin::ApplicationController < ApplicationController
 
   def cached_primary_store
     now   = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    cache = self.class.primary_store_cache
+    # Explicit receiver: class-level ivars aren't inherited, so self.class
+    # (e.g. StoreAdmin::DashboardController) would see nil here.
+    cache = StoreAdmin::ApplicationController.primary_store_cache
     entry = cache[current_user.id]
     return entry[:store] if entry && entry[:expires_at] > now
 
-    self.class.primary_store_mutex.synchronize do
+    StoreAdmin::ApplicationController.primary_store_mutex.synchronize do
       entry = cache[current_user.id]
       next entry[:store] if entry && entry[:expires_at] > now
 

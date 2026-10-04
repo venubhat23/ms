@@ -3,6 +3,7 @@ require 'set'
 class Admin::CustomersController < Admin::ApplicationController
   include LocationData
   include ConfigurablePagination
+  include CachePrefetch
   before_action :set_customer, only: [:show, :edit, :update, :destroy, :toggle_status, :policy_chart, :trace_commission, :product_selection, :generate_password]
   skip_before_action :ensure_admin, only: [:search_sub_agents]
   skip_before_action :authenticate_user!, only: [:search_sub_agents]
@@ -19,7 +20,11 @@ class Admin::CustomersController < Admin::ApplicationController
     # listing below — paging through the same filtered set shouldn't force a
     # re-count of the same stats on every page.
     stats_cache_key = "admin_customers/stats/#{filters_key}"
-    @stats = Rails.cache.fetch(stats_cache_key, expires_in: 1.minute) do
+    listing_cache_key = "admin_customers/index_listing/#{filters_key}/page=#{params[:page]}/per=#{per_page}"
+    # All four cache reads on this page in one round trip instead of four.
+    prefetch_cache(stats_cache_key, listing_cache_key,
+                   'admin_customers/filter_customers', 'admin_customers/filter_delivery_people')
+    @stats = prefetched_cache_fetch(stats_cache_key, expires_in: 1.minute) do
       compute_customer_stats
     end
     @total_customers       = @stats[:total_customers]
@@ -30,8 +35,7 @@ class Admin::CustomersController < Admin::ApplicationController
     # Full listing result (records + total_count) cached per exact filter/page
     # combination — the DB round trip is the expensive part here, not the
     # query itself, so a cache hit skips the connection entirely.
-    listing_cache_key = "admin_customers/index_listing/#{filters_key}/page=#{params[:page]}/per=#{per_page}"
-    cached_listing = Rails.cache.read(listing_cache_key)
+    cached_listing = prefetched_cache_read(listing_cache_key)
 
     if cached_listing
       @customers = Kaminari.paginate_array(cached_listing[:records], total_count: cached_listing[:total_count])
@@ -51,12 +55,12 @@ class Admin::CustomersController < Admin::ApplicationController
     # customer/delivery person regardless of the current page's filters, so they're
     # cached independently of @customers (which was a full, unpaginated
     # Customer.order(...) query run directly in the view on every single request).
-    @customer_filter_options = Rails.cache.fetch('admin_customers/filter_customers', expires_in: 2.minutes) do
+    @customer_filter_options = prefetched_cache_fetch('admin_customers/filter_customers', expires_in: 2.minutes) do
       Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
               .order(:first_name, :last_name).to_a
     end
 
-    @filter_delivery_people = Rails.cache.fetch('admin_customers/filter_delivery_people', expires_in: 5.minutes) do
+    @filter_delivery_people = prefetched_cache_fetch('admin_customers/filter_delivery_people', expires_in: 5.minutes) do
       defined?(DeliveryPerson) ? DeliveryPerson.active.order(:first_name, :last_name).to_a : []
     end
 
@@ -74,6 +78,15 @@ class Admin::CustomersController < Admin::ApplicationController
     @policies = []
     @family_members = []
     @uploaded_documents = []
+
+    # Independent lookups the view needs — fired together on background
+    # connections so their round trips to the remote DB overlap instead of
+    # running one after another during render.
+    @login_user_query = User.where(email: @customer.email).limit(1).load_async
+    @bookings_count = @customer.bookings.async_count
+    @orders_count = @customer.orders.async_count
+    @booking_schedules_count = @customer.booking_schedules.async_count
+    @recent_bookings = @customer.bookings.order(created_at: :desc).limit(5).load_async
   end
 
   # GET /admin/customers/:id/policy_chart
@@ -812,12 +825,16 @@ class Admin::CustomersController < Admin::ApplicationController
 
   def compute_customer_stats
     scope = apply_customer_filters(Customer.all, use_pg_search: false)
-    status_counts = scope.group(:status).count
+    # Independent counts started together so their round trips overlap.
+    status_counts = scope.group(:status).async_count
+    new_this_month = scope.where(created_at: Time.current.beginning_of_month..Time.current.end_of_month).async_count
+    customers_with_orders = scope.joins(:orders).distinct.async_count
+    status_counts = status_counts.value
     {
       total_customers: status_counts.values.sum,
       active_customers: status_counts[true] || 0,
-      new_this_month: scope.where(created_at: Time.current.beginning_of_month..Time.current.end_of_month).count,
-      customers_with_orders: scope.joins(:orders).distinct.count
+      new_this_month: new_this_month.value,
+      customers_with_orders: customers_with_orders.value
     }
   end
 
@@ -839,7 +856,7 @@ class Admin::CustomersController < Admin::ApplicationController
   end
 
   def set_customer
-    @customer = Customer.find(params[:id])
+    @customer = Customer.find(params[:id]).preload_single_attachments
   end
 
   def customer_params

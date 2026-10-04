@@ -371,7 +371,7 @@ class Admin::MobileUiController < ActionController::Base
 
   def load_mobile_products
     Product.active
-           .includes(:category, :product_variants)
+           .includes(:category, :product_variants, image_attachment: :blob)
            .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id
                    AND stock_batches.status = 'active'
                    AND stock_batches.quantity_remaining > 0")

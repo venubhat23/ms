@@ -1,20 +1,33 @@
 class Customer::DashboardController < Customer::BaseController
   def index
+    # All dashboard aggregates are independent — start them together (async)
+    # so their round trips to the remote DB overlap, then resolve below.
+    if current_customer
+      bookings = current_customer.bookings
+      # Cart = items of the customer's first pending booking (same row
+      # `.where(status: 'pending').first` picked), summed in one query.
+      cart_items = BookingItem.where(booking_id: bookings.where(status: 'pending').order(:id).limit(1).select(:id))
+                              .async_sum(:quantity)
+      recent_orders = bookings.where('created_at > ?', 30.days.ago).async_count
+      active_subscriptions = current_customer.milk_subscriptions.where(is_active: true).async_count
+      activity_counts = order_activity_scope.async_count
+      monthly_sums = monthly_spending_scope.async_sum(:total_amount)
+    end
+
     # Customer's cart count for the action cards (using pending booking items as cart)
-    pending_booking = current_customer&.bookings&.where(status: 'pending')&.first
-    @cart_items_count = pending_booking&.booking_items&.sum(:quantity) || 0
+    @cart_items_count = cart_items&.value || 0
 
     # Customer's recent orders count
-    @recent_orders_count = current_customer&.bookings&.where('created_at > ?', 30.days.ago)&.count || 0
+    @recent_orders_count = recent_orders&.value || 0
 
     # Customer's active subscriptions count
-    @active_subscriptions_count = current_customer&.milk_subscriptions&.where(is_active: true)&.count || 0
+    @active_subscriptions_count = active_subscriptions&.value || 0
 
     # Chart data for Order Activity (Last 7 days)
-    @order_activity_data = build_order_activity_data
+    @order_activity_data = build_order_activity_data(activity_counts&.value || {})
 
     # Chart data for Monthly Spending (This year)
-    @monthly_spending_data = build_monthly_spending_data
+    @monthly_spending_data = build_monthly_spending_data(monthly_sums&.value || {})
 
     # Dashboard Banners - Show only once per login session
     # For debugging - clear session if needed
@@ -68,15 +81,16 @@ class Customer::DashboardController < Customer::BaseController
     end
   end
 
-  def build_order_activity_data
-    # Get order counts for last 7 days — one grouped query instead of 8
-    # separate .count round trips (one per day).
+  # Order counts for the last 7 days — one grouped query instead of 8
+  # separate .count round trips (one per day).
+  def order_activity_scope
+    current_customer.bookings
+                    .where(booking_date: 7.days.ago.beginning_of_day..Date.current.end_of_day)
+                    .group("DATE(booking_date)")
+  end
+
+  def build_order_activity_data(counts_by_date)
     labels = []
-    range_start = 7.days.ago.beginning_of_day
-    counts_by_date = current_customer&.bookings
-                                    &.where(booking_date: range_start..Date.current.end_of_day)
-                                    &.group("DATE(booking_date)")
-                                    &.count || {}
 
     order_data = 7.downto(0).map do |days_ago|
       date = Date.current - days_ago.days
@@ -102,18 +116,18 @@ class Customer::DashboardController < Customer::BaseController
     end
   end
 
-  def build_monthly_spending_data
-    # Get spending data for current year by month — one grouped query instead
-    # of 12 separate .sum round trips (one per month).
+  # Spending for the current year by month — one grouped query instead of
+  # 12 separate .sum round trips (one per month).
+  def monthly_spending_scope
+    year_start = Date.new(Date.current.year, 1, 1)
+    current_customer.bookings
+                    .where(booking_date: year_start..year_start.end_of_year)
+                    .where.not(total_amount: nil)
+                    .group("EXTRACT(MONTH FROM booking_date)")
+  end
+
+  def build_monthly_spending_data(sums_by_month)
     labels = []
-    current_year = Date.current.year
-    year_start = Date.new(current_year, 1, 1)
-    year_end = year_start.end_of_year
-    sums_by_month = current_customer&.bookings
-                                   &.where(booking_date: year_start..year_end)
-                                   &.where.not(total_amount: nil)
-                                   &.group("EXTRACT(MONTH FROM booking_date)")
-                                   &.sum(:total_amount) || {}
 
     spending_data = (1..12).map do |month|
       labels << Date::MONTHNAMES[month][0, 3] # Jan, Feb, etc.

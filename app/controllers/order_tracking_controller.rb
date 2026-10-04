@@ -3,6 +3,8 @@
 # a bare ActionController::Base with its own layout, so it never depends on
 # admin/customer session state.
 class OrderTrackingController < ActionController::Base
+  include TracksPageViews
+  track_page_views
   layout false
   protect_from_forgery with: :exception
 

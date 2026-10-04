@@ -274,7 +274,7 @@
 
     <!-- Global Form Enhancement Script -->
     <script>
-<%= File.read(Rails.root.join('app/assets/javascripts/form_enhancements.js')).html_safe rescue '' %>
+<%= inline_asset_js('form_enhancements.js') rescue '' %>
     </script>
   </body>
 </html>

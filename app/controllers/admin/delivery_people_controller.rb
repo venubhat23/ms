@@ -260,7 +260,7 @@ class Admin::DeliveryPeopleController < Admin::ApplicationController
   private
 
   def set_delivery_person
-    @delivery_person = DeliveryPerson.find(params[:id])
+    @delivery_person = DeliveryPerson.find(params[:id]).preload_single_attachments
   end
 
   def delivery_person_params

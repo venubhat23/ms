@@ -153,7 +153,18 @@ class User < ApplicationRecord
   end
 
   # Get permissions in CRUD format (for compatibility)
+  # Parsed once per distinct sidebar_permissions value: the sidebar calls
+  # has_sidebar_permission? ~50 times per page, and re-parsing the JSON on
+  # every call was a measurable slice of every admin page render.
   def sidebar_permissions_hash
+    raw = sidebar_permissions
+    return @sidebar_permissions_hash if defined?(@sidebar_permissions_hash) && @sidebar_permissions_hash_raw == raw
+
+    @sidebar_permissions_hash_raw = raw.dup
+    @sidebar_permissions_hash = parse_sidebar_permissions(raw).freeze
+  end
+
+  def parse_sidebar_permissions(sidebar_permissions)
     return {} if sidebar_permissions.blank?
     begin
       parsed = if sidebar_permissions.is_a?(String)

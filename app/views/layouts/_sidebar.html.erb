@@ -1235,6 +1235,26 @@
     </div>
     <% end %>
 
+    <!-- Website Traffic -->
+    <% if current_user.has_sidebar_permission?('traffic_analytics') %>
+    <div class="nav-section">
+      <div class="nav-section-title">Website Traffic</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <%= link_to admin_traffic_analytics_path, class: "nav-link-modern #{'active' if request.path.start_with?('/admin/traffic_analytics')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-cyan">
+                <i class="bi bi-graph-up-arrow"></i>
+              </div>
+            </div>
+            <span class="nav-text">Views & Traffic</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+      </ul>
+    </div>
+    <% end %>
+
 
 
 

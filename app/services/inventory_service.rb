@@ -169,26 +169,29 @@ class InventoryService
   end
 
   # Get vendor stock summary
-  def vendor_stock_summary(vendor_id)
-    vendor = Vendor.find(vendor_id)
-    batches = vendor.stock_batches.active
+  # Accepts a Vendor (skips the re-fetch) or a vendor id. All figures come
+  # from ONE query over the vendor's active batches (left-joined to products,
+  # so batches whose product is gone still count toward quantity/value/batch
+  # count but not toward products, matching the old per-figure queries).
+  def vendor_stock_summary(vendor_or_id)
+    vendor = vendor_or_id.is_a?(Vendor) ? vendor_or_id : Vendor.find(vendor_or_id)
+    rows = vendor.stock_batches.active.left_joins(:product)
+                 .pluck('products.id', 'products.name', :quantity_remaining, :purchase_price)
+    product_rows = rows.select { |product_id, *| product_id }
 
     {
-      vendor_id: vendor_id,
+      vendor_id: vendor.id,
       vendor_name: vendor.name,
-      total_products: batches.joins(:product).distinct.count('products.id'),
-      total_quantity: batches.sum(:quantity_remaining),
-      total_value: batches.sum { |b| b.quantity_remaining * b.purchase_price },
-      batches_count: batches.count,
-      products_summary: batches.joins(:product)
-                              .group('products.id', 'products.name')
-                              .sum(:quantity_remaining)
-                              .map do |product_data, quantity|
-        product_id, product_name = product_data
+      total_products: product_rows.map(&:first).uniq.size,
+      total_quantity: rows.sum { |_, _, qty, _| qty },
+      total_value: rows.sum { |_, _, qty, price| qty * price },
+      batches_count: rows.size,
+      products_summary: product_rows.group_by { |product_id, product_name, *| [product_id, product_name] }
+                                    .map do |(product_id, product_name), product_batches|
         {
           product_id: product_id,
           product_name: product_name,
-          total_quantity: quantity
+          total_quantity: product_batches.sum { |_, _, qty, _| qty }
         }
       end
     }

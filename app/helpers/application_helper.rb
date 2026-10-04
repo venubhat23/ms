@@ -1,4 +1,21 @@
 module ApplicationHelper
+  INLINE_JS_CACHE = {}
+  INLINE_JS_MUTEX = Mutex.new
+
+  # Contents of app/assets/javascripts/<name>, for pages that inline it in a
+  # <script> tag. Read from disk once per process instead of on every request;
+  # in development the file's mtime is checked so edits still show up.
+  def inline_asset_js(name)
+    path = Rails.root.join('app/assets/javascripts', name)
+    mtime = Rails.env.development? ? File.mtime(path) : nil
+    cached = INLINE_JS_CACHE[name]
+    return cached[1] if cached && cached[0] == mtime
+
+    content = File.read(path).html_safe
+    INLINE_JS_MUTEX.synchronize { INLINE_JS_CACHE[name] = [mtime, content] }
+    content
+  end
+
   # Permission checking helpers
   def current_user_can?(module_name, action = 'read')
     return true if current_user&.admin? || current_user&.user_type == 'admin'

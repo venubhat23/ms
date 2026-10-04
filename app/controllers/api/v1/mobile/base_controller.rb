@@ -50,12 +50,15 @@ class Api::V1::Mobile::BaseController < ApplicationController
         # user_id, while the direct-Customer login and OTP login store the
         # Customer id. Resolve either shape instead of assuming a User id
         # (User.find would raise RecordNotFound -> "User not found" 401).
-        user_record = User.find_by(id: user_id)
-        @current_user = if user_record
-                          Customer.find_by(email: user_record.email)
-                        else
-                          Customer.find_by(id: user_id)
-                        end
+        # Same rule as "User exists ? Customer by that user's email :
+        # Customer by id", resolved in ONE query instead of two sequential
+        # round trips on every authenticated mobile request.
+        @current_user = Customer.where(<<~SQL.squish, uid: user_id).take
+          CASE WHEN EXISTS (SELECT 1 FROM users WHERE users.id = :uid)
+               THEN customers.email IS NOT DISTINCT FROM (SELECT users.email FROM users WHERE users.id = :uid)
+               ELSE customers.id = :uid
+          END
+        SQL
         if @current_user.nil?
           return render json: {
             success: false,

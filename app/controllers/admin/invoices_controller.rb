@@ -13,6 +13,7 @@ class Admin::InvoicesController < Admin::ApplicationController
     # Get only regular invoices
     regular_invoices = build_regular_invoices_query.to_a
     booking_lookup = booking_numbers_lookup(regular_invoices)
+    preload_walk_in_bookings(regular_invoices)
     @all_invoices.concat(regular_invoices.map { |inv| prepare_invoice_data(inv, 'regular', booking_lookup) })
 
     # Sort invoices by created_at descending
@@ -449,6 +450,17 @@ class Admin::InvoicesController < Admin::ApplicationController
 
   # Batches the per-row Booking.find_by(invoice_number:) lookup that
   # prepare_invoice_data used to do into a single query.
+  # Walk-in invoices (no customer) fall back to the booking with the same
+  # invoice_number for name/mobile — load those in one query instead of
+  # Invoice#related_booking querying per row.
+  def preload_walk_in_bookings(invoices)
+    walk_ins = invoices.select { |inv| inv.customer.nil? && inv.invoice_number.present? }
+    return if walk_ins.empty?
+
+    bookings = Booking.where(invoice_number: walk_ins.map(&:invoice_number)).index_by(&:invoice_number)
+    walk_ins.each { |inv| inv.related_booking = bookings[inv.invoice_number] }
+  end
+
   def booking_numbers_lookup(invoices)
     invoice_numbers = invoices.select(&:quick_invoice?).map(&:invoice_number)
     return {} if invoice_numbers.empty?

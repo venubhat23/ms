@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_04_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -333,6 +333,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
     t.index ["tracking_number"], name: "index_bookings_on_tracking_number"
     t.index ["user_id"], name: "index_bookings_on_user_id"
     t.index ["wallet_transaction_id"], name: "index_bookings_on_wallet_transaction_id"
+    t.index ["customer_id", "created_at"], name: "index_bookings_on_customer_id_and_created_at"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -1015,6 +1016,23 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
     t.index ["mobile", "created_at"], name: "index_otp_verifications_on_mobile_and_created_at"
   end
 
+  create_table "page_views", force: :cascade do |t|
+    t.datetime "visited_at", null: false
+    t.string "path", null: false
+    t.string "page", null: false
+    t.string "visitor_id", limit: 32, null: false
+    t.boolean "new_visitor", default: false, null: false
+    t.string "device", limit: 16
+    t.string "browser", limit: 32
+    t.string "os", limit: 32
+    t.string "referrer_host"
+    t.string "utm_source"
+    t.string "country"
+    t.string "region"
+    t.string "city"
+    t.index ["visited_at"], name: "index_page_views_on_visited_at", include: ["visitor_id"]
+  end
+
   create_table "pending_amounts", force: :cascade do |t|
     t.bigint "customer_id", null: false
     t.decimal "amount"
@@ -1184,6 +1202,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
     t.index ["product_type"], name: "index_products_on_product_type"
     t.index ["sku"], name: "index_products_on_sku", unique: true
     t.index ["status"], name: "index_products_on_status"
+    t.index ["status", "name"], name: "index_products_on_status_and_name"
   end
 
   create_table "referrals", force: :cascade do |t|
@@ -1429,6 +1448,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
     t.index ["store_id"], name: "index_stock_batches_on_store_id"
     t.index ["vendor_id"], name: "index_stock_batches_on_vendor_id"
     t.index ["vendor_purchase_id"], name: "index_stock_batches_on_vendor_purchase_id"
+    t.index ["product_id", "store_id"], name: "index_stock_batches_active_on_product_and_store", where: "(((status)::text = 'active'::text) AND (quantity_remaining > 0))", include: ["quantity_remaining"]
   end
 
   create_table "stock_movements", force: :cascade do |t|
@@ -1473,6 +1493,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
     t.index ["status"], name: "index_stock_transfers_on_status"
     t.index ["to_store_id"], name: "index_stock_transfers_on_to_store_id"
     t.index ["transfer_group_id"], name: "index_stock_transfers_on_transfer_group_id"
+    t.index ["transfer_group_id", "created_at"], name: "index_stock_transfers_on_transfer_group_id_and_created_at"
   end
 
   create_table "store_inventories", force: :cascade do |t|
@@ -1817,6 +1838,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_06_000001) do
     t.index ["customer_wallet_id"], name: "index_wallet_transactions_on_customer_wallet_id"
     t.index ["reference_number"], name: "index_wallet_transactions_on_reference_number", unique: true
     t.index ["transaction_type"], name: "index_wallet_transactions_on_transaction_type"
+    t.index ["customer_wallet_id", "created_at"], name: "index_wallet_transactions_on_customer_wallet_id_and_created_at"
   end
 
   create_table "wishlists", force: :cascade do |t|

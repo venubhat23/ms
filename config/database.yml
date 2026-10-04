@@ -43,6 +43,11 @@ test:
 production:
   primary:
     <<: *default
+    # 3 Puma threads + up to 4 load_async/async_count queries in flight on the
+    # global async executor (config/application.rb). With the shared default
+    # of 5, async queries queued for a connection and ran serially instead of
+    # overlapping their round trips. Same reasoning as the development pool.
+    pool: <%= ENV.fetch("DB_POOL") { 10 } %>
     url: <%= ENV['DATABASE_URL'] || 'postgresql://postgres:GMQHtZUemGRGOnYkgdaKXXneuZkxoheq@reseau.proxy.rlwy.net:18853/railway' %>
   cable:
     <<: *default

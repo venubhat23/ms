@@ -19,7 +19,27 @@ class Admin::BookingsController < Admin::ApplicationController
     # below, so they're cached separately under a coarser key — a search/date/
     # category filter change shouldn't force a re-count of every status.
     status_counts_cache_key = "admin_bookings/status_counts/#{franchise_scope_key}/gen=#{cache_gen}"
-    status_counts_cached = Rails.cache.read(status_counts_cache_key)
+
+    # SystemSetting is fronted by an in-process cache — no round trip.
+    @per_page = SystemSetting.default_pagination_per_page
+
+    # Full listing result (records + total_count) cached per exact filter/page/
+    # franchise combination — the DB round trip is the expensive part here, not
+    # the query itself, so a cached hit skips the connection entirely. Kept
+    # short (1 min) since bookings are actively created/updated by staff.
+    filters_key = LIST_STATE_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&')
+    listing_cache_key = "admin_bookings/index_listing/#{franchise_scope_key}/#{filters_key}/per=#{@per_page}/gen=#{cache_gen}"
+
+    # Every cache entry this action needs, in ONE Solid Cache round trip
+    # (each Rails.cache read is a query against the remote DB) instead of
+    # five sequential reads. Misses fall back to their own fetch below.
+    filter_keys = {
+      categories: 'admin_bookings/filter_categories',
+      affiliates: 'admin_bookings/filter_affiliates',
+      customers: 'admin_bookings/filter_customers'
+    }
+    cached = Rails.cache.read_multi(status_counts_cache_key, listing_cache_key, *filter_keys.values)
+    status_counts_cached = cached[status_counts_cache_key]
 
     # Single GROUP BY replaces 6 separate COUNT queries fired in the view.
     # Fired async (separate pooled connection) so its round trip overlaps
@@ -78,24 +98,14 @@ class Admin::BookingsController < Admin::ApplicationController
       @bookings = @bookings.joins(booking_items: :product).where(products: { category_id: params[:category_id] }).distinct
     end
 
-    @categories = Rails.cache.fetch('admin_bookings/filter_categories', expires_in: 5.minutes) do
+    @categories = cached[filter_keys[:categories]] || Rails.cache.fetch(filter_keys[:categories], expires_in: 5.minutes) do
       Category.where(status: true).order(:display_order, :name).to_a
     end
-    @affiliates = Rails.cache.fetch('admin_bookings/filter_affiliates', expires_in: 5.minutes) do
+    @affiliates = cached[filter_keys[:affiliates]] || Rails.cache.fetch(filter_keys[:affiliates], expires_in: 5.minutes) do
       Affiliate.where(status: true).order(:first_name, :last_name).to_a
     end
 
-    @per_page = Rails.cache.fetch('system_setting/default_pagination_per_page', expires_in: 5.minutes) do
-      SystemSetting.default_pagination_per_page
-    end
-
-    # Full listing result (records + total_count) cached per exact filter/page/
-    # franchise combination — the DB round trip is the expensive part here, not
-    # the query itself, so a cached hit skips the connection entirely. Kept
-    # short (1 min) since bookings are actively created/updated by staff.
-    filters_key = LIST_STATE_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&')
-    listing_cache_key = "admin_bookings/index_listing/#{franchise_scope_key}/#{filters_key}/per=#{@per_page}/gen=#{cache_gen}"
-    cached_listing = Rails.cache.read(listing_cache_key)
+    cached_listing = cached[listing_cache_key]
 
     @bookings = @bookings.page(params[:page]).per(@per_page)
     # Kick off the listing query on its own pooled connection now, before we
@@ -149,7 +159,7 @@ class Admin::BookingsController < Admin::ApplicationController
       {}
     end
 
-    @customers = Rails.cache.fetch('admin_bookings/filter_customers', expires_in: 2.minutes) do
+    @customers = cached[filter_keys[:customers]] || Rails.cache.fetch(filter_keys[:customers], expires_in: 2.minutes) do
       Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
               .order(:first_name, :last_name).to_a
     end
@@ -368,7 +378,11 @@ class Admin::BookingsController < Admin::ApplicationController
 
   def show
     @list_state = list_state_params
-    @booking_items = @booking.booking_items.includes(product: [:category, image_attachment: :blob, additional_images_attachments: :blob])
+    # One JOIN query for items + product + category + images instead of one
+    # round trip per association level.
+    @booking_items = @booking.booking_items
+                             .eager_load(product: [:category, { image_attachment: :blob }, { additional_images_attachments: :blob }])
+                             .order('booking_items.id').load
   end
 
   def edit

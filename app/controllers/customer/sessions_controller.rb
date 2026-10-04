@@ -1,4 +1,6 @@
 class Customer::SessionsController < Customer::BaseController
+  include TracksPageViews
+  track_page_views only: :new
   skip_before_action :authenticate_customer!, except: [:destroy]
   skip_before_action :ensure_customer_role, except: [:destroy]
   layout 'customer_auth'

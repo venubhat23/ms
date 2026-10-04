@@ -236,6 +236,22 @@ class DashboardController < ApplicationController
   # E-commerce dashboard — main load method
   # ---------------------------------------------------------------------------
 
+  DASHBOARD_CACHE_KEYS = %w[
+    dashboard:counters dashboard:category_performance dashboard:daily_sales_90d
+    dashboard:monthly_revenue_trend dashboard:top_customers dashboard:top_products_revenue
+    dashboard:recent_bookings dashboard:low_stock_items
+  ].freeze
+
+  # Rails.cache.fetch, but served from the request's single read_multi batch
+  # when present (Solid Cache = one DB round trip per read; the dashboard
+  # needs 8 entries, so batching them turns 8 round trips into 1).
+  def dashboard_cache_fetch(key, **options, &block)
+    @dashboard_cache_batch ||= Rails.cache.read_multi(*DASHBOARD_CACHE_KEYS)
+    return @dashboard_cache_batch[key] if @dashboard_cache_batch.key?(key)
+
+    Rails.cache.fetch(key, **options, &block)
+  end
+
   def load_ecommerce_dashboard_data
     today = Date.current
 
@@ -244,19 +260,19 @@ class DashboardController < ApplicationController
     # ~15-20s on our current (remote, high-latency) DB connection — a short TTL
     # just means more visitors eat that cold-start cost. Trade-off: counters can
     # be up to 15 min stale.
-    counters = Rails.cache.fetch('dashboard:counters', expires_in: 15.minutes) do
+    counters = dashboard_cache_fetch('dashboard:counters', expires_in: 15.minutes) do
       compute_dashboard_counters(today)
     end
     counters.each { |key, value| instance_variable_set(:"@#{key}", value) }
 
     # ── Chart data (cached longer than the counters — trends/analytics tolerate
     # more staleness than live counts, and each is its own ~15-20s cold-start cost) ──
-    @category_performance = Rails.cache.fetch('dashboard:category_performance', expires_in: 30.minutes) do
+    @category_performance = dashboard_cache_fetch('dashboard:category_performance', expires_in: 30.minutes) do
       calculate_category_performance
     end
 
     # Single query feeds all three sales trend periods (was 7 + 30 + 13 = 50 queries → 1)
-    all_sales_rows = Rails.cache.fetch('dashboard:daily_sales_90d', expires_in: 30.minutes) do
+    all_sales_rows = dashboard_cache_fetch('dashboard:daily_sales_90d', expires_in: 30.minutes) do
       fetch_daily_sales(90)
     end
     @sales_trend    = build_7day_trend(all_sales_rows)
@@ -264,15 +280,15 @@ class DashboardController < ApplicationController
     @sales_trend_90d = build_weekly_trend(all_sales_rows, 90)
 
     # Monthly revenue: single query (was 6 queries → 1)
-    @monthly_revenue_trend = Rails.cache.fetch('dashboard:monthly_revenue_trend', expires_in: 30.minutes) do
+    @monthly_revenue_trend = dashboard_cache_fetch('dashboard:monthly_revenue_trend', expires_in: 30.minutes) do
       calculate_monthly_revenue_trend
     end
 
-    @top_customers_data = Rails.cache.fetch('dashboard:top_customers', expires_in: 30.minutes) do
+    @top_customers_data = dashboard_cache_fetch('dashboard:top_customers', expires_in: 30.minutes) do
       calculate_top_customers_data
     end
 
-    @top_products_revenue = Rails.cache.fetch('dashboard:top_products_revenue', expires_in: 30.minutes) do
+    @top_products_revenue = dashboard_cache_fetch('dashboard:top_products_revenue', expires_in: 30.minutes) do
       calculate_top_products_revenue
     end
 
@@ -283,7 +299,7 @@ class DashboardController < ApplicationController
     # Kept shorter than the rest — this is the one widget that's actually
     # operationally time-sensitive (new orders, low stock).
     @recent_bookings = begin
-      Rails.cache.fetch('dashboard:recent_bookings', expires_in: 5.minutes) do
+      dashboard_cache_fetch('dashboard:recent_bookings', expires_in: 5.minutes) do
         Booking.includes(:customer).order(created_at: :desc).limit(5).to_a
       end
     rescue
@@ -291,7 +307,7 @@ class DashboardController < ApplicationController
     end
 
     @low_stock_items = begin
-      Rails.cache.fetch('dashboard:low_stock_items', expires_in: 5.minutes) do
+      dashboard_cache_fetch('dashboard:low_stock_items', expires_in: 5.minutes) do
         Product.includes(:category).where('stock <= 5 AND stock > 0').limit(5).to_a
       end
     rescue

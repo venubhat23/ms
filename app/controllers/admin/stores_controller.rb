@@ -20,19 +20,21 @@ class Admin::StoresController < Admin::ApplicationController
   end
 
   def show
-    @bookings_count = @store.bookings.count
-    @inventory_summary = @store.store_inventory_summary
-
+    # Independent stats fired async up front so their round trips overlap
+    # (remote DB: each query is a full network round trip); resolved below.
+    bookings_count = @store.bookings.async_count
+    pending_bookings_count = @store.bookings.where(status: 'pending').async_count
     @expenses_this_month = @store.expenses.by_date_range(Date.current.beginning_of_month, Date.current.end_of_month)
-    @expenses_total_this_month = @expenses_this_month.sum(:amount)
-    @recent_expenses = @store.expenses.recent.limit(10).includes(:created_by)
-    @store_end_expenses_count = @store.expenses
-                                      .joins(:created_by)
-                                      .where(users: { user_type: 'store_admin' })
-                                      .count
-    @expenses_by_category = @store.expenses
-                                  .by_date_range(Date.current.beginning_of_month, Date.current.end_of_month)
-                                  .group(:category).sum(:amount)
+    expenses_total = @expenses_this_month.async_sum(:amount)
+    store_end_expenses_count = @store.expenses
+                                     .joins(:created_by)
+                                     .where(users: { user_type: 'store_admin' })
+                                     .async_count
+    expenses_by_category = @expenses_this_month.group(:category).async_sum(:amount)
+    @recent_expenses = @store.expenses.recent.limit(10).includes(:created_by).load_async
+    @recent_bookings = @store.bookings.order(created_at: :desc).limit(5).load_async
+
+    @inventory_summary = @store.store_inventory_summary
 
     @stock_items = @store.stock_batches
                          .where(status: 'active')
@@ -49,6 +51,12 @@ class Admin::StoresController < Admin::ApplicationController
                            }
                          end
                          .sort_by { |item| item[:product].name }
+
+    @bookings_count = bookings_count.value
+    @pending_bookings_count = pending_bookings_count.value
+    @expenses_total_this_month = expenses_total.value
+    @store_end_expenses_count = store_end_expenses_count.value
+    @expenses_by_category = expenses_by_category.value
   end
 
   def new

@@ -652,6 +652,7 @@ Rails.application.routes.draw do
     get 'store_analytics/comparison', to: 'store_analytics#comparison', as: 'store_analytics_comparison'
     get 'store_analytics/top_products', to: 'store_analytics#top_products', as: 'store_analytics_top_products'
     get 'store_analytics/peak_hours', to: 'store_analytics#peak_hours', as: 'store_analytics_peak_hours'
+    get 'traffic_analytics', to: 'traffic_analytics#index', as: 'traffic_analytics'
 
     # Store Financials
     get 'store_financials/vendor_tracking', to: 'store_financials#vendor_tracking', as: 'store_financials_vendor_tracking'

@@ -85,19 +85,24 @@ class Store < ApplicationRecord
 
   def store_inventory_summary
     batches = stock_batches.where(status: 'active').where('quantity_remaining > 0')
-    products_with_stock = batches.select(:product_id).distinct.count
-    total_value = batches.sum('quantity_remaining * selling_price')
     threshold = auto_transfer_threshold || 10
+    # Six independent aggregates — started together (async) so their round
+    # trips to the remote DB overlap instead of running back to back.
+    products_with_stock = batches.select(:product_id).distinct.async_count
+    total_value = batches.async_sum('quantity_remaining * selling_price')
     low_stock = batches.group(:product_id)
                        .having('SUM(quantity_remaining) <= ?', threshold)
-                       .count.size
+                       .async_count
+    incoming = stock_transfers_received.where(status: 'pending').async_count
+    outgoing = stock_transfers_sent.where(status: 'pending').async_count
+    recent_bookings = bookings.where(created_at: 1.week.ago..Time.current).async_count
     {
-      total_products: products_with_stock,
-      total_stock_value: total_value.to_f.round(2),
-      low_stock_count: low_stock,
-      pending_incoming_transfers: stock_transfers_received.where(status: 'pending').count,
-      pending_outgoing_transfers: stock_transfers_sent.where(status: 'pending').count,
-      recent_bookings_count: bookings.where(created_at: 1.week.ago..Time.current).count
+      total_products: products_with_stock.value,
+      total_stock_value: total_value.value.to_f.round(2),
+      low_stock_count: low_stock.value.size,
+      pending_incoming_transfers: incoming.value,
+      pending_outgoing_transfers: outgoing.value,
+      recent_bookings_count: recent_bookings.value
     }
   end
 

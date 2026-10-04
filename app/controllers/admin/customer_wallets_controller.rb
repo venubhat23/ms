@@ -11,6 +11,13 @@ class Admin::CustomerWalletsController < Admin::ApplicationController
                                                "%#{params[:search]}%", "%#{params[:search]}%", "%#{params[:search]}%") if params[:search].present?
     @customer_wallets = paginate_records(@customer_wallets.order('customers.first_name'))
 
+    # Latest transaction per wallet on this page in one query (DISTINCT ON),
+    # instead of one `wallet.wallet_transactions.recent.first` per row.
+    @last_transactions = WalletTransaction.where(customer_wallet_id: @customer_wallets.map(&:id))
+                                          .select('DISTINCT ON (customer_wallet_id) wallet_transactions.*')
+                                          .order(:customer_wallet_id, created_at: :desc)
+                                          .index_by(&:customer_wallet_id)
+
     total_wallets, active_wallets, total_balance, avg_balance = CustomerWallet.pick(
       Arel.sql("COUNT(*)"),
       Arel.sql("COUNT(*) FILTER (WHERE status = true)"),

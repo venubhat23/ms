@@ -14,15 +14,19 @@ class Admin::CustomerFormatsController < Admin::ApplicationController
     @customer_formats = @customer_formats.order(created_at: :desc).page(params[:page]).per(20)
 
     # For filter options — cached since these change rarely relative to page views
-    @customers = Rails.cache.fetch('admin_customer_formats/filter_customers', expires_in: 5.minutes) do
-      Customer.order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
-    end
-    @products = Rails.cache.fetch('admin_customer_formats/filter_products', expires_in: 5.minutes) do
-      Product.where(status: 'active').order(:name).pluck(:name, :id)
-    end
-    @delivery_people = Rails.cache.fetch('admin_customer_formats/filter_delivery_people', expires_in: 5.minutes) do
-      DeliveryPerson.where(status: true).order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
-    end
+    # fetch_multi: one Solid Cache round trip for all three (each separate
+    # Rails.cache read is its own query against the remote DB).
+    filter_keys = %w[admin_customer_formats/filter_customers admin_customer_formats/filter_products admin_customer_formats/filter_delivery_people]
+    @customers, @products, @delivery_people = Rails.cache.fetch_multi(*filter_keys, expires_in: 5.minutes) do |key|
+      case key
+      when filter_keys[0]
+        Customer.order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+      when filter_keys[1]
+        Product.where(status: 'active').order(:name).pluck(:name, :id)
+      else
+        DeliveryPerson.where(status: true).order(:first_name, :last_name).pluck(:first_name, :last_name, :id).map { |f, l, id| ["#{f} #{l}".strip, id] }
+      end
+    end.values_at(*filter_keys)
 
     # Summary statistics
     @stats = calculate_customer_format_stats

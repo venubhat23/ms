@@ -68,26 +68,21 @@ class Admin::StockTransfersController < Admin::ApplicationController
       ids_needed += ActiveRecord::Base.connection.select_values(sanitized).map(&:to_i)
     end
 
-    # Single query (+ preload queries for the includes) for every transfer
-    # shown on the page, instead of one query-with-includes per group.
-    transfers_by_id    = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
+    # Single query for every transfer shown on the page, with all six
+    # belongs_to associations JOINed in (eager_load) instead of one preload
+    # round trip each.
+    transfers_by_id    = StockTransfer.eager_load(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
                                        .where(id: ids_needed)
                                        .index_by(&:id)
     transfers_by_group = transfers_by_id.values.group_by { |t| t.transfer_group_id.presence || "single_#{t.id}" }
 
-    stock_cache = {}
+    # Available stock per (product_id, from_store_id) for every transfer shown, in one grouped query
+    stock_cache = StockBatch.available_totals_for(transfers_by_id.values.map { |t| [t.product_id, t.from_store_id] })
 
     @groups = paged_keys.filter_map do |key|
       transfers   = (transfers_by_group[key] || []).sort_by { |t| -t.created_at.to_f }
       total_count = key.start_with?('single_') ? transfers.size : (group_totals[key] || 0)
       next if transfers.empty?
-
-      # Pre-compute available stock per (product_id, from_store_id) to avoid N+1 — only for what's shown
-      transfers.each do |t|
-        ck = [t.product_id, t.from_store_id]
-        stock_cache[ck] ||= StockBatch.available_for_product(t.product_id, store_id: t.from_store_id)
-                                       .sum(:quantity_remaining)
-      end
 
       statuses = key.start_with?('single_') ? transfers.map(&:status) : group_status_counts[key].keys
 
@@ -115,7 +110,7 @@ class Admin::StockTransfersController < Admin::ApplicationController
     @group_id = params[:group_id]
     per_page = SystemSetting.default_pagination_per_page || 20
 
-    scope = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
+    scope = StockTransfer.eager_load(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
                           .where(transfer_group_id: @group_id)
                           .order(created_at: :desc)
     @transfers = scope.page(params[:page]).per(per_page)
@@ -124,13 +119,7 @@ class Admin::StockTransfersController < Admin::ApplicationController
       redirect_to admin_stock_transfers_path, alert: 'Transfer request not found.' and return
     end
 
-    stock_cache = {}
-    @transfers.each do |t|
-      key = [t.product_id, t.from_store_id]
-      stock_cache[key] ||= StockBatch.available_for_product(t.product_id, store_id: t.from_store_id)
-                                     .sum(:quantity_remaining)
-    end
-    @stock_cache  = stock_cache
+    @stock_cache  = StockBatch.available_totals_for(@transfers.map { |t| [t.product_id, t.from_store_id] })
     first         = @transfers.first
     @status       = group_status(StockTransfer.where(transfer_group_id: @group_id).pluck(:status))
     @from_store   = first.from_store_name
@@ -146,7 +135,7 @@ class Admin::StockTransfersController < Admin::ApplicationController
   # Full item list for a single request (transfer_group_id), rendered as an
   # HTML fragment for the "View items" modal on the index page.
   def group_items
-    transfers = StockTransfer.includes(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
+    transfers = StockTransfer.eager_load(:product, :product_variant, :from_store, :to_store, :requested_by, :approved_by)
                               .where(transfer_group_id: params[:group_id])
                               .order(created_at: :desc)
                               .to_a
@@ -156,12 +145,7 @@ class Admin::StockTransfersController < Admin::ApplicationController
       return
     end
 
-    stock_cache = {}
-    transfers.each do |t|
-      key = [t.product_id, t.from_store_id]
-      stock_cache[key] ||= StockBatch.available_for_product(t.product_id, store_id: t.from_store_id)
-                                     .sum(:quantity_remaining)
-    end
+    stock_cache = StockBatch.available_totals_for(transfers.map { |t| [t.product_id, t.from_store_id] })
 
     render partial: 'items_table', locals: { transfers: transfers, stock_cache: stock_cache }
   end

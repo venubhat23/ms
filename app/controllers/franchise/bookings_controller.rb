@@ -78,6 +78,12 @@ class Franchise::BookingsController < Franchise::BaseController
     @per_page = SystemSetting.default_pagination_per_page
     @bookings = @bookings.page(params[:page]).per(@per_page)
 
+    # Tab counts are independent of the page load — start them on background
+    # connections first so their round trips overlap with the listing query.
+    booked_by_counts = @all_bookings.group(:booked_by).async_count
+    admin_assigned_count = admin_assigned_deliveries.async_count
+    status_counts = @all_bookings.group(:status).async_count
+
     # booking_invoices is eager-loaded above; memoize @associated_invoice to nil so
     # has_invoice?/invoice_link_path/display_invoice_number never fire a per-row
     # unindexed LIKE query against invoice_items (mirrors Admin::BookingsController#index).
@@ -86,12 +92,15 @@ class Franchise::BookingsController < Franchise::BaseController
     # Source-tab counts and status-tab counts (2 + 6 separate COUNT(*) round
     # trips, the latter issued from the view via @bookings_for_stats.where(...))
     # collapsed into 2 grouped queries.
-    booked_by_counts = @all_bookings.group(:booked_by).count
+    booked_by_counts = booked_by_counts.value
     @franchise_bookings_count = booked_by_counts['franchise'] || 0
     @online_orders_count = booked_by_counts['customer'] || 0
-    @admin_assigned_count = admin_assigned_deliveries.count
+    @admin_assigned_count = admin_assigned_count.value
 
-    status_counts = @all_bookings.group(:status).count
+    status_counts = status_counts.value
+    # Every row lands in exactly one status group, so the total is the sum —
+    # saves the view's separate @all_bookings.count round trip.
+    @all_bookings_count = status_counts.values.sum
     @stats_draft_count = status_counts['draft'] || 0
     @stats_pending_count = status_counts['pending'] || 0
     @stats_active_count = (status_counts['confirmed'] || 0) + (status_counts['processing'] || 0) + (status_counts['packed'] || 0)
@@ -195,7 +204,7 @@ class Franchise::BookingsController < Franchise::BaseController
   end
 
   def show
-    @booking_items = @booking.booking_items.includes(product: [:category, image_attachment: :blob, additional_images_attachments: :blob])
+    @booking_items = @booking.booking_items # fully preloaded by set_deliverable_booking
   end
 
   def edit
@@ -425,10 +434,14 @@ class Franchise::BookingsController < Franchise::BaseController
   # #update_stage/#mark_delivered/#mark_completed work for admin-assigned
   # deliveries too.
   def set_deliverable_booking
+    # Single JOIN query for booking + items + products + category + images
+    # (see Customer::OrdersController#set_booking for why not .find).
     @booking = Booking.where(franchise_id: current_franchise.id)
                        .or(Booking.where(delivery_franchise_id: current_franchise.id))
-                       .includes(booking_items: :product)
-                       .find(params[:id])
+                       .eager_load(booking_items: { product: [:category, { image_attachment: :blob }, { additional_images_attachments: :blob }] })
+                       .order('booking_items.id')
+                       .where(id: params[:id]).to_a.first
+    raise ActiveRecord::RecordNotFound unless @booking
   rescue ActiveRecord::RecordNotFound
     redirect_to franchise_bookings_path, alert: 'Booking not found'
   end
@@ -492,9 +505,12 @@ class Franchise::BookingsController < Franchise::BaseController
 
   # AJAX endpoints
   def search_products
-    @products = Product.active
-                       .where("name ILIKE ? OR sku ILIKE ?", "%#{params[:q]}%", "%#{params[:q]}%")
-                       .limit(10)
+    @products = Product.preload_batch_stock(
+      Product.active
+             .includes(image_attachment: :blob)
+             .where("name ILIKE ? OR sku ILIKE ?", "%#{params[:q]}%", "%#{params[:q]}%")
+             .limit(10)
+    )
 
     render json: @products.map { |p|
       {

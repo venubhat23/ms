@@ -8,6 +8,10 @@ class Admin::ProductSplitsController < Admin::ApplicationController
     products = products.where("products.name ILIKE ?", "%#{params[:search]}%") if params[:search].present?
 
     @products = paginate_records(products)
+    # Loads the page and sets each product's total_batch_stock from one
+    # grouped SUM (the view shows it per row). Same record objects stay in
+    # @products, so pagination helpers still work on the relation.
+    Product.preload_batch_stock(@products)
   end
 
   def transfer

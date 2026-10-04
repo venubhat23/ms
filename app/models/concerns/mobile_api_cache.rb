@@ -74,7 +74,10 @@ module MobileApiCache
   end
 
   def self.filters_key
-    "mobile_api/filters/#{product_version}/#{category_version}"
+    # Both version tokens in one Solid Cache round trip; a missing one falls
+    # back to its fetch (which seeds it).
+    versions = Rails.cache.read_multi(PRODUCT_V_KEY, CATEGORY_V_KEY)
+    "mobile_api/filters/#{versions[PRODUCT_V_KEY] || product_version}/#{versions[CATEGORY_V_KEY] || category_version}"
   end
 
   def self.pincode_key(pincode)

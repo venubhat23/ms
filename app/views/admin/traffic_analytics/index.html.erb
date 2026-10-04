@@ -1,0 +1,449 @@
+<% content_for :title, "Views & Traffic" %>
+<%
+  s = @stats
+  views = s["views"].to_i
+  visitors = s["visitors"].to_i
+  prev_views = s["prev_views"].to_i
+  prev_visitors = s["prev_visitors"].to_i
+  change = ->(now, before) { before.zero? ? nil : ((now - before) * 100.0 / before).round(1) }
+  views_change = change.(views, prev_views)
+  visitors_change = change.(visitors, prev_visitors)
+  returning = [visitors - s["new_visitors"].to_i, 0].max
+  per_visitor = visitors.zero? ? 0 : (views.to_f / visitors).round(1)
+  device_icons = { "Mobile" => "bi-phone", "Desktop" => "bi-laptop", "Tablet" => "bi-tablet" }
+  day_names = %w[Mon Tue Wed Thu Fri Sat Sun]
+  heat = Array.new(7) { Array.new(24, 0) }
+  s["heat"].each { |dow, hr, n| heat[dow - 1][hr] = n }
+  heat_max = [heat.flatten.max.to_i, 1].max
+  busiest_hour = s["hourly"].each_with_index.max_by(&:first)
+  busiest_day = s["weekday"].each_with_index.max_by(&:first)
+  hour_label = ->(h) { Time.zone.parse("#{h}:00").strftime("%-l %p") }
+%>
+
+<div class="ta-root">
+  <!-- Header -->
+  <div class="ta-header">
+    <div>
+      <h2 class="ta-title"><i class="bi bi-graph-up-arrow"></i> Views &amp; Traffic</h2>
+      <div class="ta-url">
+        <span class="ta-url-label">Public store</span>
+        <a href="<%= @public_url %>" target="_blank" rel="noopener" class="ta-url-link"><%= @public_url %></a>
+        <button type="button" class="ta-icon-btn" id="taCopyUrl" data-url="<%= @public_url %>" title="Copy link">
+          <i class="bi bi-copy"></i>
+        </button>
+      </div>
+    </div>
+    <div class="ta-ranges" role="group" aria-label="Date range">
+      <% Admin::TrafficAnalyticsController::RANGES.each do |key, label| %>
+        <%= link_to label, admin_traffic_analytics_path(range: key), class: "ta-range #{'active' if key == @range}" %>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- KPI tiles -->
+  <div class="ta-kpis">
+    <div class="ta-kpi">
+      <div class="ta-kpi-label">Page views</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(views) %></div>
+      <% if views_change %>
+        <div class="ta-delta <%= views_change >= 0 ? 'up' : 'down' %>">
+          <i class="bi <%= views_change >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right' %>"></i>
+          <%= views_change.abs %>% vs previous period
+        </div>
+      <% else %>
+        <div class="ta-kpi-sub">No previous data to compare</div>
+      <% end %>
+    </div>
+    <div class="ta-kpi">
+      <div class="ta-kpi-label">Unique visitors</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(visitors) %></div>
+      <% if visitors_change %>
+        <div class="ta-delta <%= visitors_change >= 0 ? 'up' : 'down' %>">
+          <i class="bi <%= visitors_change >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right' %>"></i>
+          <%= visitors_change.abs %>% vs previous period
+        </div>
+      <% else %>
+        <div class="ta-kpi-sub">No previous data to compare</div>
+      <% end %>
+    </div>
+    <div class="ta-kpi">
+      <div class="ta-kpi-label">New / returning</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(s["new_visitors"]) %> <span class="ta-kpi-slash">/ <%= number_with_delimiter(returning) %></span></div>
+      <div class="ta-kpi-sub"><%= per_visitor %> pages per visitor</div>
+    </div>
+    <div class="ta-kpi">
+      <div class="ta-kpi-label">Online now</div>
+      <div class="ta-kpi-value"><span class="ta-live-dot"></span><%= number_with_delimiter(s["live"]) %></div>
+      <div class="ta-kpi-sub">Visitors in the last 5 minutes</div>
+    </div>
+  </div>
+
+  <% if views.zero? %>
+    <div class="ta-card ta-empty">
+      <i class="bi bi-binoculars"></i>
+      <h5>No visits recorded for <%= Admin::TrafficAnalyticsController::RANGES[@range].downcase %> yet</h5>
+      <p>Every visit to your public store pages (home, cart, checkout, order tracking, login) is counted here.
+        New visits appear within about 15 seconds.</p>
+    </div>
+  <% else %>
+
+  <!-- Over time -->
+  <div class="ta-card">
+    <div class="ta-card-head">
+      <h6><%= @range == "today" ? "Views by hour today" : "Views over time" %></h6>
+      <div class="ta-legend">
+        <span><i class="ta-swatch" style="background: var(--ta-s1)"></i>Page views</span>
+        <% unless @range == "today" %><span><i class="ta-swatch" style="background: var(--ta-s2)"></i>Unique visitors</span><% end %>
+      </div>
+    </div>
+    <div class="ta-chart-lg"><canvas id="taTimeline" aria-label="Views over time"></canvas></div>
+  </div>
+
+  <!-- When do people visit -->
+  <div class="ta-grid-2">
+    <div class="ta-card">
+      <div class="ta-card-head">
+        <h6>Busiest hours</h6>
+        <span class="ta-chip"><i class="bi bi-clock"></i> Peak at <%= hour_label.(busiest_hour[1]) %></span>
+      </div>
+      <div class="ta-chart-md"><canvas id="taHours" aria-label="Views by hour of day"></canvas></div>
+    </div>
+    <div class="ta-card">
+      <div class="ta-card-head">
+        <h6>Day &amp; hour heatmap</h6>
+        <span class="ta-chip"><i class="bi bi-calendar-week"></i> Busiest on <%= day_names[busiest_day[1]] %></span>
+      </div>
+      <div class="ta-heat" role="table" aria-label="Views by weekday and hour">
+        <% heat.each_with_index do |row, d| %>
+          <div class="ta-heat-row" role="row">
+            <span class="ta-heat-day"><%= day_names[d] %></span>
+            <% row.each_with_index do |n, h| %>
+              <span class="ta-heat-cell" role="cell"
+                    style="--ta-a: <%= n.zero? ? 0 : (0.12 + 0.88 * n / heat_max).round(3) %>"
+                    data-tip="<%= day_names[d] %> <%= hour_label.(h) %> · <%= number_with_delimiter(n) %> views"></span>
+            <% end %>
+          </div>
+        <% end %>
+        <div class="ta-heat-row ta-heat-axis">
+          <span class="ta-heat-day"></span>
+          <% 24.times do |h| %><span><%= h % 6 == 0 ? hour_label.(h).sub(" ", "") : "" %></span><% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top pages -->
+  <div class="ta-card">
+    <div class="ta-card-head"><h6>Most visited pages</h6></div>
+    <div class="table-responsive">
+      <table class="ta-table">
+        <thead>
+          <tr><th>Page</th><th class="text-end">Views</th><th class="text-end">Visitors</th><th class="ta-share-col">Share</th></tr>
+        </thead>
+        <tbody>
+          <% s["pages"].each do |p| %>
+            <% share = (p["views"] * 100.0 / views).round(1) %>
+            <tr>
+              <td>
+                <div class="ta-page-name"><%= p["name"] %></div>
+                <% if p["path"].include?(":") %>
+                  <span class="ta-page-path"><%= p["path"] %></span>
+                <% else %>
+                  <a class="ta-page-path" href="<%= p["path"] %>" target="_blank" rel="noopener"><%= p["path"] %> <i class="bi bi-box-arrow-up-right"></i></a>
+                <% end %>
+              </td>
+              <td class="text-end fw-semibold"><%= number_with_delimiter(p["views"]) %></td>
+              <td class="text-end"><%= number_with_delimiter(p["visitors"]) %></td>
+              <td class="ta-share-col">
+                <div class="ta-bar"><span style="width: <%= share %>%"></span></div>
+                <small><%= share %>%</small>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Devices -->
+  <div class="ta-card">
+    <div class="ta-card-head"><h6>Mobile or laptop?</h6></div>
+    <div class="ta-devices">
+      <% %w[Mobile Desktop Tablet].each do |name| %>
+        <% row = s["devices"].find { |d| d["name"] == name } || { "views" => 0, "visitors" => 0 } %>
+        <% pct = (row["views"] * 100.0 / views).round(1) %>
+        <div class="ta-device">
+          <i class="bi <%= device_icons[name] %>"></i>
+          <div class="ta-device-body">
+            <div class="ta-device-top"><span><%= name == "Desktop" ? "Laptop / Desktop" : name %></span><strong><%= pct %>%</strong></div>
+            <div class="ta-bar"><span style="width: <%= pct %>%"></span></div>
+            <small><%= number_with_delimiter(row["views"]) %> views · <%= number_with_delimiter(row["visitors"]) %> visitors</small>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <%
+    lists = [
+      ["Top cities", "bi-geo-alt", s["cities"], "Location appears for visits after this feature went live."],
+      ["Countries", "bi-globe2", s["countries"], nil],
+      ["Where visitors came from", "bi-signpost-split", s["referrers"], "\"Direct\" = typed the URL, a bookmark, or a WhatsApp/app link."],
+      ["Campaigns (utm_source)", "bi-megaphone", s["campaigns"], "Add ?utm_source=instagram to links you share to see them here."],
+      ["Browsers", "bi-browser-chrome", s["browsers"], nil],
+      ["Operating systems", "bi-cpu", s["os"], nil]
+    ]
+  %>
+  <div class="ta-grid-2">
+    <% lists.each do |title, icon, rows, note| %>
+      <div class="ta-card">
+        <div class="ta-card-head"><h6><i class="bi <%= icon %>"></i> <%= title %></h6></div>
+        <% if rows.empty? %>
+          <p class="ta-muted mb-0">No data yet.</p>
+        <% else %>
+          <% top = rows.first["views"].to_f %>
+          <ul class="ta-list">
+            <% rows.each do |r| %>
+              <li>
+                <div class="ta-list-bar" style="width: <%= (r["views"] * 100 / top).round(1) %>%"></div>
+                <span class="ta-list-name"><%= r["name"] %></span>
+                <span class="ta-list-num"><%= number_with_delimiter(r["views"]) %> <small><%= number_with_delimiter(r["visitors"]) %> visitors</small></span>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+        <% if note %><p class="ta-note"><%= note %></p><% end %>
+      </div>
+    <% end %>
+  </div>
+  <% end %>
+
+  <p class="ta-foot">
+    Counts real browser visits to public pages only (search bots, link previews and admin theme previews are skipped).
+    A "visitor" is one browser/device. Stats refresh every 30 seconds; new visits take up to about 15 seconds to show.
+  </p>
+  <div class="ta-tooltip" id="taTip" hidden></div>
+</div>
+
+<style>
+  .ta-root {
+    --ta-s1: #2a78d6;
+    --ta-s2: #eb6834;
+    --ta-good: #0f7b3f;
+    --ta-bad: #c0392b;
+    --ta-ink: #0b0b0b;
+    --ta-ink-2: #52514e;
+    --ta-muted: #8a8984;
+    --ta-line: #ecebe7;
+    --ta-surface: #ffffff;
+    --ta-soft: #f4f7fd;
+    color: var(--ta-ink);
+  }
+  .ta-header { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+  .ta-title { font-weight: 700; margin: 0 0 6px; display: flex; gap: 10px; align-items: center; }
+  .ta-title i { color: var(--ta-s1); }
+  .ta-url { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ta-url-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ta-muted); }
+  .ta-url-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ta-s1); word-break: break-all; }
+  .ta-icon-btn { border: 1px solid var(--ta-line); background: var(--ta-surface); border-radius: 8px; padding: 2px 8px; color: var(--ta-ink-2); }
+  .ta-icon-btn:hover { background: var(--ta-soft); }
+  .ta-ranges { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; gap: 4px; background: #f1f0ec; padding: 4px; border-radius: 12px; }
+  .ta-range { padding: 6px 12px; border-radius: 9px; font-size: .85rem; color: var(--ta-ink-2); text-decoration: none; white-space: nowrap; }
+  .ta-range:hover { color: var(--ta-ink); }
+  .ta-range.active { background: var(--ta-surface); color: var(--ta-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  .ta-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
+  .ta-kpi, .ta-card { background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: 16px; }
+  .ta-kpi { padding: 18px 20px; position: relative; overflow: hidden; }
+  .ta-kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--ta-s1); }
+  .ta-kpi-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ta-muted); font-weight: 600; }
+  .ta-kpi-value { font-size: 2rem; font-weight: 700; line-height: 1.2; margin: 6px 0 4px; display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+  .ta-kpi-slash { font-size: 1.1rem; color: var(--ta-muted); font-weight: 600; }
+  .ta-kpi-sub { font-size: .8rem; color: var(--ta-ink-2); }
+  .ta-delta { font-size: .8rem; font-weight: 600; }
+  .ta-delta.up { color: var(--ta-good); }
+  .ta-delta.down { color: var(--ta-bad); }
+  .ta-live-dot { width: 10px; height: 10px; border-radius: 50%; background: #1baf7a; box-shadow: 0 0 0 0 rgba(27,175,122,.6); animation: ta-pulse 1.8s infinite; }
+  @keyframes ta-pulse { 70% { box-shadow: 0 0 0 10px rgba(27,175,122,0); } 100% { box-shadow: 0 0 0 0 rgba(27,175,122,0); } }
+
+  .ta-card { padding: 18px 20px; margin-bottom: 16px; }
+  .ta-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ta-card-head h6 { margin: 0; font-weight: 700; }
+  .ta-card-head h6 i { color: var(--ta-muted); margin-right: 4px; }
+  .ta-chip { font-size: .78rem; background: var(--ta-soft); color: var(--ta-ink-2); padding: 4px 10px; border-radius: 999px; }
+  .ta-legend { display: flex; gap: 14px; font-size: .8rem; color: var(--ta-ink-2); }
+  .ta-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .ta-chart-lg { position: relative; height: 300px; }
+  .ta-chart-md { position: relative; height: 220px; }
+  .ta-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .ta-grid-2 > .ta-card { margin-bottom: 0; }
+  .ta-grid-2 { margin-bottom: 16px; }
+
+  .ta-heat { display: flex; flex-direction: column; gap: 3px; }
+  .ta-heat-row { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 3px; align-items: center; }
+  .ta-heat-day { font-size: .72rem; color: var(--ta-muted); }
+  .ta-heat-cell { aspect-ratio: 1; border-radius: 4px; background: #eef0f3; position: relative; cursor: default; }
+  .ta-heat-cell::after { content: ""; position: absolute; inset: 0; border-radius: 4px; background: var(--ta-s1); opacity: var(--ta-a); }
+  .ta-heat-cell:hover { outline: 2px solid var(--ta-ink); outline-offset: 1px; }
+  .ta-heat-axis span { font-size: .65rem; color: var(--ta-muted); white-space: nowrap; overflow: visible; }
+
+  .ta-table { width: 100%; border-collapse: collapse; }
+  .ta-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ta-muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--ta-line); }
+  .ta-table td { padding: 10px; border-bottom: 1px solid var(--ta-line); vertical-align: middle; font-variant-numeric: tabular-nums; }
+  .ta-table tr:last-child td { border-bottom: 0; }
+  .ta-page-name { font-weight: 600; }
+  .ta-page-path { font-size: .8rem; color: var(--ta-ink-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-decoration: none; word-break: break-all; }
+  a.ta-page-path:hover { color: var(--ta-s1); }
+  .ta-share-col { width: 26%; min-width: 120px; }
+  .ta-share-col small { color: var(--ta-ink-2); }
+  .ta-bar { height: 6px; background: #eef0f3; border-radius: 4px; overflow: hidden; margin: 4px 0; }
+  .ta-bar span { display: block; height: 100%; background: var(--ta-s1); border-radius: 4px; }
+
+  .ta-devices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .ta-device { display: flex; gap: 14px; align-items: center; background: var(--ta-soft); border-radius: 14px; padding: 14px 16px; }
+  .ta-device > i { font-size: 1.8rem; color: var(--ta-s1); }
+  .ta-device-body { flex: 1; min-width: 0; }
+  .ta-device-top { display: flex; justify-content: space-between; font-size: .9rem; }
+  .ta-device-top strong { font-size: 1.1rem; }
+  .ta-device small { color: var(--ta-ink-2); }
+
+  .ta-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .ta-list li { position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 8px; overflow: hidden; }
+  .ta-list-bar { position: absolute; inset: 0 auto 0 0; background: rgba(42, 120, 214, .12); border-radius: 8px; }
+  .ta-list-name, .ta-list-num { position: relative; font-size: .88rem; }
+  .ta-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ta-list-num { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ta-list-num small { color: var(--ta-muted); font-weight: 400; margin-left: 4px; }
+  .ta-note, .ta-muted { font-size: .78rem; color: var(--ta-muted); }
+  .ta-note { margin: 10px 0 0; }
+
+  .ta-empty { text-align: center; padding: 48px 20px; }
+  .ta-empty i { font-size: 2.5rem; color: var(--ta-s1); }
+  .ta-empty h5 { margin: 12px 0 6px; font-weight: 700; }
+  .ta-empty p { color: var(--ta-ink-2); max-width: 520px; margin: 0 auto; }
+  .ta-foot { font-size: .78rem; color: var(--ta-muted); margin: 8px 0 0; }
+
+  .ta-tooltip { position: fixed; z-index: 2000; pointer-events: none; background: #1a1a19; color: #fff; font-size: .78rem; padding: 6px 10px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); }
+
+  @media (max-width: 991px) {
+    .ta-kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .ta-grid-2, .ta-devices { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 575px) {
+    .ta-kpis { gap: 10px; }
+    .ta-kpi { padding: 14px; }
+    .ta-kpi-value { font-size: 1.5rem; }
+    .ta-chart-lg { height: 240px; }
+    .ta-heat-row { gap: 2px; grid-template-columns: 28px repeat(24, minmax(0, 1fr)); }
+    .ta-heat-cell { border-radius: 2px; }
+    .ta-heat-cell::after { border-radius: 2px; }
+  }
+</style>
+
+<script>
+  (function () {
+    const copyBtn = document.getElementById("taCopyUrl");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function () {
+        navigator.clipboard.writeText(copyBtn.dataset.url).then(function () {
+          copyBtn.innerHTML = '<i class="bi bi-check2"></i>';
+          setTimeout(function () { copyBtn.innerHTML = '<i class="bi bi-copy"></i>'; }, 1500);
+        });
+      });
+    }
+
+    const tip = document.getElementById("taTip");
+    document.querySelectorAll(".ta-heat-cell").forEach(function (cell) {
+      cell.addEventListener("mouseenter", function () {
+        const r = cell.getBoundingClientRect();
+        tip.textContent = cell.dataset.tip;
+        tip.style.left = (r.left + r.width / 2) + "px";
+        tip.style.top = r.top + "px";
+        tip.hidden = false;
+      });
+      cell.addEventListener("mouseleave", function () { tip.hidden = true; });
+    });
+
+    if (typeof Chart === "undefined" || !document.getElementById("taTimeline")) return;
+
+    const css = getComputedStyle(document.querySelector(".ta-root"));
+    const s1 = css.getPropertyValue("--ta-s1").trim();
+    const s2 = css.getPropertyValue("--ta-s2").trim();
+    const grid = "#ecebe7";
+    const ink2 = "#52514e";
+    const fmt = new Intl.NumberFormat();
+    const hourLabels = Array.from({ length: 24 }, function (_, h) {
+      return ((h % 12) || 12) + (h < 12 ? " AM" : " PM");
+    });
+
+    Chart.defaults.font.family = "Poppins, system-ui, sans-serif";
+    Chart.defaults.color = ink2;
+    const tooltip = {
+      backgroundColor: "#1a1a19", padding: 10, cornerRadius: 8, boxPadding: 4, usePointStyle: true,
+      callbacks: { label: function (c) { return " " + c.dataset.label + ": " + fmt.format(c.parsed.y); } }
+    };
+    const axes = {
+      x: { grid: { display: false }, border: { color: grid }, ticks: { maxRotation: 0, autoSkipPadding: 16 } },
+      y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { precision: 0 } }
+    };
+
+    const isToday = <%= raw(@range == "today").to_s %>;
+    const daily = <%= raw(s["daily"].to_json) %>;
+    const hourly = <%= raw(s["hourly"].to_json) %>;
+    const fade = function (ctx, color) {
+      const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, ctx.chart.height);
+      g.addColorStop(0, color + "33");
+      g.addColorStop(1, color + "00");
+      return g;
+    };
+
+    let labels, viewsData, visitorsData;
+    if (isToday) {
+      labels = hourLabels;
+      viewsData = hourly;
+      visitorsData = null;
+    } else {
+      labels = daily.map(function (d) {
+        return new Date(d[0] + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      });
+      viewsData = daily.map(function (d) { return d[1]; });
+      visitorsData = daily.map(function (d) { return d[2]; });
+    }
+
+    const datasets = [{
+      label: "Page views", data: viewsData, borderColor: s1, borderWidth: 2, tension: 0.35, fill: true,
+      backgroundColor: function (ctx) { return fade(ctx, s1); },
+      pointRadius: labels.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: s1, pointBorderColor: "#fff", pointBorderWidth: 2
+    }];
+    if (visitorsData) {
+      datasets.push({
+        label: "Unique visitors", data: visitorsData, borderColor: s2, borderWidth: 2, tension: 0.35, fill: false,
+        pointRadius: labels.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: s2, pointBorderColor: "#fff", pointBorderWidth: 2
+      });
+    }
+
+    new Chart(document.getElementById("taTimeline"), {
+      type: "line",
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { display: false }, tooltip: tooltip },
+        scales: axes
+      }
+    });
+
+    new Chart(document.getElementById("taHours"), {
+      type: "bar",
+      data: {
+        labels: hourLabels,
+        datasets: [{ label: "Page views", data: hourly, backgroundColor: s1, borderRadius: 4, borderSkipped: "bottom", maxBarThickness: 18 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltip },
+        scales: axes
+      }
+    });
+  })();
+</script>

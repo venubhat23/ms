@@ -1544,7 +1544,7 @@
       let cartDeliveryMethod = '';
       let cartShopAddress    = '';
       let cartDeliveryCharge  = 0;
-      let customerAddresses      = <%= raw (current_customer ? current_customer.customer_addresses.order(is_default: :desc, created_at: :asc).map { |a| { id: a.id, name: a.name, mobile: a.mobile, address_type: a.address_type, address: a.address, landmark: a.landmark, city: a.city, state: a.state, pincode: a.pincode, is_default: a.is_default } } : []).to_json %>;
+      let customerAddresses      = <%= raw (current_customer ? (@layout_customer_addresses || current_customer.customer_addresses.order(is_default: :desc, created_at: :asc)).map { |a| { id: a.id, name: a.name, mobile: a.mobile, address_type: a.address_type, address: a.address, landmark: a.landmark, city: a.city, state: a.state, pincode: a.pincode, is_default: a.is_default } } : []).to_json %>;
 
       function selectDeliveryMethod(method) {
         cartDeliveryMethod = method;

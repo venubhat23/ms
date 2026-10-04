@@ -91,6 +91,18 @@ class StockBatch < ApplicationRecord
     store_id.present? ? scope.where(store_id: store_id) : scope.where(store_id: nil)
   end
 
+  # total_available for many [product_id, store_id] pairs in one grouped
+  # query (store_id nil = central warehouse). Returns { [product_id, store_id] => sum }
+  # with 0 for pairs that have no active batches.
+  def self.available_totals_for(pairs)
+    pairs = pairs.uniq
+    return {} if pairs.empty?
+
+    sums = where(product_id: pairs.map(&:first).uniq, store_id: pairs.map(&:last).uniq)
+           .active.group(:product_id, :store_id).sum(:quantity_remaining)
+    pairs.index_with { |pair| sums[pair] || 0 }
+  end
+
   def self.total_available(product_id, store_id: nil)
     available_for_product(product_id, store_id: store_id).sum(:quantity_remaining)
   end

@@ -22,7 +22,7 @@ class StoreAdmin::StockTransfersController < StoreAdmin::ApplicationController
                         "products.stock, products.display_order, " \
                         "COALESCE(batch_stock.total_stock, 0) AS cached_stock"
                       )
-                      .includes(:category, :product_variants)
+                      .includes(:category, :product_variants, image_attachment: :blob)
                       .by_stock_availability
 
     @products_json = products.map do |p|

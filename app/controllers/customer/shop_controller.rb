@@ -63,13 +63,21 @@ class Customer::ShopController < Customer::BaseController
   def product
     # :approved_reviews preloaded so total_reviews (used in the view) hits
     # the model's "loaded?" fast path instead of a fresh COUNT query.
-    @product = Product.includes(:category, :approved_reviews, image_attachment: :blob).find(params[:id])
+    # Single-row associations (category, main image) JOINed into the product
+    # query; has_many ones preloaded.
+    @product = Product.eager_load(:category, image_attachment: :blob)
+                      .preload(:approved_reviews, additional_images_attachments: :blob)
+                      .find(params[:id])
+    # Related products start loading in the background while the stock SUM runs.
+    related = Product.where(category_id: @product.category_id)
+                     .where.not(id: @product.id)
+                     .where(status: 'active')
+                     .eager_load(:category, image_attachment: :blob)
+                     .preload(additional_images_attachments: :blob)
+                     .limit(4)
+                     .load_async
     @available_stock = @product.total_batch_stock
-    @related_products = Product.where(category_id: @product.category_id)
-                               .where.not(id: @product.id)
-                               .where(status: 'active')
-                               .includes(:category, image_attachment: :blob)
-                               .limit(4)
+    @related_products = Product.preload_batch_stock(related)
   end
 
   def success

@@ -676,12 +676,26 @@ class Product < ApplicationRecord
     "₹#{yesterday_price}"
   end
 
+  # Batch-loads total_batch_stock for a list of products in one grouped SUM
+  # query instead of one SUM per product (N+1 on listing pages). Returns the
+  # same records so it can wrap a relation: Product.preload_batch_stock(scope.to_a)
+  def self.preload_batch_stock(products)
+    products = products.to_a
+    return products if products.empty?
+
+    sums = StockBatch.active.where(product_id: products.map(&:id)).group(:product_id).sum(:quantity_remaining)
+    products.each { |p| p.instance_variable_set(:@preloaded_batch_stock, sums[p.id] || 0) }
+  rescue ActiveRecord::StatementInvalid
+    products
+  end
+
   # Vendor Management Methods
   def total_batch_stock
     # Use cached value if available (from controller query)
     if respond_to?(:cached_stock) && cached_stock.present?
       return cached_stock.to_f
     end
+    return @preloaded_batch_stock if defined?(@preloaded_batch_stock)
 
     # Fallback to regular stock if stock_batches table doesn't exist
     return stock if !ActiveRecord::Base.connection.table_exists?('stock_batches')

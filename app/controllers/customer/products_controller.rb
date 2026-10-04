@@ -45,10 +45,13 @@ class Customer::ProductsController < Customer::BaseController
       @products = @products.order(:name)
     end
 
-    @products = @products.page(params[:page]).per(12)
+    # load_async: the page loads on a background connection while the
+    # categories query runs, and the view's .any?/.size read the loaded page
+    # instead of each firing their own EXISTS/COUNT query.
+    @products = @products.page(params[:page]).per(12).load_async
 
     # For filters
-    @categories = Category.where(status: true).order(:name)
+    @categories = Category.where(status: true).order(:name).load_async
     @price_ranges = [
       { label: 'Under ₹100', min: 0, max: 100 },
       { label: '₹100 - ₹500', min: 100, max: 500 },
@@ -58,12 +61,14 @@ class Customer::ProductsController < Customer::BaseController
   end
 
   def show
+    # Reviews load in the background while related products load.
+    @reviews = @product.approved_reviews.recent.limit(10).load_async
     @related_products = Product.active
                               .where.not(id: @product.id)
                               .where(category: @product.category)
-                              .includes(:category, image_attachment: :blob)
+                              .eager_load(:category, image_attachment: :blob)
                               .limit(4)
-    @reviews = @product.approved_reviews.recent.limit(10)
+    @related_products = Product.preload_batch_stock(@related_products)
   end
 
   def search
@@ -85,7 +90,12 @@ class Customer::ProductsController < Customer::BaseController
     # in show.html.erb), total_reviews (2x), and in_stock?/available_quantity
     # (2x each) all hit their model-level "loaded?" fast paths instead of a
     # fresh query per call — was ~9-10 extra round trips per product page.
-    @product = Product.active.includes(:category, :approved_reviews, :stock_batches, image_attachment: :blob).find(params[:id])
+    # eager_load joins the single-row associations (category, main image)
+    # into the product query itself; has_many ones stay as preloads.
+    @product = Product.active
+                      .eager_load(:category, image_attachment: :blob)
+                      .preload(:approved_reviews, :stock_batches)
+                      .find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to customer_products_path, alert: 'Product not found.'
   end

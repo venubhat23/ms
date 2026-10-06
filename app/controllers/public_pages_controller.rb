@@ -1,6 +1,4 @@
 class PublicPagesController < ApplicationController
-  include TracksPageViews
-  track_page_views only: [:adhika_privacy_policy, :adhika_account_deletion_policy]
   skip_before_action :authenticate_user!, only: [:adhika_privacy_policy, :adhika_account_deletion_policy, :marali_santhe_home]
   skip_load_and_authorize_resource
   layout 'public'

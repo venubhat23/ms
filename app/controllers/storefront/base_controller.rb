@@ -1,6 +1,4 @@
 class Storefront::BaseController < ApplicationController
-  include TracksPageViews
-  track_page_views
   # Public/anonymous storefront — no Devise auth, no CanCan, no customer login.
   # Mirrors Customer::BaseController's skips minus the customer authentication.
   skip_before_action :authenticate_user!

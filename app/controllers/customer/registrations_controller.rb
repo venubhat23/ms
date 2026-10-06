@@ -1,6 +1,4 @@
 class Customer::RegistrationsController < Customer::BaseController
-  include TracksPageViews
-  track_page_views only: :new
   skip_before_action :authenticate_customer!
   skip_before_action :ensure_customer_role
   layout 'customer_auth'

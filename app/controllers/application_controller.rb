@@ -1,4 +1,7 @@
 class ApplicationController < ActionController::Base
+  # Records page views + click/time-on-page beacon for Admin > Traffic Analytics.
+  include TracksPageViews
+
   # Browser compatibility check disabled - allow all browsers
   # allow_browser versions: :modern
 

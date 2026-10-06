@@ -1,0 +1,102 @@
+<% content_for :title, "Visitor Journey" %>
+<%
+  j = @journey
+  sum = j["summary"] || {}
+  person = j["person"]
+  events = j["events"]
+  first_event = events.find { |e| e["kind"] == "view" } || events.first || {}
+  title = person ? person["name"] : "Visitor #{@visitor_id.to_s.first(6)}"
+%>
+
+<div class="ta-root">
+  <div class="ta-header">
+    <div>
+      <%= link_to admin_traffic_analytics_path(@filter_params), class: "ta-link ta-sub" do %>
+        <i class="bi bi-arrow-left"></i> Back to Views &amp; Traffic
+      <% end %>
+      <h2 class="ta-title mt-1">
+        <span class="ta-avatar"><%= person ? traffic_initials(person["name"]) : '<i class="bi bi-person"></i>'.html_safe %></span>
+        <%= title %>
+      </h2>
+      <div class="ta-sub">
+        <% if person %>
+          <%= person["role"] %><%= " · #{person['contact']}" if person["contact"].present? %> ·
+        <% else %>
+          Anonymous browser (not logged in) ·
+        <% end %>
+        <%= [first_event["device"], first_event["browser"], first_event["os"]].compact.join(" · ") %>
+        <% if first_event["city"].present? || first_event["country"].present? %>
+          · <i class="bi bi-geo-alt"></i> <%= [first_event["city"], first_event["country"]].compact.join(", ") %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="ta-kpis">
+    <div class="ta-kpi">
+      <div class="ta-kpi-label">Page views</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(sum["views"]) %></div>
+      <div class="ta-kpi-sub"><%= sum["visitors"].to_i > 1 ? "#{sum['visitors']} devices / browsers" : "1 device / browser" %></div>
+    </div>
+    <div class="ta-kpi k2">
+      <div class="ta-kpi-label">Clicks</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(sum["clicks"]) %></div>
+    </div>
+    <div class="ta-kpi k3">
+      <div class="ta-kpi-label">Time spent</div>
+      <div class="ta-kpi-value"><%= traffic_duration(sum["seconds"]) %></div>
+      <div class="ta-kpi-sub">While the tab was visible</div>
+    </div>
+    <div class="ta-kpi k4">
+      <div class="ta-kpi-label">First / last seen</div>
+      <div class="ta-kpi-value" style="font-size: 1.05rem"><%= traffic_time(sum["first"])&.strftime("%-d %b %Y, %-l:%M %p") || "—" %></div>
+      <div class="ta-kpi-sub">Last: <%= traffic_ago(sum["last"]).presence || "—" %></div>
+    </div>
+  </div>
+
+  <div class="ta-card">
+    <div class="ta-card-head">
+      <h6><i class="bi bi-signpost-2"></i> Every page and click</h6>
+      <span class="ta-sub">Newest first<%= " · latest #{Admin::TrafficAnalyticsController::JOURNEY_LIMIT} events" if events.size >= Admin::TrafficAnalyticsController::JOURNEY_LIMIT %></span>
+    </div>
+    <% if events.empty? %>
+      <p class="ta-muted mb-0">Nothing recorded for this visitor.</p>
+    <% else %>
+      <ul class="ta-feed">
+        <% last_day = nil %>
+        <% events.each do |ev| %>
+          <% at = traffic_time(ev["at"]) %>
+          <% day = at&.to_date %>
+          <% if day != last_day %>
+            <% last_day = day %>
+            <li class="ta-day" style="border: 0"><%= day == Time.zone.today ? "Today" : day&.strftime("%A, %-d %B %Y") %></li>
+          <% end %>
+          <li>
+            <%= traffic_kind_icon(ev["kind"]) %>
+            <div class="ta-feed-main">
+              <% case ev["kind"] %>
+              <% when "click" %>
+                Clicked <strong>“<%= ev["label"] %>”</strong> on <%= ev["page"] %>
+                <% if ev["target"].present? %><span class="ta-page-path">→ <%= ev["target"] %></span><% end %>
+              <% when "leave" %>
+                Spent <strong><%= traffic_duration(ev["duration"]) %></strong> on <%= ev["page"] %>
+              <% else %>
+                Opened <strong><%= ev["page"] %></strong>
+                <span class="ta-page-path"><%= ev["path"] %></span>
+              <% end %>
+              <span class="ta-sub">
+                <%= traffic_section_badge(ev["section"]) %>
+                <% if ev["referrer"].present? %> · from <%= ev["referrer"] %><% end %>
+                <% if ev["utm"].present? %> · campaign <%= ev["utm"] %><% end %>
+                <% if person && sum["visitors"].to_i > 1 %> · <%= ev["device"] %> / <%= ev["browser"] %><% end %>
+              </span>
+            </div>
+            <span class="ta-feed-time"><%= at&.strftime("%-l:%M:%S %p") %></span>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  </div>
+</div>
+
+<%= render "styles" %>

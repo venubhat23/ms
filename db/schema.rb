@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_04_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_06_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -1030,7 +1030,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_000001) do
     t.string "country"
     t.string "region"
     t.string "city"
+    t.string "kind", limit: 8, default: "view", null: false
+    t.string "section", limit: 16, default: "store", null: false
+    t.string "user_type", limit: 16
+    t.bigint "user_id"
+    t.string "label", limit: 120
+    t.string "target"
+    t.integer "duration"
+    t.index ["user_type", "user_id", "visited_at"], name: "index_page_views_on_user_type_and_user_id_and_visited_at", where: "(user_id IS NOT NULL)"
     t.index ["visited_at"], name: "index_page_views_on_visited_at", include: ["visitor_id"]
+    t.index ["visitor_id", "visited_at"], name: "index_page_views_on_visitor_id_and_visited_at"
   end
 
   create_table "pending_amounts", force: :cascade do |t|

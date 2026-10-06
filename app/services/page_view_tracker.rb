@@ -1,6 +1,6 @@
 require "net/http"
 
-# Buffers public-storefront page hits in process memory and writes them to
+# Buffers page hits and beacon events (clicks, time on page) in process memory and writes them to
 # page_views in bulk from one background thread, so tracking a visit costs
 # the request zero DB round trips (the DB here is remote, ~60ms+ per trip).
 #
@@ -21,6 +21,14 @@ class PageViewTracker
   GEO_BATCH = 100
   GEO_CACHE_MAX = 20_000
   PRIVATE_IP = /\A(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|::1\z|fc|fd|fe80)/i
+
+  # insert_all needs identical keys on every row; page views and beacon
+  # events (clicks / time on page) fill different columns.
+  ROW_TEMPLATE = {
+    kind: "view", section: "store", visited_at: nil, path: "/", page: "Unknown", visitor_id: nil,
+    new_visitor: false, device: nil, browser: nil, os: nil, referrer_host: nil, utm_source: nil,
+    country: nil, region: nil, city: nil, user_type: nil, user_id: nil, label: nil, target: nil, duration: nil
+  }.freeze
 
   @mutex = Mutex.new
   @wakeup = ConditionVariable.new
@@ -44,7 +52,7 @@ class PageViewTracker
       return if batch.empty?
 
       resolve_locations(batch)
-      rows = batch.map { |hit| hit.except(:ip) }
+      rows = batch.map { |hit| ROW_TEMPLATE.merge(hit.except(:ip)) }
       Rails.application.executor.wrap do
         PageView.insert_all(rows, returning: false)
       end

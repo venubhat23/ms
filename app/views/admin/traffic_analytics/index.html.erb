@@ -3,6 +3,7 @@
   s = @stats
   views = s["views"].to_i
   visitors = s["visitors"].to_i
+  clicks = s["clicks"].to_i
   prev_views = s["prev_views"].to_i
   prev_visitors = s["prev_visitors"].to_i
   change = ->(now, before) { before.zero? ? nil : ((now - before) * 100.0 / before).round(1) }
@@ -10,6 +11,8 @@
   visitors_change = change.(visitors, prev_visitors)
   returning = [visitors - s["new_visitors"].to_i, 0].max
   per_visitor = visitors.zero? ? 0 : (views.to_f / visitors).round(1)
+  avg_time = views.zero? ? 0 : s["seconds"].to_f / views
+  bounce = visitors.zero? ? 0 : (s["bounced"].to_i * 100.0 / visitors).round(1)
   device_icons = { "Mobile" => "bi-phone", "Desktop" => "bi-laptop", "Tablet" => "bi-tablet" }
   day_names = %w[Mon Tue Wed Thu Fri Sat Sun]
   heat = Array.new(7) { Array.new(24, 0) }
@@ -18,6 +21,10 @@
   busiest_hour = s["hourly"].each_with_index.max_by(&:first)
   busiest_day = s["weekday"].each_with_index.max_by(&:first)
   hour_label = ->(h) { Time.zone.parse("#{h}:00").strftime("%-l %p") }
+  single_day = @from_date == @to_date
+  period_label = @range == "custom" ? "#{@from_date.strftime('%-d %b %Y')} – #{@to_date.strftime('%-d %b %Y')}" : Admin::TrafficAnalyticsController::RANGES[@range]
+  sections = Admin::TrafficAnalyticsController::SECTIONS
+  range_params = @filter_params.except(:section)
 %>
 
 <div class="ta-root">
@@ -33,10 +40,42 @@
         </button>
       </div>
     </div>
-    <div class="ta-ranges" role="group" aria-label="Date range">
-      <% Admin::TrafficAnalyticsController::RANGES.each do |key, label| %>
-        <%= link_to label, admin_traffic_analytics_path(range: key), class: "ta-range #{'active' if key == @range}" %>
+    <div class="ta-actions">
+      <button type="button" class="ta-btn" id="taAutoRefresh" title="Reload the stats every 30 seconds">
+        <i class="bi bi-arrow-repeat"></i> <span>Auto-refresh off</span>
+      </button>
+      <%= link_to admin_traffic_analytics_export_path(@filter_params), class: "ta-btn", data: { turbo: false } do %>
+        <i class="bi bi-download"></i> Export CSV
       <% end %>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="ta-filters">
+    <div class="ta-sections" role="group" aria-label="Portal">
+      <%= link_to "All portals", admin_traffic_analytics_path(range_params), class: "ta-section-pill #{'active' if @section == 'all'}" %>
+      <% sections.each do |key, label| %>
+        <%= link_to label, admin_traffic_analytics_path(range_params.merge(section: key)), class: "ta-section-pill #{'active' if @section == key}" %>
+      <% end %>
+    </div>
+    <div class="ta-filter-row">
+      <div class="ta-ranges" role="group" aria-label="Date range">
+        <% Admin::TrafficAnalyticsController::RANGES.each do |key, label| %>
+          <%= link_to label, admin_traffic_analytics_path(range: key, section: (@section unless @section == "all")), class: "ta-range #{'active' if key == @range}" %>
+        <% end %>
+      </div>
+      <%= form_with url: admin_traffic_analytics_path, method: :get, class: "ta-custom", local: true do %>
+        <% if @section != "all" %><%= hidden_field_tag :section, @section %><% end %>
+        <label for="taFrom">From</label>
+        <%= date_field_tag :from, @from_date, id: "taFrom", max: Time.zone.today %>
+        <label for="taTo">to</label>
+        <%= date_field_tag :to, @to_date, id: "taTo", max: Time.zone.today %>
+        <button type="submit">Apply</button>
+      <% end %>
+    </div>
+    <div class="ta-period">
+      Showing <strong><%= period_label %></strong>
+      <% if @section != "all" %> · <%= traffic_section_badge(@section) %><% end %>
     </div>
   </div>
 
@@ -63,40 +102,142 @@
           <%= visitors_change.abs %>% vs previous period
         </div>
       <% else %>
-        <div class="ta-kpi-sub">No previous data to compare</div>
+        <div class="ta-kpi-sub"><%= number_with_delimiter(s["new_visitors"]) %> new · <%= number_with_delimiter(returning) %> returning</div>
       <% end %>
     </div>
-    <div class="ta-kpi">
-      <div class="ta-kpi-label">New / returning</div>
-      <div class="ta-kpi-value"><%= number_with_delimiter(s["new_visitors"]) %> <span class="ta-kpi-slash">/ <%= number_with_delimiter(returning) %></span></div>
+    <div class="ta-kpi k2">
+      <div class="ta-kpi-label">Clicks</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(clicks) %></div>
+      <div class="ta-kpi-sub"><%= visitors.zero? ? 0 : (clicks.to_f / visitors).round(1) %> clicks per visitor</div>
+    </div>
+    <div class="ta-kpi k3">
+      <div class="ta-kpi-label">Avg. time on page</div>
+      <div class="ta-kpi-value"><%= traffic_duration(avg_time) %></div>
       <div class="ta-kpi-sub"><%= per_visitor %> pages per visitor</div>
+    </div>
+    <div class="ta-kpi k4">
+      <div class="ta-kpi-label">Logged-in users</div>
+      <div class="ta-kpi-value"><%= number_with_delimiter(s["users"]) %></div>
+      <div class="ta-kpi-sub">Bounce rate <%= bounce %>% (left after 1 page)</div>
     </div>
     <div class="ta-kpi">
       <div class="ta-kpi-label">Online now</div>
       <div class="ta-kpi-value"><span class="ta-live-dot"></span><%= number_with_delimiter(s["live"]) %></div>
-      <div class="ta-kpi-sub">Visitors in the last 5 minutes</div>
+      <div class="ta-kpi-sub">Active in the last 5 minutes</div>
     </div>
   </div>
 
-  <% if views.zero? %>
+  <% if views.zero? && clicks.zero? %>
     <div class="ta-card ta-empty">
       <i class="bi bi-binoculars"></i>
-      <h5>No visits recorded for <%= Admin::TrafficAnalyticsController::RANGES[@range].downcase %> yet</h5>
-      <p>Every visit to your public store pages (home, cart, checkout, order tracking, login) is counted here.
-        New visits appear within about 15 seconds.</p>
+      <h5>No activity recorded for <%= period_label.downcase %> yet</h5>
+      <p>Every page opened on the public store, customer, affiliate, franchise, store admin and admin portals is counted here,
+        along with clicks and time on page. New activity appears within about 15 seconds.</p>
     </div>
   <% else %>
 
   <!-- Over time -->
   <div class="ta-card">
     <div class="ta-card-head">
-      <h6><%= @range == "today" ? "Views by hour today" : "Views over time" %></h6>
+      <h6><%= single_day ? "Views by hour" : "Views over time" %></h6>
       <div class="ta-legend">
         <span><i class="ta-swatch" style="background: var(--ta-s1)"></i>Page views</span>
-        <% unless @range == "today" %><span><i class="ta-swatch" style="background: var(--ta-s2)"></i>Unique visitors</span><% end %>
+        <% unless single_day %>
+          <span><i class="ta-swatch" style="background: var(--ta-s2)"></i>Unique visitors</span>
+          <span><i class="ta-swatch" style="background: var(--ta-s3)"></i>Clicks</span>
+        <% end %>
       </div>
     </div>
     <div class="ta-chart-lg"><canvas id="taTimeline" aria-label="Views over time"></canvas></div>
+  </div>
+
+  <!-- Portals -->
+  <% if @section == "all" && s["sections"].any? %>
+    <div class="ta-card">
+      <div class="ta-card-head"><h6><i class="bi bi-diagram-3"></i> By portal</h6><span class="ta-sub">Click a portal to filter the whole page</span></div>
+      <div class="table-responsive">
+        <table class="ta-table">
+          <thead>
+            <tr><th>Portal</th><th class="text-end">Views</th><th class="text-end">Visitors</th><th class="text-end">Clicks</th><th class="text-end">Avg. time</th><th class="ta-share-col">Share of views</th></tr>
+          </thead>
+          <tbody>
+            <% s["sections"].each do |row| %>
+              <% share = views.zero? ? 0 : (row["views"] * 100.0 / views).round(1) %>
+              <tr>
+                <td><%= link_to traffic_section_badge(row["name"]), admin_traffic_analytics_path(range_params.merge(section: row["name"])), class: "ta-link" %></td>
+                <td class="text-end fw-semibold"><%= number_with_delimiter(row["views"]) %></td>
+                <td class="text-end"><%= number_with_delimiter(row["visitors"]) %></td>
+                <td class="text-end"><%= number_with_delimiter(row["clicks"]) %></td>
+                <td class="text-end"><%= traffic_duration(row["views"].zero? ? 0 : row["seconds"].to_f / row["views"]) %></td>
+                <td class="ta-share-col"><div class="ta-bar"><span style="width: <%= share %>%"></span></div><small><%= share %>%</small></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- Live activity + people -->
+  <div class="ta-grid-3">
+    <div class="ta-card">
+      <div class="ta-card-head">
+        <h6><i class="bi bi-activity"></i> Live activity</h6>
+        <span class="ta-sub">Latest <%= s["recent"].size %> events · click one to see that visitor's journey</span>
+      </div>
+      <% if s["recent"].empty? %>
+        <p class="ta-muted mb-0">No activity yet.</p>
+      <% else %>
+        <ul class="ta-feed ta-scroll">
+          <% s["recent"].each do |ev| %>
+            <% who = ev["name"].presence || "Visitor #{ev['visitor_id'].to_s.first(6)}" %>
+            <li>
+              <%= traffic_kind_icon(ev["kind"]) %>
+              <div class="ta-feed-main">
+                <%= link_to who, traffic_journey_path(ev, @filter_params), class: "ta-link fw-semibold" %>
+                <% case ev["kind"] %>
+                <% when "click" %>
+                  clicked <strong class="ta-ellipsis">“<%= ev["label"] %>”</strong> on <%= ev["page"] %>
+                <% when "leave" %>
+                  spent <strong><%= traffic_duration(ev["duration"]) %></strong> on <%= ev["page"] %>
+                <% else %>
+                  opened <strong><%= ev["page"] %></strong>
+                <% end %>
+                <span class="ta-sub">
+                  <%= traffic_section_badge(ev["section"]) %>
+                  <%= ev["kind"] == "click" && ev["target"].present? ? "→ #{ev['target']}" : ev["path"] %>
+                  · <%= [ev["device"], ev["city"] || ev["country"]].compact.join(" · ") %>
+                </span>
+              </div>
+              <span class="ta-feed-time" title="<%= traffic_time(ev['at'])&.strftime('%-d %b %Y, %-l:%M:%S %p') %>"><%= traffic_ago(ev["at"]) %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
+
+    <div class="ta-card">
+      <div class="ta-card-head"><h6><i class="bi bi-people"></i> Who's using it</h6></div>
+      <% if s["people"].empty? %>
+        <p class="ta-muted mb-0">No logged-in users in this period. Anonymous visitors are listed in Live activity.</p>
+      <% else %>
+        <ul class="ta-feed ta-scroll">
+          <% s["people"].each do |person| %>
+            <li>
+              <span class="ta-avatar"><%= traffic_initials(person["name"]) %></span>
+              <div class="ta-feed-main">
+                <%= link_to person["name"], traffic_journey_path(person, @filter_params), class: "ta-link fw-semibold" %>
+                <span class="ta-sub"><%= person["role"] %><%= " · #{person['contact']}" if person["contact"].present? %></span>
+                <span class="ta-sub">
+                  <%= number_with_delimiter(person["views"]) %> views · <%= number_with_delimiter(person["clicks"]) %> clicks · <%= traffic_duration(person["seconds"]) %>
+                </span>
+              </div>
+              <span class="ta-feed-time"><%= traffic_ago(person["last_seen"]) %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% end %>
+    </div>
   </div>
 
   <!-- When do people visit -->
@@ -138,15 +279,15 @@
     <div class="table-responsive">
       <table class="ta-table">
         <thead>
-          <tr><th>Page</th><th class="text-end">Views</th><th class="text-end">Visitors</th><th class="ta-share-col">Share</th></tr>
+          <tr><th>Page</th><th class="text-end">Views</th><th class="text-end">Visitors</th><th class="text-end">Clicks</th><th class="text-end">Avg. time</th><th class="ta-share-col">Share</th></tr>
         </thead>
         <tbody>
           <% s["pages"].each do |p| %>
-            <% share = (p["views"] * 100.0 / views).round(1) %>
+            <% share = views.zero? ? 0 : (p["views"] * 100.0 / views).round(1) %>
             <tr>
               <td>
-                <div class="ta-page-name"><%= p["name"] %></div>
-                <% if p["path"].include?(":") %>
+                <div class="ta-page-name"><%= p["name"] %> <% if @section == "all" %><%= traffic_section_badge(p["section"]) %><% end %></div>
+                <% if p["path"].include?(":") || p["section"] != "store" %>
                   <span class="ta-page-path"><%= p["path"] %></span>
                 <% else %>
                   <a class="ta-page-path" href="<%= p["path"] %>" target="_blank" rel="noopener"><%= p["path"] %> <i class="bi bi-box-arrow-up-right"></i></a>
@@ -154,6 +295,8 @@
               </td>
               <td class="text-end fw-semibold"><%= number_with_delimiter(p["views"]) %></td>
               <td class="text-end"><%= number_with_delimiter(p["visitors"]) %></td>
+              <td class="text-end"><%= number_with_delimiter(p["clicks"]) %></td>
+              <td class="text-end"><%= traffic_duration(p["seconds"].to_f / p["views"]) %></td>
               <td class="ta-share-col">
                 <div class="ta-bar"><span style="width: <%= share %>%"></span></div>
                 <small><%= share %>%</small>
@@ -165,13 +308,40 @@
     </div>
   </div>
 
+  <!-- Clicks -->
+  <div class="ta-card">
+    <div class="ta-card-head"><h6><i class="bi bi-hand-index"></i> Most clicked buttons &amp; links</h6></div>
+    <% if s["clicked"].empty? %>
+      <p class="ta-muted mb-0">No clicks recorded yet. Clicks are tracked on every page opened after this feature went live.</p>
+    <% else %>
+      <div class="table-responsive">
+        <table class="ta-table">
+          <thead>
+            <tr><th>Clicked</th><th>Goes to</th><th>On page</th><th class="text-end">Clicks</th><th class="text-end">Visitors</th></tr>
+          </thead>
+          <tbody>
+            <% s["clicked"].each do |c| %>
+              <tr>
+                <td class="fw-semibold"><span class="ta-ellipsis" title="<%= c['label'] %>"><%= c["label"].presence || "(no text)" %></span></td>
+                <td><span class="ta-page-path ta-ellipsis" title="<%= c['target'] %>"><%= c["target"].presence || "—" %></span></td>
+                <td><%= c["page"] %> <% if @section == "all" %><%= traffic_section_badge(c["section"]) %><% end %></td>
+                <td class="text-end fw-semibold"><%= number_with_delimiter(c["clicks"]) %></td>
+                <td class="text-end"><%= number_with_delimiter(c["visitors"]) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+
   <!-- Devices -->
   <div class="ta-card">
     <div class="ta-card-head"><h6>Mobile or laptop?</h6></div>
     <div class="ta-devices">
       <% %w[Mobile Desktop Tablet].each do |name| %>
         <% row = s["devices"].find { |d| d["name"] == name } || { "views" => 0, "visitors" => 0 } %>
-        <% pct = (row["views"] * 100.0 / views).round(1) %>
+        <% pct = views.zero? ? 0 : (row["views"] * 100.0 / views).round(1) %>
         <div class="ta-device">
           <i class="bi <%= device_icons[name] %>"></i>
           <div class="ta-device-body">
@@ -186,16 +356,18 @@
 
   <%
     lists = [
-      ["Top cities", "bi-geo-alt", s["cities"], "Location appears for visits after this feature went live."],
-      ["Countries", "bi-globe2", s["countries"], nil],
-      ["Where visitors came from", "bi-signpost-split", s["referrers"], "\"Direct\" = typed the URL, a bookmark, or a WhatsApp/app link."],
-      ["Campaigns (utm_source)", "bi-megaphone", s["campaigns"], "Add ?utm_source=instagram to links you share to see them here."],
-      ["Browsers", "bi-browser-chrome", s["browsers"], nil],
-      ["Operating systems", "bi-cpu", s["os"], nil]
+      ["Landing pages", "bi-box-arrow-in-right", s["entries"], "First page each visitor opened that day.", "visits"],
+      ["Exit pages", "bi-box-arrow-right", s["exits"], "Last page each visitor opened that day.", "visits"],
+      ["Top cities", "bi-geo-alt", s["cities"], "Location appears for visits after this feature went live.", nil],
+      ["Countries", "bi-globe2", s["countries"], nil, nil],
+      ["Where visitors came from", "bi-signpost-split", s["referrers"], "\"Direct\" = typed the URL, a bookmark, or a WhatsApp/app link.", nil],
+      ["Campaigns (utm_source)", "bi-megaphone", s["campaigns"], "Add ?utm_source=instagram to links you share to see them here.", nil],
+      ["Browsers", "bi-browser-chrome", s["browsers"], nil, nil],
+      ["Operating systems", "bi-cpu", s["os"], nil, nil]
     ]
   %>
   <div class="ta-grid-2">
-    <% lists.each do |title, icon, rows, note| %>
+    <% lists.each do |title, icon, rows, note, unit| %>
       <div class="ta-card">
         <div class="ta-card-head"><h6><i class="bi <%= icon %>"></i> <%= title %></h6></div>
         <% if rows.empty? %>
@@ -207,7 +379,10 @@
               <li>
                 <div class="ta-list-bar" style="width: <%= (r["views"] * 100 / top).round(1) %>%"></div>
                 <span class="ta-list-name"><%= r["name"] %></span>
-                <span class="ta-list-num"><%= number_with_delimiter(r["views"]) %> <small><%= number_with_delimiter(r["visitors"]) %> visitors</small></span>
+                <span class="ta-list-num">
+                  <%= number_with_delimiter(r["views"]) %>
+                  <small><%= unit ? unit : "#{number_with_delimiter(r['visitors'])} visitors" %></small>
+                </span>
               </li>
             <% end %>
           </ul>
@@ -219,126 +394,14 @@
   <% end %>
 
   <p class="ta-foot">
-    Counts real browser visits to public pages only (search bots, link previews and admin theme previews are skipped).
-    A "visitor" is one browser/device. Stats refresh every 30 seconds; new visits take up to about 15 seconds to show.
+    Counts real browser activity on every portal (search bots, link previews, embedded frames and admin theme previews are skipped).
+    A "visitor" is one browser/device; "who" comes from whoever is logged in. Time on page counts only while the tab is visible.
+    Clicked text is stored with phone numbers and emails masked. Stats refresh every 30 seconds; new activity takes up to about 15 seconds to show.
   </p>
   <div class="ta-tooltip" id="taTip" hidden></div>
 </div>
 
-<style>
-  .ta-root {
-    --ta-s1: #2a78d6;
-    --ta-s2: #eb6834;
-    --ta-good: #0f7b3f;
-    --ta-bad: #c0392b;
-    --ta-ink: #0b0b0b;
-    --ta-ink-2: #52514e;
-    --ta-muted: #8a8984;
-    --ta-line: #ecebe7;
-    --ta-surface: #ffffff;
-    --ta-soft: #f4f7fd;
-    color: var(--ta-ink);
-  }
-  .ta-header { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-  .ta-title { font-weight: 700; margin: 0 0 6px; display: flex; gap: 10px; align-items: center; }
-  .ta-title i { color: var(--ta-s1); }
-  .ta-url { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .ta-url-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ta-muted); }
-  .ta-url-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ta-s1); word-break: break-all; }
-  .ta-icon-btn { border: 1px solid var(--ta-line); background: var(--ta-surface); border-radius: 8px; padding: 2px 8px; color: var(--ta-ink-2); }
-  .ta-icon-btn:hover { background: var(--ta-soft); }
-  .ta-ranges { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; gap: 4px; background: #f1f0ec; padding: 4px; border-radius: 12px; }
-  .ta-range { padding: 6px 12px; border-radius: 9px; font-size: .85rem; color: var(--ta-ink-2); text-decoration: none; white-space: nowrap; }
-  .ta-range:hover { color: var(--ta-ink); }
-  .ta-range.active { background: var(--ta-surface); color: var(--ta-ink); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-
-  .ta-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
-  .ta-kpi, .ta-card { background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: 16px; }
-  .ta-kpi { padding: 18px 20px; position: relative; overflow: hidden; }
-  .ta-kpi::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--ta-s1); }
-  .ta-kpi-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ta-muted); font-weight: 600; }
-  .ta-kpi-value { font-size: 2rem; font-weight: 700; line-height: 1.2; margin: 6px 0 4px; display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
-  .ta-kpi-slash { font-size: 1.1rem; color: var(--ta-muted); font-weight: 600; }
-  .ta-kpi-sub { font-size: .8rem; color: var(--ta-ink-2); }
-  .ta-delta { font-size: .8rem; font-weight: 600; }
-  .ta-delta.up { color: var(--ta-good); }
-  .ta-delta.down { color: var(--ta-bad); }
-  .ta-live-dot { width: 10px; height: 10px; border-radius: 50%; background: #1baf7a; box-shadow: 0 0 0 0 rgba(27,175,122,.6); animation: ta-pulse 1.8s infinite; }
-  @keyframes ta-pulse { 70% { box-shadow: 0 0 0 10px rgba(27,175,122,0); } 100% { box-shadow: 0 0 0 0 rgba(27,175,122,0); } }
-
-  .ta-card { padding: 18px 20px; margin-bottom: 16px; }
-  .ta-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-  .ta-card-head h6 { margin: 0; font-weight: 700; }
-  .ta-card-head h6 i { color: var(--ta-muted); margin-right: 4px; }
-  .ta-chip { font-size: .78rem; background: var(--ta-soft); color: var(--ta-ink-2); padding: 4px 10px; border-radius: 999px; }
-  .ta-legend { display: flex; gap: 14px; font-size: .8rem; color: var(--ta-ink-2); }
-  .ta-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
-  .ta-chart-lg { position: relative; height: 300px; }
-  .ta-chart-md { position: relative; height: 220px; }
-  .ta-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .ta-grid-2 > .ta-card { margin-bottom: 0; }
-  .ta-grid-2 { margin-bottom: 16px; }
-
-  .ta-heat { display: flex; flex-direction: column; gap: 3px; }
-  .ta-heat-row { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 3px; align-items: center; }
-  .ta-heat-day { font-size: .72rem; color: var(--ta-muted); }
-  .ta-heat-cell { aspect-ratio: 1; border-radius: 4px; background: #eef0f3; position: relative; cursor: default; }
-  .ta-heat-cell::after { content: ""; position: absolute; inset: 0; border-radius: 4px; background: var(--ta-s1); opacity: var(--ta-a); }
-  .ta-heat-cell:hover { outline: 2px solid var(--ta-ink); outline-offset: 1px; }
-  .ta-heat-axis span { font-size: .65rem; color: var(--ta-muted); white-space: nowrap; overflow: visible; }
-
-  .ta-table { width: 100%; border-collapse: collapse; }
-  .ta-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ta-muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--ta-line); }
-  .ta-table td { padding: 10px; border-bottom: 1px solid var(--ta-line); vertical-align: middle; font-variant-numeric: tabular-nums; }
-  .ta-table tr:last-child td { border-bottom: 0; }
-  .ta-page-name { font-weight: 600; }
-  .ta-page-path { font-size: .8rem; color: var(--ta-ink-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-decoration: none; word-break: break-all; }
-  a.ta-page-path:hover { color: var(--ta-s1); }
-  .ta-share-col { width: 26%; min-width: 120px; }
-  .ta-share-col small { color: var(--ta-ink-2); }
-  .ta-bar { height: 6px; background: #eef0f3; border-radius: 4px; overflow: hidden; margin: 4px 0; }
-  .ta-bar span { display: block; height: 100%; background: var(--ta-s1); border-radius: 4px; }
-
-  .ta-devices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-  .ta-device { display: flex; gap: 14px; align-items: center; background: var(--ta-soft); border-radius: 14px; padding: 14px 16px; }
-  .ta-device > i { font-size: 1.8rem; color: var(--ta-s1); }
-  .ta-device-body { flex: 1; min-width: 0; }
-  .ta-device-top { display: flex; justify-content: space-between; font-size: .9rem; }
-  .ta-device-top strong { font-size: 1.1rem; }
-  .ta-device small { color: var(--ta-ink-2); }
-
-  .ta-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
-  .ta-list li { position: relative; display: flex; justify-content: space-between; gap: 12px; padding: 7px 10px; border-radius: 8px; overflow: hidden; }
-  .ta-list-bar { position: absolute; inset: 0 auto 0 0; background: rgba(42, 120, 214, .12); border-radius: 8px; }
-  .ta-list-name, .ta-list-num { position: relative; font-size: .88rem; }
-  .ta-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ta-list-num { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .ta-list-num small { color: var(--ta-muted); font-weight: 400; margin-left: 4px; }
-  .ta-note, .ta-muted { font-size: .78rem; color: var(--ta-muted); }
-  .ta-note { margin: 10px 0 0; }
-
-  .ta-empty { text-align: center; padding: 48px 20px; }
-  .ta-empty i { font-size: 2.5rem; color: var(--ta-s1); }
-  .ta-empty h5 { margin: 12px 0 6px; font-weight: 700; }
-  .ta-empty p { color: var(--ta-ink-2); max-width: 520px; margin: 0 auto; }
-  .ta-foot { font-size: .78rem; color: var(--ta-muted); margin: 8px 0 0; }
-
-  .ta-tooltip { position: fixed; z-index: 2000; pointer-events: none; background: #1a1a19; color: #fff; font-size: .78rem; padding: 6px 10px; border-radius: 8px; white-space: nowrap; transform: translate(-50%, calc(-100% - 10px)); }
-
-  @media (max-width: 991px) {
-    .ta-kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-    .ta-grid-2, .ta-devices { grid-template-columns: minmax(0, 1fr); }
-  }
-  @media (max-width: 575px) {
-    .ta-kpis { gap: 10px; }
-    .ta-kpi { padding: 14px; }
-    .ta-kpi-value { font-size: 1.5rem; }
-    .ta-chart-lg { height: 240px; }
-    .ta-heat-row { gap: 2px; grid-template-columns: 28px repeat(24, minmax(0, 1fr)); }
-    .ta-heat-cell { border-radius: 2px; }
-    .ta-heat-cell::after { border-radius: 2px; }
-  }
-</style>
+<%= render "styles" %>
 
 <script>
   (function () {
@@ -351,6 +414,31 @@
         });
       });
     }
+
+    // Auto-refresh: remembered per browser; one timer, cleared on navigation.
+    const autoBtn = document.getElementById("taAutoRefresh");
+    const KEY = "taAutoRefresh";
+    let on = false;
+    try { on = localStorage.getItem(KEY) === "1"; } catch (_) {}
+    const paint = function () {
+      autoBtn.classList.toggle("on", on);
+      autoBtn.querySelector("span").textContent = on ? "Auto-refresh on (30s)" : "Auto-refresh off";
+    };
+    if (window.__taTimer) clearTimeout(window.__taTimer);
+    const schedule = function () {
+      if (window.__taTimer) clearTimeout(window.__taTimer);
+      if (!on) return;
+      window.__taTimer = setTimeout(function () {
+        if (!document.getElementById("taAutoRefresh")) return;
+        if (window.Turbo) { Turbo.visit(location.href, { action: "replace" }); } else { location.reload(); }
+      }, 30000);
+    };
+    autoBtn.addEventListener("click", function () {
+      on = !on;
+      try { localStorage.setItem(KEY, on ? "1" : "0"); } catch (_) {}
+      paint(); schedule();
+    });
+    paint(); schedule();
 
     const tip = document.getElementById("taTip");
     document.querySelectorAll(".ta-heat-cell").forEach(function (cell) {
@@ -369,6 +457,7 @@
     const css = getComputedStyle(document.querySelector(".ta-root"));
     const s1 = css.getPropertyValue("--ta-s1").trim();
     const s2 = css.getPropertyValue("--ta-s2").trim();
+    const s3 = css.getPropertyValue("--ta-s3").trim();
     const grid = "#ecebe7";
     const ink2 = "#52514e";
     const fmt = new Intl.NumberFormat();
@@ -387,7 +476,7 @@
       y: { beginAtZero: true, grid: { color: grid }, border: { display: false }, ticks: { precision: 0 } }
     };
 
-    const isToday = <%= raw(@range == "today").to_s %>;
+    const singleDay = <%= raw(single_day.to_s) %>;
     const daily = <%= raw(s["daily"].to_json) %>;
     const hourly = <%= raw(s["hourly"].to_json) %>;
     const fade = function (ctx, color) {
@@ -396,30 +485,27 @@
       g.addColorStop(1, color + "00");
       return g;
     };
+    const line = function (label, data, color, fill) {
+      return {
+        label: label, data: data, borderColor: color, borderWidth: 2, tension: 0.35, fill: fill,
+        backgroundColor: fill ? function (ctx) { return fade(ctx, color); } : color,
+        pointRadius: data.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: color, pointBorderColor: "#fff", pointBorderWidth: 2
+      };
+    };
 
-    let labels, viewsData, visitorsData;
-    if (isToday) {
+    let labels, datasets;
+    if (singleDay) {
       labels = hourLabels;
-      viewsData = hourly;
-      visitorsData = null;
+      datasets = [line("Page views", hourly, s1, true)];
     } else {
       labels = daily.map(function (d) {
         return new Date(d[0] + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
       });
-      viewsData = daily.map(function (d) { return d[1]; });
-      visitorsData = daily.map(function (d) { return d[2]; });
-    }
-
-    const datasets = [{
-      label: "Page views", data: viewsData, borderColor: s1, borderWidth: 2, tension: 0.35, fill: true,
-      backgroundColor: function (ctx) { return fade(ctx, s1); },
-      pointRadius: labels.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: s1, pointBorderColor: "#fff", pointBorderWidth: 2
-    }];
-    if (visitorsData) {
-      datasets.push({
-        label: "Unique visitors", data: visitorsData, borderColor: s2, borderWidth: 2, tension: 0.35, fill: false,
-        pointRadius: labels.length > 45 ? 0 : 3, pointHoverRadius: 5, pointBackgroundColor: s2, pointBorderColor: "#fff", pointBorderWidth: 2
-      });
+      datasets = [
+        line("Page views", daily.map(function (d) { return d[1]; }), s1, true),
+        line("Unique visitors", daily.map(function (d) { return d[2]; }), s2, false),
+        line("Clicks", daily.map(function (d) { return d[3]; }), s3, false)
+      ];
     }
 
     new Chart(document.getElementById("taTimeline"), {

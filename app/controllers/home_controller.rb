@@ -1,6 +1,4 @@
 class HomeController < ApplicationController
-  include TracksPageViews
-  track_page_views only: :index
   skip_before_action :authenticate_user!
   skip_load_and_authorize_resource
   skip_before_action :set_cache_control_headers

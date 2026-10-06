@@ -66,6 +66,9 @@ Rails.application.routes.draw do
   # Root route - Marali Santhe website
   root 'home#index'
 
+  # Click / time-on-page beacon for Admin > Traffic Analytics (see TracksPageViews)
+  post 't/e', to: 'traffic_events#create', as: :traffic_events
+
   # Guest checkout for the public storefront (no customer login required)
   namespace :storefront do
     resource :cart, only: [:show], controller: 'carts' do
@@ -653,6 +656,8 @@ Rails.application.routes.draw do
     get 'store_analytics/top_products', to: 'store_analytics#top_products', as: 'store_analytics_top_products'
     get 'store_analytics/peak_hours', to: 'store_analytics#peak_hours', as: 'store_analytics_peak_hours'
     get 'traffic_analytics', to: 'traffic_analytics#index', as: 'traffic_analytics'
+    get 'traffic_analytics/journey', to: 'traffic_analytics#journey', as: 'traffic_analytics_journey'
+    get 'traffic_analytics/export', to: 'traffic_analytics#export', as: 'traffic_analytics_export'
 
     # Store Financials
     get 'store_financials/vendor_tracking', to: 'store_financials#vendor_tracking', as: 'store_financials_vendor_tracking'

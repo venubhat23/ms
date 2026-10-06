@@ -4,7 +4,6 @@
 # admin/customer session state.
 class OrderTrackingController < ActionController::Base
   include TracksPageViews
-  track_page_views
   layout false
   protect_from_forgery with: :exception
 

@@ -680,6 +680,8 @@
                         </small>
                       </div>
                     <% end %>
+
+                    <%= render "admin/bookings/payment_link_button", booking: booking %>
                   </div>
                 </td>
                 <td class="align-middle">
@@ -1851,3 +1853,5 @@ td .d-flex.gap-2 {
   }
 }
 </style>
+
+<%= render "admin/bookings/payment_link_modal" %>

@@ -193,12 +193,12 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
         { key: 'customers', name: 'Customers' },
         { key: 'referrals', name: 'Referrals' },
         { key: 'categories', name: 'Categories' },
-        { key: 'products', name: 'Products' },
+        { key: 'products', name: 'Products (incl. Product Summary, Product Split)' },
         { key: 'qr_codes', name: 'QR Codes' },
         { key: 'coupons', name: 'Coupons' },
         { key: 'customer_wallets', name: 'Customer Wallets' },
-        { key: 'franchises', name: 'Franchise' },
-        { key: 'affiliates', name: 'Affiliate' }
+        { key: 'franchises', name: 'Franchise (incl. Withdrawals, Stock Requests, Return)' },
+        { key: 'affiliates', name: 'Affiliate (incl. Withdrawals)' }
       ],
       'Delivery Management' => [
         { key: 'delivery_people', name: 'Delivery People' },

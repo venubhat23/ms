@@ -1,0 +1,113 @@
+<%# Shared dialog for every .pay-link-btn on the page (_payment_link_button). %>
+<div class="modal fade" id="payLinkModal" tabindex="-1" aria-labelledby="payLinkTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="payLinkTitle"><i class="bi bi-whatsapp text-success me-2"></i>Send payment link</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3" id="payLinkFor"></p>
+        <div class="mb-3">
+          <label class="form-label" for="payLinkAmount">Amount to collect (₹)</label>
+          <input type="number" class="form-control" id="payLinkAmount" min="1" step="0.01">
+          <div class="form-text">Defaults to the booking total. Change it to collect a balance — once the customer pays this amount the booking is marked <strong>Paid</strong> automatically.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="payLinkPhone">Customer WhatsApp number</label>
+          <input type="tel" class="form-control" id="payLinkPhone" placeholder="10-digit mobile">
+          <div class="form-text">Leave empty to pick the contact inside WhatsApp.</div>
+        </div>
+        <div class="alert alert-danger d-none small" id="payLinkError"></div>
+        <div class="alert alert-success d-none small mb-0" id="payLinkResult">
+          <div class="fw-semibold mb-1" id="payLinkResultText">Link ready</div>
+          <div class="input-group input-group-sm">
+            <input type="text" class="form-control" id="payLinkUrl" readonly>
+            <button class="btn btn-outline-secondary" type="button" id="payLinkCopyUrl"><i class="bi bi-copy"></i></button>
+          </div>
+          <a class="btn btn-sm btn-success mt-2" id="payLinkOpenWa" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>Open WhatsApp</a>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="payLinkCopy"><i class="bi bi-link-45deg me-1"></i>Copy link</button>
+        <button type="button" class="btn btn-success" id="payLinkSend"><i class="bi bi-whatsapp me-1"></i>Send on WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    if (window.__payLinkBound) return;
+    window.__payLinkBound = true;
+    var current = null;
+    var $ = function (id) { return document.getElementById(id); };
+
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest && e.target.closest(".pay-link-btn");
+      if (!btn || !$("payLinkModal")) return;
+      current = btn.dataset;
+      $("payLinkFor").textContent = "Order #" + current.number + (current.name ? " · " + current.name : "");
+      $("payLinkAmount").value = current.amount;
+      $("payLinkPhone").value = current.phone || "";
+      $("payLinkError").classList.add("d-none");
+      $("payLinkResult").classList.add("d-none");
+      bootstrap.Modal.getOrCreateInstance($("payLinkModal")).show();
+    });
+
+    async function makeLink() {
+      $("payLinkError").classList.add("d-none");
+      var token = document.querySelector('meta[name="csrf-token"]');
+      var body = new URLSearchParams({ amount: $("payLinkAmount").value, phone: $("payLinkPhone").value });
+      var res = await fetch(current.payLinkUrl, {
+        method: "POST", body: body, credentials: "same-origin",
+        headers: { "Accept": "application/json", "X-CSRF-Token": token ? token.content : "" }
+      });
+      var data = await res.json().catch(function () { return { error: "Unexpected response (" + res.status + ")" }; });
+      if (data.already_paid) throw new Error(data.message || "This booking is already paid.");
+      if (!res.ok || data.error) throw new Error(data.error || "Could not create the link.");
+      $("payLinkUrl").value = data.url;
+      $("payLinkOpenWa").href = data.whatsapp_url;
+      $("payLinkResultText").textContent = "Link ready for ₹" + data.amount;
+      $("payLinkResult").classList.remove("d-none");
+      return data;
+    }
+
+    function showError(err) {
+      $("payLinkError").textContent = err.message;
+      $("payLinkError").classList.remove("d-none");
+    }
+
+    function copy(text, button) {
+      navigator.clipboard.writeText(text).then(function () {
+        var html = button.innerHTML;
+        button.innerHTML = '<i class="bi bi-check2 me-1"></i>Copied';
+        setTimeout(function () { button.innerHTML = html; }, 1500);
+      });
+    }
+
+    document.addEventListener("click", async function (e) {
+      if (!current) return;
+      var target = e.target.closest && e.target.closest("#payLinkSend, #payLinkCopy, #payLinkCopyUrl");
+      if (!target) return;
+      if (target.id === "payLinkCopyUrl") { copy($("payLinkUrl").value, target); return; }
+      // Open the tab now, while the click still counts as a user action, so
+      // popup blockers allow it; point it at WhatsApp once the link exists.
+      var win = target.id === "payLinkSend" ? window.open("", "_blank") : null;
+      target.disabled = true;
+      try {
+        var data = await makeLink();
+        if (target.id === "payLinkSend") {
+          if (win) { win.location = data.whatsapp_url; } else { window.open(data.whatsapp_url, "_blank"); }
+        } else {
+          copy(data.message, target);
+        }
+      } catch (err) {
+        if (win) win.close();
+        showError(err);
+      } finally {
+        target.disabled = false;
+      }
+    });
+  })();
+</script>

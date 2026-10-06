@@ -1,0 +1,161 @@
+<%
+  store_name = @business_settings&.business_name.presence || "Our Store"
+  logo = @business_settings&.logo_display_url || "/logo.jpeg"
+  customer_name = @booking && (@booking.customer&.display_name.presence || @booking.customer_name)
+  state =
+    if @booking.nil? then :invalid
+    elsif @result == :paid then :just_paid
+    elsif @booking.payment_status_paid? then :already_paid
+    elsif @result == :pending then :pending
+    elsif @result == :failed then :failed
+    elsif %w[cancelled returned].include?(@booking.status) then :closed
+    else :pay
+    end
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <%= csrf_meta_tags %>
+  <title><%= @booking ? "Pay for order ##{@booking.booking_number}" : "Payment link" %> - <%= store_name %></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    :root { --pl-brand: #4f46e5; --pl-good: #059669; --pl-bad: #dc2626; --pl-warn: #d97706; --pl-ink: #1f2937; --pl-muted: #6b7280; --pl-line: #e5e7eb; }
+    body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--pl-ink);
+           background: linear-gradient(160deg, #eef2ff 0%, #f8faff 45%, #ecfdf5 100%); min-height: 100vh; }
+    .pl-page { max-width: 460px; margin: 0 auto; padding: 28px 16px 48px; }
+    .pl-brand { display: flex; align-items: center; gap: 10px; justify-content: center; margin-bottom: 20px; text-decoration: none; color: inherit; }
+    .pl-brand img { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
+    .pl-brand span { font-weight: 700; font-size: 1.1rem; }
+    .pl-card { background: #fff; border: 1px solid var(--pl-line); border-radius: 18px; padding: 22px; box-shadow: 0 10px 30px rgba(31, 41, 55, .06); }
+    .pl-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--pl-muted); font-weight: 600; }
+    .pl-amount { font-size: 2.4rem; font-weight: 800; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+    .pl-meta { color: var(--pl-muted); font-size: .9rem; }
+    .pl-items { list-style: none; padding: 0; margin: 18px 0 0; border-top: 1px dashed var(--pl-line); }
+    .pl-items li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px dashed var(--pl-line); font-size: .92rem; }
+    .pl-items li span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .pl-items small { color: var(--pl-muted); display: block; }
+    .pl-btn { display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; padding: 15px; border: 0; border-radius: 14px;
+              background: var(--pl-brand); color: #fff; font-size: 1.05rem; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .pl-btn:disabled { opacity: .7; cursor: wait; }
+    .pl-secure { text-align: center; color: var(--pl-muted); font-size: .8rem; margin-top: 12px; }
+    .pl-error { display: none; margin-top: 14px; background: #fef2f2; color: var(--pl-bad); border-radius: 10px; padding: 10px 12px; font-size: .88rem; }
+    .pl-status { text-align: center; }
+    .pl-status .pl-icon { width: 72px; height: 72px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 2.2rem; margin-bottom: 10px; }
+    .pl-status h1 { font-size: 1.4rem; margin: 6px 0; }
+    .pl-status p { color: var(--pl-muted); margin: 6px 0 0; }
+    .ok { background: #ecfdf5; color: var(--pl-good); }
+    .bad { background: #fef2f2; color: var(--pl-bad); }
+    .wait { background: #fffbeb; color: var(--pl-warn); }
+  </style>
+</head>
+<body>
+  <div class="pl-page">
+    <a class="pl-brand" href="/">
+      <img src="<%= logo %>" alt="">
+      <span><%= store_name %></span>
+    </a>
+
+    <div class="pl-card">
+      <% case state %>
+      <% when :invalid %>
+        <div class="pl-status">
+          <span class="pl-icon bad"><i class="bi bi-link-45deg"></i></span>
+          <h1>This payment link isn't valid</h1>
+          <p>Please ask the store to send you a new link.</p>
+        </div>
+      <% when :just_paid, :already_paid %>
+        <div class="pl-status">
+          <span class="pl-icon ok"><i class="bi bi-check-lg"></i></span>
+          <h1><%= state == :just_paid ? "Payment successful" : "Already paid" %></h1>
+          <p>Order #<%= @booking.booking_number %> is fully paid<%= " on #{@booking.payment_completed_at.in_time_zone.strftime('%-d %b %Y')}" if @booking.payment_completed_at %>.</p>
+          <p><%= state == :just_paid ? "Thank you! You can close this page." : "Nothing more to pay. Thank you!" %></p>
+        </div>
+      <% when :closed %>
+        <div class="pl-status">
+          <span class="pl-icon bad"><i class="bi bi-x-lg"></i></span>
+          <h1>Order <%= @booking.status %></h1>
+          <p>Order #<%= @booking.booking_number %> doesn't need a payment any more.</p>
+        </div>
+      <% when :pending %>
+        <div class="pl-status">
+          <span class="pl-icon wait"><i class="bi bi-hourglass-split"></i></span>
+          <h1>Payment is processing</h1>
+          <p>If money was deducted, it will be confirmed shortly. Please refresh this page in a minute.</p>
+          <a class="pl-btn" href="<%= request.original_url %>"><i class="bi bi-arrow-clockwise"></i> Refresh status</a>
+        </div>
+      <% else %>
+        <% if state == :failed %>
+          <div class="pl-status" style="margin-bottom: 18px">
+            <span class="pl-icon bad"><i class="bi bi-exclamation-lg"></i></span>
+            <h1>Payment didn't go through</h1>
+            <p>No money was taken. You can try again below.</p>
+          </div>
+        <% end %>
+        <div class="pl-label">Amount to pay</div>
+        <div class="pl-amount">₹<%= number_with_delimiter(format("%.2f", @amount)) %></div>
+        <div class="pl-meta">
+          Order #<%= @booking.booking_number %><%= " · #{customer_name}" if customer_name.present? %>
+          <% if @booking.booking_date %> · <%= @booking.booking_date.strftime("%-d %b %Y") %><% end %>
+        </div>
+
+        <% if @items.present? %>
+          <ul class="pl-items">
+            <% @items.each do |item| %>
+              <li>
+                <span>
+                  <%= item.product&.name %>
+                  <% if item.product_variant %><small><%= item.product_variant.label %></small><% end %>
+                  <small>Qty <%= item.quantity.to_d.to_s("F").sub(/\.0\z/, "") %> × ₹<%= number_with_delimiter(format("%.2f", item.price.to_d)) %></small>
+                </span>
+                <span>₹<%= number_with_delimiter(format("%.2f", (item.total || item.price.to_d * item.quantity.to_d).to_d)) %></span>
+              </li>
+            <% end %>
+          </ul>
+        <% end %>
+
+        <button type="button" class="pl-btn" id="plPay"><i class="bi bi-shield-lock"></i> Pay ₹<%= number_with_delimiter(format("%.2f", @amount)) %></button>
+        <div class="pl-error" id="plError"></div>
+        <div class="pl-secure"><i class="bi bi-lock-fill"></i> Secure payment by Cashfree · UPI, cards, net banking</div>
+      <% end %>
+    </div>
+  </div>
+
+  <% if %i[pay failed].include?(state) %>
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <script>
+      (function () {
+        var btn = document.getElementById("plPay");
+        var err = document.getElementById("plError");
+        var label = btn.innerHTML;
+        var token = document.querySelector('meta[name="csrf-token"]');
+        btn.addEventListener("click", async function () {
+          btn.disabled = true;
+          btn.textContent = "Opening payment…";
+          err.style.display = "none";
+          try {
+            var res = await fetch("<%= payment_link_path(params[:token]) %>", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-Token": token ? token.content : "" },
+              credentials: "same-origin"
+            });
+            var data = await res.json();
+            if (data.already_paid) { location.reload(); return; }
+            if (!data.success) throw new Error(data.message || "Could not start the payment.");
+            var cashfree = await Cashfree({ mode: data.mode });
+            await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
+          } catch (e) {
+            err.textContent = e.message || "Something went wrong. Please try again.";
+            err.style.display = "block";
+            btn.disabled = false;
+            btn.innerHTML = label;
+          }
+        });
+      })();
+    </script>
+  <% end %>
+</body>
+</html>

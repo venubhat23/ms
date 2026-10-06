@@ -1,6 +1,6 @@
 class Admin::BookingsController < Admin::ApplicationController
   before_action :authenticate_user!
-  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :manage_stage, :update_stage, :approve_pre_booking, :reject_pre_booking]
+  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :payment_link, :manage_stage, :update_stage, :approve_pre_booking, :reject_pre_booking]
 
   LIST_STATE_PARAMS = %i[page search status date_from date_to customer_id b2b booked_by affiliate_id category_id].freeze
 
@@ -651,6 +651,36 @@ class Admin::BookingsController < Admin::ApplicationController
   def mark_fully_paid
     @booking.mark_as_fully_paid!
     redirect_to admin_booking_path(@booking, list_state_params), notice: 'Booking marked as fully paid!'
+  end
+
+  # JSON for the "Payment link" dialog on the bookings list / manage_stage:
+  # a signed /pay/... link for the requested amount plus a ready WhatsApp URL.
+  def payment_link
+    if @booking.payment_status_paid?
+      render json: { already_paid: true, message: "Booking ##{@booking.booking_number} is already paid." }
+      return
+    end
+    unless PaymentLinkService.payable?(@booking)
+      render json: { error: "A #{@booking.status} booking can't take a payment." }, status: :unprocessable_entity
+      return
+    end
+
+    amount = params[:amount].present? ? params[:amount].to_d.round(2) : PaymentLinkService.default_amount(@booking)
+    unless amount.positive? && amount <= 10_000_000
+      render json: { error: "Enter an amount greater than 0." }, status: :unprocessable_entity
+      return
+    end
+
+    url = payment_link_url(PaymentLinkService.token_for(@booking, amount))
+    name = @booking.customer&.display_name.presence || @booking.customer_name.presence || "there"
+    store = SystemSetting.business_settings&.business_name.presence || "our store"
+    message = "Hi #{name}, please pay ₹#{format('%.2f', amount)} for your order ##{@booking.booking_number} from #{store} " \
+              "using this secure link:\n#{url}\n\nThank you!"
+    phone = (params[:phone].presence || @booking.customer&.mobile.presence || @booking.customer_phone).to_s.gsub(/\D/, "")
+    phone = "91#{phone}" if phone.length == 10
+    whatsapp = "https://wa.me/#{phone if phone.length >= 11}?text=#{ERB::Util.url_encode(message)}"
+
+    render json: { url: url, message: message, whatsapp_url: whatsapp, amount: format("%.2f", amount) }
   end
 
   def approve_pre_booking

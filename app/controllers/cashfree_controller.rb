@@ -89,6 +89,14 @@ class CashfreeController < ApplicationController
     order_id = payment_data['order']['order_id']
     payment_id = payment_data['payment']['cf_payment_id']
 
+    # WhatsApp payment links: only flip payment_status (never the order
+    # status), and only after Cashfree itself confirms the order is PAID.
+    if PaymentLinkService.link_order?(order_id)
+      result = PaymentLinkService.confirm(order_id)
+      Rails.logger.info "🔗 Payment link #{order_id}: #{result}"
+      return
+    end
+
     booking = Booking.find_by(cashfree_order_id: order_id)
 
     unless booking
@@ -147,6 +155,9 @@ class CashfreeController < ApplicationController
 
   def handle_payment_failed(payment_data)
     order_id = payment_data['order']['order_id']
+    # A failed payment-link attempt leaves the booking as it was; the
+    # customer can retry from the same link.
+    return if PaymentLinkService.link_order?(order_id)
     failure_reason = payment_data['payment']['payment_message'] || 'Payment failed'
 
     booking = Booking.find_by(cashfree_order_id: order_id)
@@ -165,6 +176,9 @@ class CashfreeController < ApplicationController
 
   def handle_payment_dropped(payment_data)
     order_id = payment_data['order']['order_id']
+    # A failed payment-link attempt leaves the booking as it was; the
+    # customer can retry from the same link.
+    return if PaymentLinkService.link_order?(order_id)
 
     booking = Booking.find_by(cashfree_order_id: order_id)
 

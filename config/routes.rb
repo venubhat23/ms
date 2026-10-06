@@ -66,6 +66,11 @@ Rails.application.routes.draw do
   # Root route - Marali Santhe website
   root 'home#index'
 
+  # WhatsApp payment links for bookings (see PaymentLinkService)
+  get 'pay/:token', to: 'payment_links#show', as: :payment_link
+  post 'pay/:token', to: 'payment_links#create'
+  get 'pay/:token/done', to: 'payment_links#done', as: :payment_link_done
+
   # Click / time-on-page beacon for Admin > Traffic Analytics (see TracksPageViews)
   post 't/e', to: 'traffic_events#create', as: :traffic_events
 
@@ -153,6 +158,7 @@ Rails.application.routes.draw do
         patch :mark_delivered
         patch :mark_completed
         patch :mark_fully_paid
+        post :payment_link
         patch :approve_pre_booking
         patch :reject_pre_booking
         get :stage_transition

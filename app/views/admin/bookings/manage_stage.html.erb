@@ -110,6 +110,7 @@
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Payment</h6>
             <h5 class="mb-0"><%= @booking.payment_status&.humanize || 'Pending' %></h5>
+            <%= render "admin/bookings/payment_link_button", booking: @booking %>
           </div>
           <div class="text-<%= @booking.payment_status == 'paid' ? 'success' : 'warning' %>">
             <i class="bi bi-<%= @booking.payment_status == 'paid' ? 'check-circle' : 'clock' %> fs-3"></i>
@@ -1402,3 +1403,4 @@ function toggleDeliveryMode(radio) {
 })();
 </script>
 
+<%= render "admin/bookings/payment_link_modal" %>

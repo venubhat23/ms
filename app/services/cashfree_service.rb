@@ -19,13 +19,16 @@ class CashfreeService
       production_credentials? ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg'
     end
 
-    def create_order(booking)
+    # Optional overrides are used by booking payment links (PaymentLinkService):
+    # a different amount / order id than the booking's own, and their own
+    # return page.
+    def create_order(booking, amount: nil, order_id: nil, return_to: nil)
       Rails.logger.info "🔑 Cashfree API Configuration:"
       Rails.logger.info "   API URI: #{api_base_uri}"
       Rails.logger.info "   Client ID: #{client_id}"
       Rails.logger.info "   Production Mode: #{production_credentials?}"
 
-      order_data = build_order_request(booking)
+      order_data = build_order_request(booking, amount: amount, order_id: order_id, return_to: return_to)
       Rails.logger.info "📤 Creating Cashfree order: #{order_data.to_json}"
 
       response = post("#{api_base_uri}/orders", {
@@ -47,6 +50,15 @@ class CashfreeService
 
     def get_order(order_id)
       response = get("#{api_base_uri}/orders/#{order_id}", {
+        headers: auth_headers
+      })
+
+      handle_response(response)
+    end
+
+    # All payment attempts for an order (newest Cashfree API returns an array).
+    def get_order_payments(order_id)
+      response = get("#{api_base_uri}/orders/#{order_id}/payments", {
         headers: auth_headers
       })
 
@@ -79,14 +91,14 @@ class CashfreeService
       }
     end
 
-    def build_order_request(booking)
+    def build_order_request(booking, amount: nil, order_id: nil, return_to: nil)
       # Guest/public bookings have no linked Customer — fall back to the
       # booking's own guest fields (customer_name/email/phone) in that case.
       customer = booking.customer
 
       {
-        order_id: booking.cashfree_order_id,
-        order_amount: booking.total_amount.to_f,
+        order_id: order_id || booking.cashfree_order_id,
+        order_amount: (amount || booking.total_amount).to_f,
         order_currency: 'INR',
         customer_details: {
           customer_id: customer&.id&.to_s || "guest_#{booking.id}",
@@ -95,7 +107,7 @@ class CashfreeService
           customer_phone: customer&.mobile || booking.customer_phone
         },
         order_meta: {
-          return_url: return_url(booking.id),
+          return_url: return_to || return_url(booking.id),
           notify_url: webhook_url
         }
       }

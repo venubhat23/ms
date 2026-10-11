@@ -50,7 +50,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">In Stock</h6>
-            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.stock.to_i > 0 }.count : 0 %></h4>
+            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.total_stock > 0 }.count : 0 %></h4>
           </div>
           <div class="text-info">
             <i class="bi bi-box fs-2"></i>
@@ -65,7 +65,7 @@
         <div class="d-flex align-items-center">
           <div class="flex-grow-1">
             <h6 class="text-muted mb-1">Low Stock</h6>
-            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.stock.to_i > 0 && p.stock.to_i <= 10 }.count : 0 %></h4>
+            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.total_stock > 0 && p.total_stock <= 10 }.count : 0 %></h4>
           </div>
           <div class="text-warning">
             <i class="bi bi-exclamation-triangle fs-2"></i>
@@ -314,9 +314,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                   </td>
                   <td class="align-middle">
-                    <% if product.stock.to_i > 0 %>
-                      <span class="text-success fw-medium"><%= product.stock %> <%= product.unit_type %></span>
-                      <div class="small text-muted">In Stock</div>
+                    <% total_stock = product.total_stock %>
+                    <% if total_stock > 0 %>
+                      <span class="text-success fw-medium"><%= total_stock %> <%= product.unit_type %></span>
+                      <div class="small text-muted">In Stock<%= " · #{product.product_variants.size} variants" if product.has_multiple_quantities? && product.product_variants.any? %></div>
                     <% else %>
                       <span class="text-danger fw-medium">0 <%= product.unit_type %></span>
                       <div class="small text-muted">Out of Stock</div>

@@ -253,6 +253,17 @@ class Product < ApplicationRecord
     available_quantity
   end
 
+  # Stock figure for admin listings: variant products keep their stock on
+  # product_variants.available_stock (products.stock stays 0), so show the
+  # sum of all variants; plain products show products.stock.
+  def total_stock
+    if has_multiple_quantities? && (product_variants.loaded? ? product_variants.any? : product_variants.exists?)
+      available_quantity.to_i
+    else
+      stock.to_i
+    end
+  end
+
   def track_stock?
     # Products track stock by default unless explicitly disabled
     # You can add a track_stock attribute to products table if needed

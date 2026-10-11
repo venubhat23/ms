@@ -190,8 +190,14 @@
                         </div>
                         <div class="flex-grow-1">
                           <p class="text-muted mb-1">Stock</p>
-                          <h5 class="mb-0 <%= @product.stock_status_class %>"><%= @product.stock %></h5>
-                          <small class="text-muted"><%= @product.stock_status %></small>
+                          <% total_stock = @product.total_stock %>
+                          <h5 class="mb-0 <%= total_stock <= 0 ? 'text-danger' : (total_stock <= 5 ? 'text-warning' : 'text-success') %>"><%= total_stock %></h5>
+                          <small class="text-muted">
+                            <%= total_stock <= 0 ? 'Out of Stock' : (total_stock <= 5 ? 'Low Stock' : 'In Stock') %>
+                            <% if @product.has_multiple_quantities? && @product.product_variants.any? %>
+                              · total of <%= @product.product_variants.size %> variants
+                            <% end %>
+                          </small>
                         </div>
                       </div>
                     </div>

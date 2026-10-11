@@ -1,11 +1,61 @@
+<style>
+  .pm-hero {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+    border-radius: 1rem; color: #fff; padding: 1.75rem 2rem; position: relative; overflow: hidden;
+    box-shadow: 0 10px 30px -10px rgba(79, 70, 229, .55);
+  }
+  .pm-hero::after {
+    content: ""; position: absolute; right: -60px; top: -60px; width: 220px; height: 220px;
+    border-radius: 50%; background: rgba(255,255,255,.08);
+  }
+  .pm-hero::before {
+    content: ""; position: absolute; right: 120px; bottom: -80px; width: 160px; height: 160px;
+    border-radius: 50%; background: rgba(255,255,255,.06);
+  }
+  .pm-hero .btn-light { font-weight: 600; color: #4f46e5; position: relative; z-index: 1; }
+  .pm-stat {
+    border: 0; border-radius: .9rem; transition: transform .15s ease, box-shadow .15s ease;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .06); height: 100%;
+  }
+  .pm-stat:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(15, 23, 42, .12); }
+  .pm-stat .pm-icon {
+    width: 52px; height: 52px; border-radius: .8rem; display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+  }
+  .pm-stat .pm-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; }
+  .pm-stat .pm-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: #64748b; font-weight: 600; }
+  .pm-catalog { border-radius: 1rem; overflow: hidden; }
+  .pm-catalog .card-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eef0f4 !important; }
+  .pm-catalog thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
+  .pm-catalog tbody tr { transition: background-color .12s ease; }
+  .pm-catalog tbody tr:hover { background-color: #f8f7ff; }
+  .pm-search-wrap { min-width: 340px; max-width: 460px; flex: 1 1 340px; }
+  .pm-search-wrap .select2-container .select2-selection--single {
+    height: 42px; border-radius: 999px; border: 1px solid #dfe3ea; padding-left: 2.1rem; display: flex; align-items: center;
+  }
+  .pm-search-wrap .select2-container--focus .select2-selection--single,
+  .pm-search-wrap .select2-container--open .select2-selection--single { border-color: #7c3aed; box-shadow: 0 0 0 .2rem rgba(124, 58, 237, .15); }
+  .pm-search-wrap .pm-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; z-index: 2; pointer-events: none; }
+  .pm-s2-dropdown { border-radius: .75rem !important; overflow: hidden; box-shadow: 0 12px 30px rgba(15, 23, 42, .15); border-color: #e2e8f0 !important; }
+  .pm-s2-dropdown .select2-results__option { padding: .45rem .75rem; }
+  .pm-s2-dropdown .select2-results__option--highlighted { background: #f1edff !important; color: inherit !important; }
+  .pm-s2-item { display: flex; align-items: center; gap: .65rem; }
+  .pm-s2-item img, .pm-s2-item .pm-s2-ph { width: 38px; height: 38px; border-radius: .5rem; object-fit: cover; flex-shrink: 0; }
+  .pm-s2-item .pm-s2-ph { background: #ede9fe; color: #7c3aed; display: flex; align-items: center; justify-content: center; }
+  .pm-s2-item .pm-s2-name { font-weight: 600; font-size: .9rem; }
+  .pm-s2-item .pm-s2-meta { font-size: .75rem; color: #64748b; }
+  .pm-s2-item .pm-s2-price { margin-left: auto; text-align: right; font-weight: 600; font-size: .85rem; white-space: nowrap; }
+  .pm-s2-item mark { padding: 0; background: #fde68a; border-radius: 2px; }
+</style>
+
 <!-- Page Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="mb-1">Product Management</h2>
-    <p class="text-muted mb-0">Manage your product inventory and catalog</p>
-  </div>
-  <div>
-    <%= link_to new_admin_product_path, class: "btn btn-primary" do %>
+<div class="pm-hero mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 position-relative" style="z-index: 1;">
+    <div>
+      <h2 class="mb-1 fw-bold"><i class="bi bi-boxes me-2"></i>Product Management</h2>
+      <p class="mb-0 opacity-75">Manage your product inventory and catalog</p>
+    </div>
+    <%= link_to new_admin_product_path, class: "btn btn-light btn-lg rounded-pill px-4 shadow-sm" do %>
       <i class="bi bi-plus-lg me-1"></i>
       Add New Product
     <% end %>
@@ -13,84 +63,117 @@
 </div>
 
 <!-- Stats Cards -->
-<div class="row mb-4">
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-grow-1">
-            <h6 class="text-muted mb-1">Total Products</h6>
-            <h4 class="mb-0"><%= @products.respond_to?(:total_count) ? @products.total_count : @products.count %></h4>
+<% stat_cards = [
+  { label: 'Total Products', value: (@products.respond_to?(:total_count) ? @products.total_count : @products.count), icon: 'bi-box-seam', color: '#4f46e5', bg: '#eef2ff' },
+  { label: 'Active Products', value: @products.count { |p| p.status == 'active' }, icon: 'bi-check-circle', color: '#059669', bg: '#ecfdf5' },
+  { label: 'In Stock', value: @products.count { |p| p.total_stock > 0 }, icon: 'bi-box', color: '#0284c7', bg: '#f0f9ff' },
+  { label: 'Low Stock', value: @products.count { |p| p.total_stock > 0 && p.total_stock <= 10 }, icon: 'bi-exclamation-triangle', color: '#d97706', bg: '#fffbeb' }
+] %>
+<div class="row g-3 mb-4">
+  <% stat_cards.each do |card| %>
+    <div class="col-6 col-md-3">
+      <div class="card pm-stat">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="pm-icon" style="background: <%= card[:bg] %>; color: <%= card[:color] %>;">
+            <i class="bi <%= card[:icon] %>"></i>
           </div>
-          <div class="text-primary">
-            <i class="bi bi-box-seam fs-2"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-grow-1">
-            <h6 class="text-muted mb-1">Active Products</h6>
-            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.status == 'active' }.count : 0 %></h4>
-          </div>
-          <div class="text-success">
-            <i class="bi bi-check-circle fs-2"></i>
+          <div>
+            <div class="pm-label"><%= card[:label] %></div>
+            <div class="pm-value" style="color: <%= card[:color] %>;"><%= card[:value] %></div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-grow-1">
-            <h6 class="text-muted mb-1">In Stock</h6>
-            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.total_stock > 0 }.count : 0 %></h4>
-          </div>
-          <div class="text-info">
-            <i class="bi bi-box fs-2"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center">
-          <div class="flex-grow-1">
-            <h6 class="text-muted mb-1">Low Stock</h6>
-            <h4 class="mb-0"><%= @products.respond_to?(:select) ? @products.select { |p| p.total_stock > 0 && p.total_stock <= 10 }.count : 0 %></h4>
-          </div>
-          <div class="text-warning">
-            <i class="bi bi-exclamation-triangle fs-2"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <% end %>
 </div>
 
 
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  const searchInput = document.getElementById('searchInput');
-  let searchTimer;
-  searchInput?.addEventListener('input', function() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(function() {
+  // Select2 product quick-search: type "ric" -> Rice shows up; picking it opens
+  // the product. The first option filters the catalog table by the typed text.
+  if (window.jQuery && jQuery.fn.select2) {
+    const $search = jQuery('#productQuickSearch');
+    const escapeHtml = (str) => String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const highlight = (text, term) => {
+      const safe = escapeHtml(text);
+      if (!term) return safe;
+      const re = new RegExp('(' + term.trim().split(/\s+/).map(w => escapeHtml(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'ig');
+      return safe.replace(re, '<mark>$1</mark>');
+    };
+    let lastTerm = '';
+
+    $search.select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      placeholder: 'Search products by name or SKU…',
+      allowClear: true,
+      minimumInputLength: 1,
+      dropdownCssClass: 'pm-s2-dropdown',
+      ajax: {
+        url: '<%= search_admin_products_path(format: :json) %>',
+        dataType: 'json',
+        delay: 200,
+        data: params => ({ q: params.term }),
+        processResults: (data, params) => {
+          lastTerm = params.term || '';
+          const results = data.results || [];
+          results.unshift({ id: '__filter__', text: params.term, filter: true, count: results.length });
+          return { results };
+        },
+        cache: true
+      },
+      language: {
+        inputTooShort: () => 'Type to search products…',
+        searching: () => 'Searching…',
+        noResults: () => 'No products found'
+      },
+      escapeMarkup: m => m,
+      templateResult: item => {
+        if (item.loading) return item.text;
+        if (item.filter) {
+          return '<div class="pm-s2-item text-primary"><div class="pm-s2-ph"><i class="bi bi-funnel"></i></div>' +
+                 '<div><div class="pm-s2-name">Show all results for “' + escapeHtml(item.text) + '”</div>' +
+                 '<div class="pm-s2-meta">Filter the catalog table</div></div></div>';
+        }
+        const img = item.image ? '<img src="' + escapeHtml(item.image) + '" alt="">'
+                               : '<div class="pm-s2-ph"><i class="bi bi-box-seam"></i></div>';
+        const statusBadge = item.status === 'active'
+          ? '<span class="badge bg-success-subtle text-success ms-1">Active</span>'
+          : '<span class="badge bg-secondary-subtle text-secondary ms-1">' + escapeHtml(item.status || 'inactive') + '</span>';
+        const stockCls = item.stock > 0 ? 'text-success' : 'text-danger';
+        return '<div class="pm-s2-item">' + img +
+               '<div class="text-truncate"><div class="pm-s2-name text-truncate">' + highlight(item.text, lastTerm) + statusBadge + '</div>' +
+               '<div class="pm-s2-meta">' + escapeHtml(item.category || 'No Category') + (item.sku ? ' · SKU ' + escapeHtml(item.sku) : '') + '</div></div>' +
+               '<div class="pm-s2-price">₹' + Number(item.price || 0).toLocaleString('en-IN') +
+               '<div class="pm-s2-meta ' + stockCls + '">' + item.stock + ' ' + escapeHtml(item.unit || '') + '</div></div></div>';
+      },
+      templateSelection: item => escapeHtml(item.text || 'Search products by name or SKU…')
+    });
+
+    $search.on('select2:select', function(e) {
+      const item = e.params.data;
       const url = new URL(window.location.href);
-      url.searchParams.set('search', searchInput.value);
+      url.searchParams.delete('page');
+      if (item.filter) {
+        url.searchParams.set('search', item.text);
+        window.location.href = url.toString();
+      } else if (item.url) {
+        window.location.href = item.url;
+      }
+    });
+
+    $search.on('select2:clear', function() {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('search')) return;
+      url.searchParams.delete('search');
       url.searchParams.delete('page');
       window.location.href = url.toString();
-    }, 400);
-  });
+    });
+
+    $search.on('select2:open', () => document.querySelector('.select2-container--open .select2-search__field')?.focus());
+  }
 
   // Select All checkbox + bulk action bar
   const selectAll = document.getElementById('selectAllProducts');
@@ -146,15 +229,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <!-- Products Table -->
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent border-0">
-    <div class="d-flex justify-content-between align-items-center">
-      <h5 class="mb-0">Product Catalog</h5>
-      <div class="d-flex gap-2">
-        <div class="position-relative">
-          <input type="text" class="form-control" placeholder="Search products..." id="searchInput" value="<%= params[:search] %>">
-          <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3"></i>
-        </div>
+<div class="card border-0 shadow-sm pm-catalog">
+  <div class="card-header bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-grid-3x3-gap text-primary me-2"></i>Product Catalog</h5>
+        <% if params[:search].present? %>
+          <span class="badge rounded-pill bg-primary-subtle text-primary border">
+            “<%= params[:search] %>”
+            <%= link_to admin_products_path(request.query_parameters.except('search', 'page')), class: "text-primary ms-1 text-decoration-none", title: "Clear search" do %><i class="bi bi-x-circle-fill"></i><% end %>
+          </span>
+        <% end %>
+      </div>
+      <div class="pm-search-wrap position-relative">
+        <i class="bi bi-search pm-search-icon"></i>
+        <select id="productQuickSearch" class="form-select">
+          <% if params[:search].present? %>
+            <option value="__filter__" selected><%= params[:search] %></option>
+          <% end %>
+        </select>
       </div>
     </div>
   </div>
@@ -187,11 +280,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 <th class="border-0" style="width: 40px;">
                   <input type="checkbox" id="selectAllProducts" class="form-check-input">
                 </th>
-                <th class="border-0 fw-semibold">Product</th>
-                <th class="border-0 fw-semibold">Category</th>
-                <th class="border-0 fw-semibold">Price & Profit</th>
-                <th class="border-0 fw-semibold">Stock</th>
-                <th class="border-0 fw-semibold">Status</th>
+                <th class="border-0 fw-semibold"><%= sort_header('Product', 'name', first_direction: 'asc') %></th>
+                <th class="border-0 fw-semibold"><%= sort_header('Category', 'category', first_direction: 'asc') %></th>
+                <th class="border-0 fw-semibold"><%= sort_header('Price & Profit', 'price') %></th>
+                <th class="border-0 fw-semibold"><%= sort_header('Stock', 'stock') %></th>
+                <th class="border-0 fw-semibold"><%= sort_header('Status', 'status', first_direction: 'asc') %></th>
                 <th class="border-0 fw-semibold">Actions</th>
               </tr>
             </thead>

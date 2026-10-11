@@ -2,7 +2,19 @@ class Admin::BookingsController < Admin::ApplicationController
   before_action :authenticate_user!
   before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :payment_link, :manage_stage, :update_stage, :approve_pre_booking, :reject_pre_booking]
 
-  LIST_STATE_PARAMS = %i[page search status date_from date_to customer_id b2b booked_by affiliate_id category_id].freeze
+  LIST_STATE_PARAMS = %i[page search status date_from date_to customer_id b2b booked_by affiliate_id category_id sort direction].freeze
+
+  # Sortable index columns (header click → ?sort=key&direction=asc|desc).
+  # Whitelisted so the param never reaches SQL directly. Status sorts by
+  # workflow order (enum declaration order), not alphabetically.
+  SORTABLE_COLUMNS = {
+    'date' => 'bookings.created_at',
+    'number' => 'bookings.booking_number',
+    'customer' => 'bookings.customer_name',
+    'amount' => 'bookings.total_amount',
+    'payment' => 'bookings.payment_status',
+    'status' => "CASE bookings.status #{Booking.statuses.values.each_with_index.map { |v, i| "WHEN '#{v}' THEN #{i}" }.join(' ')} END"
+  }.freeze
 
   def index
     # Base scope (no includes — used for lightweight stat counting only)
@@ -57,7 +69,15 @@ class Admin::BookingsController < Admin::ApplicationController
     listing_includes = [:customer, { user: :franchise }, :store, :booking_invoices, :delivery_person, :delivery_franchise]
     listing_includes << :franchise unless current_user.franchise?
 
-    @bookings = base_scope.recent.includes(*listing_includes)
+    @sort = SORTABLE_COLUMNS.key?(params[:sort]) ? params[:sort] : nil
+    @direction = params[:direction] == 'asc' ? 'asc' : 'desc'
+    ordered_scope = if @sort
+                      base_scope.order(Arel.sql("#{SORTABLE_COLUMNS[@sort]} #{@direction.upcase} NULLS LAST, bookings.id #{@direction.upcase}"))
+                    else
+                      base_scope.recent
+                    end
+
+    @bookings = ordered_scope.includes(*listing_includes)
 
     if params[:search].present?
       @bookings = @bookings.where(
@@ -95,7 +115,9 @@ class Admin::BookingsController < Admin::ApplicationController
     end
 
     if params[:category_id].present? && params[:category_id].strip != ''
-      @bookings = @bookings.joins(booking_items: :product).where(products: { category_id: params[:category_id] }).distinct
+      # id IN (subquery) rather than joins + DISTINCT: Postgres rejects
+      # SELECT DISTINCT with an ORDER BY expression (the status sort CASE).
+      @bookings = @bookings.where(id: BookingItem.joins(:product).where(products: { category_id: params[:category_id] }).select(:booking_id))
     end
 
     @categories = cached[filter_keys[:categories]] || Rails.cache.fetch(filter_keys[:categories], expires_in: 5.minutes) do

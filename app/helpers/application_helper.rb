@@ -575,4 +575,20 @@ module ApplicationHelper
 
     result.strip
   end
+  # Server-side sortable column header (whole-dataset sort, survives
+  # pagination). Links to the current page with ?sort=key&direction=...;
+  # clicking the active column flips direction, a new column starts at
+  # first_direction. Styled by the .sort-btn rules in table_sort.js, which
+  # skips client-side sorting for any table that has these links.
+  def sort_header(label, key, first_direction: 'desc')
+    active = params[:sort] == key
+    direction = params[:direction] == 'asc' ? 'asc' : 'desc'
+    next_direction = active ? (direction == 'asc' ? 'desc' : 'asc') : first_direction
+    icon = active ? (direction == 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill') : 'bi-chevron-expand'
+    query = request.query_parameters.except('page', 'sort', 'direction').merge('sort' => key, 'direction' => next_direction)
+
+    link_to url_for(query), class: "sort-btn#{' active' if active}", title: "Sort by #{label}" do
+      safe_join([content_tag(:span, label), content_tag(:span, content_tag(:i, '', class: "bi #{icon}"), class: 'sort-icon')])
+    end
+  end
 end

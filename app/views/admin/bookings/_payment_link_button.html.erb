@@ -4,13 +4,14 @@
     <i class="bi bi-check-circle-fill me-1"></i>Paid<%= " online" if booking.payment_gateway == "cashfree" && booking.payment_completed_at %>
   </small>
 <% elsif PaymentLinkService.payable?(booking) %>
-  <button type="button" class="btn btn-sm btn-outline-success mt-1 py-0 px-2 pay-link-btn"
+  <button type="button" class="btn btn-sm mt-1 py-1 px-2 pay-link-btn d-inline-flex align-items-center"
+          style="background: linear-gradient(135deg, #25D366, #128C7E); color: #fff; border: 0; border-radius: 999px; font-weight: 600; box-shadow: 0 2px 6px rgba(18, 140, 126, .35);"
           data-pay-link-url="<%= payment_link_admin_booking_path(booking) %>"
           data-amount="<%= PaymentLinkService.default_amount(booking) %>"
           data-number="<%= booking.booking_number %>"
           data-name="<%= booking.customer&.display_name.presence || booking.customer_name %>"
           data-phone="<%= booking.customer&.mobile.presence || booking.customer_phone %>"
           title="Send a payment link to the customer on WhatsApp">
-    <i class="bi bi-whatsapp me-1"></i><small>Payment link</small>
+    <i class="bi bi-whatsapp me-1" style="color: #fff;"></i><small style="color: #fff;">Payment link</small>
   </button>
 <% end %>

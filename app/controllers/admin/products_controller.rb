@@ -17,6 +17,18 @@ class Admin::ProductsController < Admin::ApplicationController
     has_multiple_quantities
   ].freeze
 
+  # Sortable index columns (header click → ?sort=key&direction=asc|desc),
+  # whitelisted so the param never reaches SQL directly. Category sorts via a
+  # subquery, not a join: the search scope's bare `name` would turn ambiguous
+  # and the stock filters' GROUP BY products.id would reject a joined column.
+  SORTABLE_COLUMNS = {
+    'name' => 'LOWER(products.name)',
+    'category' => '(SELECT LOWER(categories.name) FROM categories WHERE categories.id = products.category_id)',
+    'price' => 'products.price',
+    'stock' => 'products.stock',
+    'status' => 'products.status'
+  }.freeze
+
   def index
     # additional_images is never read on the index view (only in new/edit forms),
     # so it's deliberately excluded here to avoid an unused eager-load round trip.
@@ -45,7 +57,13 @@ class Admin::ProductsController < Admin::ApplicationController
       end
     end
 
-    @products = @products.recent.page(params[:page]).per(20)
+    @products = if SORTABLE_COLUMNS.key?(params[:sort])
+                  direction = params[:direction] == 'asc' ? 'ASC' : 'DESC'
+                  @products.order(Arel.sql("#{SORTABLE_COLUMNS[params[:sort]]} #{direction} NULLS LAST, products.id #{direction}"))
+                else
+                  @products.recent
+                end
+    @products = @products.page(params[:page]).per(20)
 
     # Kaminari memoizes total_count in this ivar on first access, so pre-seeding
     # it from a short-lived cache avoids a COUNT(*) round trip on every unfiltered
@@ -513,6 +531,32 @@ class Admin::ProductsController < Admin::ApplicationController
     end
 
     redirect_to manage_images_admin_product_path(@product), notice: 'Image removed successfully.'
+  end
+
+  # Select2 AJAX source for the "Product Catalog" quick-search dropdown.
+  def search
+    products = Product.select(:id, :name, :sku, :status, :price, :stock, :unit_type, :image_url, :r2_image_url, :category_id)
+                      .includes(:category, image_attachment: :blob)
+                      .search(params[:q])
+                      .order(Arel.sql("CASE WHEN name ILIKE #{Product.connection.quote("#{Product.sanitize_sql_like(params[:q].to_s.strip)}%")} THEN 0 ELSE 1 END, name ASC"))
+                      .limit(20)
+
+    render json: {
+      results: products.map { |p|
+        {
+          id: p.id,
+          text: p.name,
+          sku: p.sku,
+          status: p.status,
+          price: p.price.to_f,
+          stock: p.stock.to_i,
+          unit: p.unit_type,
+          category: p.category&.name,
+          image: p.main_image_url(width: 80, height: 80),
+          url: admin_product_path(p)
+        }
+      }
+    }
   end
 
   private

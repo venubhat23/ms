@@ -15,6 +15,10 @@ class ProductVariant < ApplicationRecord
   scope :default_first, -> { order(is_default: :desc, weight: :asc) }
   scope :in_stock, -> { where('available_stock > 0') }
 
+  # A blank Stock box submits "" (nil), which failed "is not a number" and
+  # bounced the whole product form — treat it as no stock instead
+  before_validation { self.available_stock = 0 if available_stock.nil? }
+
   before_save :calculate_discount_amount
   before_save :calculate_gst_fields
   before_save :ensure_single_default

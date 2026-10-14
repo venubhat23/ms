@@ -284,36 +284,51 @@
     <!-- Global Modal Fix Script & Toast Notifications -->
     <script>
       // Sidebar Scroll Position Management
+      // .modern-sidebar itself is overflow:hidden — the element that actually
+      // scrolls is its .sidebar-nav, so that's the one to save and restore.
+      function sidebarScroller() {
+        return document.querySelector('.modern-sidebar .sidebar-nav') ||
+               document.querySelector('.modern-sidebar, .sidebar, #sidebar');
+      }
+
       function saveSidebarScrollPosition() {
-        const sidebar = document.querySelector('.modern-sidebar, .sidebar, #sidebar');
-        if (sidebar) {
-          const scrollPosition = sidebar.scrollTop;
-          sessionStorage.setItem('sidebarScrollPosition', scrollPosition.toString());
+        const scroller = sidebarScroller();
+        if (scroller) {
+          sessionStorage.setItem('sidebarScrollPosition', scroller.scrollTop.toString());
         }
       }
 
       function restoreSidebarScrollPosition() {
-        const sidebar = document.querySelector('.modern-sidebar, .sidebar, #sidebar');
+        const scroller = sidebarScroller();
+        if (!scroller) return;
         const savedScrollPosition = sessionStorage.getItem('sidebarScrollPosition');
 
-        if (sidebar && savedScrollPosition) {
-          // Use setTimeout to ensure DOM is fully rendered
-          setTimeout(() => {
-            sidebar.scrollTop = parseInt(savedScrollPosition, 10);
-          }, 100);
-        }
+        // Use setTimeout to ensure DOM is fully rendered
+        setTimeout(() => {
+          if (savedScrollPosition) scroller.scrollTop = parseInt(savedScrollPosition, 10);
+
+          // Fallback (first visit, new tab, direct URL): keep the current
+          // page's menu item in view instead of leaving it below the fold
+          const active = scroller.querySelector('.submenu-link.active, .nav-link-modern.active');
+          if (active) {
+            const box = scroller.getBoundingClientRect();
+            const item = active.getBoundingClientRect();
+            if (item.top < box.top || item.bottom > box.bottom) {
+              active.scrollIntoView({ block: 'center' });
+            }
+          }
+        }, 100);
       }
 
       function setupSidebarScrollTracking() {
-        const sidebar = document.querySelector('.modern-sidebar, .sidebar, #sidebar');
-        if (!sidebar) return;
+        const scroller = sidebarScroller();
+        if (!scroller) return;
 
         // Save scroll position on scroll
-        sidebar.addEventListener('scroll', saveSidebarScrollPosition);
+        scroller.addEventListener('scroll', saveSidebarScrollPosition);
 
         // Save scroll position when clicking navigation links
-        const navLinks = sidebar.querySelectorAll('a');
-        navLinks.forEach(link => {
+        scroller.querySelectorAll('a').forEach(link => {
           link.addEventListener('click', saveSidebarScrollPosition);
         });
       }

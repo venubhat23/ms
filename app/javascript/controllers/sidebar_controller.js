@@ -11,17 +11,22 @@ export default class extends Controller {
     this.setupScrollSaving()
   }
 
+  // The outer sidebar is overflow:hidden; its .sidebar-nav is what scrolls
+  get scroller() {
+    return this.element.querySelector('.sidebar-nav') || this.element
+  }
+
   initializeScrollPosition() {
     // Restore scroll position from sessionStorage
     const savedScrollPosition = sessionStorage.getItem('sidebarScrollPosition')
     if (savedScrollPosition) {
-      this.element.scrollTop = parseInt(savedScrollPosition, 10)
+      this.scroller.scrollTop = parseInt(savedScrollPosition, 10)
     }
   }
 
   setupScrollSaving() {
     // Save scroll position before navigation
-    this.element.addEventListener('scroll', this.saveScrollPosition.bind(this))
+    this.scroller.addEventListener('scroll', this.saveScrollPosition.bind(this))
 
     // Save scroll position when clicking on navigation links
     const navLinks = this.element.querySelectorAll('a')
@@ -48,7 +53,10 @@ export default class extends Controller {
   }
 
   saveScrollPosition() {
-    const scrollPosition = this.element.scrollTop
+    // Document-level listeners outlive this sidebar after a Turbo visit; a
+    // detached sidebar reads scrollTop 0 and would clobber the real value
+    if (!this.element.isConnected) return
+    const scrollPosition = this.scroller.scrollTop
     sessionStorage.setItem('sidebarScrollPosition', scrollPosition.toString())
   }
 
@@ -57,7 +65,7 @@ export default class extends Controller {
     if (savedScrollPosition) {
       // Use setTimeout to ensure DOM is fully rendered
       setTimeout(() => {
-        this.element.scrollTop = parseInt(savedScrollPosition, 10)
+        this.scroller.scrollTop = parseInt(savedScrollPosition, 10)
       }, 50)
     }
   }

@@ -24,63 +24,6 @@
   </div>
 </div>
 
-<%# Barcode scan toast — fixed top-center, shown on every successful scan %>
-<div id="barcodeToast" style="
-  display:none;
-  position:fixed;
-  top:70px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:9999;
-  min-width:280px;
-  max-width:420px;
-">
-  <div class="d-flex align-items-center gap-3 bg-success text-white rounded-3 shadow-lg px-4 py-3">
-    <i class="bi bi-cart-check-fill fs-3"></i>
-    <div class="flex-grow-1">
-      <div class="fw-bold" id="barcodeToastName" style="font-size:1rem;"></div>
-      <div class="opacity-75" id="barcodeToastMeta" style="font-size:0.85rem;"></div>
-    </div>
-    <i class="bi bi-check-circle-fill fs-4"></i>
-  </div>
-</div>
-
-<%# Barcode Scanner Input %>
-<div class="card border-0 shadow-sm mb-3" id="barcodeScanSection">
-  <div class="card-body py-2">
-    <div class="row g-2 align-items-center">
-      <div class="col-md-6">
-        <label class="form-label form-label-sm mb-1 text-muted fw-semibold"><i class="bi bi-qr-code-scan me-1"></i>Scan / Type Barcode</label>
-        <div class="input-group input-group-sm">
-          <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-          <input type="text" class="form-control" id="barcodeInput" placeholder="Scan barcode or type barcode number and press Enter..." autocomplete="off" autofocus>
-          <button class="btn btn-outline-secondary d-none" type="button" id="cameraBtn" onclick="openBarcodeCamera()" title="Scan with camera">
-            <i class="bi bi-camera"></i>
-          </button>
-        </div>
-        <div id="barcodeFeedback" class="mt-1" style="min-height:18px;"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<%# Camera QR Scanner Modal %>
-<div class="modal fade" id="cameraModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title"><i class="bi bi-camera me-1"></i>Scan Barcode with Camera</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
-      </div>
-      <div class="modal-body text-center p-2">
-        <div id="cameraReader" style="width:100%;"></div>
-        <small class="text-muted">Point camera at the product QR code</small>
-      </div>
-    </div>
-  </div>
-</div>
-
-
 <%# Search and Filters %>
 <div class="card border-0 shadow-sm mb-3" id="searchSection">
   <div class="card-body py-2">
@@ -2958,141 +2901,6 @@ function showBookingDateAlert(message, type, icon) {
 
   alertDiv.style.display = 'block';
 }
-
-// ---- Barcode / QR Scanner ----
-
-// Show camera button only on touch/mobile devices
-if (navigator.maxTouchPoints > 0) {
-  document.getElementById('cameraBtn').classList.remove('d-none');
-}
-
-const barcodeInput = document.getElementById('barcodeInput');
-const barcodeFeedback = document.getElementById('barcodeFeedback');
-
-barcodeInput.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const code = barcodeInput.value.trim();
-    if (code) lookupBarcode(code);
-  }
-});
-
-function lookupBarcode(code) {
-  barcodeFeedback.innerHTML = '<small class="text-secondary"><i class="bi bi-hourglass-split me-1"></i>Looking up...</small>';
-  fetch(`<%= admin_qr_codes_lookup_path %>?barcode=${encodeURIComponent(code)}`)
-    .then(r => r.json())
-    .then(data => {
-      if (data.found) {
-        barcodeInput.value = '';
-        barcodeAddToCart(data);
-      } else {
-        barcodeFeedback.innerHTML = `<small class="text-danger"><i class="bi bi-x-circle me-1"></i>${data.message}</small>`;
-        barcodeInput.select();
-      }
-    })
-    .catch(() => {
-      barcodeFeedback.innerHTML = '<small class="text-danger">Lookup failed. Try again.</small>';
-    });
-}
-
-// Scan → instantly add 1 to cart (or increment if already there).
-// For variant products the default variant is used automatically.
-function barcodeAddToCart(data) {
-  let price, stock, variantId, displayName;
-
-  if (data.has_multiple_quantities && data.variants && data.variants.length > 0) {
-    const v = data.variants.find(v => v.is_default) || data.variants[0];
-    price       = v.price;
-    stock       = v.stock;
-    variantId   = v.id;
-    displayName = data.variants.length > 1 ? `${data.name} (${v.label})` : data.name;
-  } else {
-    price       = data.price;
-    stock       = data.available_stock;
-    variantId   = null;
-    displayName = data.name;
-  }
-
-  if (stock <= 0) {
-    barcodeFeedback.innerHTML = `<small class="text-danger"><i class="bi bi-x-circle me-1"></i>${displayName} — out of stock</small>`;
-    barcodeInput.focus();
-    return;
-  }
-
-  const basePrice = data.gst_rate > 0 ? price / (1 + data.gst_rate / 100) : price;
-  addToCart(data.id, displayName, price, stock, basePrice, data.gst_rate, variantId, 1);
-
-  const cartKey  = variantId ? `${data.id}_v${variantId}` : String(data.id);
-  const newQty   = cart[cartKey]?.quantity || 1;
-  barcodeFeedback.innerHTML = `<small class="text-success fw-semibold"><i class="bi bi-check-circle me-1"></i>${displayName} — qty ${newQty}</small>`;
-  showBarcodeToast(displayName, newQty, price);
-  barcodeInput.focus();
-}
-
-let barcodeToastTimer = null;
-function showBarcodeToast(name, qty, price) {
-  const toast = document.getElementById('barcodeToast');
-  document.getElementById('barcodeToastName').textContent = name;
-  document.getElementById('barcodeToastMeta').textContent =
-    `Added to cart · Qty: ${qty} · ₹${price.toLocaleString('en-IN')}`;
-
-  // Reset animation then show
-  toast.style.transition = 'none';
-  toast.style.opacity = '0';
-  toast.style.display = 'block';
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      toast.style.transition = 'opacity 0.2s ease';
-      toast.style.opacity = '1';
-    });
-  });
-
-  // Auto-hide after 2.5 s
-  clearTimeout(barcodeToastTimer);
-  barcodeToastTimer = setTimeout(() => {
-    toast.style.transition = 'opacity 0.4s ease';
-    toast.style.opacity = '0';
-    setTimeout(() => { toast.style.display = 'none'; }, 400);
-  }, 2500);
-}
-
-// Camera scanner (html5-qrcode — loaded from CDN only when needed)
-let html5QrCode = null;
-
-function openBarcodeCamera() {
-  if (!window.Html5Qrcode) {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-    script.onload = startCamera;
-    document.head.appendChild(script);
-  } else {
-    startCamera();
-  }
-}
-
-function startCamera() {
-  const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
-  modal.show();
-  html5QrCode = new Html5Qrcode("cameraReader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    (decodedText) => {
-      stopCamera();
-      bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
-      barcodeInput.value = decodedText;
-      lookupBarcode(decodedText);
-    }
-  ).catch(err => console.error("Camera error:", err));
-}
-
-function stopCamera() {
-  if (html5QrCode) {
-    html5QrCode.stop().catch(() => {});
-    html5QrCode = null;
-  }
-}
 </script>
 
 <style>
@@ -3696,8 +3504,7 @@ function stopCamera() {
   border-radius: 10px !important;
 }
 
-/* Barcode / search cards + all checkout-view cards: consistent elevation */
-#barcodeScanSection,
+/* Search cards + all checkout-view cards: consistent elevation */
 #searchSection,
 #productsView > .card,
 #checkoutView .card {
@@ -3778,7 +3585,6 @@ function stopCamera() {
 
 #checkoutView .form-control,
 #checkoutView .form-select,
-#barcodeScanSection .form-control,
 #searchSection .form-control,
 #searchSection .form-select {
   border: 1.5px solid var(--booking-border);
@@ -3790,7 +3596,6 @@ function stopCamera() {
 
 #checkoutView .form-control:focus,
 #checkoutView .form-select:focus,
-#barcodeScanSection .form-control:focus,
 #searchSection .form-control:focus,
 #searchSection .form-select:focus {
   border-color: var(--booking-primary);

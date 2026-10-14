@@ -857,7 +857,10 @@
         <!-- Vertical variant cards -->
         <div id="variants_body" class="d-flex flex-column gap-3">
           <% if @product.product_variants.any? %>
-            <%= form.fields_for :product_variants, @product.product_variants.ordered do |vf| %>
+            <%# Sorted in memory, not with the .ordered scope: that re-queries the
+                DB, which drops the variants just typed in when a failed save
+                re-renders this form %>
+            <%= form.fields_for :product_variants, @product.product_variants.sort_by { |v| [v.display_order.to_i, v.weight.to_f] } do |vf| %>
               <% v_gst = vf.object.gst_percentage.presence&.to_f || @product.gst_percentage.to_f %>
               <% v_eff = vf.object.effective_price.to_f %>
               <% v_gst_amt = v_gst > 0 ? (v_eff * v_gst / 100.0).round(2) : 0 %>
@@ -1972,6 +1975,9 @@ document.addEventListener('DOMContentLoaded', function() {
         discountPriceHidden.value = '';
         discountSummary.style.display = 'none';
       }
+      // GST is charged on the price after discount, so the GST section
+      // has to follow every discount change, not just typed values
+      calculateGSTAmounts();
     });
 
     // Trigger on page load if discount is enabled
@@ -1994,6 +2000,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fixedInput.style.display = 'none';
         discountFixedValue.value = '';
         calculateFinalPrice();
+        calculateGSTAmounts();
       }
     });
   }
@@ -2005,6 +2012,7 @@ document.addEventListener('DOMContentLoaded', function() {
         percentageInput.style.display = 'none';
         discountPercentageValue.value = '';
         calculateFinalPrice();
+        calculateGSTAmounts();
       }
     });
   }
@@ -2023,7 +2031,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let summaryText = '';
 
     if (discountPercentageRadio.checked) {
-      const percentage = parseFloat(discountPercentageValue.value) || 0;
+      let percentage = parseFloat(discountPercentageValue.value) || 0;
 
       // Validation
       if (percentage > 100) {
@@ -2222,7 +2230,7 @@ document.addEventListener('DOMContentLoaded', function() {
       // Simple GST: the % is a straight percentage of the selling price
       // (e.g. 10% GST on ₹200 = ₹20 GST, ₹180 base) — not a reverse-derived
       // inclusive-tax split, and matches Product#calculate_gst_amount.
-      const gstPercentage = parseFloat(gstPercentageInput?.value) || 0;
+      let gstPercentage = parseFloat(gstPercentageInput?.value) || 0;
 
       if (gstPercentage > 100) {
         gstPercentageInput.value = 100;
@@ -2540,6 +2548,23 @@ document.addEventListener('DOMContentLoaded', function() {
   let cloudinaryImages = [];
   let isUploading = false;
 
+  // A failed save re-renders this form with the already-uploaded images in
+  // the hidden fields; show them again so they aren't silently lost (new
+  // products only — on edit they're listed under "Current Images")
+  <%
+    pending_images = []
+    unless product.persisted?
+      pending_images = [product.image_url.presence, *product.additional_cloudinary_images].compact.map do |public_id|
+        thumb = (Cloudinary::Utils.cloudinary_url(public_id, width: 150, height: 150, crop: :fill) rescue public_id)
+        { public_id: public_id, url: thumb, thumbnail_url: thumb }
+      end
+    end
+  %>
+  (<%= raw pending_images.to_json %>).forEach((img, i) => {
+    cloudinaryImages.push(img);
+    displayCloudinaryPreview(img, { name: `Image ${i + 1}`, size: 0 });
+  });
+
   if (cloudinaryInput) {
     cloudinaryInput.addEventListener('change', function(e) {
       const files = Array.from(e.target.files);
@@ -2618,7 +2643,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <img src="${imageData.thumbnail_url}" alt="Preview" class="me-3" style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px;">
         <div class="flex-grow-1">
           <h6 class="mb-1">${file.name}</h6>
-          <small class="text-muted">${formatFileSize(file.size)} • Cloudinary</small>
+          <small class="text-muted">${file.size ? formatFileSize(file.size) + ' • ' : ''}Cloudinary</small>
           <br>
           <small class="text-success">
             <i class="bi bi-check-circle me-1"></i>Uploaded successfully

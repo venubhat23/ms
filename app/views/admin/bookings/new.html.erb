@@ -88,8 +88,22 @@
                     </span>
                   <% end %>
 
-                  <%# Discount Badge %>
-                  <% if product.respond_to?(:discount_price) && product.discount_price.present? && product.discount_price != product.price %>
+                  <%# Discount Badge — per variant for multi-quantity products,
+                      toggled by bookingUpdateVariant when the selection changes %>
+                  <%
+                    variants = product.has_multiple_quantities? ? product.sorted_variants : []
+                    default_v = variants.first
+                  %>
+                  <% if default_v %>
+                    <% variants.each do |v| %>
+                      <% if v.effective_price < v.selling_price && v.selling_price > 0 %>
+                        <span class="position-absolute top-0 start-0 badge bg-success m-2 <%= 'd-none' unless v.id == default_v.id %>"
+                              data-variant-discount="<%= product.id %>" data-variant-id="<%= v.id %>">
+                          <%= ((v.selling_price - v.effective_price) * 100 / v.selling_price).round %>% OFF
+                        </span>
+                      <% end %>
+                    <% end %>
+                  <% elsif product.discount_price.present? && product.discount_price != product.price && product.price.to_f > 0 %>
                     <% discount_percent = ((product.price - product.discount_price) * 100 / product.price).round %>
                     <span class="position-absolute top-0 start-0 badge bg-success m-2"><%= discount_percent %>% OFF</span>
                   <% end %>
@@ -112,90 +126,69 @@
 
                   <h6 class="card-title mb-2" style="min-height: 48px;"><%= product.name %></h6>
 
-                  <%# Price %>
+                  <%# Price — plain products and every variant use the same
+                      _booking_price_block partial (discount, GST and B2B lines);
+                      for variants one block per option, toggled on change. %>
                   <div class="mb-3">
                     <%
-                      if product.has_multiple_quantities? && product.product_variants.any?
-                        default_v = product.default_variant || product.product_variants.sort_by { |v| [v.display_order.to_i, v.weight.to_f] }.first
-                        variant_price = default_v.effective_price
-                        selling_price = variant_price
+                      gst_rate = product.gst_enabled && product.gst_percentage.to_f > 0 ? product.gst_percentage : 0
+                      if default_v
+                        # Variants carry their own GST % (falls back to the product's)
+                        variant_gst_rate = ->(v) { v.effective_gst_percentage.to_f > 0 ? v.effective_gst_percentage : 0 }
+                        gst_rate = variant_gst_rate.(default_v)
+                        rounded_final = default_v.effective_price.round
+                        b2b_rounded_final = default_v.effective_b2b_price.round
                       else
-                        selling_price = product.respond_to?(:discount_price) && product.discount_price.present? && product.discount_price != product.price ? product.discount_price : product.price
+                        discounted = product.discount_price.present? && product.discount_price != product.price
+                        final_price = discounted ? product.discount_price : product.price
+                        rounded_final = final_price.round
+                        b2b_rounded_final = product.effective_b2b_price.round
                       end
-
-                      if product.gst_enabled && product.gst_percentage.present? && product.gst_percentage > 0
-                        gst_rate = product.gst_percentage
-                        base_price = selling_price / (1 + (gst_rate / 100.0))
-                        final_price = selling_price
-                      else
-                        base_price = selling_price
-                        gst_rate = 0
-                        final_price = selling_price
-                      end
-
-                      rounded_final = final_price.round
-                      gst_val = rounded_final * gst_rate / 100.0
-                      rounded_gst = gst_val % 1 == 0 ? gst_val.to_i : gst_val.round(2)
-                      base_val = rounded_final - gst_val
-                      rounded_base = base_val % 1 == 0 ? base_val.to_i : base_val.round(2)
-
-                      # B2B (Franchise Booking) price — same GST-inclusive convention as
-                      # the regular price above. Multi-quantity products don't have a
-                      # per-variant B2B price yet, so they just keep their regular price.
-                      b2b_rounded_final = (product.has_multiple_quantities? ? final_price : product.effective_b2b_price).round
+                      rounded_base = (gst_val = rounded_final * gst_rate / 100.0; base_val = rounded_final - gst_val; base_val % 1 == 0 ? base_val.to_i : base_val.round(2))
                     %>
 
-                    <% if product.has_multiple_quantities? && product.product_variants.any? %>
-                      <!-- Variant selector -->
+                    <% if default_v %>
                       <select class="form-select form-select-sm mb-2"
                               id="variant-select-<%= product.id %>"
                               onchange="bookingUpdateVariant(this, <%= product.id %>)">
-                        <% product.product_variants.sort_by { |v| [v.is_default ? 0 : 1, v.weight.to_f] }.each do |v| %>
+                        <% variants.each do |v| %>
                           <option value="<%= v.id %>"
-                                  data-price="<%= v.effective_price %>"
+                                  data-price="<%= v.effective_price.round %>"
+                                  data-b2b-price="<%= v.effective_b2b_price.round %>"
+                                  data-gst-rate="<%= variant_gst_rate.(v) %>"
                                   data-stock="<%= v.available_stock %>"
                                   data-label="<%= j(v.label) %>"
                                   <%= 'selected' if v.id == default_v.id %>>
-                            <%= v.label %> — ₹<%= number_with_delimiter(v.effective_price) %>
+                            <%= v.label %> — ₹<%= number_with_delimiter(v.effective_price.round(2)) %>
                           </option>
                         <% end %>
                       </select>
-                      <span class="h6 text-primary mb-0" id="booking-variant-price-<%= product.id %>">
-                        ₹<%= number_with_delimiter(rounded_final) %>
-                      </span>
+                      <% variants.each do |v| %>
+                        <div class="<%= 'd-none' unless v.id == default_v.id %>" data-variant-price="<%= product.id %>" data-variant-id="<%= v.id %>">
+                          <%= render 'admin/bookings/booking_price_block',
+                                     final_price: v.effective_price,
+                                     original_price: v.selling_price,
+                                     gst_rate: variant_gst_rate.(v),
+                                     b2b_price: v.effective_b2b_price %>
+                        </div>
+                      <% end %>
                       <input type="hidden" id="booking-selected-variant-<%= product.id %>" value="<%= default_v.id %>">
-                    <% elsif product.respond_to?(:discount_price) && product.discount_price.present? && product.discount_price != product.price %>
-                      <div class="d-flex align-items-center gap-2">
-                        <span class="h6 text-success mb-0">₹<%= number_with_delimiter(final_price.round(2)) %></span>
-                        <small class="text-muted text-decoration-line-through">₹<%= number_with_delimiter(product.price) %></small>
-                      </div>
                     <% else %>
-                      <span class="h6 text-primary mb-0">₹<%= number_with_delimiter(final_price.round(2)) %></span>
-                    <% end %>
-
-                    <% if product.gst_enabled && gst_rate > 0 %>
-                      <small class="text-muted d-block">
-                        Base: ₹<%= number_with_delimiter(rounded_base) %> + GST: ₹<%= number_with_delimiter(rounded_gst) %> (<%= gst_rate %>%) = ₹<%= number_with_delimiter(rounded_final) %>
-                      </small>
-                    <% end %>
-
-                    <% if b2b_rounded_final != rounded_final %>
-                      <span class="badge b2b-price-badge mt-1" data-b2b-hint>
-                        <i class="bi bi-shop-window me-1"></i>B2B: ₹<%= number_with_delimiter(b2b_rounded_final) %>
-                      </span>
+                      <%= render 'admin/bookings/booking_price_block',
+                                 final_price: final_price,
+                                 original_price: (product.price if discounted),
+                                 gst_rate: gst_rate,
+                                 b2b_price: product.effective_b2b_price %>
                     <% end %>
                   </div>
 
-
-                  <%# Quantity and Add to Cart %>
+                  <%# Quantity and Add to Cart — mt-auto pins this to the card
+                      bottom so variant and plain cards line up at equal height %>
                   <%
-                    effective_stock = if product.has_multiple_quantities? && product.product_variants.any?
-                      (default_v&.available_stock || 0)
-                    else
-                      current_stock
-                    end
+                    effective_stock = default_v ? default_v.available_stock.to_f : current_stock
+                    low_stock_threshold = product.minimum_stock_alert.presence || 10
                   %>
-                  <div class="mt-3" id="booking-stock-section-<%= product.id %>">
+                  <div class="mt-auto pt-3" id="booking-stock-section-<%= product.id %>">
                     <%# Admin bookings can oversell — an out-of-stock product still
                         books and its stock goes negative (see BookingsController
                         #create skip_stock_check). So no "SOLD OUT" lock-out here. %>
@@ -217,17 +210,19 @@
                         </button>
                       </div>
 
-                      <% if effective_stock <= 0 %>
-                        <small class="text-warning d-block mt-1">
-                          <i class="bi bi-exclamation-triangle-fill"></i>
-                          <strong>Out of stock.</strong> Booking anyway — stock will go negative.
-                        </small>
-                      <% elsif product.low_stock? && !product.has_multiple_quantities? %>
-                        <small class="text-warning d-block mt-1">
-                          <i class="bi bi-exclamation-triangle-fill"></i>
-                          <strong>Low Stock!</strong> Only <%= current_stock.to_i %> left
-                        </small>
-                      <% end %>
+                      <div id="booking-stock-warning-<%= product.id %>" data-low-threshold="<%= low_stock_threshold %>">
+                        <% if effective_stock <= 0 %>
+                          <small class="text-warning d-block mt-1">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Out of stock.</strong> Booking anyway — stock will go negative.
+                          </small>
+                        <% elsif effective_stock <= low_stock_threshold %>
+                          <small class="text-warning d-block mt-1">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Low Stock!</strong> Only <%= effective_stock.to_i %> left
+                          </small>
+                        <% end %>
+                      </div>
                     </div>
 
                     <!-- Add to Cart Button -->
@@ -962,9 +957,23 @@ function bookingUpdateVariant(selectEl, productId) {
   const stock = parseInt(opt.dataset.stock);
   const variantId = selectEl.value;
 
-  // Update price display
-  const priceEl = document.getElementById(`booking-variant-price-${productId}`);
-  if (priceEl) priceEl.textContent = '₹' + price.toLocaleString('en-IN');
+  // Show the selected variant's price block (price/discount, GST, B2B) and
+  // discount badge; hide the others
+  document.querySelectorAll(`[data-variant-price="${productId}"], [data-variant-discount="${productId}"]`).forEach(el => {
+    el.classList.toggle('d-none', el.dataset.variantId !== variantId);
+  });
+
+  const warningEl = document.getElementById(`booking-stock-warning-${productId}`);
+  if (warningEl) {
+    const threshold = parseFloat(warningEl.dataset.lowThreshold || 10);
+    if (stock <= 0) {
+      warningEl.innerHTML = '<small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle-fill"></i> <strong>Out of stock.</strong> Booking anyway — stock will go negative.</small>';
+    } else if (stock <= threshold) {
+      warningEl.innerHTML = `<small class="text-warning d-block mt-1"><i class="bi bi-exclamation-triangle-fill"></i> <strong>Low Stock!</strong> Only ${stock} left</small>`;
+    } else {
+      warningEl.innerHTML = '';
+    }
+  }
 
   // Update hidden variant id
   const hiddenInput = document.getElementById(`booking-selected-variant-${productId}`);
@@ -983,14 +992,14 @@ function bookingUpdateVariant(selectEl, productId) {
   // Update add button
   const btn = document.getElementById(`booking-add-btn-${productId}`);
   if (btn) {
-    const gstRateVal = parseFloat(btn.dataset.gstRate || 0);
+    const gstRateVal = parseFloat(opt.dataset.gstRate ?? btn.dataset.gstRate ?? 0);
+    btn.dataset.gstRate = gstRateVal;
     const deflatedBasePrice = gstRateVal > 0 ? price / (1 + gstRateVal / 100) : price;
     btn.disabled = false;
     btn.dataset.finalPrice = price;
     btn.dataset.basePrice = deflatedBasePrice;
-    btn.onclick = function() {
-      bookingAddToCart(productId, btn.closest('.card')?.querySelector('.card-title')?.textContent?.trim() || '', price, stock, deflatedBasePrice, gstRateVal);
-    };
+    // No onclick swap: bookingAddToCart reads the selected option's price,
+    // stock and B2B price itself.
   }
 }
 
@@ -1006,11 +1015,12 @@ function bookingAddToCart(productId, productName, finalPrice, stock, basePrice, 
     const opt = variantSelect.options[variantSelect.selectedIndex];
     finalPrice = parseFloat(opt.dataset.price);
     stock = parseInt(opt.dataset.stock);
+    if (opt.dataset.gstRate !== undefined) gstRate = parseFloat(opt.dataset.gstRate) || 0;
     // finalPrice is GST-inclusive — deflate it to get the base (pre-GST) price
     basePrice = gstRate > 0 ? finalPrice / (1 + gstRate / 100) : finalPrice;
-    // Multi-quantity products don't have a per-variant B2B price — keep the
-    // regular (possibly variant-overridden) price either way.
-    b2bFinalPrice = finalPrice;
+    // Per-variant B2B price (ProductVariant#effective_b2b_price, which falls
+    // back to the variant's selling price when no B2B price is set)
+    b2bFinalPrice = parseFloat(opt.dataset.b2bPrice || finalPrice);
   }
 
   addToCart(productId, productName, finalPrice, stock, basePrice, gstRate, variantId, undefined, b2bFinalPrice);
@@ -1065,9 +1075,9 @@ function updateCartDisplay() {
 
     if (itemGSTRate > 0) {
       const roundedFinal = Math.round(item.price);
-      const roundedGST = roundedFinal * itemGSTRate / 100;
-      itemBasePrice = roundedFinal - roundedGST;
-      itemTotal = item.price * item.quantity; // Full price for display
+      // Price is GST-inclusive — extract base the same way Booking#calculate_totals does
+      itemBasePrice = Math.round(roundedFinal / (1 + itemGSTRate / 100));
+      itemTotal = roundedFinal * item.quantity;
       subtotal += itemBasePrice * item.quantity;
     } else {
       // Product has no GST
@@ -1132,7 +1142,7 @@ function updateCartDisplay() {
     if (itemGSTRate > 0) {
       const itemFinalPrice = item.price;
       const roundedFinal = Math.round(itemFinalPrice);
-      const roundedGST = roundedFinal * itemGSTRate / 100;
+      const roundedGST = roundedFinal - Math.round(roundedFinal / (1 + itemGSTRate / 100));
       totalGST += roundedGST * item.quantity;
     }
   }
@@ -1340,8 +1350,8 @@ function updateCheckoutDisplay() {
       // Product has GST enabled
       const itemFinalPrice = item.price;
       const roundedFinal = Math.round(itemFinalPrice);
-      const roundedGST = roundedFinal * itemGSTRate / 100;
-      const roundedBase = roundedFinal - roundedGST;
+      const roundedBase = Math.round(roundedFinal / (1 + itemGSTRate / 100));
+      const roundedGST = roundedFinal - roundedBase;
       itemGSTAmount = roundedGST * item.quantity;
       itemTotal = roundedFinal * item.quantity;
       subtotal += roundedBase * item.quantity;
@@ -1426,8 +1436,8 @@ function updateCheckoutTotals() {
       // Product has GST enabled
       const itemFinalPrice = item.price;
       const roundedFinal = Math.round(itemFinalPrice);
-      const roundedGST = roundedFinal * itemGSTRate / 100;
-      const roundedBase = roundedFinal - roundedGST;
+      const roundedBase = Math.round(roundedFinal / (1 + itemGSTRate / 100));
+      const roundedGST = roundedFinal - roundedBase;
       subtotal += roundedBase * item.quantity;
       totalGST += roundedGST * item.quantity;
     } else {

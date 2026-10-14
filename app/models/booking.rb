@@ -419,7 +419,7 @@ class Booking < ApplicationRecord
   def franchise_regular_total
     return nil unless franchise_wholesale_pricing?
 
-    self.class.franchise_regular_total_for_items(booking_items.includes(:product))
+    self.class.franchise_regular_total_for_items(booking_items.includes(:product, :product_variant))
   end
 
   # Batched version of the above for a list of already-loaded booking_items
@@ -438,9 +438,11 @@ class Booking < ApplicationRecord
     product = item.product
     return item.price.to_f unless product
 
-    # Multi-quantity/variant products don't have a distinct B2B price (see
-    # Product#effective_b2b_price) — they were charged their regular price
-    # even under Franchise Booking, so there's no saving to show.
+    # Variant items: the regular price is the variant's own selling price
+    # (after its discount); its B2B price is ProductVariant#effective_b2b_price.
+    if (variant = item.product_variant)
+      return variant.effective_price.to_f.round
+    end
     return item.price.to_f if product.has_multiple_quantities?
 
     selling_price = if product.discount_price.present? && product.discount_price != product.price

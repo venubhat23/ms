@@ -174,7 +174,7 @@ class Admin::BookingsController < Admin::ApplicationController
     # fire their own booking_items/product queries against the remote DB.
     franchise_booking_ids = @bookings.select(&:franchise_wholesale_pricing?).map(&:id)
     @franchise_regular_totals = if franchise_booking_ids.any?
-      BookingItem.where(booking_id: franchise_booking_ids).includes(:product)
+      BookingItem.where(booking_id: franchise_booking_ids).includes(:product, :product_variant)
                  .group_by(&:booking_id)
                  .transform_values { |items| Booking.franchise_regular_total_for_items(items) }
     else
@@ -191,31 +191,7 @@ class Admin::BookingsController < Admin::ApplicationController
     @booking = Booking.new
     @booking.booking_items.build
 
-    # Stock shown here is every active batch for the product, regardless of
-    # which store it sits in — the same number Product#total_batch_stock and
-    # /admin/product-summary report, so the booking screen no longer disagrees
-    # with the rest of the admin panel when a product's only stock happens to
-    # be assigned to a store rather than the central (store_id IS NULL) pool.
-    @products = Product.active
-                       .includes(:category, :product_variants, image_attachment: :blob)
-                       .joins("LEFT JOIN stock_batches ON stock_batches.product_id = products.id AND stock_batches.status = 'active' AND stock_batches.quantity_remaining > 0")
-                       .select(
-                         "products.*,
-                          COALESCE(SUM(stock_batches.quantity_remaining), 0) as cached_stock"
-                       )
-                       .group("products.id")
-                       .order(Arel.sql("CASE WHEN COALESCE(SUM(stock_batches.quantity_remaining), 0) > 0 THEN 0 ELSE 1 END ASC, products.name ASC"))
-
-    @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
-                        .order(:first_name, :last_name)
-    @categories = Category.where(status: true).order(:display_order, :name)
-    @stores = Store.active.order(:name)
-
-    @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-    # status and commission_percentage are included even though the view doesn't need them:
-    # Franchise#set_defaults (after_initialize) reads both on every instantiation, and a
-    # narrower select raises ActiveModel::MissingAttributeError.
-    @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
+    load_new_form_data
   end
 
   def create
@@ -265,12 +241,7 @@ class Admin::BookingsController < Admin::ApplicationController
         if customer.save
           @new_customer_created = true
         else
-          @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
-          @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-          @categories = Category.where(status: true).order(:display_order, :name)
-          @stores = Store.active.order(:name)
-          @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-          @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
+          load_new_form_data
           flash.now[:alert] = "Could not create customer: #{customer.errors.full_messages.to_sentence}"
           render :new, status: :unprocessable_entity
           return
@@ -292,12 +263,7 @@ class Admin::BookingsController < Admin::ApplicationController
 
     if discount_result.error?
       @booking.errors.add(discount_result.error_field, discount_result.error_message)
-      @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
-      @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-      @categories = Category.where(status: true).order(:display_order, :name)
-      @stores = Store.active.order(:name)
-      @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
+      load_new_form_data
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
       return
@@ -320,12 +286,7 @@ class Admin::BookingsController < Admin::ApplicationController
 
     # Validate stock availability before saving
     unless validate_stock_availability(@booking)
-      @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
-      @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-      @categories = Category.where(status: true).order(:display_order, :name)
-      @stores = Store.active.order(:name)
-      @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
+      load_new_form_data
       render :new, status: :unprocessable_entity
       return
     end
@@ -387,12 +348,7 @@ class Admin::BookingsController < Admin::ApplicationController
       Rails.logger.error "Booking creation failed: #{@booking.errors.full_messages.join(', ')}"
       Rails.logger.error "Booking items errors: #{@booking.booking_items.map(&:errors).map(&:full_messages).flatten.join(', ')}"
 
-      @products = Product.active.includes(:category, :product_variants, image_attachment: :blob)
-      @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile).order(:first_name, :last_name)
-      @categories = Category.where(status: true).order(:display_order, :name)
-      @stores = Store.active.order(:name)
-      @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
-      @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
+      load_new_form_data
       flash.now[:alert] = @booking.errors.full_messages.join(', ')
       render :new, status: :unprocessable_entity
     end
@@ -403,7 +359,7 @@ class Admin::BookingsController < Admin::ApplicationController
     # One JOIN query for items + product + category + images instead of one
     # round trip per association level.
     @booking_items = @booking.booking_items
-                             .eager_load(product: [:category, { image_attachment: :blob }, { additional_images_attachments: :blob }])
+                             .eager_load(:product_variant, product: [:category, { image_attachment: :blob }, { additional_images_attachments: :blob }])
                              .order('booking_items.id').load
   end
 
@@ -1053,6 +1009,41 @@ class Admin::BookingsController < Admin::ApplicationController
 
   def set_booking
     @booking = Booking.find(params[:id])
+  end
+
+  # Everything the new-booking screen renders besides @booking — shared by
+  # #new and every #create failure path that re-renders :new.
+  def load_new_form_data
+    # Fired first so they run on the async pool while the product query below
+    # is in flight — each is a separate round trip to the remote DB.
+    @customers = Customer.select(:id, :first_name, :middle_name, :last_name, :email, :mobile)
+                        .order(:first_name, :last_name).load_async
+    @categories = Category.where(status: true).order(:display_order, :name).load_async
+    @stores = Store.active.order(:name).load_async
+
+    # Stock shown here is every active batch for the product, regardless of
+    # which store it sits in — the same number Product#total_batch_stock and
+    # /admin/product-summary report, so the booking screen no longer disagrees
+    # with the rest of the admin panel when a product's only stock happens to
+    # be assigned to a store rather than the central (store_id IS NULL) pool.
+    #
+    # Stock is a correlated subquery (served by the partial index
+    # index_stock_batches_active_on_product_and_store) rather than a
+    # JOIN + GROUP BY, so category, variants and image can be eager_loaded
+    # into this same single query instead of one preload round trip each.
+    stock_sql = "COALESCE((SELECT SUM(sb.quantity_remaining) FROM stock_batches sb " \
+                "WHERE sb.product_id = products.id AND sb.status = 'active' AND sb.quantity_remaining > 0), 0)"
+    @products = Product.active
+                       .eager_load(:category, :product_variants, image_attachment: :blob)
+                       .select("products.*, #{stock_sql} AS cached_stock")
+                       .order(Arel.sql("CASE WHEN #{stock_sql} > 0 THEN 0 ELSE 1 END ASC, products.name ASC, products.id ASC"))
+                       .to_a
+
+    @franchise_commission_enabled = SystemSetting.franchise_commission_enabled?
+    # status and commission_percentage are included even though the view doesn't need them:
+    # Franchise#set_defaults (after_initialize) reads both on every instantiation, and a
+    # narrower select raises ActiveModel::MissingAttributeError.
+    @franchises = @franchise_commission_enabled ? Franchise.active_for_booking_dropdown : Franchise.none
   end
 
   # Build transition data from form parameters

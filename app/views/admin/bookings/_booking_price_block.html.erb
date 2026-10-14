@@ -1,0 +1,33 @@
+<%# Price / GST / B2B lines for one product card on the admin booking screen.
+    Used for plain products and for each variant of a multi-quantity product,
+    so both kinds of card show the same breakdown. Prices are GST-inclusive.
+    locals: final_price, original_price (nil unless discounted), gst_rate, b2b_price %>
+<%
+  rounded_final = final_price.round
+  gst_val = rounded_final * gst_rate / 100.0
+  rounded_gst = gst_val % 1 == 0 ? gst_val.to_i : gst_val.round(2)
+  base_val = rounded_final - gst_val
+  rounded_base = base_val % 1 == 0 ? base_val.to_i : base_val.round(2)
+  b2b_rounded = b2b_price.round
+  discounted = original_price.present? && original_price > final_price
+%>
+<% if discounted %>
+  <div class="d-flex align-items-center gap-2">
+    <span class="h6 text-success mb-0">₹<%= number_with_delimiter(final_price.round(2)) %></span>
+    <small class="text-muted text-decoration-line-through">₹<%= number_with_delimiter(original_price) %></small>
+  </div>
+<% else %>
+  <span class="h6 text-primary mb-0">₹<%= number_with_delimiter(final_price.round(2)) %></span>
+<% end %>
+
+<% if gst_rate > 0 %>
+  <small class="text-muted d-block">
+    Base: ₹<%= number_with_delimiter(rounded_base) %> + GST: ₹<%= number_with_delimiter(rounded_gst) %> (<%= gst_rate %>%) = ₹<%= number_with_delimiter(rounded_final) %>
+  </small>
+<% end %>
+
+<% if b2b_rounded != rounded_final %>
+  <span class="badge b2b-price-badge mt-1" data-b2b-hint>
+    <i class="bi bi-shop-window me-1"></i>B2B: ₹<%= number_with_delimiter(b2b_rounded) %>
+  </span>
+<% end %>

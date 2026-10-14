@@ -737,12 +737,13 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
         is_registered_by_mobile: true,
         status: true
       )
-      customer.password = SecureRandom.hex(16)
+      customer.password = Customer::DEFAULT_PASSWORD
       customer.save!(validate: false)
       return [user, customer, false]
     end
 
-    random_password = SecureRandom.hex(16)
+    # OTP sign-ups have no password of their own — use the customer default
+    random_password = Customer::DEFAULT_PASSWORD
     new_user = nil
     new_customer = nil
 

@@ -19,6 +19,37 @@ class BookingItem < ApplicationRecord
     self.total = quantity * price
   end
 
+  # Effective GST % for this line — the single rule used by Booking totals
+  # and the invoices. A variant's own GST % wins (falling back to the
+  # product's) even when the product itself has GST switched off, since
+  # multi-quantity products keep GST only on their variants; this matches
+  # what the admin booking screen charges (ProductVariant#effective_gst_percentage).
+  # variant/prod can be passed in from a batched lookup to avoid a query per item.
+  def gst_rate(variant: product_variant, prod: product)
+    if variant
+      variant.effective_gst_percentage.to_f
+    elsif prod&.gst_enabled
+      prod.gst_percentage.to_f
+    else
+      0.0
+    end
+  end
+
+  # Variant products keep their on-hand count on product_variants.available_stock
+  # (what the booking screen, storefront and product summary show), separately
+  # from the product-level stock_batches every stock path deducts. Those paths
+  # call this to move the variant by the same amount — it used to be skipped
+  # (only the mobile checkout did it by hand), so selling a variant never
+  # lowered its stock. Allowed to go negative, like the batches on oversell.
+  def adjust_variant_stock!(delta)
+    delta = delta.to_f.round
+    return if product_variant_id.blank? || delta.zero?
+
+    ProductVariant.where(id: product_variant_id)
+                  .update_all(["available_stock = available_stock + ?", delta])
+    MobileApiCache.bust_products!
+  end
+
   private
 
   def check_stock_availability
@@ -127,6 +158,8 @@ class BookingItem < ApplicationRecord
       notes: "Stock consumed for booking#{store_note}: #{product.name} (Qty: #{quantity})"
     ).save!(validate: false)
 
+    adjust_variant_stock!(-quantity.to_f)
+
     Rails.logger.info "Reduced stock for Product ##{product.id} by #{quantity}. New store stock: #{new_stock}"
   end
 
@@ -218,6 +251,8 @@ class BookingItem < ApplicationRecord
         notes: "Booking item quantity changed from #{old_quantity} to #{new_quantity}"
       ).save!(validate: false)
     end
+
+    adjust_variant_stock!(-quantity_difference.to_f)
   end
 
   def restore_product_stock
@@ -266,6 +301,8 @@ class BookingItem < ApplicationRecord
       stock_after: new_stock,
       notes: "Stock restored from cancelled booking item: #{product.name} (Qty: #{quantity})"
     ).save!(validate: false)
+
+    adjust_variant_stock!(quantity.to_f)
 
     Rails.logger.info "Restored stock for Product ##{product.id} by #{quantity}. New stock: #{new_stock}"
   end

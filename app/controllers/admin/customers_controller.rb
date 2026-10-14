@@ -359,8 +359,8 @@ class Admin::CustomersController < Admin::ApplicationController
                 return
               end
             else
-              # Auto-generate password if no password provided but user account creation requested
-              generated_password = generate_secure_password
+              # No password provided -> the shared customer default
+              generated_password = Customer::DEFAULT_PASSWORD
               User.create!(
                 first_name: @customer.first_name,
                 last_name: @customer.last_name,
@@ -382,7 +382,7 @@ class Admin::CustomersController < Admin::ApplicationController
               # Store generated password in flash for display (in production, send via email/SMS)
               flash[:generated_password] = generated_password
               redirect_to admin_customer_path(@customer),
-                         notice: "Customer created successfully. Auto-generated password: #{generated_password}"
+                         notice: "Customer created successfully. Default password: #{generated_password}"
             end
           else
             redirect_to admin_customer_path(@customer), notice: 'Customer was successfully created.'
@@ -640,7 +640,9 @@ class Admin::CustomersController < Admin::ApplicationController
   # custom password via params[:password_mode] == 'custom'.
   def generate_password
     begin
-      if params[:password_mode] == 'custom'
+      if params[:password_mode] == 'default'
+        new_password = Customer::DEFAULT_PASSWORD
+      elsif params[:password_mode] == 'custom'
         new_password = params[:custom_password].to_s
         confirmation = params[:custom_password_confirmation].to_s
 
@@ -836,23 +838,6 @@ class Admin::CustomersController < Admin::ApplicationController
       new_this_month: new_this_month.value,
       customers_with_orders: customers_with_orders.value
     }
-  end
-
-  # Generate a secure password for auto-creation
-  def generate_secure_password
-    # Generate password in format: first 4 letters of name + @ + current year
-    # Example: PRAMOD becomes PRAM@2024
-
-    # Get first name - use first_name from customer
-    first_name = @customer.first_name.to_s.strip.upcase
-
-    # Get first 4 characters of name, pad with 'X' if less than 4 characters
-    name_part = first_name[0..3].ljust(4, 'X')
-
-    # Use current year since birth_date column doesn't exist
-    year_part = Date.current.year.to_s
-
-    "#{name_part}@#{year_part}"
   end
 
   def set_customer

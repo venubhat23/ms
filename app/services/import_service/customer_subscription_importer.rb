@@ -94,7 +94,7 @@ module ImportService
         if customer.email.present?
           existing_user = User.find_by(email: customer.email, user_type: 'customer')
           unless existing_user
-            generated_password = generate_secure_password(customer)
+            generated_password = Customer::DEFAULT_PASSWORD
 
             # Store password in customer record
             customer.update!(auto_generated_password: generated_password)
@@ -303,11 +303,5 @@ module ImportService
       row["#{field_name}*"] || row[field_name]
     end
 
-    # Generate a secure password for auto-creation
-    def generate_secure_password(customer)
-      # Generate password in format: Welcome@123
-      # This is the default generic password requested
-      "Welcome@123"
-    end
   end
 end

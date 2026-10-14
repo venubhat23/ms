@@ -104,8 +104,8 @@ module ImportService
     end
 
     def normalize_customer_data(row)
-      # Generate password
-      password = generate_password(row['first_name'])
+      # Sheet's own password column if filled, else the shared customer default
+      password = row['password'].to_s.strip.presence || Customer::DEFAULT_PASSWORD
 
       {
         # Required fields
@@ -266,10 +266,5 @@ module ImportService
       end
     end
 
-    def generate_password(first_name)
-      name_part = first_name.to_s[0..3].upcase.ljust(4, 'X')
-      year_part = Date.current.year.to_s
-      "#{name_part}@#{year_part}"
-    end
   end
 end

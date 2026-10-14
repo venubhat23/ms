@@ -645,6 +645,26 @@
                   <small class="text-muted fw-normal ms-1">(Discount to smaller business)</small>
                 <% end %>
               </div>
+
+              <%# How the B2B discount is decided — "system" reprices every cart
+                  item at its product/variant B2B price (same as Franchise
+                  Booking); "manual" keeps the regular prices and lets staff
+                  enter a Fixed/Percentage discount in the Order Summary. %>
+              <div id="b2bDiscountModeGroup" class="mt-2 ms-4" style="display: none;">
+                <small class="text-muted d-block mb-1">How should the B2B discount be applied?</small>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="b2b_discount_mode" id="b2bModeSystem" value="system" checked onchange="toggleB2BDiscount(true)">
+                  <label class="form-check-label small" for="b2bModeSystem">
+                    <i class="bi bi-cpu me-1"></i>From system — use each product's B2B price
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="b2b_discount_mode" id="b2bModeManual" value="manual" onchange="toggleB2BDiscount(true)">
+                  <label class="form-check-label small" for="b2bModeManual">
+                    <i class="bi bi-pencil me-1"></i>Enter manually — Fixed (₹) or Percentage (%)
+                  </label>
+                </div>
+              </div>
             </div>
 
             <%# Hidden Fields for Cart Items %>
@@ -906,7 +926,7 @@ function addToCart(productId, productName, finalPrice, stock, basePrice, gstRate
 
   const cartKey = variantId ? `${productId}_v${variantId}` : String(productId);
   const effectiveB2bPrice = (b2bPrice !== undefined && b2bPrice !== null) ? b2bPrice : finalPrice;
-  const isFranchiseActive = document.getElementById('franchiseBookingToggle')?.checked;
+  const isB2BPricing = b2bPricingActive();
 
   if (cart[cartKey]) {
     if (stock > 0 && cart[cartKey].quantity + quantity > stock) {
@@ -919,9 +939,9 @@ function addToCart(productId, productName, finalPrice, stock, basePrice, gstRate
       productId: productId,
       variantId: variantId || null,
       name: productName,
-      // Already sitting in Franchise Booking mode when this item is first
-      // added — start it at B2B price, not the regular one.
-      price: isFranchiseActive ? effectiveB2bPrice : finalPrice,
+      // Already sitting in Franchise Booking / system-B2B mode when this
+      // item is first added — start it at B2B price, not the regular one.
+      price: isB2BPricing ? effectiveB2bPrice : finalPrice,
       regularPrice: finalPrice,
       b2bPrice: effectiveB2bPrice,
       basePrice: basePrice || finalPrice,
@@ -1059,14 +1079,14 @@ function updateCartDisplay() {
 
   let itemsHtml = '';
   let subtotal = 0;
-  const isFranchiseActive = document.getElementById('franchiseBookingToggle')?.checked;
+  const isB2BPricing = b2bPricingActive();
 
   // Sort items by name for consistent display
   const sortedItems = Object.entries(cart).sort((a, b) => a[1].name.localeCompare(b[1].name));
 
   for (const [productId, item] of sortedItems) {
     const itemGSTRate = item.gstRate || 0;
-    const isB2BPriced = isFranchiseActive && item.regularPrice != null && item.price < item.regularPrice;
+    const isB2BPriced = isB2BPricing && item.regularPrice != null && item.price < item.regularPrice;
     // item.price is always GST-inclusive — derive the base price from it directly
     // (smart-rounded, matching the checkout summary) rather than trusting a
     // separately-stored basePrice, which can drift out of sync.
@@ -1337,12 +1357,12 @@ function updateCheckoutDisplay() {
   let fieldsHtml = '';
   let subtotal = 0;
   let fieldIndex = 0;
-  const isFranchiseActive = document.getElementById('franchiseBookingToggle')?.checked;
+  const isB2BPricing = b2bPricingActive();
 
   for (const [productId, item] of Object.entries(cart)) {
     const itemBasePrice = item.basePrice || item.price;
     const itemGSTRate = item.gstRate || 0;
-    const isB2BPriced = isFranchiseActive && item.regularPrice != null && item.price < item.regularPrice;
+    const isB2BPriced = isB2BPricing && item.regularPrice != null && item.price < item.regularPrice;
     let itemTotal;
     let itemGSTAmount = 0;
 
@@ -1451,7 +1471,7 @@ function updateCheckoutTotals() {
   let discount = 0;
   let submittedDiscount = 0;
 
-  if (isFranchise) {
+  if (isFranchise || (isB2B && b2bDiscountMode() === 'system')) {
     // B2B pricing is already baked into each cart item's price (see
     // addToCart / toggleFranchiseBooking), so subtotal/total above are
     // already the wholesale amounts — no extra discount is subtracted here,
@@ -1740,24 +1760,58 @@ function updateB2BDiscount() {
   updateCheckoutTotals();
 }
 
-// Toggle B2B discount UI and normal discount visibility
+// 'system' (reprice items at their B2B price) or 'manual' (staff-entered
+// Fixed/Percentage discount) — only meaningful while B2B Booking is on.
+function b2bDiscountMode() {
+  return document.querySelector('input[name="b2b_discount_mode"]:checked')?.value || 'system';
+}
+
+// True when cart items should be priced at their B2B price: Franchise
+// Booking, or B2B Booking with the discount coming from the system.
+function b2bPricingActive() {
+  if (document.getElementById('franchiseBookingToggle')?.checked) return true;
+  return !!document.getElementById('b2bBookingToggle')?.checked && b2bDiscountMode() === 'system';
+}
+
+// Reprice every item already in the cart to/from its B2B price. Items added
+// later already pick the right price at add-time (see addToCart).
+function repriceCartForB2B() {
+  const useB2B = b2bPricingActive();
+  for (const key in cart) {
+    const item = cart[key];
+    item.price = useB2B ? (item.b2bPrice ?? item.price) : (item.regularPrice ?? item.price);
+  }
+}
+
+function resetB2BManualDiscount() {
+  document.getElementById('b2bDiscountValue').value = 0;
+  document.getElementById('b2bDiscountCalc').textContent = '';
+  document.getElementById('discountTypeFixed').checked = true;
+  document.getElementById('b2bDiscountPrefix').textContent = '₹';
+}
+
+// Toggle B2B discount UI and normal discount visibility. Also re-run when
+// the "from system / enter manually" choice changes.
 function toggleB2BDiscount(enabled) {
   const isFranchise = document.getElementById('franchiseBookingToggle')?.checked;
+  const modeGroup = document.getElementById('b2bDiscountModeGroup');
+  if (modeGroup) modeGroup.style.display = enabled ? '' : 'none';
+
+  if (!enabled) document.getElementById('b2bModeSystem').checked = true;
+  const systemMode = enabled && b2bDiscountMode() === 'system';
 
   if (!isFranchise) {
     document.getElementById('normalDiscountRow').classList.toggle('d-none', enabled);
-    document.getElementById('b2bDiscountSection').style.display = enabled ? '' : 'none';
+    document.getElementById('b2bDiscountSection').style.display = (enabled && !systemMode) ? '' : 'none';
+    document.getElementById('franchiseDiscountRow').style.display = systemMode ? 'block' : 'none';
   }
 
-  if (!enabled) {
-    // Reset B2B fields when turning off
-    document.getElementById('b2bDiscountValue').value = 0;
-    document.getElementById('b2bDiscountCalc').textContent = '';
-    document.getElementById('discountTypeFixed').checked = true;
-    document.getElementById('b2bDiscountPrefix').textContent = '₹';
-  }
+  // Manual discount must never stack on top of system B2B pricing.
+  if (!enabled || systemMode) resetB2BManualDiscount();
 
-  updateCheckoutTotals();
+  repriceCartForB2B();
+  updateCartDisplay();
+  updateCheckoutDisplay();
 }
 
 // Returns the calculated normal (non-B2B) discount in rupees given the gross total
@@ -1893,12 +1947,7 @@ function toggleFranchiseBooking(checkbox) {
     if (b2bDiscountSection) b2bDiscountSection.style.display = isB2B ? '' : 'none';
   }
 
-  // Reprice every item already in the cart to/from its B2B price. Items
-  // added later already pick the right price at add-time (see addToCart).
-  for (const key in cart) {
-    const item = cart[key];
-    item.price = checkbox.checked ? (item.b2bPrice ?? item.price) : (item.regularPrice ?? item.price);
-  }
+  repriceCartForB2B();
 
   updateCompleteBookingButtons();
   updateCartDisplay();
@@ -2753,6 +2802,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sync initial disabled state in case a validation-error reload restored
     // a checked value for either toggle.
     const franchiseToggleInit = document.getElementById('franchiseBookingToggle');
+    if (b2bToggle.checked) toggleB2BDiscount(true);
     if (b2bToggle.checked && franchiseToggleInit) {
       franchiseToggleInit.disabled = true;
       franchiseToggleInit.title = 'Turn off B2B Booking to enable Franchise Booking';
@@ -2790,18 +2840,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
       }
 
-      // Update hidden discount field before submission
-      const hiddenDiscountField = document.getElementById('hiddenDiscountAmount');
-      if (hiddenDiscountField) {
-        const b2bOn = document.getElementById('b2bBookingToggle')?.checked;
-        const grossTotal = parseFloat(document.getElementById('checkoutSubtotal').textContent || 0)
-                         + parseFloat(document.getElementById('checkoutTax').textContent || 0);
-        if (b2bOn) {
-          hiddenDiscountField.value = calculateB2BDiscountAmount(grossTotal).toFixed(2);
-        } else {
-          hiddenDiscountField.value = calculateNormalDiscountAmount(grossTotal).toFixed(2);
-        }
-      }
+      // Refresh hidden discount field before submission — updateCheckoutTotals
+      // already knows every case (franchise / system-B2B → 0, manual B2B,
+      // normal, coupon-locked → 0).
+      updateCheckoutTotals();
 
       // Check if status is selected
       const statusSelect = document.getElementById('booking_status');

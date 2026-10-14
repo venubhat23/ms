@@ -129,6 +129,10 @@ class Api::V1::Mobile::SettingsController < Api::V1::Mobile::BaseController
             # For SubAgent with has_secure_password
             user.password_digest = BCrypt::Password.create(new_password)
             user.update_columns(password_digest: user.password_digest)
+            # update_columns skips Customer#sync_password_is_default
+            if user.is_a?(Customer) && user.has_attribute?(:password_is_default)
+              user.update_columns(password_is_default: new_password == Customer::DEFAULT_PASSWORD)
+            end
 
             # Update plain_password if the field exists
             if user.respond_to?(:plain_password) && user.class.column_names.include?('plain_password')

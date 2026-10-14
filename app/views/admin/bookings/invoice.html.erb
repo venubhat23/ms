@@ -1,5 +1,5 @@
 <%
-  has_gst = @booking.booking_items&.any? { |item| item.product&.gst_enabled }
+  has_gst = @booking.booking_items&.any? { |item| item.gst_rate > 0 }
 
   gst_summary     = gst_booking_summary(@booking_items || @booking.booking_items)
   taxable_amount  = gst_summary[:base]

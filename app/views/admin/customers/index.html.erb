@@ -182,6 +182,17 @@
                         <%= customer.mobile %>
                       </div>
                     <% end %>
+                    <div class="small">
+                      <i class="bi bi-key text-muted me-1"></i>
+                      <% case customer.password_status %>
+                      <% when :default %>
+                        <span class="font-monospace"><%= Customer::DEFAULT_PASSWORD %></span> <span class="text-muted">(default)</span>
+                      <% when :custom %>
+                        <span class="text-muted">Custom password set</span>
+                      <% else %>
+                        <span class="text-warning">No password</span>
+                      <% end %>
+                    </div>
                   </div>
                 </td>
                 <td class="align-middle">

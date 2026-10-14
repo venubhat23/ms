@@ -251,7 +251,7 @@
           hsn_base = items.sum { |i| gst_item_totals(i)[:base] }
           hsn_cgst = items.sum { |i| gst_item_totals(i)[:cgst] }
           hsn_sgst = items.sum { |i| gst_item_totals(i)[:sgst] }
-          half_rate = items.first&.product&.gst_percentage.to_f / 2
+          half_rate = items.first ? gst_item_totals(items.first)[:cgst_rate] : 0.0
           rate_display = half_rate.to_i == half_rate ? "#{half_rate.to_i}%" : "#{half_rate}%"
         %>
         <tr>

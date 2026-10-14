@@ -74,7 +74,7 @@
       </div>
       <div style="font-size:0.75rem;color:#888;margin-top:4px;">
         <i class="bi bi-key me-1 text-warning"></i>
-        App password: <strong id="pwdPreview">XXXX@123</strong>
+        App password: <strong id="pwdPreview"><%= Customer::DEFAULT_PASSWORD %></strong>
       </div>
     </div>
 
@@ -118,7 +118,6 @@
 
   mobMobileInput.addEventListener('input', function() {
     const d = this.value.replace(/\D/g,'');
-    document.getElementById('pwdPreview').textContent = d.length >= 4 ? d.substring(0,4)+'@123' : 'XXXX@123';
 
     hideExistingCustomerMatch();
     clearTimeout(mobileCheckTimeout);

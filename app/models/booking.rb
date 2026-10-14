@@ -314,6 +314,7 @@ class Booking < ApplicationRecord
     # `item.product` avoids a query per item.
     items = booking_items.to_a
     products_by_id = Product.where(id: items.map(&:product_id).compact.uniq).index_by(&:id)
+    variants_by_id = ProductVariant.where(id: items.map(&:product_variant_id).compact.uniq).index_by(&:id)
 
     items_total = 0
     total_gst = 0
@@ -323,10 +324,12 @@ class Booking < ApplicationRecord
         quantity = item.quantity
         price = item.price
         product = products_by_id[item.product_id]
+        variant = variants_by_id[item.product_variant_id]
+        variant.product = product if variant && product
+        gst_rate = item.gst_rate(variant: variant, prod: product)
 
         # Price is GST-inclusive: extract base via per-unit rounding
-        if product && product.gst_enabled && product.gst_percentage.to_f > 0
-          gst_rate      = product.gst_percentage.to_f
+        if gst_rate > 0
           rounded_final = price.round
           rounded_base  = (rounded_final / (1 + gst_rate / 100.0)).round
           items_total  += rounded_base * quantity
@@ -371,11 +374,13 @@ class Booking < ApplicationRecord
     items = booking_items.to_a
     products_by_id = Product.where(id: items.map(&:product_id).compact.uniq).index_by(&:id)
 
+    variants_by_id = ProductVariant.where(id: items.map(&:product_variant_id).compact.uniq).index_by(&:id)
+
     total_gst = 0
     items.each do |item|
       product = products_by_id[item.product_id]
-      if product && product.gst_enabled && product.gst_percentage.to_f > 0
-        gst_rate = product.gst_percentage.to_f
+      gst_rate = item.gst_rate(variant: variants_by_id[item.product_variant_id], prod: product)
+      if gst_rate > 0
         item_base = (item.price || 0) * (item.quantity || 0)
         item_gst = (item_base * gst_rate / 100).round(2)
         total_gst += item_gst
@@ -1109,6 +1114,7 @@ class Booking < ApplicationRecord
       # reflects the deficit (goes negative on an oversell), atomically in case
       # the same product appears on more than one line.
       Product.where(id: item.product_id).update_all(["stock = COALESCE(stock, 0) - ?", item.quantity.to_f])
+      item.adjust_variant_stock!(-item.quantity.to_f)
     end
 
     Rails.logger.info "Inventory allocated for booking ##{booking_number}#{' (oversell permitted)' if oversell_allowed}"
@@ -1138,6 +1144,13 @@ class Booking < ApplicationRecord
   end
 
   def release_allocated_inventory
+    # SaleItems only exist when perform_central_stock_allocation! actually ran,
+    # which is also when it lowered each variant's available_stock — give
+    # that back too (SaleItem itself doesn't know the variant).
+    if SaleItem.where(booking: self).exists?
+      booking_items.each { |item| item.adjust_variant_stock!(item.quantity.to_f) }
+    end
+
     # Find all sale items for this booking and restore the stock
     SaleItem.where(booking: self).find_each do |sale_item|
       stock_batch = sale_item.stock_batch

@@ -412,19 +412,9 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
           @booking.update_column(:wallet_transaction_id, wallet_deduction_txn.id)
         end
 
-        # Variant stock isn't touched by BookingItem's own stock-reduction
-        # callback (that only tracks central stock_batches/product.stock), so
-        # it still needs to be decremented here — allowed to go negative like
-        # central stock. The non-variant branch used to also decrement
-        # product.stock directly, double-counting on top of the callback;
-        # that's now left to the callback alone.
-        @booking.booking_items.each do |item|
-          product = products_by_id[item.product_id]
-          next unless product.has_multiple_quantities? && item.product_variant_id.present?
-
-          variant = ProductVariant.find_by(id: item.product_variant_id)
-          variant&.update!(available_stock: variant.available_stock - item.quantity)
-        end
+        # Variant stock is now decremented by BookingItem's own stock
+        # callbacks (BookingItem#adjust_variant_stock!), same as every other
+        # channel — no manual decrement here, or it would count twice.
 
         booking_response_data = format_booking_data(@booking).merge({
           location_saved: {

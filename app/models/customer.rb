@@ -56,9 +56,24 @@ has_many :pending_amounts, dependent: :destroy
 
   # Store password in password_digest if column exists, otherwise in auto_generated_password
   before_save :handle_password_storage, if: :password_required?
+  # Runs after handle_password_storage so it sees the final digest.
+  before_save :sync_password_is_default, if: -> { has_attribute?(:password_is_default) && will_save_change_to_password_digest? }
 
   def password_required?
     password.present?
+  end
+
+  # :default (still ms@123), :custom (customer/admin set their own) or :none
+  # (no login password at all) — for the admin customers list. Real passwords
+  # are bcrypt-hashed, so this is all that can be shown.
+  def password_status
+    if password_digest.present?
+      password_is_default? ? :default : :custom
+    elsif auto_generated_password.present?
+      auto_generated_password == DEFAULT_PASSWORD ? :default : :custom
+    else
+      :none
+    end
   end
 
   def gstin
@@ -246,6 +261,20 @@ has_many :pending_amounts, dependent: :destroy
   def bust_cache
     Rails.cache.delete("customer_#{id}_full_name")
     Rails.cache.delete("customer_#{id}_display_name")
+  end
+
+  # Plain `password` is only around when it was just assigned; a digest
+  # written directly (e.g. the customer importer) is checked against the
+  # default with one bcrypt compare.
+  def sync_password_is_default
+    self.password_is_default =
+      if password.present?
+        password == DEFAULT_PASSWORD
+      elsif password_digest.present?
+        (BCrypt::Password.new(password_digest).is_password?(DEFAULT_PASSWORD) rescue false)
+      else
+        false
+      end
   end
 
   def set_default_password

@@ -303,8 +303,7 @@ class Admin::MobileUiController < ActionController::Base
     @customer.mobile     = params[:customer][:mobile].to_s.strip
     @customer.email      = params[:customer][:email].to_s.strip.presence
 
-    mobile_digits      = @customer.mobile.gsub(/\D/, '')
-    generated_password = "#{mobile_digits[0..3]}@123"
+    generated_password = Customer::DEFAULT_PASSWORD
     @customer.password              = generated_password
     @customer.password_confirmation = generated_password
 

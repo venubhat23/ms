@@ -201,7 +201,7 @@
         <% base = items.sum { |item| gst_item_totals(item)[:base] }
            cgst = items.sum { |item| gst_item_totals(item)[:cgst] }
            sgst = items.sum { |item| gst_item_totals(item)[:sgst] }
-           rate = items.first&.product&.gst_percentage.to_f / 2 %>
+           rate = items.first ? gst_item_totals(items.first)[:cgst_rate] : 0.0 %>
         <tr>
           <td colspan="2" style="border:1px solid #000;padding:4px 6px;"><%= hsn || '-' %></td>
           <td style="border:1px solid #000;padding:4px 6px;"><%= sprintf('%.3f', base) %></td>

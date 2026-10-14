@@ -650,14 +650,24 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
   def generate_qr_code
     require 'rqrcode'
 
-    qr = RQRCode::QRCode.new(@business_setting.upi_id)
+    # Must be a upi://pay link — a bare "xyz@ybl" string isn't a payment QR,
+    # so PhonePe/GPay/Paytm rejected it. Same format the invoice QRs use.
+    payee_name = @business_setting.business_name.presence || 'Marali Santhe'
+    upi_link = "upi://pay?pa=#{@business_setting.upi_id.strip}&pn=#{ERB::Util.url_encode(payee_name)}&cu=INR"
+    qr = RQRCode::QRCode.new(upi_link, level: :m)
 
-    # Generate SVG
+    # White background + 4-module quiet zone: without them the code was
+    # transparent and borderless, which scanners can't read on dark
+    # backgrounds or in dark mode.
+    module_size = 6
     svg = qr.as_svg(
       color: "000",
+      fill: "fff",
+      offset: module_size * 4,
       shape_rendering: "crispEdges",
-      module_size: 6,
-      standalone: true
+      module_size: module_size,
+      standalone: true,
+      use_path: true
     )
 
     # Upload to R2 rather than local disk — Render's filesystem is ephemeral
@@ -674,6 +684,8 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
       return
     end
 
-    @business_setting.update(qr_code_path: result[:public_url])
+    # Same R2 key on every save — version the URL so browsers don't keep
+    # showing the previously cached image.
+    @business_setting.update(qr_code_path: "#{result[:public_url]}?v=#{Time.current.to_i}")
   end
 end

@@ -50,14 +50,20 @@ module GstCalculatorHelper
     qty        = item.quantity.to_f
     unit_price = (item.price || 0).to_f
 
-    unless item.product&.gst_enabled && item.product.gst_percentage.to_f > 0
+    # Variant-aware (see BookingItem#gst_rate) — a variant's own GST % used
+    # to be ignored here, so multi-quantity products printed 0% tax.
+    total_rate = item.respond_to?(:gst_rate) ? item.gst_rate : (item.product&.gst_enabled ? item.product.gst_percentage.to_f : 0.0)
+
+    unless total_rate > 0
       return { base: (unit_price * qty).round(2), tax: 0.0,
                cgst: 0.0, sgst: 0.0, igst: 0.0,
                gst_rate: 0.0, cgst_rate: 0.0, sgst_rate: 0.0 }
     end
 
-    total_rate = item.product.gst_percentage.to_f
-    if item.product.cgst_percentage.present? && item.product.sgst_percentage.present?
+    # The product's custom CGST/SGST split only applies when the line is
+    # actually taxed at the product's own rate (not a variant override).
+    product_rate_applies = item.product&.gst_enabled && item.product.gst_percentage.to_f == total_rate
+    if product_rate_applies && item.product.cgst_percentage.present? && item.product.sgst_percentage.present?
       cgst_rate  = item.product.cgst_percentage.to_f
       sgst_rate  = item.product.sgst_percentage.to_f
       igst_rate  = item.product.igst_percentage.to_f

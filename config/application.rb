@@ -38,6 +38,13 @@ module DemoFarmAdmin
     # in config/environments, which are processed later.
     #
     config.time_zone = "Asia/Kolkata"
+
+    # Every image_tag defaults to lazy loading + async decoding: storefront
+    # pages render ~90 product images and the browser now fetches only the
+    # ones near the viewport. Pass loading: "eager" to opt a hero image out.
+    # (wkhtmltopdf ignores these attributes, so PDF invoices are unaffected.)
+    config.action_view.image_loading = "lazy"
+    config.action_view.image_decoding = "async"
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Don't generate system test files.

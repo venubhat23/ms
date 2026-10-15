@@ -545,7 +545,7 @@
         <div class="chart-legend">
           <% @products_with_prices.each_with_index do |product, index| %>
             <div class="legend-item" data-product-id="<%= product.id %>">
-              <div class="legend-color" style="background-color: hsl(<%= (index * 360 / @products_with_prices.count) %>, 70%, 60%);"></div>
+              <div class="legend-color" style="background-color: hsl(<%= (index * 360 / @products_with_prices.size) %>, 70%, 60%);"></div>
               <span class="legend-label"><%= product.name.truncate(20) %></span>
               <span class="legend-price">₹<%= product.today_price || product.price %></span>
             </div>

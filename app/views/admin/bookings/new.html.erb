@@ -667,6 +667,35 @@
               </div>
             </div>
 
+            <%# Asked the moment B2B Booking Discount is switched on (see
+                the b2bBookingToggle listener); the radios above stay so the
+                choice can be changed afterwards. Cancel turns B2B back off. %>
+            <div class="modal fade" id="b2bModeModal" tabindex="-1" aria-labelledby="b2bModeModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="b2bModeModalLabel"><i class="bi bi-building me-2"></i>B2B Booking Discount</h5>
+                  </div>
+                  <div class="modal-body">
+                    <p class="mb-3">How should the discount be applied?</p>
+                    <div class="d-grid gap-2">
+                      <button type="button" class="btn btn-outline-primary text-start p-3" onclick="chooseB2BMode('system')">
+                        <div class="fw-semibold"><i class="bi bi-cpu me-2"></i>From product setup</div>
+                        <small class="text-muted">Each item is charged at the B2B price set on the product / variant</small>
+                      </button>
+                      <button type="button" class="btn btn-outline-secondary text-start p-3" onclick="chooseB2BMode('manual')">
+                        <div class="fw-semibold"><i class="bi bi-pencil me-2"></i>Enter manually</div>
+                        <small class="text-muted">Keep regular prices and enter a Fixed (₹) or Percentage (%) discount</small>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-link text-muted" onclick="cancelB2BModeChoice()">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <%# Hidden Fields for Cart Items %>
             <div id="checkoutItemsFields"></div>
 
@@ -1790,6 +1819,22 @@ function resetB2BManualDiscount() {
   document.getElementById('b2bDiscountPrefix').textContent = '₹';
 }
 
+// Answer from the B2B mode pop-up shown when B2B Booking Discount is switched on.
+function chooseB2BMode(mode) {
+  document.getElementById(mode === 'manual' ? 'b2bModeManual' : 'b2bModeSystem').checked = true;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('b2bModeModal')).hide();
+  toggleB2BDiscount(true);
+  if (mode === 'manual') document.getElementById('b2bDiscountValue')?.focus();
+}
+
+function cancelB2BModeChoice() {
+  bootstrap.Modal.getOrCreateInstance(document.getElementById('b2bModeModal')).hide();
+  const b2bToggle = document.getElementById('b2bBookingToggle');
+  b2bToggle.checked = false;
+  // Re-runs the toggle's change listener so Franchise Booking is re-enabled too.
+  b2bToggle.dispatchEvent(new Event('change'));
+}
+
 // Toggle B2B discount UI and normal discount visibility. Also re-run when
 // the "from system / enter manually" choice changes.
 function toggleB2BDiscount(enabled) {
@@ -2796,7 +2841,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }
 
-      toggleB2BDiscount(this.checked);
+      if (this.checked) {
+        // Ask "from product setup or enter manually?" — chooseB2BMode()
+        // applies the answer, cancelB2BModeChoice() switches B2B back off.
+        const modeModal = document.getElementById('b2bModeModal');
+        // Lift out of the card/form stacking context so the backdrop can't cover it
+        if (modeModal.parentElement !== document.body) document.body.appendChild(modeModal);
+        bootstrap.Modal.getOrCreateInstance(modeModal).show();
+      } else {
+        toggleB2BDiscount(false);
+      }
     });
 
     // Sync initial disabled state in case a validation-error reload restored

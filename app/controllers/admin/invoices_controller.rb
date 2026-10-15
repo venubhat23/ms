@@ -7,22 +7,17 @@ class Admin::InvoicesController < Admin::ApplicationController
     # Show only regular invoices by default (exclude booking invoices)
     invoice_type = params[:type] || 'regular'  # Default to 'regular' only
 
-    # Build invoices collection - only regular invoices
-    @all_invoices = []
-
-    # Get only regular invoices
-    regular_invoices = build_regular_invoices_query.to_a
+    # Newest first, paginated in SQL — previously the newest 200 invoices were
+    # loaded and mapped in Ruby just to show one page of 50. The window stays
+    # within those newest 200 (apply_search_filters' cap), as before.
+    offset = [params[:offset]&.to_i || 0, 0].max
+    limit = (params[:limit]&.to_i || 50).clamp(0, [200 - offset, 0].max)
+    regular_invoices = build_regular_invoices_query
+                         .reorder(created_at: :desc, id: :desc)
+                         .offset(offset).limit(limit).to_a
     booking_lookup = booking_numbers_lookup(regular_invoices)
     preload_walk_in_bookings(regular_invoices)
-    @all_invoices.concat(regular_invoices.map { |inv| prepare_invoice_data(inv, 'regular', booking_lookup) })
-
-    # Sort invoices by created_at descending
-    @all_invoices.sort_by! { |inv| inv[:created_at] }.reverse!
-
-    # Apply pagination
-    limit = params[:limit]&.to_i || 50
-    offset = params[:offset]&.to_i || 0
-    @invoices = @all_invoices[offset, limit] || []
+    @invoices = regular_invoices.map { |inv| prepare_invoice_data(inv, 'regular', booking_lookup) }
 
     # Calculate summary statistics for regular invoices only
     @stats = calculate_regular_invoice_stats_only

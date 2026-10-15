@@ -152,8 +152,8 @@
                 <td>
                   <div class="d-flex align-items-center">
                     <div class="me-2">
-                      <% if movement.product.images.attached? && movement.product.images.any? %>
-                        <%= image_tag movement.product.images.first, class: "rounded", style: "width: 35px; height: 35px; object-fit: cover;" %>
+                      <% if (movement_image = movement.product.images.first) %>
+                        <%= image_tag movement_image, class: "rounded", style: "width: 35px; height: 35px; object-fit: cover;" %>
                       <% else %>
                         <div class="bg-light rounded d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
                           <i class="bi bi-box-seam text-muted small"></i>

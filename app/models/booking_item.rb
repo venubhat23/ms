@@ -52,6 +52,19 @@ class BookingItem < ApplicationRecord
 
   private
 
+  # Allocation-at-delivery mode: the booking's stock was deducted when it was
+  # placed, so a later quantity edit moves stock by the difference.
+  def adjust_central_allocation_for_quantity_change
+    return unless booking&.central_stock_allocated?
+
+    difference = quantity.to_f - quantity_previously_was.to_f
+    if difference.positive?
+      booking.allocate_central_quantity!(self, difference)
+    elsif difference.negative?
+      booking.restore_central_quantity!(self, -difference)
+    end
+  end
+
   def check_stock_availability
     return unless quantity.present? && product.present?
     # skip_stock_check bookings (storefront/mobile pre-bookings, and the
@@ -88,7 +101,13 @@ class BookingItem < ApplicationRecord
     # negative if the main store is short (the skip_stock_check overflow
     # branch below). Booking#allocate_inventory_at_delivery skips these to
     # avoid a second deduction.
-    return if SystemSetting.stock_allocation_at_delivery_enabled? && !booking&.franchise_wholesale_pricing?
+    if SystemSetting.stock_allocation_at_delivery_enabled? && !booking&.franchise_wholesale_pricing?
+      # A line added to a booking whose stock was already deducted at
+      # placement (Booking#allocate_inventory_at_delivery) is deducted now;
+      # otherwise the booking-level pass picks it up when it runs.
+      booking.allocate_central_quantity!(self, quantity) if booking&.central_stock_allocated?
+      return
+    end
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     remaining_to_allocate = quantity.to_f
@@ -165,7 +184,10 @@ class BookingItem < ApplicationRecord
 
   def handle_quantity_change
     return unless quantity_previously_changed? && product.present?
-    return if SystemSetting.stock_allocation_at_delivery_enabled?
+    if SystemSetting.stock_allocation_at_delivery_enabled?
+      adjust_central_allocation_for_quantity_change
+      return
+    end
 
     old_quantity = quantity_previously_was || 0
     new_quantity = quantity
@@ -257,7 +279,11 @@ class BookingItem < ApplicationRecord
 
   def restore_product_stock
     return unless quantity.present? && product.present?
-    return if SystemSetting.stock_allocation_at_delivery_enabled?
+    if SystemSetting.stock_allocation_at_delivery_enabled?
+      # Line removed from an already-deducted booking: give its stock back.
+      booking.restore_central_quantity!(self, quantity) if booking&.central_stock_allocated?
+      return
+    end
 
     current_stock = stock_batches_scope.sum(:quantity_remaining)
     quantity_to_restore = quantity.to_f

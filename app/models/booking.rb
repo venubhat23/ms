@@ -1006,21 +1006,25 @@ class Booking < ApplicationRecord
     end
   end
 
-  # "Stock Allocation at Delivery" mode (SystemSetting.stock_allocation_at_delivery_enabled?):
-  # BookingItem no longer touches stock at all (see BookingItem#reduce_product_stock),
-  # so nothing is deducted until the booking is actually fulfilled:
-  #   - handed to a franchise for delivery: consume_franchise_stock! deducts
-  #     from that franchise's ledger at assignment time (see Admin::BookingsController#update_stage) —
-  #     this method just has to stay out of its way (delivery_franchise_id present).
+  # "Stock Allocation at Delivery" mode (SystemSetting.stock_allocation_at_delivery_enabled?).
+  # BookingItem doesn't touch stock on its own here (see BookingItem#reduce_product_stock);
+  # this booking-level pass does, once per booking (stock_allocated_at):
+  #   - customer/mobile/storefront/affiliate/admin bookings: deducted from
+  #     central inventory as soon as the booking is placed — i.e. the first
+  #     time it is in any status other than draft/cancelled/returned, on
+  #     create or on a later status change (a paid-online draft deducts when
+  #     payment confirms it). Placing a booking never blocks on stock here;
+  #     each channel's own checkout already decided whether it may oversell,
+  #     and short stock goes negative like admin bookings do.
+  #   - handed to a franchise for delivery: FranchiseDeliveryAssignmentService
+  #     gives the central deduction back and debits the franchise's ledger
+  #     instead (delivery_franchise_id present → nothing to do here).
   #   - a franchise's own walk-in/self-service sale (booked_by == 'franchise'):
-  #     the "delivery" and the sale are the same moment, so it deducts from
-  #     their own FranchiseInventory the first time the booking reaches
-  #     delivered/completed (often immediately on create, for a walk-in).
-  #   - everything else (admin/customer/mobile/affiliate bookings not handed
-  #     to a franchise): deducted from central inventory the first time the
-  #     booking reaches delivered/completed — normally via the "Deliver from
-  #     Admin" button on manage_stage, but any path that sets that status works.
-  # stock_allocated_at makes each of these a one-time event per booking.
+  #     deducted from their own FranchiseInventory the first time the booking
+  #     reaches delivered/completed (often immediately on create, for a walk-in).
+  # Cancel/return gives everything back (release_allocated_inventory), and
+  # editing line quantities on an already-deducted booking adjusts stock by
+  # the difference (BookingItem#adjust_central_allocation_for_*).
   def allocate_inventory_at_delivery
     if %w[cancelled returned].include?(status) && !%w[cancelled returned].include?(status_previously_was)
       begin
@@ -1032,7 +1036,6 @@ class Booking < ApplicationRecord
     end
 
     return if stock_allocated_at.present?
-    return unless %w[delivered completed].include?(status) && !%w[delivered completed].include?(status_previously_was)
     return if delivery_franchise_id.present?
 
     # Admin-side wholesale "Franchise Booking" (approved franchise stock
@@ -1043,11 +1046,28 @@ class Booking < ApplicationRecord
     return if franchise_wholesale_pricing?
 
     if booked_by == 'franchise' && franchise_id.present?
+      return unless %w[delivered completed].include?(status) && !%w[delivered completed].include?(status_previously_was)
+
       result = allocate_franchise_inventory
       update_column(:stock_allocated_at, Time.current) unless result == false
     else
-      update_column(:stock_allocated_at, Time.current) if perform_central_stock_allocation!
+      return unless STOCK_PLACED_STATUSES.include?(status)
+
+      update_column(:stock_allocated_at, Time.current) if perform_central_stock_allocation!(oversell: true)
     end
+  end
+
+  # Every status in which a booking counts as placed (stock deducted in
+  # allocation-at-delivery mode): anything but an unpaid/unsaved draft or an
+  # undone booking.
+  STOCK_PLACED_STATUSES = (statuses.keys - %w[draft cancelled returned]).freeze
+
+  # True when this booking currently holds a central-inventory deduction made
+  # by allocate_inventory_at_delivery (not a franchise ledger deduction and
+  # not a wholesale franchise booking, which BookingItem handles itself).
+  def central_stock_allocated?
+    stock_allocated_at.present? && delivery_franchise_id.blank? &&
+      !(booked_by == 'franchise' && franchise_id.present?) && !franchise_wholesale_pricing?
   end
 
   # Central inventory: FIFO-allocates each booking_item and mirrors the
@@ -1062,8 +1082,8 @@ class Booking < ApplicationRecord
   # BookingItem#reduce_product_stock's overflow branch. Every other channel
   # (customer/mobile) keeps the old behaviour — revert the status change and
   # add a validation error when an item can't be fully covered.
-  def perform_central_stock_allocation!
-    oversell_allowed = %w[admin public].include?(booked_by) || skip_stock_check
+  def perform_central_stock_allocation!(oversell: false)
+    oversell_allowed = oversell || %w[admin public].include?(booked_by) || skip_stock_check
 
     unless oversell_allowed
       insufficient_items = booking_items.filter_map do |item|
@@ -1085,36 +1105,7 @@ class Booking < ApplicationRecord
     booking_items.each do |item|
       next if item.product_id.blank? || item.quantity.to_f <= 0
 
-      product = item.product
-      result  = StockBatch.fifo_allocation(item.product_id, item.quantity.to_f)
-
-      result[:allocation].each do |line|
-        line[:batch].reduce_stock!(line[:quantity])
-        record_central_sale_item(line[:batch], line[:quantity], line[:purchase_price], line[:selling_price])
-      end
-
-      shortage = result[:shortage].to_f
-      if shortage.positive?
-        overflow = result[:allocation].last&.dig(:batch) ||
-                   product&.stock_batches&.order(:batch_date, :created_at)&.last
-        if overflow
-          # update_columns, not save! — deliberately pushes quantity_remaining
-          # negative, which StockBatch's own validation would otherwise reject.
-          overflow.update_columns(
-            quantity_remaining: overflow.quantity_remaining.to_f - shortage,
-            status: 'exhausted'
-          )
-          record_central_sale_item(overflow, shortage, overflow.purchase_price, overflow.selling_price)
-        else
-          Rails.logger.warn "Booking ##{booking_number}: #{product&.name} oversold by #{shortage}, no batch to absorb it"
-        end
-      end
-
-      # Denormalised products.stock: deduct the full line quantity so it
-      # reflects the deficit (goes negative on an oversell), atomically in case
-      # the same product appears on more than one line.
-      Product.where(id: item.product_id).update_all(["stock = COALESCE(stock, 0) - ?", item.quantity.to_f])
-      item.adjust_variant_stock!(-item.quantity.to_f)
+      allocate_central_quantity!(item, item.quantity.to_f)
     end
 
     Rails.logger.info "Inventory allocated for booking ##{booking_number}#{' (oversell permitted)' if oversell_allowed}"
@@ -1122,6 +1113,91 @@ class Booking < ApplicationRecord
   rescue => e
     Rails.logger.error "Error allocating inventory for booking ##{booking_number}: #{e.message}"
     false
+  end
+
+  # FIFO-deducts `quantity` of item's product from central batches, recording
+  # SaleItems; any shortfall goes negative on the last batch. Also lowers the
+  # denormalised products.stock and the variant's available_stock.
+  def allocate_central_quantity!(item, quantity)
+    quantity = quantity.to_f
+    return if item.product_id.blank? || quantity <= 0
+
+    product = item.product
+    result  = StockBatch.fifo_allocation(item.product_id, quantity)
+
+    result[:allocation].each do |line|
+      line[:batch].reduce_stock!(line[:quantity])
+      record_central_sale_item(line[:batch], line[:quantity], line[:purchase_price], line[:selling_price])
+    end
+
+    shortage = result[:shortage].to_f
+    if shortage.positive?
+      overflow = result[:allocation].last&.dig(:batch) ||
+                 product&.stock_batches&.order(:batch_date, :created_at)&.last
+      if overflow
+        # update_columns, not save! — deliberately pushes quantity_remaining
+        # negative, which StockBatch's own validation would otherwise reject.
+        overflow.update_columns(
+          quantity_remaining: overflow.quantity_remaining.to_f - shortage,
+          status: 'exhausted'
+        )
+        record_central_sale_item(overflow, shortage, overflow.purchase_price, overflow.selling_price)
+      else
+        Rails.logger.warn "Booking ##{booking_number}: #{product&.name} oversold by #{shortage}, no batch to absorb it"
+      end
+    end
+
+    # Denormalised products.stock: deduct the full quantity so it reflects
+    # the deficit (goes negative on an oversell), atomically in case the same
+    # product appears on more than one line.
+    Product.where(id: item.product_id).update_all(["stock = COALESCE(stock, 0) - ?", quantity])
+    item.adjust_variant_stock!(-quantity)
+  end
+
+  # Exact inverse of allocate_central_quantity!: hands `quantity` of item's
+  # product back to the batches it came from (its SaleItems, newest first).
+  # Anything without a SaleItem — record_central_sale_item skips batches with
+  # no purchase/selling price — goes back onto the product's latest batch.
+  def restore_central_quantity!(item, quantity)
+    remaining = quantity.to_f
+    return if item.product_id.blank? || remaining <= 0
+
+    SaleItem.where(booking_id: id, product_id: item.product_id).order(id: :desc).each do |sale_item|
+      break if remaining <= 0
+
+      take = [remaining, sale_item.quantity.to_f].min
+      if (batch = sale_item.stock_batch)
+        restored = batch.quantity_remaining.to_f + take
+        batch.update_columns(quantity_remaining: restored, status: restored.positive? ? 'active' : batch.status)
+      end
+      if take >= sale_item.quantity.to_f
+        sale_item.destroy
+      else
+        sale_item.update_column(:quantity, sale_item.quantity.to_f - take)
+      end
+      remaining -= take
+    end
+
+    if remaining.positive?
+      batch = StockBatch.where(product_id: item.product_id).order(:batch_date, :created_at).last
+      if batch
+        restored = batch.quantity_remaining.to_f + remaining
+        batch.update_columns(quantity_remaining: restored, status: restored.positive? ? 'active' : batch.status)
+      end
+    end
+
+    Product.where(id: item.product_id).update_all(["stock = COALESCE(stock, 0) + ?", quantity.to_f])
+    item.adjust_variant_stock!(quantity.to_f)
+  end
+
+  # Gives back this booking's whole central deduction and clears the marker
+  # (so re-opening a cancelled booking deducts again). Used on cancel/return
+  # and when a franchise takes over delivery.
+  def release_central_allocation!
+    return unless central_stock_allocated?
+
+    booking_items.each { |item| restore_central_quantity!(item, item.quantity) }
+    update_column(:stock_allocated_at, nil)
   end
 
   # SaleItem needs a batch and strictly-positive prices. Skip (with a log) when
@@ -1144,6 +1220,11 @@ class Booking < ApplicationRecord
   end
 
   def release_allocated_inventory
+    if SystemSetting.stock_allocation_at_delivery_enabled? && central_stock_allocated?
+      release_central_allocation!
+      return
+    end
+
     # SaleItems only exist when perform_central_stock_allocation! actually ran,
     # which is also when it lowered each variant's available_stock — give
     # that back too (SaleItem itself doesn't know the variant).
@@ -1176,6 +1257,10 @@ class Booking < ApplicationRecord
   end
 
   public
+
+  # Called by BookingItem (quantity edits on an already-deducted booking) and
+  # FranchiseDeliveryAssignmentService (franchise takes over delivery).
+  public :central_stock_allocated?, :allocate_central_quantity!, :restore_central_quantity!, :release_central_allocation!
 
   # Cashfree Payment Methods
   def self.generate_cashfree_order_id

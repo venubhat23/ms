@@ -464,7 +464,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     # Mobile API is only for customers. authenticate_customer! already
     # resolved a customer token to a Customer — reuse it instead of
     # re-querying; other token roles keep the email match.
-    customer = current_customer || (Customer.find_by(email: @current_user.email) if @current_user)
+    customer = request_customer
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
     @bookings = customer.bookings.recent.includes(:franchise, booking_items: :product)
@@ -499,22 +499,23 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
   # GET /api/v1/mobile/ecommerce/orders
   def orders
-    customer = Customer.find_by(email: @current_user&.email) if @current_user
+    customer = request_customer
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
     page = params[:page]&.to_i || 1
     per_page = params[:per_page]&.to_i || 20
     per_page = [per_page, 50].min
 
-    @orders = customer.orders.recent.includes(:order_items => :product)
+    @orders = customer.orders.recent.includes(order_items: { product: ORDER_ITEM_PRODUCT_PRELOADS })
 
     # Filter by status if provided
     @orders = @orders.where(status: params[:status]) if params[:status].present?
 
-    total_count = @orders.count
+    total_count = @orders.async_count # overlaps with the page query below
     @orders = @orders.offset((page - 1) * per_page).limit(per_page)
 
     orders_data = @orders.map { |order| format_order_data(order) }
+    total_count = total_count.value
 
     json_response({
       success: true,
@@ -535,10 +536,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
   # GET /api/v1/mobile/ecommerce/orders/:id
   def order_details
-    customer = Customer.find_by(email: @current_user&.email) if @current_user
+    customer = request_customer
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
-    @order = customer.orders.includes(:order_items => :product).find(params[:id])
+    @order = customer.orders.includes(order_items: { product: ORDER_ITEM_PRODUCT_PRELOADS }).find(params[:id])
 
     json_response({
       success: true,
@@ -551,7 +552,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
   # GET /api/v1/mobile/ecommerce/profile
   def customer_profile
-    customer = Customer.find_by(email: @current_user&.email) if @current_user
+    customer = request_customer
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
     # Get statistics — collapsed from 3 round trips (orders count, bookings
@@ -624,7 +625,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     Rails.logger.info "Current user: #{@current_user.inspect}"
     Rails.logger.info "Params received: #{params.except(:controller, :action).inspect}"
 
-    customer = Customer.find_by(email: @current_user&.email) if @current_user
+    customer = request_customer
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
     Rails.logger.info "Customer found: #{customer.email}"
@@ -1349,7 +1350,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
   # POST /api/v1/mobile/ecommerce/location/save
   def save_location
-    customer = Customer.find_by(email: @current_user&.email) if @current_user
+    customer = request_customer
     return json_response({ success: false, message: 'Customer not found' }, :not_found) unless customer
 
     latitude = params[:latitude]
@@ -1685,6 +1686,28 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   # format_product_data calls in_stock?/low_stock?/stock_status per product,
   # which would otherwise each fire a stock_batches SUM query (same fix as
   # HomeController's stock_subquery/cached_stock pattern).
+  # Associations Product#images reads, so order item images cost no extra queries.
+  ORDER_ITEM_PRODUCT_PRELOADS = [{ image_attachment: :blob }, { additional_images_attachments: :blob }].freeze
+
+  # The customer this request acts for. Customer tokens already resolved to a
+  # Customer in authenticate_customer! (no second lookup); other token roles
+  # fall back to the email match, but never match on a blank email — that
+  # would pick an arbitrary customer who also has no email.
+  def request_customer
+    return current_customer if current_customer
+
+    email = @current_user&.email
+    Customer.find_by(email: email) if email.present?
+  end
+
+  # Product#images returns URL strings (R2/Cloudinary) or attachments.
+  def order_item_image_url(product)
+    image = product&.images&.first
+    return image if image.nil? || image.is_a?(String)
+
+    url_for(image)
+  end
+
   def stock_subquery
     StockBatch.where(status: 'active')
               .where('quantity_remaining > 0')
@@ -1918,7 +1941,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
           product_id: item.product_id,
           product_name: item.product&.name,
           product_sku: item.product&.sku,
-          product_image: item.product&.images&.attached? ? url_for(item.product.images.first) : nil,
+          product_image: order_item_image_url(item.product),
           quantity: item.quantity,
           price: item.price.to_f,
           total: item.total.to_f

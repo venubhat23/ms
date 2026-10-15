@@ -15,7 +15,13 @@ class FranchiseDeliveryAssignmentService
 
   def call!
     ActiveRecord::Base.transaction do
-      restore_central_stock! unless SystemSetting.stock_allocation_at_delivery_enabled?
+      if SystemSetting.stock_allocation_at_delivery_enabled?
+        # Central stock was deducted when the booking was placed; the
+        # franchise now ships it from its own shelf, so give that back.
+        @booking.release_central_allocation!
+      else
+        restore_central_stock!
+      end
       consume_franchise_stock!
       @booking.update_column(:stock_allocated_at, Time.current) if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.stock_allocated_at.nil?
       apply_transition!

@@ -13,11 +13,12 @@
         <i class="bi bi-shop-window me-1"></i>Assign to Franchise
       </button>
     <% end %>
-    <% if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.delivery_franchise.blank? && @booking.delivery_person_id.blank? && @booking.stock_allocated_at.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+    <% if SystemSetting.stock_allocation_at_delivery_enabled? && @booking.delivery_franchise.blank? && @booking.delivery_person_id.blank? && !%w[cancelled returned delivered completed].include?(@booking.status) %>
+      <% stock_already_deducted = @booking.stock_allocated_at.present? %>
       <%= button_to update_stage_admin_booking_path(@booking, list_state: @list_state), method: :patch,
             params: { target_stage: 'delivered' }, class: "btn btn-success",
-            data: { confirm: "Deliver this order from admin? This deducts the items from central inventory now." } do %>
-        <i class="bi bi-box-seam me-1"></i>Deliver from Admin (Deduct Inventory)
+            data: { confirm: stock_already_deducted ? "Deliver this order from admin? Stock was already deducted when it was placed." : "Deliver this order from admin? This deducts the items from central inventory now." } do %>
+        <i class="bi bi-box-seam me-1"></i><%= stock_already_deducted ? "Deliver from Admin" : "Deliver from Admin (Deduct Inventory)" %>
       <% end %>
     <% end %>
     <%= link_to admin_bookings_path(@list_state), class: "btn btn-outline-secondary" do %>
@@ -216,9 +217,10 @@
       </div>
     </div>
   </div>
-<% elsif @booking.stock_allocated_at.present? || %w[delivered completed].include?(@booking.status) %>
+<% elsif %w[delivered completed].include?(@booking.status) %>
   <!-- No franchise or named delivery person involved — delivered straight
-       from central stock via "Deliver from Admin" (stock_allocated_at set)
+       from central stock via "Deliver from Admin" (stock_allocated_at is now
+       set when a booking is placed, so it no longer signals delivery)
        or walked through the stage dropdown to delivered/completed without
        either. Either way there's no assign button left to show, so say
        plainly who's handling it. -->

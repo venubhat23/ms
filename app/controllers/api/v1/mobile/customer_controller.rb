@@ -563,7 +563,7 @@ class Api::V1::Mobile::CustomerController < Api::V1::Mobile::BaseController
 
     transactions = customer_wallet.wallet_transactions.recent
     total_count = transactions.count
-    transactions = transactions.offset((page - 1) * per_page).limit(per_page)
+    transactions = transactions.includes(:booking).offset((page - 1) * per_page).limit(per_page)
 
     history = transactions.map do |txn|
       {

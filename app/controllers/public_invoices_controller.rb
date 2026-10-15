@@ -13,7 +13,7 @@ class PublicInvoicesController < ApplicationController
   private
 
   def find_invoice
-    @invoice = Invoice.find_by!(share_token: params[:token])
+    @invoice = Invoice.includes(:customer, invoice_items: :product).find_by!(share_token: params[:token])
     @customer = @invoice.customer
     @business_settings = SystemSetting.business_settings
   end

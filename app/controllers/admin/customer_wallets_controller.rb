@@ -33,7 +33,7 @@ class Admin::CustomerWalletsController < Admin::ApplicationController
   end
 
   def show
-    @transactions = @customer_wallet.wallet_transactions.recent.limit(10)
+    @transactions = @customer_wallet.wallet_transactions.includes(:booking).recent.limit(10)
   end
 
   def new
@@ -91,7 +91,7 @@ class Admin::CustomerWalletsController < Admin::ApplicationController
   end
 
   def transaction_history
-    @transactions = @customer_wallet.wallet_transactions.recent
+    @transactions = @customer_wallet.wallet_transactions.includes(:booking).recent
     @transactions = paginate_records(@transactions)
   end
 

@@ -357,7 +357,7 @@
                 </tr>
               </thead>
               <tbody>
-                <% @affiliate.referrals.order(created_at: :desc).limit(5).each do |referral| %>
+                <% @affiliate.referrals.includes(:customer).order(created_at: :desc).limit(5).each do |referral| %>
                   <tr>
                     <td><%= referral.referred_name || referral.customer&.display_name || '-' %></td>
                     <td>

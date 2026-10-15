@@ -76,7 +76,7 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
   def wallet_history(wallet)
     return [] unless wallet
 
-    wallet.wallet_transactions.recent.map do |txn|
+    wallet.wallet_transactions.includes(:booking).recent.map do |txn|
       {
         id: txn.id,
         transaction_type: txn.transaction_type,

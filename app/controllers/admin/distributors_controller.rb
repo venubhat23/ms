@@ -42,7 +42,7 @@ class Admin::DistributorsController < Admin::ApplicationController
 
   # GET /admin/distributors/1
   def show
-    @documents = @distributor.distributor_documents.order(:created_at)
+    @documents = @distributor.distributor_documents.includes(document_file_attachment: :blob).order(:created_at)
 
     # Get assigned affiliates with their detailed information
     @assigned_affiliates = @distributor.assigned_sub_agents.includes(

@@ -58,16 +58,20 @@ class Customer::DashboardController < Customer::BaseController
     # always issues a fresh SQL COUNT even when the relation was already
     # loaded, so calling it twice here was 2 extra round trips on every
     # dashboard visit.
+    # banner_image preloaded: the view checks banner_image.attached? per banner.
     banners = Banner.where(status: true, display_location: 'dashboard')
                     .where('display_start_date <= ? AND display_end_date >= ?', Date.current, Date.current)
+                    .includes(banner_image_attachment: :blob)
                     .order(:display_order)
                     .to_a
 
-    Rails.logger.debug "🎯 Banner Debug: Found #{banners.size} banners"
+    # Block form: the strings (and attached? checks) are only built when
+    # debug logging is on, not on every dashboard visit.
+    Rails.logger.debug { "🎯 Banner Debug: Found #{banners.size} banners" }
     banners.each do |banner|
-      Rails.logger.debug "🎯 Banner: ID=#{banner.id}, Title='#{banner.title}', Status=#{banner.status}, Location=#{banner.display_location}"
-      Rails.logger.debug "🎯 Banner Dates: Start=#{banner.display_start_date}, End=#{banner.display_end_date}, Current=#{Date.current}"
-      Rails.logger.debug "🎯 Banner Image: R2=#{banner.r2_image_url.present?}, Cloudinary=#{banner.image_url.present?}, Local=#{banner.banner_image.attached?}"
+      Rails.logger.debug { "🎯 Banner: ID=#{banner.id}, Title='#{banner.title}', Status=#{banner.status}, Location=#{banner.display_location}" }
+      Rails.logger.debug { "🎯 Banner Dates: Start=#{banner.display_start_date}, End=#{banner.display_end_date}, Current=#{Date.current}" }
+      Rails.logger.debug { "🎯 Banner Image: R2=#{banner.r2_image_url.present?}, Cloudinary=#{banner.image_url.present?}, Local=#{banner.banner_image.attached?}" }
     end
 
     # If banners exist, mark them as shown for this session (disabled for debugging)

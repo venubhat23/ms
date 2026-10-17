@@ -6,13 +6,16 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   # GET /api/v1/mobile/ecommerce/categories
   def categories
     categories_data = Rails.cache.fetch(MobileApiCache.categories_key, expires_in: MobileApiCache::CATEGORY_TTL) do
-      Category.active.ordered.includes(:products).map do |category|
+      # Product counts in one grouped query and images preloaded, instead of
+      # loading every product row and an attachment + blob query per category.
+      product_counts = Product.group(:category_id).count
+      Category.active.ordered.includes(image_attachment: :blob).map do |category|
         {
           id: category.id,
           name: category.name,
           description: category.description,
           image_url: category.image.attached? ? url_for(category.image) : nil,
-          products_count: category.products.size,
+          products_count: product_counts[category.id] || 0,
           display_order: category.display_order
         }
       end

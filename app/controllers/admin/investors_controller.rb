@@ -62,7 +62,7 @@ class Admin::InvestorsController < Admin::ApplicationController
 
   # GET /admin/investors/1
   def show
-    @documents = @investor.investor_documents.order(:created_at)
+    @documents = @investor.investor_documents.includes(document_file_attachment: :blob).order(:created_at)
   end
 
   # GET /admin/investors/new

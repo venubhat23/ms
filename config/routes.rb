@@ -665,6 +665,12 @@ Rails.application.routes.draw do
     get 'traffic_analytics/journey', to: 'traffic_analytics#journey', as: 'traffic_analytics_journey'
     get 'traffic_analytics/export', to: 'traffic_analytics#export', as: 'traffic_analytics_export'
 
+    # POS: cash collected per shop, cash in hand, bank deposits
+    get 'pos', to: 'pos#index', as: 'pos'
+    get 'pos/cash_stock', to: 'pos#cash_stock', as: 'pos_cash_stock'
+    post 'pos/deposits', to: 'pos#create_deposit', as: 'pos_deposits'
+    delete 'pos/deposits/:id', to: 'pos#destroy_deposit', as: 'pos_deposit'
+
     # Store Financials
     get 'store_financials/vendor_tracking', to: 'store_financials#vendor_tracking', as: 'store_financials_vendor_tracking'
     get 'store_financials/commission', to: 'store_financials#commission', as: 'store_financials_commission'

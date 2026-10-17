@@ -1,23 +1,22 @@
 class Customer::ShopController < Customer::BaseController
+  include CachePrefetch
+
   def index
     @booking = Booking.new
     @booking.booking_items.build
 
-    # Cache categories — they rarely change
-    @categories = Rails.cache.fetch('shop:categories', expires_in: 10.minutes) do
-      Category.where(status: true).order(:display_order, :name).to_a
-    end
-
     if params[:search].blank? && params[:category_id].blank?
-      # Cache the full unfiltered product list (stock refreshes every 3 min via stock_data AJAX)
-      @products = Rails.cache.fetch('shop:products:all', expires_in: 3.minutes) do
-        build_shop_product_scope.to_a
+      # The unfiltered catalog (header counts, filter bar, every product card)
+      # has no customer-specific data, so cache the rendered HTML itself: one
+      # small Solid Cache read and no 74-product Marshal load or card render
+      # per visit. Same 3-minute window as the product list it replaces;
+      # live stock still refreshes through the stock_data AJAX call.
+      @catalog_html = Rails.cache.fetch(catalog_cache_key, expires_in: 3.minutes) do
+        load_catalog(unfiltered: true)
+        render_to_string(partial: 'customer/shop/catalog', formats: [:html]).to_str
       end
     else
-      @products = build_shop_product_scope(
-        search: params[:search],
-        category_id: params[:category_id]
-      ).to_a
+      load_catalog(unfiltered: false)
     end
 
     @customer_addresses = current_customer&.customer_addresses || []
@@ -290,6 +289,35 @@ class Customer::ShopController < Customer::BaseController
   end
 
   private
+
+  # Template digest in the key so a deploy that changes the catalog markup
+  # never serves HTML rendered by the old partial.
+  CATALOG_TEMPLATE_DIGEST = Digest::MD5.file(
+    Rails.root.join('app/views/customer/shop/_catalog.html.erb')
+  ).hexdigest.first(10)
+
+  def catalog_cache_key
+    "shop:catalog_html:#{CATALOG_TEMPLATE_DIGEST}"
+  end
+
+  def load_catalog(unfiltered:)
+    # Both cache keys in ONE Solid Cache round trip instead of two.
+    prefetch_cache('shop:categories', *('shop:products:all' if unfiltered))
+
+    # Cache categories — they rarely change
+    @categories = prefetched_cache_fetch('shop:categories', expires_in: 10.minutes) do
+      Category.where(status: true).order(:display_order, :name).to_a
+    end
+
+    @products = if unfiltered
+      # Full unfiltered product list (stock refreshes every 3 min via stock_data AJAX)
+      prefetched_cache_fetch('shop:products:all', expires_in: 3.minutes) do
+        build_shop_product_scope.to_a
+      end
+    else
+      build_shop_product_scope(search: params[:search], category_id: params[:category_id]).to_a
+    end
+  end
 
   def build_shop_product_scope(search: nil, category_id: nil)
     stock_sq = StockBatch.where(status: 'active')

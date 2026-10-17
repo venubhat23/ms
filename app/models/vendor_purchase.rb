@@ -39,7 +39,8 @@ class VendorPurchase < ApplicationRecord
             name: "#{product.name} — #{variant.label}",
             unit_type: 'units',
             default_selling_price: variant.effective_price.to_f,
-            default_purchase_price: variant_purchase_cost(variant)
+            default_purchase_price: variant_purchase_cost(variant),
+            available_stock: variant.available_stock.to_i
           }
         end
       else
@@ -49,8 +50,11 @@ class VendorPurchase < ApplicationRecord
           variant_id: nil,
           name: product.name,
           unit_type: product.unit_type || 'units',
-          default_selling_price: product.default_selling_price.to_f,
-          default_purchase_price: product.try(:buying_price).to_f
+          # default_selling_price is unset on most products; fall back to the
+          # live selling price so the dropdown doesn't show ₹0.
+          default_selling_price: (product.default_selling_price.presence || product.selling_price).to_f,
+          default_purchase_price: product.try(:buying_price).to_f,
+          available_stock: product.stock.to_i
         }]
       end
     end

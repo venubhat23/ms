@@ -1,0 +1,229 @@
+<% content_for :title, 'POS - Current Cash Stock' %>
+<%= render 'admin/pos/styles' %>
+<% inr = ->(v) { "₹#{number_with_precision(v.to_d, precision: 2, delimiter: ",", strip_insignificant_zeros: true)}" } %>
+
+<div class="pos-page container-fluid py-3">
+  <div class="pos-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <h2><i class="bi bi-safe2 me-2"></i>Current Cash Stock</h2>
+      <p>Cash each shop is holding now: cash collected minus what was deposited to the bank</p>
+    </div>
+    <%= link_to admin_pos_path, class: 'btn btn-outline-light' do %>
+      <i class="bi bi-arrow-left me-1"></i>Cash Collected
+    <% end %>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="pos-card pos-stat h-100">
+        <small>Cash collected (all time)</small>
+        <div class="pos-amount"><%= inr.(@totals[:collected]) %></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="pos-card pos-stat h-100">
+        <small>Deposited to bank</small>
+        <div class="pos-amount pos-deposited"><%= inr.(@totals[:deposited]) %></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="pos-card pos-stat h-100">
+        <small>Cash in hand now</small>
+        <div class="pos-amount pos-inhand"><%= inr.(@totals[:in_hand]) %></div>
+      </div>
+    </div>
+  </div>
+
+  <h6 class="fw-semibold mb-2">By shop</h6>
+  <div class="row g-3 mb-4">
+    <% @rows.each do |row| %>
+      <div class="col-sm-6 col-xl-3">
+        <div class="pos-card pos-shop h-100 d-flex flex-column">
+          <div class="pos-shop-name mb-2">
+            <span class="pos-icon"><i class="bi <%= row[:id] ? 'bi-shop' : 'bi-building' %>"></i></span>
+            <span class="text-truncate"><%= row[:name] %></span>
+          </div>
+          <small class="text-muted text-uppercase fw-semibold" style="font-size:.7rem;letter-spacing:.04em;">Cash in hand</small>
+          <div class="pos-amount mt-0"><%= inr.(row[:in_hand]) %></div>
+          <div class="small text-muted mt-1">
+            Collected <%= inr.(row[:collected]) %><br>
+            Deposited <span class="pos-deposited"><%= inr.(row[:deposited]) %></span>
+          </div>
+          <div class="mt-auto pt-3">
+            <button type="button"
+                    class="btn btn-success btn-sm w-100"
+                    data-bs-toggle="modal"
+                    data-bs-target="#posDepositModal"
+                    data-store-key="<%= row[:key] %>"
+                    data-store-name="<%= row[:name] %>"
+                    data-in-hand="<%= row[:in_hand].round(2).to_s('F') %>"
+                    <%= 'disabled' unless row[:in_hand] > 0 %>>
+              <i class="bi bi-bank me-1"></i>Deposit to Bank
+            </button>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="pos-card">
+    <div class="px-3 pt-3 pb-2">
+      <h6 class="fw-semibold mb-2"><i class="bi bi-clock-history me-1"></i>Bank deposit history</h6>
+      <%= link_to 'All shops', admin_pos_cash_stock_path, class: "pos-pill #{'active' unless @history_store}" %>
+      <% @rows.each do |row| %>
+        <%= link_to row[:name], admin_pos_cash_stock_path(store: row[:key]), class: "pos-pill #{'active' if @history_store == row[:key]}" %>
+      <% end %>
+    </div>
+    <% if @deposits.any? %>
+      <div class="table-responsive">
+        <table class="table pos-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Shop</th>
+              <th class="text-end">Amount</th>
+              <th>Bank</th>
+              <th>Reference</th>
+              <th>Notes</th>
+              <th>By</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @deposits.each do |d| %>
+              <tr>
+                <td class="text-nowrap"><%= d.deposited_on.strftime('%d %b %Y') %></td>
+                <td><%= d.store_label %></td>
+                <td class="text-end fw-semibold pos-deposited"><%= inr.(d.amount) %></td>
+                <td><%= d.bank_name.presence || '—' %></td>
+                <td><%= d.reference_number.presence || '—' %></td>
+                <td class="small"><%= d.notes.presence || '—' %></td>
+                <td class="small text-muted"><%= d.created_by&.email || '—' %></td>
+                <td class="text-end">
+                  <%= button_to admin_pos_deposit_path(d), method: :delete, class: 'btn btn-sm btn-outline-danger',
+                        title: 'Remove this deposit (the cash goes back to the shop)',
+                        form: { data: { turbo: false }, onsubmit: "return confirm('Remove this deposit of #{inr.(d.amount)} from #{j d.store_label}? The amount goes back into that shop\\'s cash in hand.');" } do %>
+                    <i class="bi bi-trash"></i>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="pos-empty"><i class="bi bi-bank fs-3 d-block mb-2"></i>No bank deposits yet.</div>
+    <% end %>
+  </div>
+</div>
+
+<%# One modal for every shop; the Deposit button that opens it fills in the shop. %>
+<div class="modal fade" id="posDepositModal" tabindex="-1" aria-labelledby="posDepositModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;">
+      <%= form_with model: @deposit, url: admin_pos_deposits_path, method: :post, local: true, data: { turbo: false }, id: 'posDepositForm' do |f| %>
+        <div class="modal-header">
+          <h5 class="modal-title" id="posDepositModalLabel"><i class="bi bi-bank me-2"></i>Deposit cash to bank</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="cash_deposit[store_key]" id="posDepositStoreKey">
+          <div class="pos-modal-balance mb-3">
+            <div class="fw-semibold mb-2"><i class="bi bi-shop me-1"></i><span id="posDepositStoreName"></span></div>
+            <div class="row text-center g-2">
+              <div class="col-6">
+                <small>Cash in hand</small>
+                <div class="fw-bold" id="posDepositInHand">₹0</div>
+              </div>
+              <div class="col-6">
+                <small>Remaining after deposit</small>
+                <div class="fw-bold pos-inhand" id="posDepositRemaining">₹0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <%= f.label :amount, 'Amount to deposit (₹)', class: 'form-label fw-semibold' %>
+            <div class="input-group">
+              <span class="input-group-text">₹</span>
+              <%= f.number_field :amount, class: 'form-control', step: '0.01', min: '0.01', required: true, id: 'posDepositAmount', placeholder: '0.00' %>
+              <button type="button" class="btn btn-outline-secondary" id="posDepositAll">All</button>
+            </div>
+            <div class="text-danger small mt-1 d-none" id="posDepositError"></div>
+          </div>
+          <div class="row g-2">
+            <div class="col-sm-6 mb-3">
+              <%= f.label :deposited_on, 'Deposit date', class: 'form-label fw-semibold' %>
+              <%= f.date_field :deposited_on, class: 'form-control', required: true, max: Date.current %>
+            </div>
+            <div class="col-sm-6 mb-3">
+              <%= f.label :bank_name, 'Bank', class: 'form-label fw-semibold' %>
+              <%= f.text_field :bank_name, class: 'form-control', placeholder: 'e.g. SBI' %>
+            </div>
+          </div>
+          <div class="mb-3">
+            <%= f.label :reference_number, 'Reference / slip no.', class: 'form-label fw-semibold' %>
+            <%= f.text_field :reference_number, class: 'form-control', placeholder: 'Optional' %>
+          </div>
+          <div class="mb-1">
+            <%= f.label :notes, class: 'form-label fw-semibold' %>
+            <%= f.text_area :notes, class: 'form-control', rows: 2, placeholder: 'Optional' %>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success" id="posDepositSubmit"><i class="bi bi-check2-circle me-1"></i>Confirm deposit</button>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const modal = document.getElementById('posDepositModal');
+  if (!modal) return;
+  // Bootstrap modals must sit directly under <body> to stack above the admin layout.
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
+
+  const amountInput = document.getElementById('posDepositAmount');
+  const errorBox = document.getElementById('posDepositError');
+  const submitBtn = document.getElementById('posDepositSubmit');
+  let inHand = 0;
+
+  const inr = (v) => '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+  function refresh() {
+    const amount = parseFloat(amountInput.value) || 0;
+    const remaining = Math.round((inHand - amount) * 100) / 100;
+    document.getElementById('posDepositRemaining').textContent = inr(Math.max(remaining, 0));
+    let msg = '';
+    if (amount > inHand) msg = 'Amount is more than the cash in hand (' + inr(inHand) + ').';
+    errorBox.textContent = msg;
+    errorBox.classList.toggle('d-none', !msg);
+    amountInput.classList.toggle('is-invalid', !!msg);
+    submitBtn.disabled = !!msg || amount <= 0;
+  }
+
+  modal.addEventListener('show.bs.modal', function (event) {
+    const btn = event.relatedTarget;
+    if (!btn) return;
+    inHand = parseFloat(btn.dataset.inHand) || 0;
+    document.getElementById('posDepositStoreKey').value = btn.dataset.storeKey;
+    document.getElementById('posDepositStoreName').textContent = btn.dataset.storeName;
+    document.getElementById('posDepositInHand').textContent = inr(inHand);
+    amountInput.max = inHand;
+    amountInput.value = '';
+    refresh();
+  });
+  modal.addEventListener('shown.bs.modal', () => amountInput.focus());
+  amountInput.addEventListener('input', refresh);
+  document.getElementById('posDepositAll').addEventListener('click', function () {
+    amountInput.value = inHand;
+    refresh();
+  });
+  document.getElementById('posDepositForm').addEventListener('submit', function () {
+    submitBtn.disabled = true;
+  });
+})();
+</script>

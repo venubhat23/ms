@@ -1,0 +1,118 @@
+<% content_for :title, 'POS - Cash Collected' %>
+<%= render 'admin/pos/styles' %>
+<%
+  inr = ->(v) { "₹#{number_with_precision(v.to_d, precision: 2, delimiter: ",", strip_insignificant_zeros: true)}" }
+  nav = ->(extra = {}) { { period: @period, offset: @offset, store: @store_key }.merge(extra).compact }
+  range_label = if @period == 'month'
+    @range.begin.strftime('%B %Y')
+  else
+    "#{@range.begin.strftime('%d %b')} – #{@range.end.strftime('%d %b %Y')}"
+  end
+  current_label = @period == 'month' ? 'This month' : 'This week'
+%>
+
+<div class="pos-page container-fluid py-3">
+  <div class="pos-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+      <h2><i class="bi bi-cash-coin me-2"></i>POS · Cash Collected</h2>
+      <p>Cash payments taken on bookings, shop by shop</p>
+    </div>
+    <%= link_to admin_pos_cash_stock_path, class: 'btn btn-light' do %>
+      <i class="bi bi-safe2 me-1"></i>Current Cash Stock
+    <% end %>
+  </div>
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div class="pos-tabs">
+      <%= link_to 'Weekly', admin_pos_path(period: 'week', store: @store_key), class: (@period == 'week' ? 'active' : nil) %>
+      <%= link_to 'Monthly', admin_pos_path(period: 'month', store: @store_key), class: (@period == 'month' ? 'active' : nil) %>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <%= link_to admin_pos_path(nav.(offset: @offset - 1)), class: 'btn btn-sm btn-outline-secondary', title: 'Previous' do %>
+        <i class="bi bi-chevron-left"></i>
+      <% end %>
+      <span class="pos-range"><%= @offset.zero? ? "#{current_label} · " : '' %><%= range_label %></span>
+      <% if @offset < 0 %>
+        <%= link_to admin_pos_path(nav.(offset: @offset + 1)), class: 'btn btn-sm btn-outline-secondary', title: 'Next' do %>
+          <i class="bi bi-chevron-right"></i>
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6 col-lg-4">
+      <div class="pos-card pos-stat h-100">
+        <small>Total cash collected</small>
+        <div class="pos-amount"><%= inr.(@total_amount) %></div>
+        <div class="text-muted small"><%= pluralize(@total_count, 'cash booking') %> · <%= range_label %></div>
+      </div>
+    </div>
+  </div>
+
+  <h6 class="fw-semibold mb-2">By shop <small class="text-muted fw-normal">— tap a shop to see its bookings</small></h6>
+  <div class="row g-3 mb-4">
+    <% @rows.each do |row| %>
+      <div class="col-sm-6 col-lg-3">
+        <% active = @store_key == row[:key] %>
+        <%= link_to admin_pos_path(nav.(store: (active ? nil : row[:key]))), class: "pos-card pos-shop h-100 #{'active' if active}" do %>
+          <div class="pos-shop-name">
+            <span class="pos-icon"><i class="bi <%= row[:id] ? 'bi-shop' : 'bi-building' %>"></i></span>
+            <span class="text-truncate"><%= row[:name] %></span>
+          </div>
+          <div class="pos-amount"><%= inr.(row[:amount]) %></div>
+          <div class="text-muted small"><%= pluralize(row[:count], 'booking') %></div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="pos-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-center px-3 pt-3 pb-2 gap-2">
+      <h6 class="fw-semibold mb-0">
+        Cash bookings
+        <% if @store_key %>
+          · <%= @rows.find { |r| r[:key] == @store_key }&.dig(:name) %>
+          <%= link_to 'Show all shops', admin_pos_path(nav.(store: nil)), class: 'small ms-2' %>
+        <% end %>
+      </h6>
+      <span class="text-muted small"><%= range_label %></span>
+    </div>
+    <% if @bookings.any? %>
+      <div class="table-responsive">
+        <table class="table pos-table">
+          <thead>
+            <tr>
+              <th>Booking</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Shop</th>
+              <th class="text-end">Cash</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% @bookings.each do |b| %>
+              <tr>
+                <td><%= link_to b.booking_number.presence || "##{b.id}", admin_booking_path(b) %></td>
+                <td class="text-nowrap"><%= (b.payment_completed_at || b.created_at).strftime('%d %b %Y, %I:%M %p') %></td>
+                <td><%= b.customer_name.presence || '—' %></td>
+                <td><%= b.store&.name || CashDeposit::MAIN_STORE_LABEL %></td>
+                <td class="text-end fw-semibold"><%= inr.(b.total_amount.to_d - b.wallet_amount_used.to_d) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <% if @bookings.size >= 300 %>
+        <div class="text-muted small px-3 pb-3">Showing the latest 300 bookings; the totals above include all of them.</div>
+      <% end %>
+    <% else %>
+      <div class="pos-empty"><i class="bi bi-inbox fs-3 d-block mb-2"></i>No cash bookings in this period.</div>
+    <% end %>
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    Counted: bookings with payment method <strong>Cash</strong> and payment status <strong>Paid</strong>, not cancelled.
+    Wallet money used on a booking is not counted as cash.
+  </p>
+</div>

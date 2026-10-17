@@ -7,7 +7,8 @@ module Admin::VendorPurchasesHelper
       [opt[:name], opt[:value], {
         'data-unit-type' => opt[:unit_type],
         'data-default-price' => opt[:default_selling_price],
-        'data-purchase-price' => opt[:default_purchase_price]
+        'data-purchase-price' => opt[:default_purchase_price],
+        'data-stock' => opt[:available_stock]
       }]
     end
     options_for_select(options, selected)

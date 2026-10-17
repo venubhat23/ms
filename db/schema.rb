@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_14_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_17_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -334,6 +334,21 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_14_000001) do
     t.index ["user_id"], name: "index_bookings_on_user_id"
     t.index ["wallet_transaction_id"], name: "index_bookings_on_wallet_transaction_id"
     t.index ["customer_id", "created_at"], name: "index_bookings_on_customer_id_and_created_at"
+  end
+
+  create_table "cash_deposits", force: :cascade do |t|
+    t.bigint "store_id"
+    t.decimal "amount", precision: 12, scale: 2, null: false
+    t.date "deposited_on", null: false
+    t.string "bank_name"
+    t.string "reference_number"
+    t.text "notes"
+    t.bigint "created_by_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_cash_deposits_on_created_by_id"
+    t.index ["deposited_on"], name: "index_cash_deposits_on_deposited_on"
+    t.index ["store_id"], name: "index_cash_deposits_on_store_id"
   end
 
   create_table "categories", force: :cascade do |t|
@@ -1873,6 +1888,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_14_000001) do
   add_foreign_key "bookings", "franchises", column: "delivery_franchise_id"
   add_foreign_key "bookings", "stores"
   add_foreign_key "bookings", "wallet_transactions"
+  add_foreign_key "cash_deposits", "stores"
+  add_foreign_key "cash_deposits", "users", column: "created_by_id"
   add_foreign_key "client_requests", "customers"
   add_foreign_key "client_requests", "users", column: "assignee_id"
   add_foreign_key "customer_addresses", "customers"

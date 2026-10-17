@@ -4,6 +4,7 @@ class Store < ApplicationRecord
 
   # Associations
   has_many :bookings, dependent: :restrict_with_error
+  has_many :cash_deposits, dependent: :restrict_with_error
   belongs_to :store_admin_user, class_name: 'User', foreign_key: 'store_admin_user_id', optional: true
   has_many :store_staff, class_name: 'User', foreign_key: 'assigned_store_id', dependent: :nullify
   has_many :expenses, dependent: :destroy

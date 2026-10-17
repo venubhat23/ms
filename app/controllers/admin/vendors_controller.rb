@@ -5,20 +5,30 @@ class Admin::VendorsController < Admin::ApplicationController
 
   def index
     scope = Vendor.all
-    scope = scope.where('name ILIKE ?', "%#{params[:search]}%") if params[:search].present?
+    scope = scope.where(id: params[:vendor_id]) if params[:vendor_id].present?
+    if params[:search].present?
+      term = "%#{Vendor.sanitize_sql_like(params[:search].to_s.strip)}%"
+      scope = scope.where('vendors.name ILIKE :t OR vendors.phone ILIKE :t OR vendors.email ILIKE :t', t: term)
+    end
     scope = scope.where(status: params[:status]) if params[:status].present?
+    scope = scope.where(payment_type: params[:payment_type]) if params[:payment_type].present?
 
-    # One grouped count instead of two separate `.count` round trips
-    # (and `@vendors.count`/`.active.count` were being run on the
-    # paginated relation, which — with LIMIT/OFFSET applied — only
-    # counted the current page, not all matching vendors).
-    status_counts = scope.group(:status).count
-    @total_vendor_count  = status_counts.values.sum
-    @active_vendor_count = status_counts[true] || 0
+    # Fired together so their round trips overlap: the status counts (one
+    # grouped query covering both stat cards) and the compact vendor list
+    # that feeds the searchable vendor dropdown.
+    status_counts = scope.group(:status).async_count
+    vendor_options = Vendor.order(:name).async_pluck(:id, :name, :phone, :status, :payment_type)
 
-    @vendors = scope.includes(:vendor_purchases)
+    # Purchase count/total/paid come back with each vendor row
+    # (with_purchase_totals) instead of loading every purchase record.
+    @vendors = scope.with_purchase_totals
                     .order(created_at: :desc)
                     .page(params[:page]).per(20)
+
+    status_counts = status_counts.value
+    @total_vendor_count  = status_counts.values.sum
+    @active_vendor_count = status_counts[true] || 0
+    @vendor_options = vendor_options.value
 
     respond_to do |format|
       format.html

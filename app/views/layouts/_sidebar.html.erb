@@ -1235,6 +1235,27 @@
     </div>
     <% end %>
 
+    <!-- POS: cash collected per shop / cash in hand / bank deposits.
+         Shown with the POS permission, or with Bookings (where the cash is taken). -->
+    <% if current_user.has_sidebar_permission?('pos') || current_user.has_sidebar_permission?('bookings') %>
+    <div class="nav-section">
+      <div class="nav-section-title">POS</div>
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <%= link_to admin_pos_path, class: "nav-link-modern #{'active' if request.path.start_with?('/admin/pos')}" do %>
+            <div class="nav-icon-modern">
+              <div class="icon-bg gradient-cyan">
+                <i class="bi bi-cash-coin"></i>
+              </div>
+            </div>
+            <span class="nav-text">POS Cash</span>
+            <div class="nav-indicator"></div>
+          <% end %>
+        </li>
+      </ul>
+    </div>
+    <% end %>
+
     <!-- Website Traffic -->
     <% if current_user.has_sidebar_permission?('traffic_analytics') %>
     <div class="nav-section">

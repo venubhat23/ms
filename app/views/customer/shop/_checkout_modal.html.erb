@@ -1,6 +1,5 @@
 <!-- Cashfree Payment Integration Modal -->
-<!-- Include Cashfree JS SDK -->
-<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+<%# Cashfree JS SDK is already loaded in the customer layout <head>. %>
 
 <style>
   .checkout-modal {
@@ -169,8 +168,11 @@
           <div id="homeDeliverySection" class="mt-4" style="display: none;">
             <h6 class="mb-3">Select Delivery Address</h6>
             <div id="addressSelection">
-              <% if current_customer&.customer_addresses&.any? %>
-                <% current_customer.customer_addresses.each_with_index do |address, index| %>
+              <%# Reuse the address list the layout already loads (one query, same
+                  order as the cart drawer) instead of an EXISTS + a second SELECT. %>
+              <% checkout_addresses = (@layout_customer_addresses || current_customer&.customer_addresses).to_a %>
+              <% if checkout_addresses.any? %>
+                <% checkout_addresses.each_with_index do |address, index| %>
                   <div class="address-card" onclick="selectAddress(<%= index %>)" data-address-id="<%= address.id %>">
                     <input type="radio" name="delivery_address" id="address_<%= index %>" value="<%= address.id %>">
                     <label for="address_<%= index %>" class="mb-0">

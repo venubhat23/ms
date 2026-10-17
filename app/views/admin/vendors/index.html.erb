@@ -77,42 +77,60 @@
 </div>
 
 <!-- Vendors Table -->
-<div class="card border-0 shadow-sm">
-  <div class="card-header bg-transparent border-0">
-    <div class="d-flex justify-content-between align-items-center">
+<% filters_active = params.values_at(:vendor_id, :search, :status, :payment_type).any?(&:present?) %>
+<div class="card border-0 shadow-sm vendor-list-card">
+  <div class="card-header bg-transparent border-0 pb-0">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
       <h5 class="mb-0">Vendor List</h5>
-      <div class="d-flex gap-2">
-        <!-- Filters -->
-        <%= form_with url: admin_vendors_path, method: :get, local: true, class: "d-flex gap-2 align-items-center" do |form| %>
-          <%= form.select :status,
-              options_for_select([
-                ['All Status', ''],
-                ['Active', 'true'],
-                ['Inactive', 'false']
-              ], params[:status]),
-              {},
-              {
-                class: "form-select",
-                style: "width: 150px;",
-                onchange: "this.form.submit();"
-              } %>
-
-          <!-- Search Input -->
-          <div class="position-relative">
-            <%= form.text_field :search,
-                value: params[:search],
-                class: "form-control",
-                placeholder: "Search vendors...",
-                id: "searchInput",
-                style: "width: 250px;" %>
-            <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3"></i>
-          </div>
-
-          <!-- Search Button (hidden, form submits automatically) -->
-          <%= form.submit "Search", class: "btn btn-outline-primary d-none" %>
-        <% end %>
-      </div>
+      <% if filters_active %>
+        <span class="text-muted small"><%= pluralize(@total_vendor_count, 'vendor') %> match your filters</span>
+      <% end %>
     </div>
+
+    <!-- Filters: searchable Select2 dropdowns, submit on change -->
+    <%= form_with url: admin_vendors_path, method: :get, local: true, id: "vendorFilterForm", class: "vendor-filter-bar" do |form| %>
+      <%= hidden_field_tag :vendor_id, params[:vendor_id], id: "vendorFilterVendorId" %>
+      <%= hidden_field_tag :search, params[:search], id: "vendorFilterSearch" %>
+
+      <div class="vendor-filter-field vendor-filter-field--wide">
+        <label class="vendor-filter-label" for="vendorFilterPicker"><i class="bi bi-search"></i> Find vendor</label>
+        <select id="vendorFilterPicker" class="form-select" data-placeholder="Search by name, phone or email…">
+          <option></option>
+          <% if params[:search].present? %>
+            <option value="search:<%= params[:search] %>" selected>Search “<%= params[:search] %>”</option>
+          <% end %>
+          <% @vendor_options.each do |id, name, phone, status, payment_type| %>
+            <option value="<%= id %>"
+                    data-phone="<%= phone %>"
+                    data-status="<%= status ? 'active' : 'inactive' %>"
+                    data-payment="<%= payment_type %>"
+                    <%= 'selected' if params[:vendor_id].to_s == id.to_s %>><%= name %></option>
+          <% end %>
+        </select>
+      </div>
+
+      <div class="vendor-filter-field">
+        <label class="vendor-filter-label" for="vendorFilterStatus"><i class="bi bi-toggle-on"></i> Status</label>
+        <%= select_tag :status,
+              options_for_select([['All statuses', ''], ['Active', 'true'], ['Inactive', 'false']], params[:status]),
+              id: "vendorFilterStatus", class: "form-select vendor-filter-auto" %>
+      </div>
+
+      <div class="vendor-filter-field">
+        <label class="vendor-filter-label" for="vendorFilterPayment"><i class="bi bi-wallet2"></i> Payment type</label>
+        <%= select_tag :payment_type,
+              options_for_select([['All payment types', ''], ['Cash', 'Cash'], ['Credit', 'Credit']], params[:payment_type]),
+              id: "vendorFilterPayment", class: "form-select vendor-filter-auto" %>
+      </div>
+
+      <% if filters_active %>
+        <div class="vendor-filter-field vendor-filter-field--action">
+          <%= link_to admin_vendors_path, class: "btn btn-light vendor-filter-clear" do %>
+            <i class="bi bi-x-circle me-1"></i>Clear filters
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
   </div>
   <div class="card-body p-0">
     <% if @vendors.any? %>
@@ -171,7 +189,7 @@
                   <div>
                     <div class="fw-medium text-success">₹<%= number_with_delimiter(vendor.total_purchases.to_i) %></div>
                     <small class="text-muted">
-                      <%= pluralize(vendor.vendor_purchases.size, 'purchase') %>
+                      <%= pluralize(vendor.purchases_count, 'purchase') %>
                     </small>
                   </div>
                 </td>
@@ -285,8 +303,13 @@
           <i class="bi bi-building fs-1 text-muted"></i>
         </div>
         <h5 class="text-muted mb-3">No Vendors Found</h5>
-        <p class="text-muted mb-4">Start building your vendor network by adding your first vendor partner.</p>
-        <%= link_to "Add New Vendor", new_admin_vendor_path, class: "btn btn-primary" %>
+        <% if filters_active %>
+          <p class="text-muted mb-4">No vendor matches these filters.</p>
+          <%= link_to "Clear filters", admin_vendors_path, class: "btn btn-outline-primary" %>
+        <% else %>
+          <p class="text-muted mb-4">Start building your vendor network by adding your first vendor partner.</p>
+          <%= link_to "Add New Vendor", new_admin_vendor_path, class: "btn btn-primary" %>
+        <% end %>
       </div>
     <% end %>
   </div>
@@ -583,3 +606,178 @@
   }
 }
 </style>
+
+<!-- Vendor filter bar + Select2 look -->
+<style>
+.vendor-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #f5f8ff 0%, #fbfcff 100%);
+  border: 1px solid #e3eaf7;
+  border-radius: 14px;
+}
+.vendor-filter-field { flex: 1 1 180px; min-width: 0; }
+.vendor-filter-field--wide { flex: 2 1 300px; }
+.vendor-filter-field--action { flex: 0 0 auto; }
+.vendor-filter-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #6b7a90;
+}
+.vendor-filter-label .bi { margin-right: 4px; color: #4c6ef5; }
+.vendor-filter-clear { height: 42px; border-radius: 10px; border: 1px solid #dee2e6; white-space: nowrap; }
+
+/* Select2 (bootstrap-5 theme) inside the filter bar */
+.vendor-filter-bar .select2-container--bootstrap-5 .select2-selection {
+  min-height: 42px;
+  border-radius: 10px;
+  border-color: #d6deeb;
+  background-color: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04);
+  display: flex;
+  align-items: center;
+}
+.vendor-filter-bar .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+.vendor-filter-bar .select2-container--bootstrap-5.select2-container--open .select2-selection {
+  border-color: #4c6ef5;
+  box-shadow: 0 0 0 .2rem rgba(76, 110, 245, .15);
+}
+.vendor-select2-dropdown.select2-dropdown {
+  border: 1px solid #e3eaf7;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, .14);
+}
+.vendor-select2-dropdown .select2-search__field { border-radius: 8px !important; }
+.vendor-select2-dropdown .select2-results__option { padding: 8px 12px; }
+.vendor-select2-dropdown .select2-results__option--highlighted { background-color: #eef2ff !important; color: #1f2d4d !important; }
+.vendor-select2-dropdown .select2-results__option--selected { background-color: #e7f0ff !important; }
+
+.vs-opt { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vs-avatar {
+  flex: 0 0 32px; width: 32px; height: 32px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .85rem; color: #fff;
+  background: linear-gradient(135deg, #4c6ef5, #7950f2);
+}
+.vs-avatar--search { background: linear-gradient(135deg, #20c997, #0ca678); }
+.vs-text { min-width: 0; line-height: 1.2; }
+.vs-name { font-weight: 600; color: #1f2d4d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-meta { font-size: .78rem; color: #6b7a90; }
+.vs-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.vs-dot--active { background: #12b886; }
+.vs-dot--inactive { background: #adb5bd; }
+.vs-chip { display: inline-flex; align-items: center; gap: 6px; }
+.vs-chip .bi { font-size: 1rem; }
+
+@media (max-width: 576px) {
+  .vendor-filter-field, .vendor-filter-field--wide { flex-basis: 100%; }
+  .vendor-filter-clear { width: 100%; }
+}
+</style>
+
+<script>
+(function () {
+  var $ = window.jQuery;
+  var form = document.getElementById('vendorFilterForm');
+  if (!form || !$ || !$.fn || !$.fn.select2) return;
+
+  function esc(text) {
+    return $('<div>').text(text == null ? '' : String(text)).html();
+  }
+
+  function vendorOption(option) {
+    if (!option.id) return option.text;
+    if (String(option.id).indexOf('search:') === 0) {
+      return '<div class="vs-opt"><span class="vs-avatar vs-avatar--search"><i class="bi bi-search"></i></span>' +
+             '<div class="vs-text"><div class="vs-name">' + esc(option.text) + '</div>' +
+             '<div class="vs-meta">Show every vendor matching this text</div></div></div>';
+    }
+    var el = option.element ? $(option.element) : $();
+    var phone = el.data('phone'), status = el.data('status') || 'active', payment = el.data('payment');
+    var meta = '<span class="vs-dot vs-dot--' + status + '"></span>' + (status === 'active' ? 'Active' : 'Inactive');
+    if (payment) meta += ' · ' + esc(payment);
+    if (phone) meta += ' · ' + esc(phone);
+    return '<div class="vs-opt"><span class="vs-avatar">' + esc(option.text.trim().charAt(0).toUpperCase()) + '</span>' +
+           '<div class="vs-text"><div class="vs-name">' + esc(option.text) + '</div><div class="vs-meta">' + meta + '</div></div></div>';
+  }
+
+  function vendorSelection(option) {
+    if (!option.id) return option.text;
+    return '<span class="vs-chip"><i class="bi bi-' + (String(option.id).indexOf('search:') === 0 ? 'search' : 'building') +
+           ' text-primary"></i>' + esc(option.text) + '</span>';
+  }
+
+  // Matches vendor name, phone and payment type as you type (email and
+  // partial text are covered by the "Search …" choice, filtered server-side).
+  function vendorMatcher(params, data) {
+    var term = $.trim(params.term || '').toLowerCase();
+    if (!term) return data;
+    var el = data.element ? $(data.element) : $();
+    var haystack = [data.text, el.data('phone'), el.data('payment')].join(' ').toLowerCase();
+    return haystack.indexOf(term) > -1 ? data : null;
+  }
+
+  var $picker = $('#vendorFilterPicker');
+  $picker.select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    allowClear: true,
+    placeholder: $picker.data('placeholder'),
+    dropdownCssClass: 'vendor-select2-dropdown',
+    matcher: vendorMatcher,
+    templateResult: vendorOption,
+    templateSelection: vendorSelection,
+    escapeMarkup: function (markup) { return markup; },
+    tags: true,
+    // Typed text that isn't a vendor name becomes a "Search …" choice.
+    createTag: function (params) {
+      var term = $.trim(params.term);
+      return term ? { id: 'search:' + term, text: 'Search “' + term + '”', newTag: true } : null;
+    },
+    insertTag: function (data, tag) { data.push(tag); },
+    language: { noResults: function () { return 'No vendors found'; } }
+  });
+
+  $picker.on('change', function () {
+    var value = String($picker.val() || '');
+    $('#vendorFilterVendorId').val(value && value.indexOf('search:') !== 0 ? value : '');
+    $('#vendorFilterSearch').val(value.indexOf('search:') === 0 ? value.slice(7) : '');
+    form.submit();
+  });
+
+  var icons = { '': 'grid', 'true': 'check-circle-fill text-success', 'false': 'pause-circle-fill text-secondary',
+                'Cash': 'cash-coin text-success', 'Credit': 'credit-card text-primary' };
+  function chip(option) {
+    return '<span class="vs-chip"><i class="bi bi-' + (icons[option.id] || icons['']) + '"></i>' + esc(option.text) + '</span>';
+  }
+
+  $('.vendor-filter-auto').select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    minimumResultsForSearch: Infinity,
+    dropdownCssClass: 'vendor-select2-dropdown',
+    templateResult: chip,
+    templateSelection: chip,
+    escapeMarkup: function (markup) { return markup; }
+  }).on('change', function () { form.submit(); });
+
+  // Turbo caches this page's DOM: tear Select2 down first so a back/forward
+  // visit doesn't show a second, dead copy of each dropdown.
+  document.addEventListener('turbo:before-cache', function teardown() {
+    $('#vendorFilterPicker, .vendor-filter-auto').each(function () {
+      if ($(this).data('select2')) $(this).select2('destroy');
+    });
+    document.removeEventListener('turbo:before-cache', teardown);
+  });
+})();
+</script>

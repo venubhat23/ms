@@ -224,6 +224,9 @@ class Admin::Settings::UserRolesController < Admin::Settings::BaseController
       ],
       'Website Traffic' => [
         { key: 'traffic_analytics', name: 'Views & Traffic' }
+      ],
+      'POS' => [
+        { key: 'pos', name: 'POS Cash & Bank Deposits' }
       ]
     }
   end

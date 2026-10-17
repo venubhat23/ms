@@ -1,11 +1,6 @@
 <% content_for :title, "Shop Products - Marali Santhe" %>
 
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
-
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<%# Select2 (JS, CSS and the bootstrap-5 theme) is loaded by the customer layout. %>
 
 <style>
   /* Premium Shop Page Styles - Boutique Storefront Aesthetic */
@@ -184,56 +179,6 @@
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
   }
 
-  /* Select2 Styling to match other inputs */
-  .select2-container--bootstrap-5 .select2-selection {
-    border: 1px solid #dee2e6 !important;
-    border-radius: 8px !important;
-    min-height: 38px !important;
-    height: 38px !important;
-    background: white !important;
-    transition: all 0.3s ease !important;
-  }
-
-  .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
-    padding-left: 12px !important;
-    padding-right: 30px !important;
-    line-height: 36px !important;
-    font-size: 0.875rem !important;
-    color: #495057 !important;
-  }
-
-  .select2-container--bootstrap-5.select2-container--focus .select2-selection {
-    border-color: #0d6efd !important;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
-  }
-
-  .select2-container--bootstrap-5 .select2-selection__arrow {
-    height: 36px !important;
-    right: 8px !important;
-  }
-
-  .select2-dropdown {
-    border: 1px solid #dee2e6 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-    z-index: 1060 !important;
-  }
-
-  .select2-results__option {
-    font-size: 0.875rem !important;
-    padding: 8px 12px !important;
-  }
-
-  .select2-results__option--highlighted {
-    background-color: #e3f2fd !important;
-    color: #1976d2 !important;
-  }
-
-  .select2-results__option--selected {
-    background-color: #f0f8ff !important;
-    color: #0d6efd !important;
-  }
-
   /* Search input with icon styling */
   .position-relative .bi-search {
     color: #6c757d;
@@ -294,37 +239,79 @@
     margin-bottom: 0.5rem;
   }
 
-  /* Ensure filter dropdowns are visible and increase height */
-  .category-select2,
-  .stock-select2 {
-    display: block !important;
-    visibility: visible !important;
-    min-height: 45px !important;
-  }
+  /* ---- Filter bar (search + category select2 + stock pills) ---- */
+  .shop-filter-bar { --shop-h: 40px; --shop-accent: #0d6efd; border-radius: 14px; }
+  .shop-filter-bar:hover { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
 
-  /* Increase Select2 container height for category and stock filters */
-  .category-select2 + .select2-container .select2-selection,
-  .stock-select2 + .select2-container .select2-selection {
-    min-height: 45px !important;
-    height: 45px !important;
+  .shop-search { position: relative; }
+  .shop-search .form-control {
+    height: var(--shop-h);
+    padding: 0 2.25rem 0 2.4rem;
+    border-radius: 10px;
+    background: #f6f8fb;
+    border: 1px solid #e3e8ef;
+    font-size: 0.9rem;
+    transition: background .15s, border-color .15s, box-shadow .15s;
   }
+  .shop-search .form-control:focus { background: #fff; border-color: var(--shop-accent); box-shadow: 0 0 0 3px rgba(13, 110, 253, .15); }
+  .shop-search .form-control::-webkit-search-cancel-button { display: none; }
+  .shop-search-icon {
+    position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
+    color: #8a94a6; pointer-events: none; z-index: 2;
+  }
+  .shop-search-clear {
+    position: absolute; right: .4rem; top: 50%; transform: translateY(-50%);
+    width: 26px; height: 26px; border: 0; border-radius: 50%;
+    background: #e9edf3; color: #5b6576; font-size: .7rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shop-search-clear.d-none { display: none !important; }
+  .shop-search-clear:hover { background: #dbe1ea; color: #212529; }
 
-  .category-select2 + .select2-container .select2-selection--single .select2-selection__rendered,
-  .stock-select2 + .select2-container .select2-selection--single .select2-selection__rendered {
-    line-height: 43px !important;
-    padding: 0 12px !important;
+  /* Category select2 */
+  .shop-filter-bar .select2-container--bootstrap-5 .select2-selection {
+    height: var(--shop-h); min-height: var(--shop-h);
+    border-radius: 10px; border: 1px solid #e3e8ef; background-color: #f6f8fb;
+    display: flex; align-items: center; font-size: .9rem;
+    transition: background-color .15s, border-color .15s, box-shadow .15s;
   }
+  .shop-filter-bar .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+  .shop-filter-bar .select2-container--bootstrap-5.select2-container--open .select2-selection {
+    background-color: #fff; border-color: var(--shop-accent); box-shadow: 0 0 0 3px rgba(13, 110, 253, .15);
+  }
+  .shop-filter-bar .select2-selection__rendered { width: 100%; padding-left: .75rem !important; }
+  .shop-cat-option { display: flex; align-items: center; gap: .5rem; width: 100%; min-width: 0; }
+  .shop-cat-option i { color: #8a94a6; font-size: .85rem; }
+  .shop-cat-option .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .shop-cat-option .count {
+    font-size: .72rem; font-weight: 600; color: #5b6576;
+    background: #e9edf3; border-radius: 999px; padding: .05rem .5rem; margin-right: 1.25rem;
+  }
+  .shop-cat-dropdown { border-radius: 12px !important; border: 1px solid #e3e8ef !important; box-shadow: 0 10px 30px rgba(16, 24, 40, .12) !important; overflow: hidden; z-index: 1060 !important; }
+  .shop-cat-dropdown .select2-search__field { border-radius: 8px !important; }
+  .shop-cat-dropdown .select2-results__option { padding: .5rem .75rem !important; font-size: .875rem; }
+  .shop-cat-dropdown .shop-cat-option .count { margin-right: 0; }
+  .shop-cat-dropdown .select2-results__option--highlighted { background: #eef4ff !important; color: #0b5ed7 !important; }
+  .shop-cat-dropdown .select2-results__option--highlighted i,
+  .shop-cat-dropdown .select2-results__option--selected i { color: #0b5ed7; }
+  .shop-cat-dropdown .select2-results__option--selected { background: #f3f7ff !important; color: #0b5ed7 !important; font-weight: 600; }
 
-  .category-select2 + .select2-container .select2-selection__arrow,
-  .stock-select2 + .select2-container .select2-selection__arrow {
-    height: 43px !important;
+  /* Stock segmented pills */
+  .shop-stock-pills {
+    display: flex; height: var(--shop-h); padding: 3px; gap: 2px;
+    background: #f1f4f8; border: 1px solid #e3e8ef; border-radius: 10px;
   }
-
-  .select2-container {
-    display: block !important;
-    visibility: visible !important;
-    width: 100% !important;
+  .shop-stock-pills button {
+    flex: 1; border: 0; background: transparent; border-radius: 7px;
+    font-size: .8rem; font-weight: 500; color: #5b6576; white-space: nowrap;
+    display: flex; align-items: center; justify-content: center; gap: .35rem;
+    transition: background .15s, color .15s, box-shadow .15s;
   }
+  .shop-stock-pills button:hover { color: #212529; }
+  .shop-stock-pills button.active { background: #fff; color: #0b5ed7; font-weight: 600; box-shadow: 0 1px 3px rgba(16, 24, 40, .12); }
+  .shop-stock-pills .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .shop-reset { height: var(--shop-h); width: var(--shop-h); border-radius: 10px; }
+  .shop-reset.d-none { display: none !important; }
 
   /* Responsive improvements */
   @media (max-width: 768px) {
@@ -570,310 +557,7 @@
 </style>
 
 <div class="container-fluid" style="margin: 0 !important; padding: 1.5rem 0 0 0 !important; width: 100% !important; max-width: none !important;">
-  <!-- Compact Page Header -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h2 class="mb-1 text-dark fw-bold fs-4">
-        <i class="bi bi-shop me-2 text-primary"></i>
-        Shop Products
-      </h2>
-      <p class="text-muted mb-0 small">Browse and order your favorite fresh & organic products</p>
-    </div>
-    <div class="d-flex gap-2">
-      <div class="badge bg-primary-subtle text-primary px-2 py-1">
-        <i class="bi bi-box-seam me-1"></i>
-        <%= @products&.size || 0 %> Products
-      </div>
-      <div class="badge bg-info-subtle text-info px-2 py-1">
-        <i class="bi bi-tags me-1"></i>
-        <%= @categories&.count || 0 %> Categories
-      </div>
-    </div>
-  </div>
-
-  <!-- Compact Filter Controls -->
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-body py-2">
-      <div class="row g-2 align-items-end">
-        <div class="col-xl-4 col-lg-5">
-          <label class="form-label fw-semibold mb-2">
-            <i class="bi bi-search me-1 text-primary"></i>
-            Search Products
-          </label>
-          <div class="position-relative">
-            <input type="text"
-                   class="form-control pe-5"
-                   placeholder="Search products by name, SKU, or category..."
-                   id="productSearchInput">
-            <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
-          </div>
-        </div>
-        <div class="col-xl-3 col-lg-3">
-          <label class="form-label fw-semibold mb-2">
-            <i class="bi bi-funnel me-1 text-success"></i>
-            Category
-          </label>
-          <select class="form-select category-select2" id="categoryFilter">
-            <option value="">All Categories</option>
-            <% @categories.each do |category| %>
-              <option value="<%= category.id %>"><%= category.name %></option>
-            <% end %>
-          </select>
-        </div>
-        <div class="col-xl-3 col-lg-3">
-          <label class="form-label fw-semibold mb-2">
-            <i class="bi bi-filter me-1 text-info"></i>
-            Stock Filter
-          </label>
-          <select class="form-select stock-select2" id="stockFilter">
-            <option value="all">All Products</option>
-            <option value="instock">In Stock Only</option>
-            <option value="outofstock">Out of Stock</option>
-            <option value="lowstock">Low Stock</option>
-          </select>
-        </div>
-        <div class="col-xl-2 col-lg-1">
-          <button type="button" class="btn btn-outline-secondary w-100" onclick="clearAllFilters()" title="Clear All Filters">
-            <i class="bi bi-x-circle"></i>
-            <span class="d-none d-lg-inline ms-1">Clear</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Products Section -->
-  <% if @products&.any? %>
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-transparent border-0">
-        <div class="d-flex justify-content-between align-items-center">
-          <h5 class="mb-0 fw-semibold">Product List</h5>
-          <div class="d-flex gap-2">
-            <div class="position-relative">
-              <input type="text" class="form-control" placeholder="Search in table..." id="searchInput">
-              <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3"></i>
-            </div>
-            <button class="btn btn-outline-secondary btn-sm" onclick="toggleView('grid')" id="gridViewBtn">
-              <i class="bi bi-grid-3x3-gap"></i>
-            </button>
-            <button class="btn btn-outline-secondary btn-sm" onclick="toggleView('list')" id="listViewBtn">
-              <i class="bi bi-list"></i>
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="card-body p-0">
-        <div class="p-2">
-            <div class="row g-2" id="productGrid">
-              <% @products.each do |product| %>
-                <% current_stock = product.cached_total_batch_stock %>
-                <% in_stock = current_stock > 0 %>
-
-                <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6 product-grid-item"
-                     data-product-id="<%= product.id %>"
-                     data-category="<%= product.category_id %>"
-                     data-stock="<%= current_stock %>">
-                  <div class="card h-100 border-0 shadow-sm hover-lift product-card">
-                <!-- Product Image -->
-                <div class="position-relative">
-                  <% if product.main_image_url.present? %>
-                    <img src="<%= product.main_image_url %>" class="card-img-top" alt="<%= product.name %>" loading="lazy">
-                  <% else %>
-                    <div class="card-img-top d-flex align-items-center justify-content-center">
-                      <i class="bi bi-box-seam fs-1 text-muted"></i>
-                    </div>
-                  <% end %>
-
-                  <!-- Enhanced Stock Badge -->
-                  <% if current_stock == 0 %>
-                    <span class="position-absolute top-0 end-0 badge bg-danger m-2">
-                      <i class="bi bi-x-circle me-1"></i>Out of Stock
-                    </span>
-                  <% elsif current_stock < 10 %>
-                    <span class="position-absolute top-0 end-0 badge bg-warning text-dark m-2">
-                      <i class="bi bi-exclamation-triangle me-1"></i>Low Stock (<%= current_stock.to_i %> left)
-                    </span>
-                  <% else %>
-                    <span class="position-absolute top-0 end-0 badge bg-success m-2">
-                      <i class="bi bi-check-circle me-1"></i><%= current_stock.to_i %> in stock
-                    </span>
-                  <% end %>
-
-                  <!-- Discount Badge -->
-                  <% if product.respond_to?(:discount_price) && product.discount_price.present? && product.discount_price != product.price %>
-                    <% discount_percent = ((product.price - product.discount_price) * 100 / product.price).round %>
-                    <span class="position-absolute top-0 start-0 badge bg-success m-2"><%= discount_percent %>% OFF</span>
-                  <% end %>
-                </div>
-
-                <!-- Product Details -->
-                <div class="card-body d-flex flex-column">
-                  <small class="text-muted card-category mb-1"><%= product.category&.name || 'No Category' %></small>
-
-                  <h6 class="card-title mb-2"><%= product.name %></h6>
-
-                  <!-- Price -->
-                  <div class="mb-3 price-block">
-                    <%
-                      if product.has_multiple_quantities? && product.product_variants.any?
-                        sorted_variants = product.product_variants.sort_by { |v| [(v.display_order || 999), v.weight.to_f] }
-                        shop_default_v = product.default_variant || sorted_variants.first
-                        selling_price = shop_default_v.effective_price
-                      else
-                        shop_default_v = nil
-                        selling_price = product.respond_to?(:discount_price) && product.discount_price.present? && product.discount_price != product.price ? product.discount_price : product.price
-                      end
-
-                      if product.gst_enabled && product.gst_percentage.present? && product.gst_percentage > 0
-                        gst_rate = product.gst_percentage
-                        base_price = selling_price / (1 + (gst_rate / 100.0))
-                        final_price = selling_price
-                      else
-                        base_price = selling_price
-                        gst_rate = 0
-                        final_price = selling_price
-                      end
-
-                      rounded_final = final_price.round
-                      rounded_base = (rounded_final / (1 + (gst_rate / 100.0))).round
-                      rounded_gst = rounded_final - rounded_base
-
-                      effective_stock = shop_default_v ? shop_default_v.available_stock : current_stock
-                    %>
-
-                    <% if product.has_multiple_quantities? && product.product_variants.any? %>
-                      <!-- Variant pills -->
-                      <div class="d-flex flex-wrap justify-content-center gap-1 mb-2" id="shop-variant-pills-<%= product.id %>">
-                        <% sorted_variants.each do |v| %>
-                          <button type="button"
-                                  class="btn btn-xs px-2 py-1 shop-variant-pill <%= v.id == shop_default_v.id ? 'btn-primary' : 'btn-outline-secondary' %>"
-                                  style="font-size:0.75rem; line-height:1.2; <%= v.id == shop_default_v.id ? '' : 'border-radius:999px;' %>"
-                                  data-variant-id="<%= v.id %>"
-                                  data-product-id="<%= product.id %>"
-                                  data-price="<%= v.effective_price %>"
-                                  data-stock="<%= v.available_stock %>"
-                                  data-label="<%= j(v.label) %>"
-                                  onclick="shopSelectVariant(this)">
-                            <%= v.label %>
-                          </button>
-                        <% end %>
-                      </div>
-                      <span class="h6 text-primary mb-0" id="shop-vprice-<%= product.id %>">
-                        ₹<%= number_with_delimiter(rounded_final) %>
-                      </span>
-                      <input type="hidden" id="shop-selected-variant-<%= product.id %>" value="<%= shop_default_v.id %>">
-                    <% elsif product.respond_to?(:discount_price) && product.discount_price.present? && product.discount_price != product.price %>
-                      <div class="d-flex align-items-center justify-content-center gap-2">
-                        <span class="h6 text-success mb-0">₹<%= number_with_delimiter(final_price.round(2)) %></span>
-                        <small class="text-muted text-decoration-line-through">₹<%= number_with_delimiter(product.price) %></small>
-                      </div>
-                    <% else %>
-                      <span class="h6 text-primary mb-0">₹<%= number_with_delimiter(final_price.round(2)) %></span>
-                    <% end %>
-
-                    <% if product.gst_enabled && gst_rate > 0 %>
-                      <small class="text-muted d-block">
-                        Base: ₹<%= number_with_delimiter(rounded_base) %> + GST: ₹<%= number_with_delimiter(rounded_gst) %> (<%= gst_rate %>%) = ₹<%= number_with_delimiter(rounded_final) %>
-                      </small>
-                    <% end %>
-                  </div>
-
-                  <!-- Quantity and Add to Cart -->
-                  <div class="mt-auto" id="shop-stock-section-<%= product.id %>">
-                    <% if effective_stock > 0 %>
-                      <!-- Quantity Selector -->
-                      <div class="mb-3">
-                        <label class="form-label fw-bold small">
-                          Quantity
-                          <span class="badge bg-info-subtle text-info ms-1" id="shop-max-stock-<%= product.id %>">
-                            Max: <%= effective_stock.to_i %>
-                          </span>
-                        </label>
-                        <div class="input-group">
-                          <button class="btn btn-outline-primary quantity-btn" type="button" onclick="decreaseQty(<%= product.id %>)">
-                            <i class="bi bi-dash fw-bold"></i>
-                          </button>
-                          <input type="number"
-                                 id="qty-<%= product.id %>"
-                                 value="1"
-                                 min="1"
-                                 step="1"
-                                 max="<%= effective_stock %>"
-                                 class="form-control text-center fw-bold quantity-input"
-                                 onchange="validateQty(<%= product.id %>, <%= effective_stock %>)">
-                          <button class="btn btn-outline-primary quantity-btn" type="button" onclick="increaseQty(<%= product.id %>)">
-                            <i class="bi bi-plus fw-bold"></i>
-                          </button>
-                        </div>
-
-                        <% if effective_stock < 10 %>
-                          <small class="text-warning d-block mt-1">
-                            <i class="bi bi-exclamation-triangle-fill"></i>
-                            <strong>Low Stock!</strong> Only <%= effective_stock.to_i %> left
-                          </small>
-                        <% end %>
-                      </div>
-
-                      <!-- Add to Cart Button -->
-                      <button class="btn btn-primary w-100"
-                              id="shop-add-btn-<%= product.id %>"
-                              data-product-id="<%= product.id %>"
-                              data-product-name="<%= j(product.name) %>"
-                              data-final-price="<%= rounded_final %>"
-                              data-stock="<%= effective_stock %>"
-                              data-base-price="<%= rounded_base %>"
-                              data-gst-rate="<%= gst_rate %>"
-                              data-has-variants="<%= product.has_multiple_quantities? ? 'true' : 'false' %>"
-                              onclick="shopAddToCart(<%= product.id %>)">
-                        <i class="bi bi-cart-plus me-2"></i>Add to Cart
-                      </button>
-                    <% else %>
-                      <!-- Out of Stock Button -->
-                      <button class="btn btn-danger w-100" style="border-radius: 999px;" disabled id="shop-add-btn-<%= product.id %>">
-                        <i class="bi bi-x-circle me-2"></i>Out of Stock
-                      </button>
-                    <% end %>
-                  </div>
-                    </div>
-                  </div>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  <% else %>
-    <!-- Empty State -->
-    <div class="row">
-      <div class="col-12">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body text-center py-5">
-            <div class="empty-state-animation mb-4">
-              <div class="empty-box">
-                <i class="bi bi-box-seam fs-1 text-muted"></i>
-                <div class="floating-dots">
-                  <span class="dot"></span>
-                  <span class="dot"></span>
-                  <span class="dot"></span>
-                </div>
-              </div>
-            </div>
-            <h4 class="card-title fw-bold text-muted mb-3">No Products Found</h4>
-            <p class="text-muted mb-4 lead">Check back later for new products or try adjusting your search.</p>
-            <div class="d-flex justify-content-center gap-3">
-              <%= link_to customer_dashboard_path, class: "btn btn-primary px-4" do %>
-                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
-              <% end %>
-              <button class="btn btn-outline-primary px-4" onclick="location.reload()">
-                <i class="bi bi-arrow-clockwise me-2"></i>Refresh Page
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  <% end %>
+  <%= @catalog_html ? raw(@catalog_html) : render('customer/shop/catalog') %>
 </div>
 
 <!-- Cart Notification -->
@@ -914,102 +598,124 @@ document.addEventListener('DOMContentLoaded', function() {
   // Refresh cart and UI on page load
   cart = getCleanCart();
   updateCartBadge();
+  initializeSelect2();
   initializeFilters();
   initializeSearch();
-  initializeSelect2();
   addCheckoutButton();
 });
 
-// Initialize Select2 dropdowns
+// ---- Product filters -------------------------------------------------
+// Search, category and stock all apply together (the old handlers each
+// overwrote the others). Matching uses the precomputed data-search string and
+// the `hidden` attribute, so toggleView's className rewrite can't undo it.
+const shopFilter = { q: '', category: '', stock: 'all' };
+let shopFilterFrame = null;
+
+function matchesStock(stock, type) {
+  switch (type) {
+    case 'instock':    return stock > 0;
+    case 'lowstock':   return stock > 0 && stock < 10;
+    case 'outofstock': return stock <= 0;
+    default:           return true;
+  }
+}
+
+function applyShopFilters() {
+  const terms = shopFilter.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const items = document.querySelectorAll('.product-grid-item');
+  let shown = 0;
+
+  items.forEach(item => {
+    const text = item.dataset.search || '';
+    const visible =
+      (!shopFilter.category || item.dataset.category === shopFilter.category) &&
+      matchesStock(parseFloat(item.dataset.stock) || 0, shopFilter.stock) &&
+      terms.every(t => text.includes(t));
+    item.hidden = !visible;
+    if (visible) shown++;
+  });
+
+  const count = document.getElementById('shopResultCount');
+  if (count) {
+    count.textContent = shown === items.length
+      ? `${items.length} products`
+      : `Showing ${shown} of ${items.length}`;
+  }
+  document.getElementById('shopNoMatch')?.classList.toggle('d-none', shown > 0 || items.length === 0);
+
+  const active = shopFilter.q || shopFilter.category || shopFilter.stock !== 'all';
+  document.getElementById('shopResetFilters')?.classList.toggle('d-none', !active);
+  document.getElementById('productSearchClear')?.classList.toggle('d-none', !shopFilter.q);
+}
+
+function scheduleShopFilters() {
+  if (shopFilterFrame) cancelAnimationFrame(shopFilterFrame);
+  shopFilterFrame = requestAnimationFrame(applyShopFilters);
+}
+
 function initializeSelect2() {
-  console.log('🔧 Initializing Select2 dropdowns...');
+  const categorySelect = $('.category-select2');
+  if (!categorySelect.length || typeof $.fn.select2 === 'undefined') return;
 
-  try {
-    // Check if elements exist
-    const categorySelect = $('.category-select2');
-    const stockSelect = $('.stock-select2');
+  const formatCategory = (option) => {
+    if (!option.id && option.text !== 'All Categories') return option.text;
+    const count = $(option.element).data('count');
+    const icon = option.id ? 'bi-tag' : 'bi-grid';
+    return $(
+      `<span class="shop-cat-option"><i class="bi ${icon}"></i><span class="name"></span>` +
+      (count !== undefined ? `<span class="count">${count}</span>` : '') + '</span>'
+    ).find('.name').text(option.text).end();
+  };
 
-    console.log('Category select found:', categorySelect.length);
-    console.log('Stock select found:', stockSelect.length);
-
-    // Category Select2
-    if (categorySelect.length > 0) {
-      categorySelect.select2({
-        theme: 'bootstrap-5',
-        placeholder: 'All Categories',
-        allowClear: true,
-        width: '100%'
-      });
-      console.log('✅ Category Select2 initialized');
-    }
-
-    // Stock Filter Select2
-    if (stockSelect.length > 0) {
-      stockSelect.select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Select Stock Status',
-        allowClear: false,
-        width: '100%',
-        minimumResultsForSearch: Infinity // Disable search for simple dropdown
-      });
-      console.log('✅ Stock Select2 initialized');
-    }
-  } catch (error) {
-    console.error('❌ Error initializing Select2:', error);
-  }
-
-  // Event listeners for Select2 changes
-  $('.category-select2').on('change', function() {
-    const categoryId = $(this).val();
-    if (categoryId === '') {
-      showAllProducts();
-    } else {
-      filterProductsByCategory(categoryId);
-    }
-  });
-
-  $('.stock-select2').on('change', function() {
-    const stockFilter = $(this).val();
-    filterProductsByStock(stockFilter);
+  categorySelect.select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    dropdownCssClass: 'shop-cat-dropdown',
+    selectionCssClass: 'shop-cat-selection',
+    templateResult: formatCategory,
+    templateSelection: formatCategory
   });
 }
 
-// Initialize search functionality
 function initializeSearch() {
-  const searchInput = document.getElementById('productSearchInput');
-  if (searchInput) {
-    searchInput.addEventListener('input', function() {
-      const searchTerm = this.value.toLowerCase();
-      const products = document.querySelectorAll('.product-grid-item');
+  const input = document.getElementById('productSearchInput');
+  if (!input) return;
 
-      products.forEach(product => {
-        const productName = product.querySelector('.card-title')?.textContent.toLowerCase() || '';
-        const categoryName = product.querySelector('small')?.textContent.toLowerCase() || '';
+  input.addEventListener('input', function() {
+    shopFilter.q = this.value;
+    scheduleShopFilters();
+  });
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { this.value = ''; shopFilter.q = ''; scheduleShopFilters(); }
+  });
+  document.getElementById('productSearchClear')?.addEventListener('click', function() {
+    input.value = '';
+    shopFilter.q = '';
+    applyShopFilters();
+    input.focus();
+  });
 
-        if (productName.includes(searchTerm) || categoryName.includes(searchTerm)) {
-          product.style.display = 'block';
-        } else {
-          product.style.display = 'none';
-        }
-      });
-    });
-  }
+  // "/" focuses search, like most shop sites
+  document.addEventListener('keydown', function(e) {
+    if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      input.focus();
+    }
+  });
 }
 
-// Initialize filters
 function initializeFilters() {
-  // Category filter dropdown
-  const categoryFilter = document.getElementById('categoryFilter');
-  if (categoryFilter) {
-    categoryFilter.addEventListener('change', function() {
-      const categoryId = this.value;
-      if (categoryId === '') {
-        showAllProducts();
-      } else {
-        filterProductsByCategory(categoryId);
-      }
+  // Select2 fires jQuery change, not a native event
+  $('#categoryFilter').on('change', function() {
+    shopFilter.category = this.value || '';
+    applyShopFilters();
+  });
+
+  document.querySelectorAll('[data-stock-filter]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      filterProductsByStock(this.dataset.stockFilter);
     });
-  }
+  });
 }
 
 // Variant pill selection for shop
@@ -1296,79 +1002,22 @@ function updateCartBadge() {
   }));
 }
 
-// Keep the old filter function for backward compatibility (if needed)
-function toggleFilter(type) {
-  const products = document.querySelectorAll('.product-grid-item');
-
-  if (type === 'all') {
-    products.forEach(product => {
-      product.style.display = 'block';
-    });
-  } else if (type === 'instock') {
-    products.forEach(product => {
-      const stock = parseInt(product.dataset.stock);
-      product.style.display = stock > 0 ? 'block' : 'none';
-    });
-  }
-}
-
-// New stock filter function for Select2
 function filterProductsByStock(stockType) {
-  const products = document.querySelectorAll('.product-grid-item');
-
-  products.forEach(product => {
-    const stock = parseInt(product.dataset.stock);
-    let showProduct = false;
-
-    switch(stockType) {
-      case 'all':
-        showProduct = true;
-        break;
-      case 'instock':
-        showProduct = stock > 0;
-        break;
-      case 'outofstock':
-        showProduct = stock === 0;
-        break;
-      case 'lowstock':
-        showProduct = stock > 0 && stock < 10;
-        break;
-    }
-
-    product.style.display = showProduct ? 'block' : 'none';
+  shopFilter.stock = stockType || 'all';
+  document.querySelectorAll('[data-stock-filter]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.stockFilter === shopFilter.stock);
   });
+  applyShopFilters();
 }
 
-// Updated clear all filters function
 function clearAllFilters() {
-  // Clear search
-  const searchInput = document.getElementById('productSearchInput');
-  if (searchInput) {
-    searchInput.value = '';
-  }
-
-  // Clear Select2 filters
-  $('.category-select2').val('').trigger('change');
-  $('.stock-select2').val('all').trigger('change');
-
-  // Reset to all products
-  showAllProducts();
-}
-
-function filterProductsByCategory(categoryId) {
-  const products = document.querySelectorAll('.product-grid-item');
-
-  products.forEach(product => {
-    const productCategory = product.dataset.category;
-    product.style.display = productCategory == categoryId ? 'block' : 'none';
-  });
-}
-
-function showAllProducts() {
-  const products = document.querySelectorAll('.product-grid-item');
-  products.forEach(product => {
-    product.style.display = 'block';
-  });
+  const input = document.getElementById('productSearchInput');
+  if (input) input.value = '';
+  shopFilter.q = '';
+  shopFilter.category = '';
+  shopFilter.stock = 'all';
+  $('#categoryFilter').val('').trigger('change.select2');
+  filterProductsByStock('all');
 }
 
 // View Toggle Functionality

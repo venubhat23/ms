@@ -3,6 +3,15 @@
   <head>
     <title><%= content_for(:title) || "Marali Santhe - Customer Portal" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%# Open the third-party connections (DNS+TLS ≈ 160 ms each) in parallel
+        at the very start; fonts.gstatic and the image CDN are otherwise only
+        discovered after the CSS / HTML body has been parsed. %>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://res.cloudinary.com">
+    <link rel="dns-prefetch" href="https://sdk.cashfree.com">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
@@ -25,8 +34,8 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css">
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <%# Chart.js is only used by customer/dashboard, which loads it via
+        content_for :head — loading it here blocked every portal page. %>
 
     <!-- jQuery (required for Select2) -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
@@ -495,48 +504,56 @@
                             </button>
 
                             <!-- Add Address Form -->
-                            <div id="add-address-form" style="display: none;" class="mt-3 p-3 border rounded bg-light">
-                              <h6 class="mb-3">Add New Address</h6>
+                            <div id="add-address-form" style="display: none;" class="mt-3 cart-address-form">
+                              <h6 class="cart-address-form-title"><i class="fas fa-map-marker-alt me-2"></i>Add New Address</h6>
                               <div id="new-address-form">
                                 <div class="row g-2">
                                   <div class="col-12 col-sm-6">
-                                    <input type="text" class="form-control form-control-sm" id="new_name" placeholder="Full Name" required>
+                                    <label for="new_name" class="form-label">Full Name <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="new_name" placeholder="e.g. Ramesh Kumar" autocomplete="name" required>
                                   </div>
                                   <div class="col-12 col-sm-6">
-                                    <input type="text" class="form-control form-control-sm" id="new_mobile" placeholder="Mobile Number" required inputmode="numeric">
+                                    <label for="new_mobile" class="form-label">Mobile Number <span class="req">*</span></label>
+                                    <input type="tel" class="form-control" id="new_mobile" placeholder="10-digit mobile" autocomplete="tel-national" required inputmode="numeric" maxlength="10">
                                   </div>
                                   <div class="col-12 col-sm-6">
-                                    <select class="form-control form-control-sm" id="new_address_type" required>
-                                      <option value="">Address Type</option>
+                                    <label for="new_address_type" class="form-label">Address Type <span class="req">*</span></label>
+                                    <select class="form-select" id="new_address_type" required>
+                                      <option value="">Select type</option>
                                       <option value="home">Home</option>
                                       <option value="office">Office</option>
                                       <option value="other">Other</option>
                                     </select>
                                   </div>
                                   <div class="col-12 col-sm-6">
-                                    <input type="text" class="form-control form-control-sm" id="new_pincode"
-                                           placeholder="Pincode" required inputmode="numeric" maxlength="6"
+                                    <label for="new_pincode" class="form-label">Pincode <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="new_pincode"
+                                           placeholder="6-digit pincode" autocomplete="postal-code" required inputmode="numeric" maxlength="6"
                                            onblur="onNewAddressPincodeBlur(this)">
                                     <div id="pincode-validation-msg" class="small mt-1"></div>
                                   </div>
                                   <div class="col-12">
-                                    <textarea class="form-control form-control-sm" id="new_address" placeholder="Address" rows="2" required></textarea>
+                                    <label for="new_address" class="form-label">House / Street / Area <span class="req">*</span></label>
+                                    <textarea class="form-control" id="new_address" placeholder="House no., building, street, area" autocomplete="street-address" rows="2" required></textarea>
                                   </div>
                                   <div class="col-12">
-                                    <input type="text" class="form-control form-control-sm" id="new_landmark" placeholder="Landmark (Optional)">
+                                    <label for="new_landmark" class="form-label">Landmark <span class="text-muted fw-normal">(optional)</span></label>
+                                    <input type="text" class="form-control" id="new_landmark" placeholder="Near temple, school, etc.">
                                   </div>
                                   <div class="col-12 col-sm-6">
-                                    <input type="text" class="form-control form-control-sm" id="new_city" placeholder="City" required>
+                                    <label for="new_city" class="form-label">City <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="new_city" placeholder="City" autocomplete="address-level2" required>
                                   </div>
                                   <div class="col-12 col-sm-6">
-                                    <input type="text" class="form-control form-control-sm" id="new_state" placeholder="State" required>
+                                    <label for="new_state" class="form-label">State <span class="req">*</span></label>
+                                    <input type="text" class="form-control" id="new_state" placeholder="State" autocomplete="address-level1" required>
                                   </div>
                                   <div class="col-12">
                                     <div class="d-flex gap-2">
-                                      <button type="button" class="btn btn-primary btn-sm flex-fill" onclick="saveNewAddress()">
+                                      <button type="button" class="btn btn-primary flex-fill" onclick="saveNewAddress()">
                                         <i class="fas fa-save me-1"></i>Save Address
                                       </button>
-                                      <button type="button" class="btn btn-secondary btn-sm" onclick="hideAddAddressForm()">Cancel</button>
+                                      <button type="button" class="btn btn-light border" onclick="hideAddAddressForm()">Cancel</button>
                                     </div>
                                   </div>
                                 </div>
@@ -899,6 +916,10 @@
       .shop-option-card:hover { border-color: #0d6efd; }
 
       .address-card {
+        position: relative;
+        padding: 12px 40px 12px 14px;
+        background: #fff;
+        color: #212529;
         transition: border-color 0.2s, background 0.2s;
         cursor: pointer;
         border: 2px solid #dee2e6!important;
@@ -907,8 +928,45 @@
       .address-card:hover { border-color: #0d6efd !important; }
       .address-card.active {
         border-color: #0d6efd !important;
-        background: #e8f0fe !important;
+        background: #f0f6ff !important;
       }
+      .address-card .addr-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+      .address-card .addr-name { font-weight: 700; font-size: 0.95rem; color: #1f2937; }
+      .address-card .addr-type {
+        font-size: 0.68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+        color: #0d6efd; background: #e3edff; border-radius: 999px; padding: 2px 8px;
+      }
+      .address-card .addr-line { font-size: 0.85rem; color: #374151; line-height: 1.4; word-break: break-word; }
+      .address-card .addr-phone { font-size: 0.8rem; color: #4b5563; margin-top: 4px; }
+      .address-card .addr-phone i { font-size: 0.7rem; margin-right: 6px; color: #6b7280; }
+      .address-card .addr-check {
+        position: absolute; top: 12px; right: 12px; width: 20px; height: 20px; border-radius: 50%;
+        border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center;
+        font-size: 0.6rem; color: transparent;
+      }
+      .address-card.active .addr-check { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+      .addr-empty {
+        display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px;
+        background: #f8fafc; border: 1px dashed #cbd5e1; color: #475569; font-size: 0.85rem;
+      }
+      .addr-empty i { color: #94a3b8; }
+
+      /* Add-address form in the cart drawer: always-visible labels so
+         autofilled fields stay readable */
+      .cart-address-form { padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+      .cart-address-form-title { font-weight: 700; color: #1f2937; margin-bottom: 12px; }
+      .cart-address-form .form-label { font-size: 0.78rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+      .cart-address-form .form-label .req { color: #dc3545; }
+      .cart-address-form .form-control,
+      .cart-address-form .form-select {
+        min-height: 40px; height: auto; padding: 8px 12px; font-size: 0.9rem; line-height: 1.4;
+        color: #111827; background-color: #fff; border: 1px solid #cbd5e1; border-radius: 8px;
+      }
+      .cart-address-form .form-select { padding-right: 2.25rem; }
+      .cart-address-form textarea.form-control { min-height: 64px; resize: vertical; }
+      .cart-address-form .form-control::placeholder { color: #9ca3af; }
+      .cart-address-form .form-control:focus,
+      .cart-address-form .form-select:focus { border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13, 110, 253, .15); }
 
       .payment-option {
         display: flex;
@@ -1578,20 +1636,23 @@
         const container = document.getElementById('address-list');
         if (!container) return;
         if (customerAddresses.length === 0) {
-          container.innerHTML = '<p class="text-muted small">No saved addresses. Add one below.</p>';
+          container.innerHTML = '<div class="addr-empty"><i class="fas fa-map-marker-alt"></i>No saved addresses yet. Add one below.</div>';
           return;
         }
+        const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         container.innerHTML = customerAddresses.map((addr, i) => {
-          const badge = addr.address_type ? `<span class="badge bg-secondary ms-1">${addr.address_type}</span>` : '';
+          const type = addr.address_type ? `<span class="addr-type">${esc(addr.address_type)}</span>` : '';
+          const line = [addr.address, addr.landmark, addr.city, addr.state].filter(Boolean).map(esc).join(', ');
           return `
-            <div class="address-card mb-2 p-3 ${i === 0 ? 'active' : ''}"
+            <div class="address-card mb-2 ${i === 0 ? 'active' : ''}"
                  data-index="${i}"
                  data-address-id="${addr.id}"
-                 data-pincode="${addr.pincode || ''}"
+                 data-pincode="${esc(addr.pincode)}"
                  onclick="selectAddress(${i})">
-              <strong>${addr.name || ''}${badge}</strong><br>
-              <span class="small">${addr.address || ''}${addr.city ? ', ' + addr.city : ''}${addr.state ? ', ' + addr.state : ''} - ${addr.pincode || ''}</span><br>
-              <small class="text-muted">📞 ${addr.mobile || ''}</small>
+              <span class="addr-check"><i class="fas fa-check"></i></span>
+              <div class="addr-head"><span class="addr-name">${esc(addr.name)}</span>${type}</div>
+              <div class="addr-line">${line}${addr.pincode ? ` - <strong>${esc(addr.pincode)}</strong>` : ''}</div>
+              ${addr.mobile ? `<div class="addr-phone"><i class="fas fa-phone-alt"></i>${esc(addr.mobile)}</div>` : ''}
             </div>`;
         }).join('');
 

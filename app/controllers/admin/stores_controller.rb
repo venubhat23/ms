@@ -131,7 +131,11 @@ class Admin::StoresController < Admin::ApplicationController
     end
   end
 
+  # Opens the Store Admin dashboard for THIS store. The store-admin area reads
+  # session[:admin_viewing_store_id] for admin users (who have no store of
+  # their own), so the admin sees exactly the store they clicked.
   def view_as_store_admin
+    session[:admin_viewing_store_id] = @store.id
     redirect_to store_admin_root_path
   end
 

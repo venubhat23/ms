@@ -856,6 +856,7 @@ class Admin::BookingsController < Admin::ApplicationController
 
   def manage_stage
     # This will render the manage_stage.html.erb view
+    @delivery_people = DeliveryPerson.active.order(:first_name, :last_name).load_async
     @list_state = list_state_params
     @available_statuses = Booking.statuses.keys.map { |status| [status.humanize, status] }
     @next_stages = @booking.next_possible_statuses
@@ -1008,7 +1009,10 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def set_booking
-    @booking = Booking.find(params[:id])
+    # manage_stage renders the customer, delivery person and delivery
+    # franchise; one JOIN instead of a round trip for each.
+    scope = action_name == 'manage_stage' ? Booking.eager_load(:customer, :delivery_person, :delivery_franchise) : Booking
+    @booking = scope.find(params[:id])
   end
 
   # Everything the new-booking screen renders besides @booking — shared by

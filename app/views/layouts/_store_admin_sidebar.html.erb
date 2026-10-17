@@ -182,7 +182,7 @@
       <% end %>
     </div>
 
-    <% if current_user.can_manage_inventory? %>
+    <% if current_user.can_manage_inventory? || admin_viewing_store %>
       <div class="nav-section">
         <div class="nav-section-title">
           <i class="fas fa-boxes me-2"></i>Inventory

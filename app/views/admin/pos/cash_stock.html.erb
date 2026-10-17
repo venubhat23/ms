@@ -2,118 +2,148 @@
 <%= render 'admin/pos/styles' %>
 <% inr = ->(v) { "₹#{number_with_precision(v.to_d, precision: 2, delimiter: ",", strip_insignificant_zeros: true)}" } %>
 
-<div class="pos-page container-fluid py-3">
-  <div class="pos-hero d-flex flex-wrap justify-content-between align-items-center gap-3">
+<div class="container-fluid">
+  <!-- Page Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
-      <h2><i class="bi bi-safe2 me-2"></i>Current Cash Stock</h2>
-      <p>Cash each shop is holding now: cash collected minus what was deposited to the bank</p>
+      <h2 class="mb-1"><i class="bi bi-safe2 me-2 text-primary"></i>Current Cash Stock</h2>
+      <p class="text-muted mb-0">Cash each shop is holding now: cash collected minus what was deposited to the bank</p>
     </div>
-    <%= link_to admin_pos_path, class: 'btn btn-outline-light' do %>
+    <%= link_to admin_pos_path, class: 'btn btn-outline-secondary' do %>
       <i class="bi bi-arrow-left me-1"></i>Cash Collected
     <% end %>
   </div>
 
+  <!-- Statistics Cards -->
   <div class="row g-3 mb-4">
     <div class="col-md-4">
-      <div class="pos-card pos-stat h-100">
-        <small>Cash collected (all time)</small>
-        <div class="pos-amount"><%= inr.(@totals[:collected]) %></div>
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3 d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="text-muted mb-1">Cash Collected (all time)</h6>
+            <h4 class="mb-0"><%= inr.(@totals[:collected]) %></h4>
+          </div>
+          <span class="pos-stat-icon pos-soft-primary"><i class="bi bi-cash-stack"></i></span>
+        </div>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="pos-card pos-stat h-100">
-        <small>Deposited to bank</small>
-        <div class="pos-amount pos-deposited"><%= inr.(@totals[:deposited]) %></div>
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3 d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="text-muted mb-1">Deposited to Bank</h6>
+            <h4 class="mb-0 text-info"><%= inr.(@totals[:deposited]) %></h4>
+          </div>
+          <span class="pos-stat-icon pos-soft-info"><i class="bi bi-bank"></i></span>
+        </div>
       </div>
     </div>
     <div class="col-md-4">
-      <div class="pos-card pos-stat h-100">
-        <small>Cash in hand now</small>
-        <div class="pos-amount pos-inhand"><%= inr.(@totals[:in_hand]) %></div>
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3 d-flex align-items-center">
+          <div class="flex-grow-1">
+            <h6 class="text-muted mb-1">Cash in Hand Now</h6>
+            <h4 class="mb-0 text-success"><%= inr.(@totals[:in_hand]) %></h4>
+          </div>
+          <span class="pos-stat-icon pos-soft-success"><i class="bi bi-wallet2"></i></span>
+        </div>
       </div>
     </div>
   </div>
 
-  <h6 class="fw-semibold mb-2">By shop</h6>
+  <!-- By shop -->
+  <h5 class="mb-2">By Shop</h5>
   <div class="row g-3 mb-4">
     <% @rows.each do |row| %>
+      <% banked = row[:collected].positive? ? (row[:deposited] / row[:collected] * 100).round.clamp(0, 100) : 0 %>
       <div class="col-sm-6 col-xl-3">
-        <div class="pos-card pos-shop h-100 d-flex flex-column">
-          <div class="pos-shop-name mb-2">
-            <span class="pos-icon"><i class="bi <%= row[:id] ? 'bi-shop' : 'bi-building' %>"></i></span>
-            <span class="text-truncate"><%= row[:name] %></span>
-          </div>
-          <small class="text-muted text-uppercase fw-semibold" style="font-size:.7rem;letter-spacing:.04em;">Cash in hand</small>
-          <div class="pos-amount mt-0"><%= inr.(row[:in_hand]) %></div>
-          <div class="small text-muted mt-1">
-            Collected <%= inr.(row[:collected]) %><br>
-            Deposited <span class="pos-deposited"><%= inr.(row[:deposited]) %></span>
-          </div>
-          <div class="mt-auto pt-3">
-            <button type="button"
-                    class="btn btn-success btn-sm w-100"
-                    data-bs-toggle="modal"
-                    data-bs-target="#posDepositModal"
-                    data-store-key="<%= row[:key] %>"
-                    data-store-name="<%= row[:name] %>"
-                    data-in-hand="<%= row[:in_hand].round(2).to_s('F') %>"
-                    <%= 'disabled' unless row[:in_hand] > 0 %>>
-              <i class="bi bi-bank me-1"></i>Deposit to Bank
-            </button>
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-3 d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-3">
+              <span class="pos-stat-icon pos-soft-primary" style="width:36px;height:36px;font-size:1rem;"><i class="bi <%= row[:id] ? 'bi-shop' : 'bi-building' %>"></i></span>
+              <span class="fw-semibold text-truncate"><%= row[:name] %></span>
+            </div>
+            <h6 class="text-muted mb-1">Cash in Hand</h6>
+            <div class="pos-shop-amount text-success mb-2"><%= inr.(row[:in_hand]) %></div>
+            <div class="d-flex justify-content-between small text-muted">
+              <span>Collected</span><span class="fw-semibold text-dark"><%= inr.(row[:collected]) %></span>
+            </div>
+            <div class="d-flex justify-content-between small text-muted mb-2">
+              <span>Deposited</span><span class="fw-semibold text-info"><%= inr.(row[:deposited]) %></span>
+            </div>
+            <div class="pos-share mb-1"><div style="width: <%= banked %>%;"></div></div>
+            <small class="text-muted"><%= banked %>% banked</small>
+            <div class="mt-auto pt-3">
+              <button type="button"
+                      class="btn btn-success btn-sm w-100"
+                      data-bs-toggle="modal"
+                      data-bs-target="#posDepositModal"
+                      data-store-key="<%= row[:key] %>"
+                      data-store-name="<%= row[:name] %>"
+                      data-in-hand="<%= row[:in_hand].round(2).to_s('F') %>"
+                      <%= 'disabled' unless row[:in_hand] > 0 %>>
+                <i class="bi bi-bank me-1"></i>Deposit to Bank
+              </button>
+            </div>
           </div>
         </div>
       </div>
     <% end %>
   </div>
 
-  <div class="pos-card">
-    <div class="px-3 pt-3 pb-2">
-      <h6 class="fw-semibold mb-2"><i class="bi bi-clock-history me-1"></i>Bank deposit history</h6>
-      <%= link_to 'All shops', admin_pos_cash_stock_path, class: "pos-pill #{'active' unless @history_store}" %>
-      <% @rows.each do |row| %>
-        <%= link_to row[:name], admin_pos_cash_stock_path(store: row[:key]), class: "pos-pill #{'active' if @history_store == row[:key]}" %>
+  <!-- Deposit history -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 pt-3">
+      <h5 class="mb-3"><i class="bi bi-clock-history me-1"></i>Bank Deposit History</h5>
+      <div class="d-flex flex-wrap gap-2">
+        <%= link_to 'All shops', admin_pos_cash_stock_path, class: "btn btn-sm #{@history_store ? 'btn-outline-primary' : 'btn-primary'}" %>
+        <% @rows.each do |row| %>
+          <%= link_to row[:name], admin_pos_cash_stock_path(store: row[:key]), class: "btn btn-sm #{@history_store == row[:key] ? 'btn-primary' : 'btn-outline-primary'}" %>
+        <% end %>
+      </div>
+    </div>
+    <div class="card-body p-0 mt-2">
+      <% if @deposits.any? %>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th class="border-0 fw-semibold">Date</th>
+                <th class="border-0 fw-semibold">Shop</th>
+                <th class="border-0 fw-semibold text-end">Amount</th>
+                <th class="border-0 fw-semibold">Bank</th>
+                <th class="border-0 fw-semibold">Reference</th>
+                <th class="border-0 fw-semibold">Notes</th>
+                <th class="border-0 fw-semibold">By</th>
+                <th class="border-0 fw-semibold text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% @deposits.each do |d| %>
+                <tr>
+                  <td class="text-nowrap"><%= d.deposited_on.strftime('%d %b %Y') %></td>
+                  <td><span class="badge bg-light text-dark border"><%= d.store_label %></span></td>
+                  <td class="text-end fw-semibold text-info"><%= inr.(d.amount) %></td>
+                  <td><%= d.bank_name.presence || '—' %></td>
+                  <td><%= d.reference_number.presence || '—' %></td>
+                  <td class="small"><%= d.notes.presence || '—' %></td>
+                  <td class="small text-muted"><%= d.created_by&.email || '—' %></td>
+                  <td class="text-end">
+                    <%= button_to admin_pos_deposit_path(d), method: :delete, class: 'btn btn-sm btn-outline-danger',
+                          title: 'Remove this deposit (the cash goes back to the shop)',
+                          form: { data: { turbo: false }, onsubmit: "return confirm('Remove this deposit of #{inr.(d.amount)} from #{j d.store_label}? The amount goes back into that shop\\'s cash in hand.');" } do %>
+                      <i class="bi bi-trash"></i>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      <% else %>
+        <div class="pos-empty"><i class="bi bi-bank fs-1 d-block mb-2 opacity-50"></i>No bank deposits yet.</div>
       <% end %>
     </div>
-    <% if @deposits.any? %>
-      <div class="table-responsive">
-        <table class="table pos-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Shop</th>
-              <th class="text-end">Amount</th>
-              <th>Bank</th>
-              <th>Reference</th>
-              <th>Notes</th>
-              <th>By</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <% @deposits.each do |d| %>
-              <tr>
-                <td class="text-nowrap"><%= d.deposited_on.strftime('%d %b %Y') %></td>
-                <td><%= d.store_label %></td>
-                <td class="text-end fw-semibold pos-deposited"><%= inr.(d.amount) %></td>
-                <td><%= d.bank_name.presence || '—' %></td>
-                <td><%= d.reference_number.presence || '—' %></td>
-                <td class="small"><%= d.notes.presence || '—' %></td>
-                <td class="small text-muted"><%= d.created_by&.email || '—' %></td>
-                <td class="text-end">
-                  <%= button_to admin_pos_deposit_path(d), method: :delete, class: 'btn btn-sm btn-outline-danger',
-                        title: 'Remove this deposit (the cash goes back to the shop)',
-                        form: { data: { turbo: false }, onsubmit: "return confirm('Remove this deposit of #{inr.(d.amount)} from #{j d.store_label}? The amount goes back into that shop\\'s cash in hand.');" } do %>
-                    <i class="bi bi-trash"></i>
-                  <% end %>
-                </td>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    <% else %>
-      <div class="pos-empty"><i class="bi bi-bank fs-3 d-block mb-2"></i>No bank deposits yet.</div>
-    <% end %>
   </div>
 </div>
 
@@ -137,7 +167,7 @@
               </div>
               <div class="col-6">
                 <small>Remaining after deposit</small>
-                <div class="fw-bold pos-inhand" id="posDepositRemaining">₹0</div>
+                <div class="fw-bold text-success" id="posDepositRemaining">₹0</div>
               </div>
             </div>
           </div>

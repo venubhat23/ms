@@ -29,6 +29,12 @@ class Admin::FranchisesController < Admin::ApplicationController
   end
 
   def show
+    # Recent list runs on the async pool while the count/revenue aggregate
+    # (one query, shared by both stat cards) is in flight.
+    @recent_bookings = @franchise.bookings.includes(:customer).order(created_at: :desc).limit(5).load_async
+    count, revenue = @franchise.bookings.pick(Arel.sql('COUNT(*)'), Arel.sql('COALESCE(SUM(total_amount), 0)'))
+    @bookings_count = count.to_i
+    @bookings_revenue = revenue.to_d
     if SystemSetting.franchise_commission_enabled?
       @franchise_wallet = @franchise.franchise_wallet || @franchise.create_franchise_wallet!(balance: 0)
       @franchise_wallet_transactions = @franchise_wallet.franchise_wallet_transactions.recent.limit(10)

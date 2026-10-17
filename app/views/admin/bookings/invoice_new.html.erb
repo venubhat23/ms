@@ -121,7 +121,7 @@
         <% end %>
 
         <!-- Add empty rows if needed to maintain layout -->
-        <% (10 - @booking.booking_items.count).times do %>
+        <% (10 - @booking.booking_items.size).times do %>
           <tr>
             <td>&nbsp;</td>
             <td></td>

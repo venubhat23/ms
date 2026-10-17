@@ -25,17 +25,35 @@ class StoreAdmin::ApplicationController < ApplicationController
   protected
 
   def ensure_store_admin_access
-    unless current_user&.store_admin? || current_user&.super_admin?
-      redirect_to root_path, alert: 'Access denied. Store admin privileges required.'
-    end
+    return if current_user&.store_admin? || current_user&.super_admin? || admin_viewer?
+
+    redirect_to root_path, alert: 'Access denied. Store admin privileges required.'
   end
 
   def set_current_store
-    @current_store = cached_primary_store
-    unless @current_store
+    @current_store = admin_viewing_store || cached_primary_store
+    return if @current_store
+
+    if admin_viewer?
+      # Admins have no store of their own: send them back to pick one.
+      redirect_to admin_stores_path, alert: 'Choose a store and click "View Store Dashboard" to open its dashboard.'
+    else
       redirect_to root_path, alert: 'No store assigned. Please contact administrator.'
     end
   end
+
+  # An admin previewing a store via Admin > Stores > "View Store Dashboard".
+  def admin_viewer?
+    current_user&.admin? || current_user&.super_admin?
+  end
+
+  # The store an admin chose to view (Admin::StoresController#view_as_store_admin).
+  def admin_viewing_store
+    return unless admin_viewer? && session[:admin_viewing_store_id].present?
+
+    @admin_viewing_store ||= Store.find_by(id: session[:admin_viewing_store_id])
+  end
+  helper_method :admin_viewing_store
 
   def store_admin_sidebar_permissions
     return @store_admin_permissions if defined?(@store_admin_permissions)

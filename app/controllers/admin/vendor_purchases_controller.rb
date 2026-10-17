@@ -360,9 +360,9 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
   end
 
   def set_vendors_and_products
-    @vendors = Vendor.active.order(:name)
+    @vendors = Vendor.active.order(:name).load_async
+    @categories = Category.active.ordered.load_async
     @products = Product.active.includes(:product_variants).order(:name)
-    @categories = Category.active.ordered
   end
 
   def vendor_purchase_params

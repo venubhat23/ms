@@ -464,7 +464,7 @@
 
 <!-- JavaScript -->
 <script>
-let itemIndex = <%= @booking.booking_items.count %>;
+let itemIndex = <%= @booking.booking_items.size %>;
 
 const productData = {
   <% @products.each do |p| %>

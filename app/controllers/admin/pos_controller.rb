@@ -12,6 +12,16 @@ class Admin::PosController < Admin::ApplicationController
     @range = period_range(@period, @offset)
     @store_key = params[:store].presence
 
+    # The booking list is fired first so it loads on the async pool while
+    # the shop list and per-shop totals below run.
+    bookings = CashDeposit.cash_bookings
+                          .where(Arel.sql("#{CashDeposit::COLLECTED_AT_SQL} BETWEEN ? AND ?"), @range.begin, @range.end)
+    bookings = bookings.where(store_id: @store_key == 'main' ? nil : @store_key) if @store_key
+    @bookings = bookings.includes(:store)
+                        .order(Arel.sql("#{CashDeposit::COLLECTED_AT_SQL} DESC"))
+                        .limit(300)
+                        .load_async
+
     @shops = shop_list
     collected = CashDeposit.collected_by_store(@range)
     @rows = @shops.map do |shop|
@@ -20,16 +30,15 @@ class Admin::PosController < Admin::ApplicationController
     end
     @total_amount = @rows.sum { |r| r[:amount] }
     @total_count = @rows.sum { |r| r[:count] }
-
-    bookings = CashDeposit.cash_bookings
-                          .where(Arel.sql("#{CashDeposit::COLLECTED_AT_SQL} BETWEEN ? AND ?"), @range.begin, @range.end)
-    bookings = bookings.where(store_id: @store_key == 'main' ? nil : @store_key) if @store_key
-    @bookings = bookings.includes(:store)
-                        .order(Arel.sql("#{CashDeposit::COLLECTED_AT_SQL} DESC"))
-                        .limit(300)
   end
 
   def cash_stock
+    # Deposit history loads on the async pool while the totals below run.
+    @history_store = params[:store].presence
+    history = CashDeposit.includes(:store, :created_by).order(deposited_on: :desc, id: :desc)
+    history = history.for_store_key(@history_store) if @history_store
+    @deposits = history.limit(300).load_async
+
     @shops = shop_list
     collected = CashDeposit.collected_by_store
     deposited = CashDeposit.deposited_by_store
@@ -39,11 +48,6 @@ class Admin::PosController < Admin::ApplicationController
       shop.merge(collected: cash, deposited: dep, in_hand: cash - dep)
     end
     @totals = %i[collected deposited in_hand].index_with { |k| @rows.sum { |r| r[k] } }
-
-    @history_store = params[:store].presence
-    history = CashDeposit.includes(:store, :created_by).order(deposited_on: :desc, id: :desc)
-    history = history.for_store_key(@history_store) if @history_store
-    @deposits = history.limit(300)
     @deposit = CashDeposit.new(deposited_on: Date.current)
   end
 

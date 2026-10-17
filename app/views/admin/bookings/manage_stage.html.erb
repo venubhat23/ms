@@ -532,7 +532,7 @@
               <label class="form-label">Delivery Person <span class="text-danger">*</span></label>
               <select class="form-select" name="delivery_person_id" id="delivery_person_select" onchange="updateDeliveryPersonInfo()">
                 <option value="">Select Delivery Person</option>
-                <% DeliveryPerson.active.order(:first_name, :last_name).each do |dp| %>
+                <% @delivery_people.each do |dp| %>
                   <option value="<%= dp.id %>"
                           data-name="<%= dp.full_name %>"
                           data-mobile="<%= dp.mobile %>"

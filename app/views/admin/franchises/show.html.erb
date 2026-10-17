@@ -297,14 +297,14 @@
         <div class="row g-3">
           <div class="col-md-6">
             <div class="text-center">
-              <h4 class="text-primary mb-1"><%= @franchise.bookings.count %></h4>
+              <h4 class="text-primary mb-1"><%= @bookings_count %></h4>
               <small class="text-muted">Total Bookings</small>
             </div>
           </div>
           <div class="col-md-6">
             <div class="text-center">
               <h4 class="text-success mb-1">
-                <% total_revenue = @franchise.bookings.sum(:total_amount) %>
+                <% total_revenue = @bookings_revenue %>
                 ₹<%= number_with_delimiter(total_revenue.to_i) %>
               </h4>
               <small class="text-muted">Total Revenue</small>
@@ -312,7 +312,7 @@
           </div>
         </div>
 
-        <% if @franchise.bookings.any? %>
+        <% if @bookings_count > 0 %>
           <hr>
           <h6 class="mb-3">Recent Bookings</h6>
           <div class="table-responsive">
@@ -328,7 +328,7 @@
                 </tr>
               </thead>
               <tbody>
-                <% @franchise.bookings.includes(:customer).order(created_at: :desc).limit(5).each do |booking| %>
+                <% @recent_bookings.each do |booking| %>
                   <tr>
                     <td><%= booking.booking_number || "##{booking.id}" %></td>
                     <td><%= booking.customer&.display_name || 'N/A' %></td>
@@ -397,11 +397,11 @@
           <hr>
           <div class="col-6">
             <small class="text-muted d-block">Total Bookings</small>
-            <h5 class="text-primary mb-0"><%= @franchise.bookings.count %></h5>
+            <h5 class="text-primary mb-0"><%= @bookings_count %></h5>
           </div>
           <div class="col-6">
             <small class="text-muted d-block">Revenue</small>
-            <h5 class="text-success mb-0">₹<%= number_with_delimiter(@franchise.bookings.sum(:total_amount).to_i) %></h5>
+            <h5 class="text-success mb-0">₹<%= number_with_delimiter(@bookings_revenue.to_i) %></h5>
           </div>
           <hr class="col-12">
           <div class="col-6">

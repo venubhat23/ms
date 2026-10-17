@@ -168,7 +168,7 @@ class StoreAdmin::InventoryController < StoreAdmin::ApplicationController
   private
 
   def ensure_can_manage_inventory!
-    unless current_user.can_manage_inventory?
+    unless current_user.can_manage_inventory? || admin_viewing_store
       flash[:alert] = 'You do not have permission to manage inventory.'
       redirect_to store_admin_root_path
     end

@@ -172,20 +172,23 @@
               <li><i class="fas fa-check text-success me-1"></i> <strong>name</strong> — product name</li>
               <li><i class="fas fa-check text-success me-1"></i> <strong>category_name</strong> — category (created if missing)</li>
               <li><i class="fas fa-check text-success me-1"></i> <strong>price</strong> — selling price</li>
-              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> stock, buying_price, weight, unit_type</li>
+              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> stock, buying_price, b2b_price, weight, unit_type</li>
               <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> gst_enabled, gst_percentage, hsn_code</li>
-              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> discount_type, discount_value, tags</li>
+              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> discount_type (percentage/fixed), discount_value, tags</li>
+              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> meta_title, meta_description, image_url, additional_images_urls (comma separated)</li>
+              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> is_occasional_product, occasional_start_date, occasional_end_date</li>
+              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> delivery_rule_type (everywhere/state/city/pincode), delivery_locations (comma separated), delivery_days, delivery_charge</li>
             </ul>
           </div>
 
           <div class="mb-3">
             <h6 class="text-primary mb-2">Variant Products (has_multiple_quantities = true):</h6>
-            <p class="small text-muted mb-1">One row per variant. Repeat the product name/SKU across rows.</p>
+            <p class="small text-muted mb-1">One row per variant. Repeat the product name/SKU across rows — e.g. 2 variants = 2 rows. Product details go on the first row only.</p>
             <ul class="list-unstyled small">
               <li><i class="fas fa-check text-success me-1"></i> <strong>variant_weight</strong> — e.g. 0.5, 1, 2</li>
               <li><i class="fas fa-check text-success me-1"></i> <strong>variant_unit</strong> — Liter, Kg, etc.</li>
               <li><i class="fas fa-check text-success me-1"></i> <strong>variant_selling_price</strong></li>
-              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> variant_buying_price, variant_stock</li>
+              <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> variant_buying_price, variant_b2b_selling_price, variant_stock</li>
               <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> variant_is_default (true for one row)</li>
               <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> variant_discount_enabled, variant_discount_type, variant_discount_value</li>
               <li><i class="fas fa-circle text-muted me-1" style="font-size: 0.4rem;"></i> variant_gst_percentage, variant_display_order</li>

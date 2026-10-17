@@ -123,7 +123,12 @@ class Admin::ImportsController < Admin::ApplicationController
       import_result = ImportService::ProductImporter.new(uploaded_file).import
 
       if import_result[:success]
-        redirect_to admin_products_path, notice: "Successfully imported #{import_result[:imported_count]} products. #{import_result[:skipped_count]} records were skipped due to validation errors."
+        message = "Successfully imported #{import_result[:imported_count]} products. #{import_result[:skipped_count]} records were skipped due to validation errors."
+        if import_result[:errors].present?
+          message += " Errors: #{import_result[:errors].first(5).join(' | ')}"
+          message += " (+#{import_result[:errors].size - 5} more)" if import_result[:errors].size > 5
+        end
+        redirect_to admin_products_path, notice: message
       else
         redirect_back fallback_location: admin_imports_path, alert: "Import failed: #{import_result[:error]}"
       end
@@ -392,109 +397,84 @@ class Admin::ImportsController < Admin::ApplicationController
 
   def send_product_template
     format = params[:format] || 'csv'
-
-    headers = [
-      # --- Product-level fields (required) ---
-      'name*', 'category_name*',
-
-      # --- Product-level fields (optional) ---
-      'description', 'sku', 'status', 'product_type',
-      'gst_enabled', 'gst_percentage', 'hsn_code',
-      'is_subscription_enabled', 'tags', 'minimum_stock_alert', 'display_order',
-
-      # --- has_multiple_quantities flag ---
-      # Set to 'true' for variant products; each row with the same name/SKU becomes one variant.
-      # Set to 'false' (or leave blank) for simple single-price products.
-      'has_multiple_quantities',
-
-      # --- Simple product columns (used when has_multiple_quantities = false) ---
-      'price', 'buying_price', 'stock', 'weight', 'unit_type', 'dimensions',
-      'discount_type', 'discount_value',
-
-      # --- Variant columns (used when has_multiple_quantities = true) ---
-      # Repeat rows with the same name/SKU, one row per variant.
-      'variant_weight', 'variant_unit',
-      'variant_selling_price', 'variant_buying_price', 'variant_stock',
-      'variant_is_default',
-      'variant_discount_enabled', 'variant_discount_type', 'variant_discount_value',
-      'variant_gst_percentage', 'variant_display_order'
-    ]
-
+    headers = ImportService::ProductImporter::TEMPLATE_HEADERS
     ts = Time.current.strftime("%Y%m%d%H%M")
 
-    # Helper for blank variant columns
-    no_variant = ['', '', '', '', '', '', '', '', '', '', '']
-    # Helper for blank simple-product columns
-    no_simple   = ['', '', '', '', '', '', '', '']
-
-    sample_data = [
-      # ---- Simple product 1 ----
-      [
-        "Tomatoes #{ts}", 'Vegetables',
-        'Fresh farm tomatoes', '', 'active', 'Grocery',
-        'false', '', '',
-        'false', 'fresh,vegetable', '10', '1',
-        'false',
-        '50.00', '35.00', '100', '1.0', 'Kg', '',
-        '', '',
-        *no_variant
-      ],
-
-      # ---- Simple product 2 (GST enabled) ----
-      [
-        "Whole Wheat Bread #{ts}", 'Bakery',
-        'Soft whole wheat loaf', '', 'active', 'Grocery',
-        'true', '5.0', '19059090',
-        'false', 'bread,bakery,wheat', '5', '2',
-        'false',
-        '45.00', '30.00', '50', '0.4', 'Kg', '',
-        'percentage', '10.0',
-        *no_variant
-      ],
-
-      # ---- Variant product — 3 variants (0.5L, 1L, 2L) ----
-      # Row 1: product info + first variant
-      [
-        "Cow Milk #{ts}", 'Dairy',
-        'Fresh cow milk — available in 0.5L, 1L, and 2L packs', '', 'active', 'Milk',
-        'false', '', '',
-        'true', 'milk,dairy,fresh', '5', '3',
-        'true',
-        *no_simple,
-        '0.5', 'Liter', '32.00', '22.00', '200', 'true',
-        'false', '', '', '', '0'
-      ],
-      # Row 2: same product, second variant
-      [
-        "Cow Milk #{ts}", 'Dairy',
-        '', '', '', '',
-        '', '', '',
-        '', '', '', '',
-        'true',
-        *no_simple,
-        '1', 'Liter', '60.00', '42.00', '150', 'false',
-        'false', '', '', '', '1'
-      ],
-      # Row 3: same product, third variant
-      [
-        "Cow Milk #{ts}", 'Dairy',
-        '', '', '', '',
-        '', '', '',
-        '', '', '', '',
-        'true',
-        *no_simple,
-        '2', 'Liter', '112.00', '80.00', '80', 'false',
-        'true', 'percentage', '5.0', '', '2'
-      ]
+    # Each sample is a hash keyed by column name; missing columns stay blank.
+    samples = [
+      # ---- Simple product (no variants) ----
+      {
+        'name*' => "Tomatoes #{ts}", 'category_name*' => 'Vegetables',
+        'description' => 'Fresh farm tomatoes', 'status' => 'active', 'product_type' => 'Fruit & Vegetable',
+        'unit_type' => 'Kg', 'weight' => '1', 'tags' => 'fresh,vegetable',
+        'meta_title' => 'Fresh Tomatoes', 'meta_description' => 'Farm fresh tomatoes delivered daily',
+        'display_order' => '1', 'minimum_stock_alert' => '10',
+        'gst_enabled' => 'false', 'is_subscription_enabled' => 'false', 'is_occasional_product' => 'false',
+        'delivery_rule_type' => 'everywhere', 'delivery_charge' => '0',
+        'has_multiple_quantities' => 'false',
+        'price' => '50', 'buying_price' => '35', 'b2b_price' => '42', 'stock' => '100'
+      },
+      # ---- Simple product (no variants) with GST, discount and pincode delivery ----
+      {
+        'name*' => "Whole Wheat Bread #{ts}", 'category_name*' => 'Bakery',
+        'description' => 'Soft whole wheat loaf', 'status' => 'active', 'product_type' => 'Grocery',
+        'unit_type' => 'Packet', 'weight' => '0.4', 'dimensions' => '20x10x10 cm', 'tags' => 'bread,bakery,wheat',
+        'display_order' => '2', 'minimum_stock_alert' => '5',
+        'hsn_code' => '19059090', 'gst_enabled' => 'true', 'gst_percentage' => '5',
+        'is_subscription_enabled' => 'false', 'is_occasional_product' => 'false',
+        'delivery_rule_type' => 'pincode', 'delivery_locations' => '560001,560002',
+        'delivery_days' => '1', 'delivery_charge' => '10',
+        'has_multiple_quantities' => 'false',
+        'price' => '45', 'buying_price' => '30', 'b2b_price' => '38', 'stock' => '50',
+        'discount_type' => 'percentage', 'discount_value' => '10'
+      },
+      # ---- Variant product: 2 variants (500 ml + 1 L) = 2 rows with the same name ----
+      # Row 1 carries the product details + first variant.
+      {
+        'name*' => "Cow Milk #{ts}", 'category_name*' => 'Dairy',
+        'description' => 'Fresh cow milk in 500 ml and 1 L packs', 'status' => 'active', 'product_type' => 'Milk',
+        'unit_type' => 'Liter', 'tags' => 'milk,dairy,fresh', 'display_order' => '3', 'minimum_stock_alert' => '5',
+        'gst_enabled' => 'false', 'is_subscription_enabled' => 'true', 'is_occasional_product' => 'false',
+        'delivery_rule_type' => 'everywhere', 'delivery_charge' => '0',
+        'has_multiple_quantities' => 'true',
+        'variant_weight' => '500', 'variant_unit' => 'Milliliter',
+        'variant_selling_price' => '32', 'variant_buying_price' => '22', 'variant_b2b_selling_price' => '28',
+        'variant_stock' => '200', 'variant_is_default' => 'true',
+        'variant_discount_enabled' => 'false', 'variant_display_order' => '0'
+      },
+      # Row 2: same name, only the variant columns are needed.
+      {
+        'name*' => "Cow Milk #{ts}", 'category_name*' => 'Dairy',
+        'has_multiple_quantities' => 'true',
+        'variant_weight' => '1', 'variant_unit' => 'Liter',
+        'variant_selling_price' => '60', 'variant_buying_price' => '42', 'variant_b2b_selling_price' => '54',
+        'variant_stock' => '150', 'variant_is_default' => 'false',
+        'variant_discount_enabled' => 'true', 'variant_discount_type' => 'percentage', 'variant_discount_value' => '5',
+        'variant_display_order' => '1'
+      }
     ]
+    rows = samples.map { |sample| headers.map { |h| sample[h].to_s } }
 
-    csv_data = CSV.generate(headers: true) do |csv|
-      csv << headers
-      sample_data.each { |row| csv << row }
+    if format == 'xlsx'
+      io = StringIO.new
+      workbook = WriteXLSX.new(io)
+      sheet = workbook.add_worksheet('Products')
+      bold = workbook.add_format(bold: 1, bg_color: '#D9EAD3')
+      text = workbook.add_format(num_format: '@') # keep SKU/HSN/pincodes as text
+      sheet.set_column(0, headers.size - 1, 18, text)
+      sheet.write_row(0, 0, headers, bold)
+      rows.each_with_index { |row, i| sheet.write_row(i + 1, 0, row) }
+      sheet.freeze_panes(1, 1)
+      workbook.close
+      send_data io.string, filename: 'products_import_template.xlsx',
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    else
+      csv_data = CSV.generate do |csv|
+        csv << headers
+        rows.each { |row| csv << row }
+      end
+      send_data csv_data, filename: 'products_import_template.csv', type: 'text/csv'
     end
-
-    filename = format == 'xlsx' ? 'products_import_template.xlsx' : 'products_import_template.csv'
-    send_data csv_data, filename: filename, type: 'text/csv'
   end
 
   def send_customer_subscription_template

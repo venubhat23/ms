@@ -16,7 +16,8 @@ module ImportService
 
       # Check file extension
       unless valid_file_extension?
-        return { success: false, error: 'Invalid file type. Please upload a CSV file.' }
+        allowed = @import_type == 'products' ? 'a CSV or Excel (.xlsx, .xls)' : 'a CSV'
+        return { success: false, error: "Invalid file type. Please upload #{allowed} file." }
       end
 
       # Check file size (max 10MB)
@@ -26,8 +27,11 @@ module ImportService
 
       begin
         # Parse and validate CSV content
-        csv_content = @uploaded_file.read
-        @uploaded_file.rewind
+        csv_content = if @import_type == 'products'
+                        SpreadsheetReader.read_csv_text(@uploaded_file)
+                      else
+                        @uploaded_file.read.tap { @uploaded_file.rewind }
+                      end
 
         # Check if file is empty
         if csv_content.blank?
@@ -81,6 +85,7 @@ module ImportService
       return true if @uploaded_file.original_filename.nil? # Allow Tempfiles
 
       filename = @uploaded_file.original_filename.downcase
+      return SpreadsheetReader::ALLOWED_EXTENSIONS.any? { |ext| filename.end_with?(ext) } if @import_type == 'products'
       filename.end_with?('.csv')
     end
 

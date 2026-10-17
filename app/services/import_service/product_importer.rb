@@ -2,6 +2,33 @@ module ImportService
   class ProductImporter
     require 'csv'
 
+    # Column order for the downloadable template. Mirrors admin/products/new.
+    # Product columns are read from the first row of a product; variant_* columns
+    # from every row. Rows sharing a name (or SKU) become one product.
+    TEMPLATE_HEADERS = [
+      # Basic info
+      'name*', 'category_name*', 'description', 'sku', 'status', 'product_type',
+      'unit_type', 'weight', 'dimensions', 'tags', 'meta_title', 'meta_description',
+      'image_url', 'additional_images_urls', 'display_order', 'minimum_stock_alert',
+      # Tax
+      'hsn_code', 'gst_enabled', 'gst_percentage',
+      # Subscription / occasional
+      'is_subscription_enabled',
+      'is_occasional_product', 'occasional_start_date', 'occasional_end_date',
+      'occasional_description', 'occasional_auto_hide',
+      # Delivery rule: everywhere | state | city | pincode
+      'delivery_rule_type', 'delivery_locations', 'delivery_days', 'delivery_charge',
+      # true = variant product (one row per variant), false = simple product
+      'has_multiple_quantities',
+      # Simple product pricing (has_multiple_quantities = false)
+      'price', 'buying_price', 'b2b_price', 'stock', 'discount_type', 'discount_value',
+      # Variant columns (has_multiple_quantities = true)
+      'variant_weight', 'variant_unit', 'variant_selling_price', 'variant_buying_price',
+      'variant_b2b_selling_price', 'variant_stock', 'variant_is_default',
+      'variant_discount_enabled', 'variant_discount_type', 'variant_discount_value',
+      'variant_gst_percentage', 'variant_display_order'
+    ].freeze
+
     def initialize(uploaded_file)
       @uploaded_file = uploaded_file
       @imported_count = 0
@@ -13,8 +40,7 @@ module ImportService
       return { success: false, error: 'No file provided' } unless @uploaded_file
 
       begin
-        csv_content = @uploaded_file.read
-        @uploaded_file.rewind
+        csv_content = SpreadsheetReader.read_csv_text(@uploaded_file)
 
         csv_data = CSV.parse(csv_content, headers: true)
 
@@ -30,7 +56,7 @@ module ImportService
         Product.transaction do
           product_groups.each do |identifier, row_entries|
             begin
-              process_product_group(identifier, row_entries)
+              Product.transaction(requires_new: true) { process_product_group(identifier, row_entries) }
             rescue => e
               @errors << "Product '#{identifier}': #{e.message}"
               @skipped_count += 1
@@ -128,6 +154,7 @@ module ImportService
           unit: unit,
           selling_price: selling_price,
           buying_price: parse_decimal(get_row_value(row, 'variant_buying_price')),
+          b2b_selling_price: parse_decimal(get_row_value(row, 'variant_b2b_selling_price')),
           available_stock: parse_integer(get_row_value(row, 'variant_stock')) || 0,
           is_default: is_default,
           discount_enabled: parse_boolean(get_row_value(row, 'variant_discount_enabled')),
@@ -161,26 +188,30 @@ module ImportService
         description: get_row_value(row, 'description'),
         category_id: category&.id,
         price: price,
-        discount_price: parse_decimal(get_row_value(row, 'discount_price')),
         stock: parse_integer(get_row_value(row, 'stock')) || 0,
         status: parse_status(get_row_value(row, 'status')),
         sku: generate_sku(row),
         weight: parse_decimal(get_row_value(row, 'weight')),
-        dimensions: get_row_value(row, 'dimensions'),
         gst_enabled: parse_boolean(get_row_value(row, 'gst_enabled')),
         gst_percentage: parse_decimal(get_row_value(row, 'gst_percentage')),
-        hsn_code: get_row_value(row, 'hsn_code'),
         buying_price: parse_decimal(get_row_value(row, 'buying_price')),
-        product_type: parse_product_type(get_row_value(row, 'product_type')),
-        is_subscription_enabled: parse_boolean(get_row_value(row, 'is_subscription_enabled')),
+        b2b_price: parse_decimal(get_row_value(row, 'b2b_price')),
         unit_type: parse_unit_type(get_row_value(row, 'unit_type')),
-        tags: get_row_value(row, 'tags'),
-        minimum_stock_alert: parse_integer(get_row_value(row, 'minimum_stock_alert')),
-        display_order: parse_integer(get_row_value(row, 'display_order')),
         has_multiple_quantities: false,
         today_price: price,
         last_price_update: Time.current
-      }
+      }.merge(common_product_params(row))
+
+      discount_type = get_row_value(row, 'discount_type').to_s.strip.downcase
+      discount_value = parse_decimal(get_row_value(row, 'discount_value'))
+      if %w[percentage fixed].include?(discount_type) && discount_value.to_f > 0
+        params[:discount_type] = discount_type
+        params[:discount_value] = discount_value
+        params[:original_price] = price
+      elsif get_row_value(row, 'discount_price').present?
+        # Legacy column from older templates
+        params[:discount_price] = parse_decimal(get_row_value(row, 'discount_price'))
+      end
 
       if params[:gst_enabled] && params[:price] && params[:gst_percentage]
         gst_rate = params[:gst_percentage] / 100
@@ -210,15 +241,57 @@ module ImportService
         has_multiple_quantities: true,
         gst_enabled: parse_boolean(get_row_value(row, 'gst_enabled')),
         gst_percentage: parse_decimal(get_row_value(row, 'gst_percentage')),
+        weight: parse_decimal(get_row_value(row, 'weight')),
+        unit_type: parse_unit_type(get_row_value(row, 'unit_type').presence || first_unit),
+        today_price: 0,
+        last_price_update: Time.current
+      }.merge(common_product_params(row))
+    end
+
+    # Fields shared by simple and variant products (everything on the New
+    # Product form that isn't pricing/stock).
+    def common_product_params(row)
+      params = {
+        dimensions: get_row_value(row, 'dimensions'),
         hsn_code: get_row_value(row, 'hsn_code'),
         product_type: parse_product_type(get_row_value(row, 'product_type')),
         is_subscription_enabled: parse_boolean(get_row_value(row, 'is_subscription_enabled')),
-        unit_type: parse_unit_type(get_row_value(row, 'unit_type').presence || first_unit),
         tags: get_row_value(row, 'tags'),
+        meta_title: get_row_value(row, 'meta_title').presence,
+        meta_description: get_row_value(row, 'meta_description').presence,
+        image_url: get_row_value(row, 'image_url').presence,
         minimum_stock_alert: parse_integer(get_row_value(row, 'minimum_stock_alert')),
-        display_order: parse_integer(get_row_value(row, 'display_order')),
-        today_price: 0,
-        last_price_update: Time.current
+        display_order: parse_integer(get_row_value(row, 'display_order'))
+      }
+
+      extra_images = get_row_value(row, 'additional_images_urls').to_s.split(',').map(&:strip).reject(&:blank?)
+      params[:additional_images_urls] = extra_images.to_json if extra_images.any?
+
+      if parse_boolean(get_row_value(row, 'is_occasional_product'))
+        params[:is_occasional_product] = true
+        params[:occasional_start_date] = parse_datetime(get_row_value(row, 'occasional_start_date'))
+        params[:occasional_end_date] = parse_datetime(get_row_value(row, 'occasional_end_date'))
+        params[:occasional_description] = get_row_value(row, 'occasional_description').presence
+        auto_hide = get_row_value(row, 'occasional_auto_hide')
+        params[:occasional_auto_hide] = auto_hide.blank? ? true : parse_boolean(auto_hide)
+      end
+
+      params[:delivery_rules_attributes] = [build_delivery_rule(row)]
+      params
+    end
+
+    # Same default the New Product form uses: one "everywhere" rule.
+    def build_delivery_rule(row)
+      rule_type = get_row_value(row, 'delivery_rule_type').to_s.strip.downcase
+      rule_type = 'everywhere' unless %w[state city pincode].include?(rule_type)
+      locations = get_row_value(row, 'delivery_locations').to_s.split(',').map(&:strip).reject(&:blank?)
+      rule_type = 'everywhere' if locations.empty?
+
+      {
+        rule_type: rule_type,
+        location_data: rule_type == 'everywhere' ? '[]' : locations.to_json,
+        delivery_days: parse_integer(get_row_value(row, 'delivery_days')),
+        delivery_charge: parse_decimal(get_row_value(row, 'delivery_charge')) || 0
       }
     end
 
@@ -262,6 +335,13 @@ module ImportService
     def parse_integer(value)
       return nil if value.blank?
       Integer(value.to_s)
+    rescue ArgumentError
+      nil
+    end
+
+    def parse_datetime(value)
+      return nil if value.blank?
+      Time.zone.parse(value.to_s)
     rescue ArgumentError
       nil
     end

@@ -116,15 +116,9 @@
             <div class="col-lg-4 col-md-6 mb-4">
               <div class="product-card bg-white rounded shadow-sm h-100">
                 <div class="position-relative">
-                  <%= link_to customer_product_path(product) do %>
-                    <% if product.main_image_url %>
-                      <%= image_tag product.main_image_url, class: "card-img-top", style: "height: 250px; object-fit: cover;", alt: product.name %>
-                    <% else %>
-                      <div class="bg-light d-flex align-items-center justify-content-center" style="height: 250px;">
-                        <i class="bi bi-image display-4 text-muted"></i>
-                      </div>
-                    <% end %>
-                  <% end %>
+                  <%= render 'shared/product_image_slider', product: product,
+                             link: customer_product_path(product),
+                             img_style: 'height: 250px; object-fit: cover;' %>
 
                   <!-- Discount Badge -->
                   <% if product.discounted? %>

@@ -1776,6 +1776,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   def format_product_data(product)
     has_variants = product.has_multiple_quantities? && product.product_variants.any?
     default_variant = has_variants ? (product.product_variants.find(&:is_default?) || product.product_variants.min_by(&:weight)) : nil
+    # Every image from admin manage_images; ActiveStorage paths made absolute
+    gallery = product.gallery_urls.map { |u| u.start_with?('/') ? "#{request.base_url}#{u}" : u.gsub(' ', '%20') }
 
     base = {
       id: product.id,
@@ -1808,8 +1810,9 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         id: product.category_id,
         name: product.category&.name
       },
-      image: product.images_attached? ? url_for(product.images.first) : nil,
-      images: product.images_attached? ? product.images.map { |img| url_for(img) } : [],
+      image: gallery.first,
+      images: gallery,
+      images_count: gallery.size,
       rating: {
         average: product.average_rating.to_f,
         count: product.total_reviews

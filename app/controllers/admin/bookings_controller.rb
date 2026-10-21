@@ -1039,6 +1039,7 @@ class Admin::BookingsController < Admin::ApplicationController
                 "WHERE sb.product_id = products.id AND sb.status = 'active' AND sb.quantity_remaining > 0), 0)"
     @products = Product.active
                        .eager_load(:category, :product_variants, image_attachment: :blob)
+                       .preload(additional_images_attachments: :blob)
                        .select("products.*, #{stock_sql} AS cached_stock")
                        .order(Arel.sql("CASE WHEN #{stock_sql} > 0 THEN 0 ELSE 1 END ASC, products.name ASC, products.id ASC"))
                        .to_a

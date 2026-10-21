@@ -1,7 +1,7 @@
 class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/products
   def index
-    products = Product.includes(:category, image_attachment: :blob)
+    products = Product.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
     products = products.where(category_id: params[:category_id]) if params[:category_id].present?
     products = products.search(params[:search]) if params[:search].present?
     products = products.order(created_at: :desc)
@@ -145,6 +145,11 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
     nil
   end
 
+  # Every image from admin manage_images, as absolute URLs
+  def absolute_image_urls(product)
+    product.gallery_urls.map { |u| u.start_with?('/') ? "#{request.base_url}#{u}" : u.gsub(' ', '%20') }
+  end
+
   def product_response(product, detailed: false)
     data = {
       id: product.id,
@@ -156,7 +161,8 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
       status: product.status,
       sku: product.sku,
       category: { id: product.category_id, name: product.category&.name },
-      main_image_url: product.main_image_url
+      main_image_url: product.main_image_url,
+      images: absolute_image_urls(product)
     }
 
     if detailed

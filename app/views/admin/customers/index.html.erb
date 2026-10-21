@@ -188,7 +188,11 @@
                       <% when :default %>
                         <span class="font-monospace"><%= Customer::DEFAULT_PASSWORD %></span> <span class="text-muted">(default)</span>
                       <% when :custom %>
-                        <span class="text-muted">Custom password set</span>
+                        <% if customer.visible_password %>
+                          <span class="font-monospace"><%= customer.visible_password %></span>
+                        <% else %>
+                          <span class="text-muted">Custom password (set before passwords were saved)</span>
+                        <% end %>
                       <% else %>
                         <span class="text-warning">No password</span>
                       <% end %>

@@ -1061,6 +1061,16 @@ class Product < ApplicationRecord
     gallery
   end
 
+  # Every image of the product (as managed on admin manage_images) as plain
+  # URL strings, main image first. ActiveStorage entries are relative paths.
+  # Unlike #images, this doesn't drop Cloudinary/ActiveStorage images when
+  # R2 ones exist, so mixed-source products show their whole set.
+  def gallery_urls
+    urls = image_gallery.map { |entry| entry[:url] }
+    urls.unshift(main_image_url)
+    urls.compact.select { |u| u.match?(%r{\A(https?://|/)}) }.uniq
+  end
+
   # Removes a single image identified by the `id` from image_gallery.
   # Returns the removed R2 url (if any) so the caller can also purge it
   # from R2 storage itself.

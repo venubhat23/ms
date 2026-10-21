@@ -327,7 +327,7 @@ class Customer::ShopController < Customer::BaseController
     scope = Product.active
                    .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
                    .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
-                   .includes(:category, :product_variants, image_attachment: :blob)
+                   .includes(:category, :product_variants, image_attachment: :blob, additional_images_attachments: :blob)
                    .order(Arel.sql(
                      "CASE WHEN COALESCE(sq.total_stock, 0) > 0 THEN 0 ELSE 1 END ASC," \
                      " products.display_order ASC NULLS LAST, products.name ASC"

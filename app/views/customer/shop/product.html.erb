@@ -27,47 +27,23 @@
     <!-- Product Images -->
     <div class="col-lg-6">
       <div class="product-images">
-        <div class="main-image mb-3">
-          <% if @product.images_attached? && @product.images.any? %>
-            <%= image_tag @product.images.first, class: "img-fluid rounded", alt: @product.name, id: "mainProductImage" %>
-          <% elsif @product.image.present? %>
-            <%= image_tag @product.image, class: "img-fluid rounded", alt: @product.name, id: "mainProductImage" %>
-          <% elsif @product.image_url.present? %>
-            <img src="<%= @product.image_url %>" class="img-fluid rounded" alt="<%= @product.name %>" id="mainProductImage">
-          <% else %>
-            <div class="product-image-placeholder d-flex align-items-center justify-content-center rounded">
-              <i class="fas fa-image fa-5x text-muted"></i>
+        <% gallery = @product.gallery_urls %>
+        <div data-pis-group>
+          <div class="main-image rounded overflow-hidden mb-3">
+            <%= render 'shared/product_image_slider', product: @product, urls: gallery, eager: true,
+                       img_class: 'img-fluid w-100', img_style: 'max-height: 480px; object-fit: contain;' %>
+          </div>
+
+          <% if gallery.size > 1 %>
+            <div class="pis-thumbs">
+              <% gallery.each_with_index do |url, index| %>
+                <button type="button" class="pis-thumb<%= ' active' if index.zero? %>" data-pis-go="<%= index %>" aria-label="Image <%= index + 1 %>">
+                  <img src="<%= url %>" alt="<%= @product.name %> - Image <%= index + 1 %>" loading="lazy">
+                </button>
+              <% end %>
             </div>
           <% end %>
         </div>
-
-        <!-- Additional Images (if any) -->
-        <% if @product.additional_images.attached? || @product.additional_images_urls.present? %>
-          <div class="image-thumbnails">
-            <div class="row g-2">
-              <!-- Active Storage Additional Images -->
-              <% if @product.additional_images.attached? %>
-                <% @product.additional_images.each_with_index do |additional_image, index| %>
-                  <div class="col-3">
-                    <%= image_tag additional_image, class: "img-fluid rounded thumbnail-image",
-                         alt: "#{@product.name} - Image #{index + 1}",
-                         onclick: "changeMainImage('#{url_for(additional_image)}')" %>
-                  </div>
-                <% end %>
-              <% end %>
-              <!-- Cloudinary Additional Images -->
-              <% if @product.additional_images_urls.present? %>
-                <% JSON.parse(@product.additional_images_urls).each_with_index do |image_url, index| %>
-                  <div class="col-3">
-                    <img src="<%= image_url %>" class="img-fluid rounded thumbnail-image"
-                         alt="<%= @product.name %> - Image <%= index + 1 %>"
-                         onclick="changeMainImage('<%= image_url %>')">
-                  </div>
-                <% end %>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
       </div>
     </div>
 

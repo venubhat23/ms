@@ -15,49 +15,23 @@
     <!-- Product Images -->
     <div class="col-md-6 mb-4">
       <div class="position-sticky" style="top: 20px;">
-        <% if @product.images.any? %>
-          <div id="productImageCarousel" class="carousel slide mb-3" data-bs-ride="carousel">
-            <div class="carousel-inner rounded">
-              <% @product.images.each_with_index do |image, index| %>
-                <div class="carousel-item <%= 'active' if index == 0 %>">
-                  <% if image.is_a?(String) %>
-                    <%= image_tag image, class: "d-block w-100", style: "height: 400px; object-fit: cover;", alt: @product.name %>
-                  <% else %>
-                    <%= image_tag url_for(image), class: "d-block w-100", style: "height: 400px; object-fit: cover;", alt: @product.name %>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-            <% if @product.images.count > 1 %>
-              <button class="carousel-control-prev" type="button" data-bs-target="#productImageCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon"></span>
-              </button>
-              <button class="carousel-control-next" type="button" data-bs-target="#productImageCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon"></span>
-              </button>
-            <% end %>
+        <% gallery = @product.gallery_urls %>
+        <div data-pis-group>
+          <div class="rounded-4 overflow-hidden shadow-sm mb-3">
+            <%= render 'shared/product_image_slider', product: @product, urls: gallery, eager: true,
+                       img_class: 'd-block w-100', img_style: 'height: 400px; object-fit: cover;' %>
           </div>
 
-          <!-- Thumbnail Images -->
-          <% if @product.images.count > 1 %>
-            <div class="d-flex gap-2 overflow-auto">
-              <% @product.images.each_with_index do |image, index| %>
-                <button type="button" class="btn p-1 border <%= 'border-primary' if index == 0 %>"
-                        data-bs-target="#productImageCarousel" data-bs-slide-to="<%= index %>">
-                  <% if image.is_a?(String) %>
-                    <%= image_tag image, style: "width: 60px; height: 60px; object-fit: cover;", alt: @product.name, class: "rounded" %>
-                  <% else %>
-                    <%= image_tag url_for(image), style: "width: 60px; height: 60px; object-fit: cover;", alt: @product.name, class: "rounded" %>
-                  <% end %>
+          <% if gallery.size > 1 %>
+            <div class="pis-thumbs">
+              <% gallery.each_with_index do |url, index| %>
+                <button type="button" class="pis-thumb<%= ' active' if index.zero? %>" data-pis-go="<%= index %>" aria-label="Image <%= index + 1 %>">
+                  <img src="<%= url %>" alt="<%= @product.name %> <%= index + 1 %>" loading="lazy">
                 </button>
               <% end %>
             </div>
           <% end %>
-        <% else %>
-          <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 400px;">
-            <i class="bi bi-image display-1 text-muted"></i>
-          </div>
-        <% end %>
+        </div>
       </div>
     </div>
 

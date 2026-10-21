@@ -100,15 +100,8 @@
                   <div class="card h-100 border-0 shadow-sm hover-lift product-card">
                 <!-- Product Image -->
                 <div class="position-relative">
-                  <% card_image_url = product.main_image_url(width: 480, height: 360) %>
-                  <% if card_image_url.present? %>
-                    <%# First row is above the fold: fetch it right away instead of lazily. %>
-                    <img src="<%= card_image_url %>" class="card-img-top" alt="<%= product.name %>" width="480" height="360" decoding="async" <%= product_index < 4 ? 'fetchpriority=high' : 'loading=lazy' %>>
-                  <% else %>
-                    <div class="card-img-top d-flex align-items-center justify-content-center">
-                      <i class="bi bi-box-seam fs-1 text-muted"></i>
-                    </div>
-                  <% end %>
+                  <%# First row is above the fold: fetch it right away instead of lazily. %>
+                  <%= render 'shared/product_image_slider', product: product, eager: product_index < 4 %>
 
                   <!-- Enhanced Stock Badge -->
                   <% if current_stock == 0 %>

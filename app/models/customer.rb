@@ -64,8 +64,7 @@ has_many :pending_amounts, dependent: :destroy
   end
 
   # :default (still ms@123), :custom (customer/admin set their own) or :none
-  # (no login password at all) — for the admin customers list. Real passwords
-  # are bcrypt-hashed, so this is all that can be shown.
+  # (no login password at all) — for the admin customers list.
   def password_status
     if password_digest.present?
       password_is_default? ? :default : :custom
@@ -73,6 +72,17 @@ has_many :pending_amounts, dependent: :destroy
       auto_generated_password == DEFAULT_PASSWORD ? :default : :custom
     else
       :none
+    end
+  end
+
+  # The login password as plain text for admin screens, or nil when it isn't
+  # known (custom passwords set before the plain copy was kept). A saved copy
+  # equal to the default while the digest isn't is stale, so it's ignored.
+  def visible_password
+    case password_status
+    when :default then DEFAULT_PASSWORD
+    when :custom
+      auto_generated_password.presence unless auto_generated_password == DEFAULT_PASSWORD
     end
   end
 
@@ -242,14 +252,11 @@ has_many :pending_amounts, dependent: :destroy
 
   private
 
+  # Login checks the bcrypt digest; the plain copy in auto_generated_password
+  # is kept (business decision) so admins can see the customer's password.
   def handle_password_storage
-    if respond_to?(:password_digest)
-      # Store encrypted password in password_digest column
-      self.password_digest = BCrypt::Password.create(password)
-    else
-      # Fallback to storing in auto_generated_password field
-      self.auto_generated_password = password
-    end
+    self.password_digest = BCrypt::Password.create(password) if respond_to?(:password_digest)
+    self.auto_generated_password = password
   end
 
   def store_password_in_auto_generated_field

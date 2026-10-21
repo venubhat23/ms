@@ -1,0 +1,199 @@
+<%#
+  Swipeable image slider for a product card / detail page. Shows every image
+  from Product#gallery_urls; a single image renders as a plain <img>.
+
+  locals:
+    product   - required
+    urls      - optional, precomputed product.gallery_urls
+    img_class - classes for each <img> (keeps the page's own image styling)
+    img_style - inline style for each <img>
+    link      - optional href; each slide becomes a link to it
+    eager     - true to skip lazy loading of the first image
+%>
+<%
+  urls      = local_assigns[:urls] || product.gallery_urls
+  img_class = local_assigns[:img_class] || 'card-img-top'
+  img_style = local_assigns[:img_style]
+  link      = local_assigns[:link]
+  eager     = local_assigns[:eager]
+%>
+<% if urls.empty? %>
+  <div class="<%= img_class %> bg-light d-flex align-items-center justify-content-center" style="<%= img_style %>">
+    <i class="bi bi-box-seam fs-1 text-muted"></i>
+  </div>
+<% else %>
+  <div class="pis<%= ' pis-multi' if urls.size > 1 %>" data-pis>
+    <div class="pis-track" data-pis-track>
+      <% urls.each_with_index do |url, i| %>
+        <div class="pis-slide">
+          <% img = tag.img(src: url, class: img_class, style: img_style, alt: "#{product.name} #{i + 1}",
+                           loading: (eager && i.zero? ? nil : 'lazy'), decoding: 'async', draggable: false) %>
+          <%= link ? link_to(img, link, tabindex: (i.zero? ? nil : -1)) : img %>
+        </div>
+      <% end %>
+    </div>
+
+    <% if urls.size > 1 %>
+      <button type="button" class="pis-nav pis-prev" data-pis-step="-1" aria-label="Previous image"><i class="bi bi-chevron-left"></i></button>
+      <button type="button" class="pis-nav pis-next" data-pis-step="1" aria-label="Next image"><i class="bi bi-chevron-right"></i></button>
+
+      <div class="pis-dots">
+        <% urls.each_index do |i| %>
+          <button type="button" class="pis-dot<%= ' active' if i.zero? %>" data-pis-go="<%= i %>" aria-label="Image <%= i + 1 %>"></button>
+        <% end %>
+      </div>
+
+      <span class="pis-count"><i class="bi bi-images"></i> <span data-pis-current>1</span>/<%= urls.size %></span>
+    <% end %>
+  </div>
+<% end %>
+
+<% unless @_pis_assets_rendered %>
+  <% @_pis_assets_rendered = true %>
+  <style>
+    .pis { position: relative; overflow: hidden; }
+    .pis-track {
+      display: flex; overflow-x: auto; overflow-y: hidden;
+      scroll-snap-type: x mandatory; scroll-behavior: smooth;
+      scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+    }
+    .pis-track::-webkit-scrollbar { display: none; }
+    .pis-slide { flex: 0 0 100%; min-width: 100%; scroll-snap-align: center; scroll-snap-stop: always; }
+    .pis-slide img, .pis-slide > a { display: block; width: 100%; }
+    .pis-slide img { user-select: none; -webkit-user-drag: none; }
+
+    .pis-nav {
+      position: absolute; top: 50%; z-index: 3;
+      width: 34px; height: 34px; border-radius: 50%; border: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,.92); color: #222; font-size: 1rem;
+      box-shadow: 0 4px 14px rgba(0,0,0,.18);
+      opacity: 0; transform: translateY(-50%) scale(.85);
+      transition: opacity .2s ease, transform .2s ease, background .2s;
+      backdrop-filter: blur(6px);
+    }
+    .pis-nav:hover { background: #fff; transform: translateY(-50%) scale(1.08); }
+    .pis-prev { left: 10px; }
+    .pis-next { right: 10px; }
+    .pis:hover .pis-nav, .pis:focus-within .pis-nav { opacity: 1; transform: translateY(-50%) scale(1); }
+    .pis-nav[disabled] { opacity: 0 !important; pointer-events: none; }
+
+    .pis-dots {
+      position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 3;
+      display: flex; gap: 5px; padding: 5px 8px; border-radius: 999px;
+      background: rgba(0,0,0,.28); backdrop-filter: blur(6px);
+    }
+    .pis-dot {
+      width: 6px; height: 6px; padding: 0; border: 0; border-radius: 999px;
+      background: rgba(255,255,255,.6); transition: width .25s ease, background .25s ease;
+    }
+    .pis-dot.active { width: 18px; background: #fff; }
+
+    .pis-count {
+      position: absolute; right: 10px; bottom: 10px; z-index: 3;
+      font-size: .7rem; font-weight: 600; color: #fff; line-height: 1;
+      padding: 5px 8px; border-radius: 999px;
+      background: rgba(0,0,0,.45); backdrop-filter: blur(6px);
+    }
+    .pis-count .bi { margin-right: 2px; }
+
+    .pis-thumbs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px; scrollbar-width: thin; }
+    .pis-thumb {
+      flex: 0 0 auto; padding: 0; border: 2px solid transparent; border-radius: 10px;
+      overflow: hidden; background: none; opacity: .6; transition: opacity .2s, border-color .2s, transform .2s;
+    }
+    .pis-thumb img { width: 64px; height: 64px; object-fit: cover; display: block; }
+    .pis-thumb:hover { opacity: 1; transform: translateY(-2px); }
+    .pis-thumb.active { opacity: 1; border-color: var(--bs-primary, #0d6efd); }
+
+    @media (hover: none) {
+      .pis-nav { opacity: .85; transform: translateY(-50%) scale(.9); width: 30px; height: 30px; }
+    }
+  </style>
+  <script>
+    (function () {
+      if (window.__pisBound) return;
+      window.__pisBound = true;
+
+      // Controls live inside [data-pis], or anywhere in a surrounding
+      // [data-pis-group] (e.g. a thumbnail strip under the slider)
+      function slider(el) {
+        var s = el.closest('[data-pis]');
+        if (s) return s;
+        var g = el.closest('[data-pis-group]');
+        return g && g.querySelector('[data-pis]');
+      }
+      function track(s) { return s.querySelector('[data-pis-track]'); }
+      function index(s) { var t = track(s); return Math.round(t.scrollLeft / (t.clientWidth || 1)); }
+      function total(s) { return track(s).children.length; }
+
+      function go(s, i) {
+        var t = track(s), n = total(s);
+        i = (i + n) % n; // wrap around at both ends
+        t.scrollTo({ left: i * t.clientWidth, behavior: 'smooth' });
+      }
+
+      function sync(s) {
+        var i = index(s);
+        var scope = s.closest('[data-pis-group]') || s;
+        scope.querySelectorAll('[data-pis-go]').forEach(function (d) {
+          d.classList.toggle('active', parseInt(d.getAttribute('data-pis-go'), 10) === i);
+        });
+        var cur = s.querySelector('[data-pis-current]');
+        if (cur) cur.textContent = i + 1;
+      }
+
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-pis-step], [data-pis-go]');
+        if (!btn) return;
+        var s = slider(btn);
+        if (!s) return;
+        // Cards around the slider often have their own click handlers / links
+        e.preventDefault();
+        e.stopPropagation();
+        if (btn.hasAttribute('data-pis-go')) go(s, parseInt(btn.getAttribute('data-pis-go'), 10));
+        else go(s, index(s) + parseInt(btn.getAttribute('data-pis-step'), 10));
+      }, true);
+
+      document.addEventListener('scroll', function (e) {
+        var t = e.target;
+        if (!(t instanceof Element) || !t.hasAttribute('data-pis-track')) return;
+        cancelAnimationFrame(t.__pisRaf);
+        t.__pisRaf = requestAnimationFrame(function () { sync(slider(t)); });
+      }, true);
+
+      // Desktop: drag with the mouse like on a phone
+      var drag = null;
+      document.addEventListener('mousedown', function (e) {
+        var t = e.target.closest('[data-pis-track]');
+        if (!t || e.button !== 0 || t.children.length < 2) return;
+        drag = { t: t, x: e.clientX, left: t.scrollLeft, moved: false };
+        t.style.scrollSnapType = 'none';
+        t.style.scrollBehavior = 'auto';
+      });
+      document.addEventListener('mousemove', function (e) {
+        if (!drag) return;
+        var dx = e.clientX - drag.x;
+        if (Math.abs(dx) > 4) drag.moved = true;
+        drag.t.scrollLeft = drag.left - dx;
+      });
+      document.addEventListener('mouseup', function (e) {
+        if (!drag) return;
+        var d = drag; drag = null;
+        var w = d.t.clientWidth, dx = e.clientX - d.x;
+        var start = Math.round(d.left / w);
+        var target = Math.abs(dx) > w * 0.15 ? start + (dx < 0 ? 1 : -1) : start;
+        d.t.style.scrollBehavior = '';
+        target = Math.max(0, Math.min(d.t.children.length - 1, target));
+        d.t.scrollTo({ left: target * w, behavior: 'smooth' });
+        setTimeout(function () { d.t.style.scrollSnapType = ''; }, 350);
+        if (d.moved) {
+          // swallow the click a drag would otherwise fire on links/cards
+          var stop = function (ev) { ev.preventDefault(); ev.stopPropagation(); };
+          document.addEventListener('click', stop, { capture: true, once: true });
+          setTimeout(function () { document.removeEventListener('click', stop, true); }, 0);
+        }
+      });
+    })();
+  </script>
+<% end %>

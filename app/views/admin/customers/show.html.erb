@@ -141,15 +141,18 @@
           <div class="col-md-6">
             <strong class="text-muted d-block">Password</strong>
             <div class="d-flex align-items-center">
+              <% shown_password = @customer.visible_password %>
               <span class="me-2 font-monospace">
-                <% if @customer.auto_generated_password.present? %>
-                  <%= @customer.auto_generated_password %>
+                <% if shown_password %>
+                  <%= shown_password %>
+                <% elsif @customer.password_status == :none %>
+                  <span class="text-warning">No password</span>
                 <% else %>
-                  <span class="text-muted">Set by customer</span>
+                  <span class="text-muted">Custom password (set before passwords were saved)</span>
                 <% end %>
               </span>
-              <% if @customer.auto_generated_password.present? %>
-                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('<%= @customer.auto_generated_password %>')">
+              <% if shown_password %>
+                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('<%= j shown_password %>')">
                   <i class="bi bi-copy"></i>
                 </button>
               <% end %>

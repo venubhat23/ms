@@ -133,6 +133,8 @@ class Api::V1::Mobile::SettingsController < Api::V1::Mobile::BaseController
             if user.is_a?(Customer) && user.has_attribute?(:password_is_default)
               user.update_columns(password_is_default: new_password == Customer::DEFAULT_PASSWORD)
             end
+            # ...and Customer#handle_password_storage's plain copy for admins
+            user.update_columns(auto_generated_password: new_password) if user.is_a?(Customer)
 
             # Update plain_password if the field exists
             if user.respond_to?(:plain_password) && user.class.column_names.include?('plain_password')

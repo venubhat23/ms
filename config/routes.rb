@@ -734,6 +734,7 @@ Rails.application.routes.draw do
         patch :toggle_status
         post :bulk_action
         get :detail
+        get :dependencies
         get :manage_images
         post :upload_main_image
         post :upload_additional_image

@@ -13,7 +13,8 @@ class Admin::CustomersController < Admin::ApplicationController
 
   # GET /admin/customers
   def index
-    filters_key = FILTER_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&')
+    filters_key = FILTER_PARAMS.map { |p| "#{p}=#{params[p]}" }.join('&') +
+                  "/gen=#{Customer.customer_list_cache_generation}"
     per_page = per_page_param
 
     # Stats don't depend on the page, so they're cached separately from the

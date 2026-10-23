@@ -55,10 +55,16 @@
       <h2 class="mb-1 fw-bold"><i class="bi bi-boxes me-2"></i>Product Management</h2>
       <p class="mb-0 opacity-75">Manage your product inventory and catalog</p>
     </div>
-    <%= link_to new_admin_product_path, class: "btn btn-light btn-lg rounded-pill px-4 shadow-sm" do %>
-      <i class="bi bi-plus-lg me-1"></i>
-      Add New Product
-    <% end %>
+    <div>
+      <%= link_to admin_products_path(request.query_parameters.except('page').merge(format: :csv)), class: "btn btn-outline-light btn-lg rounded-pill px-4 me-2", data: { turbo: false } do %>
+        <i class="bi bi-download me-1"></i>
+        Export Products
+      <% end %>
+      <%= link_to new_admin_product_path, class: "btn btn-light btn-lg rounded-pill px-4 shadow-sm" do %>
+        <i class="bi bi-plus-lg me-1"></i>
+        Add New Product
+      <% end %>
+    </div>
   </div>
 </div>
 
@@ -90,7 +96,10 @@
 
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Runs on full loads and Turbo visits (DOMContentLoaded never fires after a Turbo visit)
+(function(init) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})(function() {
   // Select2 product quick-search: type "ric" -> Rice shows up; picking it opens
   // the product. The first option filters the catalog table by the typed text.
   if (window.jQuery && jQuery.fn.select2) {
@@ -659,7 +668,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   document.getElementById('bulkEditBtn')?.addEventListener('click', openBulkEditModal);
 
-  document.addEventListener('DOMContentLoaded', function() {
+  (function(init) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  })(function() {
     document.getElementById('bulkEditSaveBtn')?.addEventListener('click', function() {
       const tbody = document.getElementById('bulkEditBody');
       if (tbody.children.length === 0) return;

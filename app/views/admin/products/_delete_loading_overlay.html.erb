@@ -145,22 +145,54 @@
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const overlay = document.getElementById('delete-loading-overlay');
-  const progressBar = overlay?.querySelector('.progress-bar');
-  const deleteButtons = document.querySelectorAll('.delete-product-btn');
-
-  deleteButtons.forEach(button => {
-    button.addEventListener('click', function(e) {
+// Delegated on document (bound once): a DOMContentLoaded listener never fires
+// after a Turbo visit, which left Delete as a plain link back to the show page.
+if (!window.productDeleteHandlerBound) {
+  window.productDeleteHandlerBound = true;
+  document.addEventListener('click', function(e) {
+      const button = e.target.closest('.delete-product-btn');
+      if (!button) return;
       e.preventDefault();
 
-      const productName = this.dataset.productName;
-      const url = this.href;
+      const overlay = document.getElementById('delete-loading-overlay');
+      const progressBar = overlay?.querySelector('.progress-bar');
+      const productName = button.dataset.productName;
+      const url = button.href;
+      if (button.dataset.busy) return;
+      button.dataset.busy = '1';
 
-      const confirmMessage = `Delete '${productName}'?\n\nThis will permanently delete the product and all related data (reviews, ratings, stock batches, delivery rules, wishlists, subscriptions).\n\nThis action cannot be undone.`;
+      // Ask the server what is connected to this product so the operator sees
+      // exactly what will be removed before confirming.
+      fetch(url + '/dependencies', { headers: { 'Accept': 'application/json' } })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => confirmMessageFor(productName, data))
+        .catch(() => `Delete '${productName}'?\n\nThis will permanently delete the product and all its related data. This cannot be undone.`)
+        .then(message => {
+          delete button.dataset.busy;
+          if (confirm(message)) submitDelete(url, overlay, progressBar);
+        });
+  });
 
-      if (!confirm(confirmMessage)) return;
+  function confirmMessageFor(productName, data) {
+    const deleted = (data && data.deleted) || [];
+    const kept = (data && data.kept) || [];
+    let msg = `Delete '${productName}'?\n\n`;
+    if (deleted.length) {
+      msg += 'These connected records will ALSO be permanently deleted:\n';
+      deleted.forEach(g => { msg += `  • ${g.label}: ${g.count}\n`; });
+      msg += '\n';
+    } else {
+      msg += 'No stock, variants or other records depend on this product.\n\n';
+    }
+    if (kept.length) {
+      msg += 'Kept as history (only unlinked from this product):\n';
+      kept.forEach(g => { msg += `  • ${g.label}: ${g.count}\n`; });
+      msg += '\n';
+    }
+    return msg + 'This cannot be undone. Click OK to delete the product and all dependent records.';
+  }
 
+  function submitDelete(url, overlay, progressBar) {
       if (overlay) {
         overlay.style.display = 'flex';
         setTimeout(() => overlay.classList.add('show'), 10);
@@ -198,7 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
       document.body.appendChild(form);
       form.submit();
-    });
-  });
-});
+  }
+}
 </script>

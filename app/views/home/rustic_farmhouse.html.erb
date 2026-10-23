@@ -324,7 +324,7 @@ footer{background:var(--wood-dark);color:rgba(255,255,255,.65);padding:64px 44px
       <div class="pcard">
         <div class="pcard-img">
           <% if product.main_image_url %>
-            <%= image_tag product.main_image_url, alt: product.name %>
+            <%= render 'shared/product_image_slider', product: product, img_class: '', fill: true %>
           <% else %>
             <span style="display:flex;align-items:center;justify-content:center;height:100%;font-size:32px;opacity:.35">🌾</span>
           <% end %>

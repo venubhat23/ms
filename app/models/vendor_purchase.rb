@@ -52,7 +52,7 @@ class VendorPurchase < ApplicationRecord
           unit_type: product.unit_type || 'units',
           # default_selling_price is unset on most products; fall back to the
           # live selling price so the dropdown doesn't show ₹0.
-          default_selling_price: (product.default_selling_price.presence || product.selling_price).to_f,
+          default_selling_price: (product.default_selling_price.to_f.positive? ? product.default_selling_price : product.selling_price).to_f,
           default_purchase_price: product.try(:buying_price).to_f,
           available_stock: product.stock.to_i
         }]

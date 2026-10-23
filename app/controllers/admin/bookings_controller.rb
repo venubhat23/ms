@@ -1274,7 +1274,7 @@ class Admin::BookingsController < Admin::ApplicationController
   end
 
   def quick_customer_params
-    params.require(:customer).permit(:first_name, :last_name, :email, :mobile)
+    params.require(:customer).permit(:first_name, :last_name, :email, :mobile, :notes)
   end
 
   # Admin bookings are never blocked by stock (see #create — skip_stock_check).

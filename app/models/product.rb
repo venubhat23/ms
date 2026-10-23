@@ -223,6 +223,39 @@ class Product < ApplicationRecord
 
   # Storefront "Best Seller" badge — top N products by units sold, same
   # "sold" statuses as #total_sold_quantity above.
+  EXPORT_HEADERS = ['Product ID', 'Product Name', 'Variant', 'SKU', 'Barcode', 'Category', 'Unit',
+                    'Selling Price (incl. GST)', 'Buying Price', 'B2B Price', 'GST %', 'HSN Code',
+                    'Available Stock', 'Low Stock Alert', 'Status'].freeze
+
+  # Whole product list as CSV: one row per product, plus one row per variant
+  # for multi-quantity products.
+  def self.export_csv(products)
+    require 'csv'
+    CSV.generate(headers: true) do |csv|
+      csv << EXPORT_HEADERS
+      products.each do |product|
+        base = [product.id, product.name]
+        common = [product.category&.name, product.unit_type]
+        status = product.status ? 'Active' : 'Inactive'
+        variants = product.has_multiple_quantities? ? product.sorted_variants : []
+
+        if variants.any?
+          variants.each do |v|
+            csv << base + [v.label, product.sku, product.barcode] + common +
+                   [v.effective_price.to_f, v.buying_price.to_f, v.try(:b2b_selling_price).to_f,
+                    v.effective_gst_percentage.to_f, product.hsn_code,
+                    v.available_stock.to_i, v.low_stock_threshold, status]
+          end
+        else
+          csv << base + ['', product.sku, product.barcode] + common +
+                 [product.price.to_f, product.buying_price.to_f, product.b2b_price.to_f,
+                  (product.gst_enabled ? product.gst_percentage.to_f : 0), product.hsn_code,
+                  product.stock.to_i, product.minimum_stock_alert, status]
+        end
+      end
+    end
+  end
+
   def self.best_seller_ids(limit: 8)
     joins(booking_items: :booking)
       .where(bookings: { status: ['confirmed', 'processing', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'completed'] })

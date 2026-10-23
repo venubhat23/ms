@@ -136,6 +136,29 @@ has_many :pending_amounts, dependent: :destroy
   # Callbacks
   before_validation :normalize_blank_values, :normalize_mobile_numbers
   before_validation :set_default_password, on: :create
+  after_commit :bust_customer_list_caches
+
+  # Customer lists/pickers are cached for a few minutes; without busting them a
+  # just-created customer is missing from the customers page and booking pickers.
+  # The index listing/stats keys embed this generation token (solid_cache_store
+  # has no delete_matched), the fixed picker keys are deleted outright.
+  CUSTOMER_LIST_CACHE_GENERATION_KEY = 'admin_customers/cache_generation'
+  CUSTOMER_PICKER_CACHE_KEYS = %w[
+    admin_customers/filter_customers admin_bookings/filter_customers
+    franchise_bookings/customers_picker affiliate_bookings/customers_picker
+    admin_pending_amounts/filter_customers
+  ].freeze
+
+  def self.customer_list_cache_generation
+    Rails.cache.read(CUSTOMER_LIST_CACHE_GENERATION_KEY) || '0'
+  end
+
+  def bust_customer_list_caches
+    Rails.cache.write(CUSTOMER_LIST_CACHE_GENERATION_KEY, Time.now.to_f.to_s, expires_in: 1.hour)
+    CUSTOMER_PICKER_CACHE_KEYS.each { |key| Rails.cache.delete(key) }
+  rescue StandardError => e
+    Rails.logger.warn "bust_customer_list_caches failed: #{e.message}"
+  end
   before_save :calculate_age
 
   # Search

@@ -318,7 +318,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:60px 52px 30px
       <div class="pcard">
         <div class="pcard-img">
           <% if product.main_image_url %>
-            <%= image_tag product.main_image_url, alt: product.name %>
+            <%= render 'shared/product_image_slider', product: product, img_class: '', fill: true %>
           <% else %>
             <span class="no-image">🌿</span>
           <% end %>
@@ -385,7 +385,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:60px 52px 30px
       <div class="pcard">
         <div class="pcard-img">
           <% if product.main_image_url %>
-            <%= image_tag product.main_image_url, alt: product.name %>
+            <%= render 'shared/product_image_slider', product: product, img_class: '', fill: true %>
           <% else %>
             <span class="no-image">🌿</span>
           <% end %>
@@ -442,7 +442,7 @@ footer{background:var(--dark);color:rgba(255,255,255,.62);padding:60px 52px 30px
       <div class="pcard">
         <div class="pcard-img">
           <% if product.main_image_url %>
-            <%= image_tag product.main_image_url, alt: product.name %>
+            <%= render 'shared/product_image_slider', product: product, img_class: '', fill: true %>
           <% else %>
             <span class="no-image">🌿</span>
           <% end %>

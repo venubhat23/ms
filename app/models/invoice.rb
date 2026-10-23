@@ -193,7 +193,7 @@ class Invoice < ApplicationRecord
       # Calculate from existing items
       invoice_items.each do |item|
         next if item.marked_for_destruction?
-        new_total += (item.quantity || 0) * (item.unit_price || 0)
+        new_total += line_amount_with_tax(item.product, item.quantity, item.unit_price)
       end
 
       # Add new items from nested attributes if present
@@ -204,11 +204,26 @@ class Invoice < ApplicationRecord
 
           quantity = (attrs['quantity'] || attrs[:quantity] || 0).to_f
           unit_price = (attrs['unit_price'] || attrs[:unit_price] || 0).to_f
-          new_total += quantity * unit_price
+          product = Product.find_by(id: attrs['product_id'] || attrs[:product_id])
+          new_total += line_amount_with_tax(product, quantity, unit_price)
         end
       end
 
       self.total_amount = new_total + delivery_charge.to_f if new_total > 0
     end
+  end
+
+  # unit_price is pre-GST; the line total includes GST, at the same rate the
+  # invoice view uses, so the stored total matches what the invoice shows.
+  def line_amount_with_tax(product, quantity, unit_price)
+    base = quantity.to_f * unit_price.to_f
+    return base unless product&.gst_enabled
+
+    rate = if product.cgst_percentage.present? && product.sgst_percentage.present?
+             product.cgst_percentage.to_f + product.sgst_percentage.to_f + product.igst_percentage.to_f
+           else
+             product.gst_percentage.to_f
+           end
+    base * (1 + rate / 100.0)
   end
 end

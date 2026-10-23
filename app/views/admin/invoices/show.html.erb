@@ -553,10 +553,16 @@
     </style>
   </head>
   <body>
+    <% @invoice.update_column(:share_token, SecureRandom.urlsafe_base64(32)) if @invoice.share_token.blank? %>
+    <% unless @public_view %>
     <!-- Back Button -->
     <%= link_to (local_assigns[:mobile_ui] ? admin_mobile_ui_bookings_path : admin_invoices_path), class: "back-button" do %>
       ← Back to <%= local_assigns[:mobile_ui] ? 'Bookings' : 'Invoices' %>
     <% end %>
+    <% end %>
+    <%# Public token URL so it works for customers and from the mobile UI (no Devise session there) %>
+    <a href="<%= public_invoice_by_token_url(token: @invoice.share_token, format: :pdf) %>"
+       class="back-button" style="background-color:#dc3545;margin-left:8px;" data-turbo="false">&#128196; Download PDF</a>
 
 
     <%
@@ -612,7 +618,8 @@
       end
 
       total_tax = total_cgst + total_sgst + total_igst
-      final_total = subtotal_amount
+      delivery_charge = @invoice.delivery_charge.to_f
+      final_total = subtotal_amount + delivery_charge
     %>
 
     <%
@@ -885,10 +892,16 @@
                   <span class="tax-amount">₹ <%= number_with_delimiter(total_igst.round(2), delimiter: ',') %></span>
                 </div>
               <% end %>
+              <% if delivery_charge > 0 %>
+                <div class="tax-line">
+                  <span class="tax-label">DELIVERY CHARGES</span>
+                  <span class="tax-amount">₹ <%= number_with_delimiter(delivery_charge.round(2), delimiter: ',') %></span>
+                </div>
+              <% end %>
               <div class="total">
                 <div class="tax-line">
                   <span class="tax-label">TOTAL AMOUNT</span>
-                  <span class="tax-amount">₹ <%= number_with_delimiter(subtotal_amount.round(2), delimiter: ',') %></span>
+                  <span class="tax-amount">₹ <%= number_with_delimiter(final_total.round(2), delimiter: ',') %></span>
                 </div>
                 <div class="tax-line" style="font-weight: normal; font-size: 10px;">
                   <span class="tax-label">Received Amount</span>
@@ -899,7 +912,7 @@
                 <h3>Total Amount (in words)</h3>
                 <%
                   # Convert number to words - enhanced implementation
-                  total_amount_int = subtotal_amount.to_i
+                  total_amount_int = final_total.to_i
                   ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
                   teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"]
                   tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]

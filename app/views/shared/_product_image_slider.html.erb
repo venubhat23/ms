@@ -9,6 +9,9 @@
     img_style - inline style for each <img>
     link      - optional href; each slide becomes a link to it
     eager     - true to skip lazy loading of the first image
+    fill      - true to stretch the slider to its (fixed-height) parent, e.g.
+                the homepage theme cards; also drops the Bootstrap Icons glyph,
+                which those standalone pages don't load
 %>
 <%
   urls      = local_assigns[:urls] || product.gallery_urls
@@ -16,13 +19,14 @@
   img_style = local_assigns[:img_style]
   link      = local_assigns[:link]
   eager     = local_assigns[:eager]
+  fill      = local_assigns[:fill]
 %>
 <% if urls.empty? %>
   <div class="<%= img_class %> bg-light d-flex align-items-center justify-content-center" style="<%= img_style %>">
     <i class="bi bi-box-seam fs-1 text-muted"></i>
   </div>
 <% else %>
-  <div class="pis<%= ' pis-multi' if urls.size > 1 %>" data-pis>
+  <div class="pis<%= ' pis-multi' if urls.size > 1 %><%= ' pis-fill' if fill %>" data-pis>
     <div class="pis-track" data-pis-track>
       <% urls.each_with_index do |url, i| %>
         <div class="pis-slide">
@@ -34,8 +38,8 @@
     </div>
 
     <% if urls.size > 1 %>
-      <button type="button" class="pis-nav pis-prev" data-pis-step="-1" aria-label="Previous image"><i class="bi bi-chevron-left"></i></button>
-      <button type="button" class="pis-nav pis-next" data-pis-step="1" aria-label="Next image"><i class="bi bi-chevron-right"></i></button>
+      <button type="button" class="pis-nav pis-prev" data-pis-step="-1" aria-label="Previous image"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M11.354 1.646a.5.5 0 0 1 0 .708L5.707 8l5.647 5.646a.5.5 0 0 1-.708.708l-6-6a.5.5 0 0 1 0-.708l6-6a.5.5 0 0 1 .708 0"/></svg></button>
+      <button type="button" class="pis-nav pis-next" data-pis-step="1" aria-label="Next image"><svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/></svg></button>
 
       <div class="pis-dots">
         <% urls.each_index do |i| %>
@@ -43,7 +47,7 @@
         <% end %>
       </div>
 
-      <span class="pis-count"><i class="bi bi-images"></i> <span data-pis-current>1</span>/<%= urls.size %></span>
+      <span class="pis-count"><% unless fill %><i class="bi bi-images"></i> <% end %><span data-pis-current>1</span>/<%= urls.size %></span>
     <% end %>
   </div>
 <% end %>
@@ -76,6 +80,12 @@
     .pis-prev { left: 10px; }
     .pis-next { right: 10px; }
     .pis:hover .pis-nav, .pis:focus-within .pis-nav { opacity: 1; transform: translateY(-50%) scale(1); }
+    .pis-fill { width: 100%; height: 100%; align-self: stretch; }
+    .pis-fill .pis-track, .pis-fill .pis-slide { height: 100%; }
+    /* themes zoom the card image on hover — keep each zoomed slide from
+       bleeding over its neighbour */
+    .pis-fill .pis-slide { overflow: hidden; }
+    .pis-nav svg { display: block; }
     .pis-nav[disabled] { opacity: 0 !important; pointer-events: none; }
 
     .pis-dots {

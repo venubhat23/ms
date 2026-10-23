@@ -1,7 +1,7 @@
 class Admin::ProductsController < Admin::ApplicationController
   include LocationHelper
 
-  before_action :set_product, only: [:show, :edit, :update, :destroy, :toggle_status, :detail,
+  before_action :set_product, only: [:show, :edit, :update, :destroy, :toggle_status, :detail, :dependencies,
                                       :manage_images, :upload_main_image, :upload_additional_image, :destroy_gallery_image]
   before_action :authenticate_user!
 
@@ -63,6 +63,13 @@ class Admin::ProductsController < Admin::ApplicationController
                 else
                   @products.recent
                 end
+
+    if request.format.csv?
+      products = Product.where(id: @products.unscope(:select).select(:id)).includes(:category, :product_variants)
+                        .order(created_at: :desc).to_a
+      return send_data Product.export_csv(products), filename: "products_#{Date.current}.csv", type: 'text/csv'
+    end
+
     @products = @products.page(params[:page]).per(20)
 
     # Kaminari memoizes total_count in this ivar on first access, so pre-seeding
@@ -164,6 +171,42 @@ class Admin::ProductsController < Admin::ApplicationController
       @categories = Category.active.ordered
       render :edit, status: :unprocessable_entity
     end
+  end
+
+  # GET /admin/products/:id/dependencies — what a delete would touch, for the
+  # confirmation prompt. Mirrors purge_and_destroy_product! below.
+  def dependencies
+    p = @product
+    variant_ids = p.product_variants.pluck(:id)
+    batch_ids = StockBatch.where(product_id: p.id).or(StockBatch.where(product_variant_id: variant_ids)).pluck(:id)
+
+    deleted = [
+      ['Product variants',        variant_ids.size],
+      ['Stock batches',           batch_ids.size],
+      ['Stock movements',         StockMovement.where(product_id: p.id).count],
+      ['Store stock records',     StoreInventory.where(product_id: p.id).or(StoreInventory.where(product_variant_id: variant_ids)).count],
+      ['Vendor purchase lines',   VendorPurchaseItem.where(product_id: p.id).or(VendorPurchaseItem.where(product_variant_id: variant_ids)).count],
+      ['Sale items',              SaleItem.where(product_id: p.id).or(SaleItem.where(stock_batch_id: batch_ids)).count],
+      ['Milk delivery tasks',     MilkDeliveryTask.where(product_id: p.id).count],
+      ['Milk subscriptions',      MilkSubscription.where(product_id: p.id).count],
+      ['Booking schedules',       BookingSchedule.where(product_id: p.id).count],
+      ['Subscription templates',  SubscriptionTemplate.where(product_id: p.id).count],
+      ['Customer formats',        CustomerFormat.where(product_id: p.id).count],
+      ['Stock transfers',         StockTransfer.where(product_id: p.id).count],
+      ['Wishlist entries',        Wishlist.where(product_id: p.id).count],
+      ['Delivery rules',          p.delivery_rules.count],
+      ['Reviews',                 p.product_reviews.count],
+      ['Ratings',                 p.product_ratings.count]
+    ]
+    # History that is kept, only unlinked from the product
+    kept = [
+      ['Booking lines',  p.booking_items.count],
+      ['Order lines',    p.order_items.count],
+      ['Invoice lines',  InvoiceItem.where(product_id: p.id).count]
+    ]
+    to_groups = ->(rows) { rows.select { |_, c| c.positive? }.map { |label, count| { label: label, count: count } } }
+
+    render json: { product_name: p.name, deleted: to_groups.(deleted), kept: to_groups.(kept) }
   end
 
   def destroy
@@ -673,6 +716,25 @@ class Admin::ProductsController < Admin::ApplicationController
       SubscriptionTemplate.where(product_id: product.id).delete_all
       CustomerFormat.where(product_id: product.id).delete_all
       StockTransfer.where(product_id: product.id).delete_all
+
+      # Stock records, deleted children-first. Left to product.destroy! these
+      # failed: variants are destroyed before the stock batches / purchase lines
+      # that reference them, batches before their sale items (restrict_with_error),
+      # and store_inventories was never cleared — any one blocked the delete.
+      variant_ids = product.product_variants.pluck(:id)
+      batch_ids = StockBatch.where(product_id: product.id)
+                            .or(StockBatch.where(product_variant_id: variant_ids)).pluck(:id)
+      SaleItem.where(product_id: product.id).or(SaleItem.where(stock_batch_id: batch_ids)).delete_all
+      StockBatch.where(id: batch_ids).delete_all
+      VendorPurchaseItem.where(product_id: product.id)
+                        .or(VendorPurchaseItem.where(product_variant_id: variant_ids)).delete_all
+      StoreInventory.where(product_id: product.id)
+                    .or(StoreInventory.where(product_variant_id: variant_ids)).delete_all
+      StockMovement.where(product_id: product.id).delete_all
+      if variant_ids.any?
+        BookingItem.where(product_variant_id: variant_ids).update_all(product_variant_id: nil)
+        OrderItem.where(product_variant_id: variant_ids).update_all(product_variant_id: nil)
+      end
 
       product.destroy!
     end

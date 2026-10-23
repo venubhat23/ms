@@ -369,6 +369,10 @@
                             <label class="form-label">Email</label>
                             <input type="email" class="form-control" id="quickCustomerEmail">
                           </div>
+                          <div class="col-12">
+                            <label class="form-label">Notes <span class="text-muted small">(optional)</span></label>
+                            <textarea class="form-control" id="quickCustomerNotes" rows="2" placeholder="Any additional notes or special requirements"></textarea>
+                          </div>
                         </div>
                       </div>
                       <div class="modal-footer">
@@ -2385,6 +2389,7 @@ function openQuickAddCustomerModal(prefill) {
   document.getElementById('quickCustomerLastName').value = '';
   document.getElementById('quickCustomerMobile').value = '';
   document.getElementById('quickCustomerEmail').value = '';
+  document.getElementById('quickCustomerNotes').value = '';
 
   const trimmed = (prefill || '').trim();
   if (trimmed) {
@@ -2416,6 +2421,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const lastName = document.getElementById('quickCustomerLastName').value.trim();
     const mobile = document.getElementById('quickCustomerMobile').value.trim();
     const email = document.getElementById('quickCustomerEmail').value.trim();
+    const notes = document.getElementById('quickCustomerNotes').value.trim();
 
     const missing = [];
     if (!firstName) missing.push('First name is required.');
@@ -2437,7 +2443,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({
-        customer: { first_name: firstName, last_name: lastName, mobile: mobile, email: email }
+        customer: { first_name: firstName, last_name: lastName, mobile: mobile, email: email, notes: notes }
       })
     })
       .then(res => res.json().then(data => ({ ok: res.ok, data })))

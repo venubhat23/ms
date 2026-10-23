@@ -1,7 +1,7 @@
 module GstCalculatorHelper
   # GST-inclusive price extraction — single source of truth used by show, edit, invoice views.
   # Prices stored on booking items already include GST.
-  # Formula: base = round(price) / (1 + rate/100),  tax = round(price) - base
+  # Formula: tax = price × rate / (100 + rate),  base = price − tax
 
   # Returns aggregate summary for a collection of booking items.
   # { base:, tax:, cgst:, sgst:, igst:, avg_tax_rate:, tax_display: }
@@ -74,10 +74,11 @@ module GstCalculatorHelper
       igst_rate = 0.0
     end
 
-    rounded_final = unit_price.round
-    rounded_base  = (rounded_final / (1 + total_rate / 100.0)).round
-    item_base     = rounded_base * qty
-    item_tax      = (rounded_final - rounded_base) * qty
+    # Exact extraction (no whole-rupee rounding) so booking pages show the
+    # same GST as the invoice, whose base unit_price is price / (1 + rate).
+    line_total = unit_price * qty
+    item_tax   = (line_total * total_rate / (100 + total_rate)).round(2)
+    item_base  = line_total - item_tax
 
     cgst_amt = (item_tax * cgst_rate / total_rate).round(2)
     sgst_amt = (item_tax * sgst_rate / total_rate).round(2)

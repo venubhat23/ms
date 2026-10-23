@@ -328,12 +328,13 @@ class Booking < ApplicationRecord
         variant.product = product if variant && product
         gst_rate = item.gst_rate(variant: variant, prod: product)
 
-        # Price is GST-inclusive: extract base via per-unit rounding
+        # Price is GST-inclusive: extract the GST it contains (same figure the
+        # invoice shows, whose base unit_price is price / (1 + rate))
         if gst_rate > 0
-          rounded_final = price.round
-          rounded_base  = (rounded_final / (1 + gst_rate / 100.0)).round
-          items_total  += rounded_base * quantity
-          total_gst    += (rounded_final - rounded_base) * quantity
+          line_total    = price * quantity
+          line_gst      = (line_total * gst_rate / (100 + gst_rate)).round(2)
+          items_total  += line_total - line_gst
+          total_gst    += line_gst
         else
           items_total += price * quantity
         end
@@ -1372,11 +1373,12 @@ class Booking < ApplicationRecord
       product = item.product
       next unless product
 
-      unit_price = if product.gst_enabled? && product.gst_percentage.present?
-        product.calculate_base_price || item.price
-      else
-        item.price || product.selling_price
-      end
+      # Pre-GST unit price extracted from the price actually charged on this
+      # line (variant-aware), not the product's current list price. The invoice
+      # adds GST back on top, so its total matches the booking's.
+      gst_rate = item.gst_rate
+      charged = (item.price || product.selling_price).to_f
+      unit_price = gst_rate > 0 ? charged / (1 + gst_rate / 100.0) : charged
 
       if discount_amount.to_f > 0 && total_amount.to_f > 0
         unit_price = unit_price * (1 - discount_amount.to_f / total_amount.to_f)

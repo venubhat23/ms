@@ -141,7 +141,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     customer_params = params.permit(
       :customer_type, :first_name, :last_name, :company_name, :email,
       :mobile, :gender, :birth_date, :address, :city, :state, :pincode,
-      :pan_no, :gst_no, :occupation, :annual_income, :marital_status,
+      :pan_no, :gst_no, :occupation, :annual_income, :marital_status, :notes,
       :image_url, :password, :password_confirmation, :file1, :file2,
       documents: [:document_type, :document_file]
     )
@@ -150,7 +150,6 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
     validation_errors = []
     validation_errors << 'First name is required' if customer_params[:first_name].blank?
     validation_errors << 'Mobile number is required' if customer_params[:mobile].blank?
-    validation_errors << 'Email is required' if customer_params[:email].blank?
 
     # No password provided -> the shared customer default (Customer::DEFAULT_PASSWORD)
     auto_generated_password = false
@@ -2175,7 +2174,9 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
       user = User.new(
         first_name: customer.first_name || 'Customer',
         last_name: customer.last_name || 'User',
-        email: customer.email,
+        # Email is optional: without one, the User gets a non-deliverable placeholder
+        # and the customer logs in with their mobile number instead.
+        email: customer.email.presence || "#{customer.mobile.to_s.gsub(/\D/, '')}@no-email.invalid",
         password: password,
         password_confirmation: password,
         mobile: customer.mobile,
@@ -2191,8 +2192,9 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
         {
           created: true,
           user_id: user.id,
-          email: user.email,
-          message: 'User account created successfully. Customer can now login with email and password.'
+          email: customer.email.presence,
+          login_identifier: customer.email.presence || customer.mobile,
+          message: "User account created successfully. Customer can now login with #{customer.email.present? ? 'email' : 'mobile number'} and password."
         }
       else
         Rails.logger.error "Failed to create user account for customer #{customer.id}: #{user.errors.full_messages}"

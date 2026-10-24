@@ -12,7 +12,11 @@ class Storefront::CartsController < Storefront::BaseController
     quantity = params[:quantity].to_i
     quantity = 1 if quantity <= 0
 
-    if product.has_multiple_quantities? && variant.nil?
+    # Single-variant products get the plain button (no chips), so no
+    # variant_id is posted; use the only option instead of rejecting.
+    variant ||= product.sorted_variants.first if product.has_multiple_quantities? && product.product_variants.size == 1
+
+    if product.has_multiple_quantities? && variant.nil? && product.product_variants.size > 1
       return render json: { success: false, error: 'Please choose an option before adding to cart.' }, status: :unprocessable_entity
     end
 

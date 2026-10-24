@@ -171,18 +171,18 @@
         <% end %>
 
         <% if @booking.out_for_delivery? %>
-          <%= link_to mark_delivered_admin_booking_path(@booking, list_state: @list_state), method: :patch,
+          <%= button_to mark_delivered_admin_booking_path(@booking, list_state: @list_state), method: :patch,
               class: "btn btn-success btn-sm w-100 mb-2",
-              confirm: "Mark this order as delivered?" do %>
+              form: { data: { turbo_confirm: "Mark this order as delivered?" } } do %>
             <i class="bi bi-check-circle me-1"></i>
             Mark as Delivered
           <% end %>
         <% end %>
 
         <% if @booking.delivered? %>
-          <%= link_to mark_completed_admin_booking_path(@booking, list_state: @list_state), method: :patch,
+          <%= button_to mark_completed_admin_booking_path(@booking, list_state: @list_state), method: :patch,
               class: "btn btn-primary btn-sm w-100",
-              confirm: "Mark this order as completed?" do %>
+              form: { data: { turbo_confirm: "Mark this order as completed?" } } do %>
             <i class="bi bi-check-all me-1"></i>
             Mark as Completed
           <% end %>

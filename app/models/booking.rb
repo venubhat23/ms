@@ -312,7 +312,9 @@ class Booking < ApplicationRecord
     # keeps any newly-built-but-unsaved items (needed during creation), and
     # looking products up via product_id from one batched query instead of
     # `item.product` avoids a query per item.
-    items = booking_items.to_a
+    # Rows removed on the edit form (_destroy) are still in the association
+    # until save; counting them left total_amount above the real total.
+    items = booking_items.to_a.reject(&:marked_for_destruction?)
     products_by_id = Product.where(id: items.map(&:product_id).compact.uniq).index_by(&:id)
     variants_by_id = ProductVariant.where(id: items.map(&:product_variant_id).compact.uniq).index_by(&:id)
 

@@ -105,6 +105,12 @@ class SystemSetting < ApplicationRecord
       description: 'Forest green, gold & cream — scrolling offers bar, search-first nav, category carousels and a torn-paper hero, in the style of a premium herbal wellness storefront.',
       file: 'websites/client3.html',
       swatch: %w[#1f7d3f #f0b923 #f7f1e3]
+    },
+    'native-pride' => {
+      name: 'Native Pride',
+      description: 'Deep teal, orange & caramel with handwritten sub-titles — fading hero slider, round category cards, tabbed product grid with quick view & wishlist, in the style of a traditional native-products store.',
+      file: 'websites/native-pride.html',
+      swatch: %w[#003e46 #ff7800 #c88149]
     }
   }.freeze
 

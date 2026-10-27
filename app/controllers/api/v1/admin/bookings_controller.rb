@@ -3,6 +3,22 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
   def index
     bookings = Booking.includes(:customer)
     bookings = bookings.where(status: params[:status]) if params[:status].present?
+    bookings = bookings.where(payment_status: params[:payment_status]) if params[:payment_status].present?
+    bookings = bookings.where(store_id: params[:store_id]) if params[:store_id].present?
+    bookings = bookings.where(customer_id: params[:customer_id]) if params[:customer_id].present?
+    bookings = bookings.where('bookings.created_at >= ?', param_date(:from_date).beginning_of_day) if param_date(:from_date)
+    bookings = bookings.where('bookings.created_at <= ?', param_date(:to_date).end_of_day) if param_date(:to_date)
+    if params[:search].present?
+      # Same matching as the web bookings page: number, customer, phone, product name
+      term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:search].strip)}%"
+      bookings = bookings.where(
+        "bookings.booking_number ILIKE :t OR bookings.customer_name ILIKE :t OR bookings.customer_email ILIKE :t " \
+        "OR bookings.customer_phone ILIKE :t " \
+        "OR bookings.customer_id IN (SELECT id FROM customers WHERE CONCAT_WS(' ', first_name, last_name) ILIKE :t OR mobile ILIKE :t) " \
+        "OR bookings.id IN (SELECT bi.booking_id FROM booking_items bi JOIN products p ON p.id = bi.product_id WHERE p.name ILIKE :t)",
+        t: term
+      )
+    end
     bookings = bookings.order(created_at: :desc)
 
     page = params[:page] || 1
@@ -22,7 +38,7 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
 
   # GET /api/v1/admin/bookings/:id
   def show
-    booking = Booking.includes(:customer, booking_items: :product).find(params[:id])
+    booking = Booking.includes(:customer, :delivery_person, :store, :franchise, booking_items: [:product, :product_variant]).find(params[:id])
     render_success(booking_response(booking, detailed: true))
   rescue ActiveRecord::RecordNotFound
     render_error('Booking not found', nil, :not_found)
@@ -148,6 +164,8 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
       customer_name: booking.customer_name.presence || booking.customer&.display_name,
       customer_phone: booking.customer_phone,
       delivery_address: booking.delivery_address,
+      items_count: booking.booking_items_count.to_i,
+      is_pre_booking: booking.is_pre_booking,
       created_at: booking.created_at
     }
 
@@ -157,13 +175,38 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
           id: item.id,
           product_id: item.product_id,
           product_name: item.product&.name,
+          variant_id: item.product_variant_id,
+          variant_label: item.product_variant&.label,
           quantity: item.quantity,
-          price: item.price.to_f
+          price: item.price.to_f,
+          total: (item.total || item.price.to_f * item.quantity.to_f).to_f
         }
       end
       data[:subtotal] = booking.subtotal.to_f
       data[:tax_amount] = booking.tax_amount.to_f
       data[:discount_amount] = booking.discount_amount&.to_f || 0
+      data[:shipping_charges] = booking.shipping_charges.to_f
+      data[:coupon_code] = booking.coupon_code
+      data[:coupon_discount_amount] = booking.coupon_discount_amount.to_f
+      data[:wallet_amount_used] = booking.wallet_amount_used.to_f
+      data[:cash_received] = booking.cash_received&.to_f
+      data[:payment_completed_at] = booking.payment_completed_at
+      data[:customer_id] = booking.customer_id
+      data[:customer_email] = booking.customer_email
+      data[:store] = booking.store && { id: booking.store_id, name: booking.store.display_name }
+      data[:franchise] = booking.franchise && { id: booking.franchise_id, name: booking.franchise.try(:name) }
+      data[:delivery_person] = booking.delivery_person && {
+        id: booking.delivery_person_id,
+        name: booking.delivery_person.display_name,
+        mobile: booking.delivery_person.mobile
+      }
+      data[:delivery_mode] = booking.delivery_mode
+      data[:delivered_at] = booking.try(:delivered_at)
+      data[:courier_service] = booking.courier_service
+      data[:tracking_number] = booking.tracking_number
+      data[:invoice_number] = booking.invoice_number
+      data[:cancellation_reason] = booking.cancellation_reason
+      data[:stage_history] = booking.stage_history
       data[:notes] = booking.notes
     end
 

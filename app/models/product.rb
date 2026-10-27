@@ -122,6 +122,34 @@ class Product < ApplicationRecord
   scope :active, -> { where(status: :active) }
   scope :inactive, -> { where(status: :inactive) }
   scope :draft, -> { where(status: :draft) }
+
+  # SQL twin of #total_stock (variant products = sum of variant stock, else
+  # products.stock) so lists can filter/sort/count by it without N+1s.
+  LOW_STOCK_LIMIT = 10
+  TOTAL_STOCK_SQL = <<~SQL.squish.freeze
+    CASE WHEN products.has_multiple_quantities
+              AND EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = products.id)
+         THEN (SELECT COALESCE(SUM(pv.available_stock), 0) FROM product_variants pv WHERE pv.product_id = products.id)
+         ELSE COALESCE(products.stock, 0)
+    END
+  SQL
+  scope :with_total_stock, -> { select("products.*, (#{TOTAL_STOCK_SQL}) AS computed_total_stock") }
+  scope :where_stock_status, ->(status) {
+    case status.to_s
+    when 'out_of_stock' then where("(#{TOTAL_STOCK_SQL}) <= 0")
+    when 'low_stock'    then where("(#{TOTAL_STOCK_SQL}) > 0 AND (#{TOTAL_STOCK_SQL}) <= ?", LOW_STOCK_LIMIT)
+    when 'in_stock'     then where("(#{TOTAL_STOCK_SQL}) > ?", LOW_STOCK_LIMIT)
+    else all
+    end
+  }
+
+  def self.stock_status_for(total)
+    if total.to_f <= 0 then 'out_of_stock'
+    elsif total.to_f <= LOW_STOCK_LIMIT then 'low_stock'
+    else 'in_stock'
+    end
+  end
+
   scope :in_stock, -> {
     joins(:stock_batches)
       .where(stock_batches: { status: 'active' })

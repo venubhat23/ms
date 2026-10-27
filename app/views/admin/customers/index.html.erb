@@ -133,7 +133,10 @@
   <div class="card-header bg-transparent border-0">
     <div class="d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Customer List</h5>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 align-items-center">
+        <button type="button" class="btn btn-danger btn-sm d-none" id="bulkDeleteBtn" onclick="confirmBulkDelete()">
+          <i class="bi bi-trash me-1"></i>Delete Selected (<span id="bulkSelectedCount">0</span>)
+        </button>
         <div class="position-relative">
           <input type="text" class="form-control" placeholder="Search in table..." id="searchInput">
           <i class="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3"></i>
@@ -147,6 +150,9 @@
         <table class="table table-hover mb-0">
           <thead class="table-light">
             <tr>
+              <th class="border-0" style="width: 40px;">
+                <input type="checkbox" class="form-check-input" id="selectAllCustomers" title="Select all on this page">
+              </th>
               <th class="border-0 fw-semibold">Customer</th>
               <th class="border-0 fw-semibold">Contact Info</th>
               <th class="border-0 fw-semibold">Status</th>
@@ -157,6 +163,9 @@
           <tbody>
             <% @customers.each do |customer| %>
               <tr>
+                <td class="align-middle">
+                  <input type="checkbox" class="form-check-input customer-checkbox" value="<%= customer.id %>">
+                </td>
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
                     <div class="avatar-sm bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center me-3">
@@ -313,8 +322,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchTerm = this.value.toLowerCase();
 
     tableRows.forEach(row => {
-      const customerName = row.cells[0]?.textContent.toLowerCase() || '';
-      const contactInfo = row.cells[1]?.textContent.toLowerCase() || '';
+      const customerName = row.cells[1]?.textContent.toLowerCase() || '';
+      const contactInfo = row.cells[2]?.textContent.toLowerCase() || '';
 
       if (customerName.includes(searchTerm) ||
           contactInfo.includes(searchTerm)) {
@@ -467,6 +476,108 @@ function setupFilterFunctionality() {
   clearFiltersBtn?.addEventListener('click', function() {
     // Navigate without parameters (page reload resets the widgets)
     window.location.href = window.location.pathname;
+  });
+}
+
+// Bulk delete: the button only shows while at least one row is ticked
+document.addEventListener('DOMContentLoaded', function() {
+  const selectAll = document.getElementById('selectAllCustomers');
+  const boxes = () => Array.from(document.querySelectorAll('.customer-checkbox'));
+
+  function refreshBulkBar() {
+    const all = boxes();
+    const checked = all.filter(cb => cb.checked).length;
+    document.getElementById('bulkSelectedCount').textContent = checked;
+    document.getElementById('bulkDeleteBtn').classList.toggle('d-none', checked === 0);
+    if (selectAll) {
+      selectAll.checked = all.length > 0 && checked === all.length;
+      selectAll.indeterminate = checked > 0 && checked < all.length;
+    }
+  }
+
+  selectAll?.addEventListener('change', function() {
+    // Only rows still visible after the in-table search
+    boxes().forEach(cb => {
+      if (cb.closest('tr').style.display !== 'none') cb.checked = selectAll.checked;
+    });
+    refreshBulkBar();
+  });
+  boxes().forEach(cb => cb.addEventListener('change', refreshBulkBar));
+});
+
+function confirmBulkDelete() {
+  const ids = Array.from(document.querySelectorAll('.customer-checkbox:checked')).map(cb => cb.value);
+  if (ids.length === 0) return;
+
+  Swal.fire({
+    title: `⚠️ Delete ${ids.length} Customer(s)?`,
+    html: `
+      <div class="text-start">
+        <div class="alert alert-warning small">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          <strong>For each selected customer this will permanently delete:</strong>
+          <ul class="mb-0 mt-2">
+            <li>Customer profile and personal information</li>
+            <li>All associated orders and bookings</li>
+            <li>Subscriptions and delivery records</li>
+            <li>User account and login credentials</li>
+            <li>All notifications and addresses</li>
+          </ul>
+        </div>
+        <div class="alert alert-danger small mb-0">
+          <i class="bi bi-shield-exclamation me-2"></i>
+          <strong>Warning:</strong> This action cannot be undone once confirmed!
+        </div>
+      </div>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: `<i class="bi bi-trash me-2"></i>Yes, Delete ${ids.length} Permanently`,
+    cancelButtonText: '<i class="bi bi-x-circle me-2"></i>Cancel',
+    focusCancel: true,
+    customClass: {
+      confirmButton: 'btn btn-danger px-4 me-3',
+      cancelButton: 'btn btn-secondary px-4'
+    },
+    buttonsStyling: false
+  }).then((result) => {
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+      title: 'Deleting Customers...',
+      html: `<div class="d-flex align-items-center justify-content-center">
+               <div class="spinner-border text-danger me-3" role="status">
+                 <span class="visually-hidden">Loading...</span>
+               </div>
+               <span>Please wait while we delete <strong>${ids.length}</strong> customer(s) and all associated records...</span>
+             </div>`,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showConfirmButton: false
+    });
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '<%= bulk_destroy_admin_customers_path %>';
+
+    const fields = { authenticity_token: document.querySelector('meta[name="csrf-token"]').getAttribute('content'), _method: 'delete' };
+    Object.entries(fields).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
+    });
+    ids.forEach(id => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'customer_ids[]';
+      input.value = id;
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
   });
 }
 

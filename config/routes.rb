@@ -377,6 +377,7 @@ Rails.application.routes.draw do
         get :export
         get :cities
         get :search_sub_agents
+        delete :bulk_destroy
       end
       member do
         patch :toggle_status
@@ -1072,6 +1073,10 @@ Rails.application.routes.draw do
             patch :toggle_status
           end
         end
+
+        # View-only
+        resources :pending_amounts, only: [:index, :show]
+        resources :stock, only: [:index, :show], controller: 'stock'
 
         resources :banners, only: [:index, :create]
       end

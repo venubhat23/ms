@@ -1,8 +1,10 @@
 class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/products
   def index
-    products = Product.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
+    products = Product.with_total_stock.includes(:category, image_attachment: :blob, additional_images_attachments: :blob)
     products = products.where(category_id: params[:category_id]) if params[:category_id].present?
+    products = products.where(status: params[:status]) if params[:status].present?
+    products = products.where_stock_status(params[:stock_status]) if params[:stock_status].present?
     products = products.search(params[:search]) if params[:search].present?
     products = products.order(created_at: :desc)
 
@@ -23,7 +25,7 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
 
   # GET /api/v1/admin/products/:id
   def show
-    product = Product.includes(:category).find(params[:id])
+    product = Product.with_total_stock.includes(:category, :product_variants).find(params[:id])
     render_success(product_response(product, detailed: true))
   rescue ActiveRecord::RecordNotFound
     render_error('Product not found', nil, :not_found)
@@ -158,6 +160,10 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
       discount_price: product.discount_price&.to_f,
       selling_price: product.selling_price.to_f,
       stock: product.stock,
+      total_stock: total_stock_of(product),
+      stock_status: Product.stock_status_for(total_stock_of(product)),
+      has_variants: product.has_multiple_quantities,
+      unit_type: product.unit_type,
       status: product.status,
       sku: product.sku,
       category: { id: product.category_id, name: product.category&.name },
@@ -171,8 +177,30 @@ class Api::V1::Admin::ProductsController < Api::V1::Admin::BaseController
       data[:buying_price] = product.buying_price&.to_f
       data[:gst_enabled] = product.gst_enabled
       data[:gst_percentage] = product.gst_percentage&.to_f
+      data[:b2b_price] = product.b2b_price&.to_f
+      data[:variants] = product.product_variants.sort_by { |v| [v.display_order.to_i, v.id] }.map do |v|
+        {
+          id: v.id,
+          label: v.label,
+          weight: v.weight&.to_f,
+          unit: v.unit,
+          buying_price: v.buying_price&.to_f,
+          selling_price: v.selling_price&.to_f,
+          b2b_selling_price: v.b2b_selling_price&.to_f,
+          final_price_with_gst: v.final_price_with_gst&.to_f,
+          available_stock: v.available_stock.to_i,
+          low_stock_threshold: v.low_stock_threshold,
+          is_default: v.is_default
+        }
+      end
     end
 
     data
+  end
+
+  # Uses the SQL-computed value when the record came from .with_total_stock
+  # (create/update responses don't), falling back to Product#total_stock.
+  def total_stock_of(product)
+    product.has_attribute?(:computed_total_stock) ? product.computed_total_stock.to_i : product.total_stock
   end
 end

@@ -67,6 +67,27 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
       )
       data[:orders_count] = orders_count
       data[:total_spent] = total_spent.to_f
+      data[:bookings_total] = customer.bookings.where.not(status: 'cancelled').sum(:total_amount).to_f
+      unpaid = customer.bookings.where(payment_status: %w[unpaid partially_paid]).where.not(status: 'cancelled')
+      data[:unpaid_bookings_count] = unpaid.count
+      data[:unpaid_bookings_amount] = unpaid.sum(:total_amount).to_f
+      data[:pending_amount_total] = customer.pending_amounts.where(status: :pending).sum(:amount).to_f
+      data[:pending_amounts] = customer.pending_amounts.order(pending_date: :desc).limit(20).map do |pa|
+        { id: pa.id, amount: pa.amount.to_f, description: pa.description, pending_date: pa.pending_date, status: pa.status }
+      end
+      data[:addresses] = customer.customer_addresses.order(is_default: :desc).map do |a|
+        a.slice(:id, :name, :mobile, :address_type, :address, :landmark, :city, :state, :pincode, :is_default)
+      end
+      data[:recent_bookings] = customer.bookings.order(created_at: :desc).limit(10).map do |b|
+        {
+          id: b.id,
+          booking_number: b.booking_number,
+          status: b.status,
+          payment_status: b.payment_status,
+          total_amount: b.total_amount.to_f,
+          created_at: b.created_at
+        }
+      end
       data[:wallet_history] = wallet_history || []
     end
 

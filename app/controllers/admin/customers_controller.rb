@@ -552,6 +552,8 @@ class Admin::CustomersController < Admin::ApplicationController
 
         # 18. Finally hard delete the customer using raw SQL to bypass all callbacks and associations
         ActiveRecord::Base.connection.execute("DELETE FROM customers WHERE id = #{@customer.id}")
+        # Raw SQL skips after_commit, so the cached index listing/pickers must be busted by hand
+        @customer.bust_customer_list_caches
 
         success_message = "✅ Customer '#{customer_name}' has been permanently deleted!"
         if deleted_items.any?

@@ -20,7 +20,9 @@ class Customer::RegistrationsController < Customer::BaseController
     if @customer.save
       session.delete(:referral_affiliate_code)
       sign_in_customer(@customer)
-      redirect_to customer_dashboard_path, notice: 'Account created successfully! Welcome!'
+      # Own flash key: the customer layout's script strips every regular
+      # notice/alert/toast element, which used to swallow this message.
+      redirect_to customer_dashboard_path, flash: { account_created: "Account created successfully! Welcome, #{@customer.first_name}!" }
     else
       flash.now[:alert] = 'Please fix the errors below.'
       render :new

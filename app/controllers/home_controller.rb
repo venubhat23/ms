@@ -117,9 +117,14 @@ class HomeController < ApplicationController
     klass.payload_expires_at = built_at + PAYLOAD_LOCAL_TTL
   end
 
-  # One refresh per worker at a time; a fresh controller instance so the
-  # thread never touches this request's ivars. Failures just leave the stale
-  # bundle in place until PAYLOAD_STALE_TTL forces an inline rebuild.
+  # One refresh per worker at a time; a fresh controller instance so it never
+  # touches this request's ivars. Failures just leave the stale bundle in
+  # place until PAYLOAD_STALE_TTL forces an inline rebuild.
+  #
+  # The rebuild is CPU-heavy (hundreds of AR objects) and would hold the GVL
+  # while this request renders — a thread started here made the "instant"
+  # stale response take 300-500ms live. Puma's rack.after_reply runs it only
+  # once this response has been written; a thread is the fallback elsewhere.
   def refresh_home_payload_in_background
     klass = self.class
     return unless klass.payload_mutex.try_lock
@@ -127,7 +132,8 @@ class HomeController < ApplicationController
 
     klass.payload_refreshing = true
     klass.payload_mutex.unlock
-    Thread.new do
+
+    refresh = lambda do
       Rails.application.executor.wrap do
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         payload = klass.new.send(:build_home_payload)
@@ -137,6 +143,12 @@ class HomeController < ApplicationController
       ensure
         klass.payload_refreshing = false
       end
+    end
+
+    if (after_reply = request.env['rack.after_reply'])
+      after_reply << refresh
+    else
+      Thread.new(&refresh)
     end
   end
 

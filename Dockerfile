@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # Rails 8 app — Ruby 3.2.11, Postgres, Solid Queue/Cache/Cable, cssbundling-rails
 # (sass/postcss), wkhtmltopdf-binary + ImageMagick for PDF/image processing.
 

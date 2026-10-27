@@ -26,14 +26,22 @@ class HomeController < ApplicationController
   # only one request per worker, once per window, pays the full remote cost
   # to repopulate it. Short TTLs keep staleness imperceptible — well under
   # the 30-minute TTLs the underlying Rails.cache entries already tolerate.
+  #
+  # Stale-while-revalidate: on a quiet storefront visitors rarely land inside
+  # the same 15s window, so a plain TTL meant nearly every visitor paid the
+  # ~200-300ms rebuild. Past PAYLOAD_LOCAL_TTL the stale bundle is served
+  # instantly and rebuilt in a background thread; only past
+  # PAYLOAD_STALE_TTL (or on a cold worker) does a request rebuild inline.
   PAYLOAD_LOCAL_TTL = 15.seconds
+  PAYLOAD_STALE_TTL = 5.minutes
   THEME_LOCAL_TTL = 60.seconds
 
   @payload_mutex = Mutex.new
   @theme_mutex = Mutex.new
 
   class << self
-    attr_accessor :cached_payload, :payload_expires_at, :cached_theme, :theme_expires_at
+    attr_accessor :cached_payload, :payload_expires_at, :payload_built_at, :payload_refreshing,
+                  :cached_theme, :theme_expires_at
     attr_reader :payload_mutex, :theme_mutex
   end
 
@@ -90,12 +98,46 @@ class HomeController < ApplicationController
     klass = self.class
     return klass.cached_payload if klass.cached_payload && klass.payload_expires_at.to_f > now
 
+    if klass.cached_payload && klass.payload_built_at.to_f > now - PAYLOAD_STALE_TTL
+      refresh_home_payload_in_background
+      return klass.cached_payload
+    end
+
     klass.payload_mutex.synchronize do
       return klass.cached_payload if klass.cached_payload && klass.payload_expires_at.to_f > now
-      klass.cached_payload = build_home_payload
-      klass.payload_expires_at = now + PAYLOAD_LOCAL_TTL
+      store_home_payload(build_home_payload, now)
     end
     klass.cached_payload
+  end
+
+  def store_home_payload(payload, built_at)
+    klass = self.class
+    klass.cached_payload = payload
+    klass.payload_built_at = built_at
+    klass.payload_expires_at = built_at + PAYLOAD_LOCAL_TTL
+  end
+
+  # One refresh per worker at a time; a fresh controller instance so the
+  # thread never touches this request's ivars. Failures just leave the stale
+  # bundle in place until PAYLOAD_STALE_TTL forces an inline rebuild.
+  def refresh_home_payload_in_background
+    klass = self.class
+    return unless klass.payload_mutex.try_lock
+    return klass.payload_mutex.unlock if klass.payload_refreshing
+
+    klass.payload_refreshing = true
+    klass.payload_mutex.unlock
+    Thread.new do
+      Rails.application.executor.wrap do
+        started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        payload = klass.new.send(:build_home_payload)
+        klass.payload_mutex.synchronize { klass.new.send(:store_home_payload, payload, started) }
+      rescue => e
+        Rails.logger.warn("[home] background payload refresh failed: #{e.class}: #{e.message}")
+      ensure
+        klass.payload_refreshing = false
+      end
+    end
   end
 
   def build_home_payload

@@ -1,0 +1,2932 @@
+{
+  "info": {
+    "_postman_id": "45253cd9-b1a9-4944-90a3-d20b6e5a7714",
+    "name": "Ecommerce Store MS \u2014 Mobile API",
+    "description": "End-to-end collection for every endpoint under /api/v1/mobile, generated from docs/MOBILE_API.md and docs/CUSTOMER_WALLET_API.md (the authoritative, code-verified reference for this API as of 2026-09-02).\n\n## Setup\n1. Set the `base_url` collection variable (default `http://localhost:3000`).\n2. Run **Authentication > Login (Customer)** (or **Verify OTP**) \u2014 the `token` variable is saved automatically from the response.\n3. For the Agent folder, run **Authentication > Login (Agent / Sub-agent)** to populate `agent_token`; for Delivery Person, run **Login (Delivery Person)** to populate `delivery_token`.\n4. Fill in resource-id variables (`product_id`, `booking_id`, `category_id`, `subscription_id`, `order_id`, `banner_id`, `task_id`, `pincode`) as you create/observe real records, or override them per-request.\n\n## Known API quirks worth testing against (see docs for details)\n- Several delivery-check endpoints return **HTTP 200 even when the result is 'not deliverable'** \u2014 always check the `data` payload, not just the status code.\n- `POST /agent/customers` and `POST /agent/leads` use `{status, message, data}`, not `{success, message, data}` like almost everything else.\n- `POST /delivery/bulk_update` with `status: \"failed\"` currently 500s and aborts the whole batch (invalid enum value server-side) \u2014 avoid it until fixed.\n- Wallet payment (`booking[use_wallet]`) is documented separately in CUSTOMER_WALLET_API.md and lives on `POST ecommerce/bookings`, not its own endpoint.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Customer bearer token (auto-set by login/OTP-verify)"
+    },
+    {
+      "key": "agent_token",
+      "value": "",
+      "type": "string",
+      "description": "Agent/sub-agent bearer token"
+    },
+    {
+      "key": "delivery_token",
+      "value": "",
+      "type": "string",
+      "description": "Delivery-person bearer token"
+    },
+    {
+      "key": "customer_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "product_variant_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "booking_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "subscription_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "banner_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "task_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "pincode",
+      "value": "560001",
+      "type": "string"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Login, registration, password recovery, and OTP login. None of these endpoints require an Authorization header.",
+      "item": [
+        {
+          "name": "Login (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Tries User, Customer, DeliveryPerson, then SubAgent tables in order. Response shape (and which role-specific fields appear) depends on which account type matched. Auto-saves `token`/`customer_id` on success.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"asha@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.success && json.data && json.data.token) {",
+                  "        const role = json.data.role;",
+                  "        pm.collectionVariables.set('token', json.data.token);",
+                  "        if (role === 'agent' || role === 'sub_agent') {",
+                  "            pm.collectionVariables.set('agent_token', json.data.token);",
+                  "        }",
+                  "        if (role === 'delivery_person') {",
+                  "            pm.collectionVariables.set('delivery_token', json.data.token);",
+                  "        }",
+                  "        if (json.data.customer_id) {",
+                  "            pm.collectionVariables.set('customer_id', json.data.customer_id);",
+                  "        }",
+                  "        pm.test('Login returned a token', () => pm.expect(json.data.token).to.be.a('string'));",
+                  "    }",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (Agent / Sub-agent)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Same endpoint as customer login \u2014 the account type is resolved server-side. Note: a direct SubAgent-table match does NOT check password at all (see docs). Auto-saves `agent_token` on success.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ravi@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.success && json.data && json.data.token) {",
+                  "        const role = json.data.role;",
+                  "        pm.collectionVariables.set('token', json.data.token);",
+                  "        if (role === 'agent' || role === 'sub_agent') {",
+                  "            pm.collectionVariables.set('agent_token', json.data.token);",
+                  "        }",
+                  "        if (role === 'delivery_person') {",
+                  "            pm.collectionVariables.set('delivery_token', json.data.token);",
+                  "        }",
+                  "        if (json.data.customer_id) {",
+                  "            pm.collectionVariables.set('customer_id', json.data.customer_id);",
+                  "        }",
+                  "        pm.test('Login returned a token', () => pm.expect(json.data.token).to.be.a('string'));",
+                  "    }",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (Delivery Person)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Same endpoint; matches the DeliveryPerson table. Auto-saves `delivery_token` on success.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"9123456780\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.success && json.data && json.data.token) {",
+                  "        const role = json.data.role;",
+                  "        pm.collectionVariables.set('token', json.data.token);",
+                  "        if (role === 'agent' || role === 'sub_agent') {",
+                  "            pm.collectionVariables.set('agent_token', json.data.token);",
+                  "        }",
+                  "        if (role === 'delivery_person') {",
+                  "            pm.collectionVariables.set('delivery_token', json.data.token);",
+                  "        }",
+                  "        if (json.data.customer_id) {",
+                  "            pm.collectionVariables.set('customer_id', json.data.customer_id);",
+                  "        }",
+                  "        pm.test('Login returned a token', () => pm.expect(json.data.token).to.be.a('string'));",
+                  "    }",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates a Customer + paired User row. Does NOT return a JWT \u2014 call POST /auth/login afterward.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"customer\",\n  \"first_name\": \"Asha\",\n  \"last_name\": \"Rao\",\n  \"email\": \"new.customer@example.com\",\n  \"mobile\": \"9876543210\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"address\": \"12 MG Road\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register (Agent)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates a User with status:false (pending admin approval) \u2014 cannot log in until an admin activates the account.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"agent\",\n  \"first_name\": \"Ravi\",\n  \"last_name\": \"Kumar\",\n  \"email\": \"new.agent@example.com\",\n  \"mobile\": \"9876500001\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"pan_no\": \"ABCDE1234F\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/forgot_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "forgot_password"
+              ]
+            },
+            "description": "Sends a password-reset email to a Customer account (case-insensitive email match). Reset token is valid 24 hours.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"asha@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/reset_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "reset_password"
+              ]
+            },
+            "description": "Completes the reset using the token from the email link.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"password\": \"newPassword123\",\n  \"password_confirmation\": \"newPassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/otp/request",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "otp",
+                "request"
+              ]
+            },
+            "description": "Sends a 6-digit SMS OTP (MSG91), valid 5 minutes, 60s resend cooldown, max 5 requests/hour. Gated by SystemSetting.otp_login_enabled?.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"9876543210\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/auth/otp/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "Verifies the OTP and logs in (creating a minimal User+Customer pair on first-ever login for that mobile). Auto-saves `token`/`customer_id` on success.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobile\": \"9876543210\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    if (json.success && json.data && json.data.token) {",
+                  "        pm.collectionVariables.set('token', json.data.token);",
+                  "        pm.collectionVariables.set('customer_id', json.data.customer_id);",
+                  "        pm.test('OTP verify returned a token', () => pm.expect(json.data.token).to.be.a('string'));",
+                  "    }",
+                  "}",
+                  ""
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "E-commerce - Catalog & Search",
+      "description": "Category/product browsing, search, filters, and ecommerce banners. Only products/banners/featured_products are public \u2014 everything else here needs a customer bearer token.",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "categories"
+              ]
+            },
+            "description": "Returns all active categories. Cached.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Category Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/categories/{{category_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "categories",
+                "{{category_id}}"
+              ]
+            },
+            "description": "404 if category not found.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Category Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/categories/{{category_id}}/products?page=1&per_page=20&min_price=&max_price=&search=&sort_by=name",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "categories",
+                "{{category_id}}",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "min_price",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "max_price",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "name",
+                  "description": "price_low|price_high|name|newest|rating"
+                }
+              ]
+            },
+            "description": "Paginated product listing scoped to one category (active + available_for_sale only).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/products?page=1&per_page=20&category_id=&min_price=&max_price=&search=&sort_by=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "category_id",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "min_price",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "max_price",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "",
+                  "description": "price_low|price_high|name|newest|rating (default: stock availability)"
+                }
+              ]
+            },
+            "description": "PUBLIC \u2014 no auth required. Paginated, filterable, cached product listing.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "products",
+                "{{product_id}}"
+              ]
+            },
+            "description": "Auth required (despite the list endpoint being public). Includes related_products, reviews, and a static delivery_info placeholder \u2014 use check_delivery for a real answer.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Featured Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/featured_products?limit=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "featured_products"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5",
+                  "description": "capped at 10"
+                }
+              ]
+            },
+            "description": "PUBLIC. Despite the name, this is simply the newest products, not a curated flag.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/search?query=milk&page=1&per_page=20&category_id=&min_price=&max_price=&sort_by=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "milk",
+                  "description": ""
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "category_id",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "min_price",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "max_price",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "",
+                  "description": "price_low|price_high|name|newest|rating"
+                }
+              ]
+            },
+            "description": "One of query/q/search is required \u2014 400 if all are absent.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Filters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/filters",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "filters"
+              ]
+            },
+            "description": "Returns filter facets (categories, price_range, brands, sort_options) for building the product listing UI. Cached.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Banners (Ecommerce)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/banners?location=home",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "banners"
+              ],
+              "query": [
+                {
+                  "key": "location",
+                  "value": "home",
+                  "description": ""
+                }
+              ]
+            },
+            "description": "PUBLIC. Distinct from the standalone /banners module below \u2014 same underlying model, different response shape. Cached per location.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "E-commerce - Delivery Validation & Location",
+      "description": "Three independent delivery-checking mechanisms (product DeliveryRule, global DeliveryCharge, external India Post pincode API) \u2014 see each request's description for which one it uses.",
+      "item": [
+        {
+          "name": "Check Product Delivery",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/products/{{product_id}}/check_delivery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "products",
+                "{{product_id}}",
+                "check_delivery"
+              ]
+            },
+            "description": "Per-product DeliveryRule check. IMPORTANT: HTTP 200 + success:true even when NOT deliverable \u2014 check data.deliverable, not the top-level success flag.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pincode\": \"560001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Delivery By Pincode",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/check_delivery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "check_delivery"
+              ]
+            },
+            "description": "Global DeliveryCharge table lookup (not tied to any product). Also returns 200 + success:true for a non-deliverable pincode \u2014 check data.deliverable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pincode\": \"560001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check Pincode (India Post)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/delivery/check-pincode/{{pincode}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "delivery",
+                "check-pincode",
+                "{{pincode}}"
+              ]
+            },
+            "description": "Validates against the external api.postalpincode.in service (cached). Returns HTTP 200 even when data.valid is false \u2014 check the payload, not the status code.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Delivery (Multi-product)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/delivery/validate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "delivery",
+                "validate"
+              ]
+            },
+            "description": "Validates pincode via India Post, then checks stock + DeliveryRule per product id. success mirrors overall_delivery_available; still HTTP 200 on failure.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pincode\": \"560001\",\n  \"product_ids\": [\n    \"{{product_id}}\"\n  ],\n  \"delivery_date\": \"2026-09-10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Delivery Charges",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/delivery/charges",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "delivery",
+                "charges"
+              ]
+            },
+            "description": "Global DeliveryCharge lookup. Unlike the other delivery endpoints, this one DOES use a real 422 for an unserviceable/invalid pincode.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pincode\": \"560001\",\n  \"address\": \"12 MG Road, Bengaluru\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save Location",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/location/save",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "location",
+                "save"
+              ]
+            },
+            "description": "Updates the authenticated customer's stored lat/long. Note: pincode is echoed back only \u2014 Customer has no pincode column, it is not actually persisted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946,\n  \"address\": \"12 MG Road, Bangalore\",\n  \"pincode\": \"560001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer Profile",
+      "description": "Authenticated customer's own profile (Ecommerce controller).",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "profile"
+              ]
+            },
+            "description": "Customer resolved by email from the JWT. Includes statistics + last-5 recent orders/bookings in basic form.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "profile"
+              ]
+            },
+            "description": "All fields optional; accepted top-level, or nested under `customer`/`ecommerce` (checked in that order). Cannot change email/id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Asha\",\n  \"last_name\": \"K\",\n  \"mobile\": \"9876543210\",\n  \"address\": \"12 MG Road, Bangalore\",\n  \"gender\": \"female\",\n  \"marital_status\": \"single\",\n  \"birth_date\": \"1995-04-10\",\n  \"occupation\": \"Engineer\",\n  \"preferred_language\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "E-commerce - Bookings & Checkout",
+      "description": "Two separate order-placement flows with different payment models \u2014 see request descriptions.",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/bookings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "bookings"
+              ]
+            },
+            "description": "Validates every product exists first (422 with unavailable_products if not) but allows booking past available stock. Set booking[use_wallet]=true to pay from the customer wallet first \u2014 see CUSTOMER_WALLET_API.md.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking\": {\n    \"customer_id\": \"{{customer_id}}\",\n    \"delivery_address\": \"12 MG Road, Bengaluru\",\n    \"pincode\": \"560001\",\n    \"customer_name\": \"Jane Doe\",\n    \"customer_email\": \"jane@example.com\",\n    \"customer_phone\": \"9876543210\",\n    \"payment_method\": \"cash\",\n    \"notes\": \"\",\n    \"use_wallet\": false,\n    \"booking_items_attributes\": [\n      {\n        \"product_id\": \"{{product_id}}\",\n        \"quantity\": 2,\n        \"price\": 100.0\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/bookings?page=1&per_page=20&status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "bookings"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "optional exact status filter"
+                }
+              ]
+            },
+            "description": "Customer resolved by email from JWT. Ordered most-recent-first.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking Payment Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/bookings/{{booking_id}}/payment_status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "bookings",
+                "{{booking_id}}",
+                "payment_status"
+              ]
+            },
+            "description": "Lightweight polling endpoint for Cashfree payment status on one booking.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cart Order Checkout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/checkout/cart_order",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "checkout",
+                "cart_order"
+              ]
+            },
+            "description": "payment_method 'cod' confirms immediately; any other value opens a Cashfree payment session (booking created as 'draft'). use_wallet is NOT supported on this endpoint.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking\": {\n    \"booking_items_attributes\": [\n      {\n        \"product_id\": \"{{product_id}}\",\n        \"quantity\": 2,\n        \"price\": 100.0\n      }\n    ],\n    \"payment_method\": \"cod\",\n    \"delivery_address\": \"12 MG Road, Bengaluru\",\n    \"pincode\": \"560001\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/verify_payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "verify_payment"
+              ]
+            },
+            "description": "Queries Cashfree directly and updates the booking if paid. Can return HTTP 200 with success:false when payment isn't complete yet \u2014 check the body, not just the status.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_id\": \"{{booking_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "E-commerce - Orders",
+      "description": "Order records (distinct from Booking) for the authenticated customer.",
+      "item": [
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/orders?page=1&per_page=20&status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "optional exact status filter"
+                }
+              ]
+            },
+            "description": "Order (distinct from Booking) records for the authenticated customer.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Scoped to customer.orders; 404 if not owned by this customer.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "E-commerce - Subscriptions",
+      "description": "Recurring milk-delivery subscriptions (MilkSubscription model, despite the generic route name).",
+      "item": [
+        {
+          "name": "Create Subscription",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/subscriptions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "subscriptions"
+              ]
+            },
+            "description": "Recurring milk-delivery subscription (despite the generic route name, this is always MilkSubscription). pincode is validated via the external India Post API \u2014 request fails if unserviceable. Creating this synchronously generates one MilkDeliveryTask per delivery date in range.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscription\": {\n    \"product_id\": \"{{product_id}}\",\n    \"pincode\": \"560001\",\n    \"quantity\": 1,\n    \"frequency\": \"daily\",\n    \"start_date\": \"2026-09-05\",\n    \"end_date\": \"2026-09-30\",\n    \"delivery_time\": \"morning\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/subscriptions?page=1&per_page=20&status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "subscriptions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "active|paused|expired|cancelled"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscription Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/subscriptions/{{subscription_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "subscriptions",
+                "{{subscription_id}}"
+              ]
+            },
+            "description": "Includes the 10 most recent delivery tasks.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Pause Subscription",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/subscriptions/{{subscription_id}}/pause",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "subscriptions",
+                "{{subscription_id}}",
+                "pause"
+              ]
+            },
+            "description": "Only succeeds from status 'active'. Does NOT bulk-update already-generated delivery tasks.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resume Subscription",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/subscriptions/{{subscription_id}}/resume",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "subscriptions",
+                "{{subscription_id}}",
+                "resume"
+              ]
+            },
+            "description": "Only succeeds from status 'paused'.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Subscription",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/ecommerce/subscriptions/{{subscription_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "ecommerce",
+                "subscriptions",
+                "{{subscription_id}}",
+                "cancel"
+              ]
+            },
+            "description": "Succeeds from any status except already-'cancelled'.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer Wallet",
+      "description": "Balance + transaction history. See docs/CUSTOMER_WALLET_API.md.",
+      "item": [
+        {
+          "name": "Get Wallet Balance & History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/customer/wallet?page=1&per_page=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "customer",
+                "wallet"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": "capped at 50"
+                }
+              ]
+            },
+            "description": "Balance + paginated transaction history. Lazily creates a zero-balance wallet on first call. 403 if SystemSetting.customer_wallet_enabled? is false. See docs/CUSTOMER_WALLET_API.md \u2014 wallet payment itself happens via POST ecommerce/bookings with booking[use_wallet]=true, not a separate endpoint.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer Portfolio",
+      "description": "Insurance policy list + installment/renewal reminders (Life + Motor).",
+      "item": [
+        {
+          "name": "Get Portfolio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/customer/portfolio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "customer",
+                "portfolio"
+              ]
+            },
+            "description": "All of the customer's Life + Motor insurance policies plus summary counts. Customer-role tokens only \u2014 an agent/sub_agent token 500s here (see docs).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Upcoming Installments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/customer/upcoming_installments",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "customer",
+                "upcoming_installments"
+              ]
+            },
+            "description": "Upcoming premium installments (next 60 days) for Life + Motor policies, plus renewal-style installments for policies expired within the last 18 months.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Upcoming Renewals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/customer/upcoming_renewals",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "customer",
+                "upcoming_renewals"
+              ]
+            },
+            "description": "Policies renewing within 2 months across Life, Motor, Travel, General, Other (each only if its model is present).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "description": "Profile, password, terms, contact, and helpdesk \u2014 shared across roles.",
+      "item": [
+        {
+          "name": "Get Settings Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/settings/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "settings",
+                "profile"
+              ]
+            },
+            "description": "Field set depends on the authenticated user's type (Customer/User-agent/SubAgent). Works with customer, agent, or sub_agent tokens.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Settings Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/settings/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "settings",
+                "profile"
+              ]
+            },
+            "description": "Permitted params depend on user type \u2014 see docs. Params are top-level, not nested.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Asha\",\n  \"last_name\": \"K\",\n  \"mobile\": \"9876543210\",\n  \"address\": \"123 Main St\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/settings/change_password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "settings",
+                "change_password"
+              ]
+            },
+            "description": "Behavior differs by resolved user type (Customer routes through its linked User; SubAgent/User change their own password_digest).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"oldPassword123\",\n  \"new_password\": \"newPassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Terms & Conditions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/settings/terms",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "settings",
+                "terms"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contact Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/settings/contact",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "settings",
+                "contact"
+              ]
+            },
+            "description": "Response shape depends on caller role (Customer vs. User/SubAgent).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Helpdesk Ticket",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/settings/helpdesk",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "settings",
+                "helpdesk"
+              ]
+            },
+            "description": "Creates a ClientRequest ticket. priority is always 'medium', not client-settable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"phone_number\": \"9876543210\",\n  \"description\": \"I need help with my last order.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Banners",
+      "description": "Standalone banner module \u2014 all 4 endpoints are public, no auth required.",
+      "item": [
+        {
+          "name": "List Banners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/banners",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "banners"
+              ]
+            },
+            "description": "PUBLIC. All currently-active banners, cached. No filtering params are actually read.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Banner Locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/banners/locations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "banners",
+                "locations"
+              ]
+            },
+            "description": "PUBLIC. Valid display_location enum values for a location picker.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Banner Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/banners/{{banner_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "banners",
+                "{{banner_id}}"
+              ]
+            },
+            "description": "PUBLIC. 404 if the banner is inactive OR outside its display date window.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Track Banner Click",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/banners/{{banner_id}}/track_click",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "banners",
+                "{{banner_id}}",
+                "track_click"
+              ]
+            },
+            "description": "PUBLIC. Logs the click (no counter persisted) and returns the redirect_link. Only checks Banner.active, not the date window.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Delivery Person",
+      "description": "Delivery-person task management. AUTH CAVEAT: only 'tasks/today' is scoped to the caller \u2014 every other endpoint here acts on any task id supplied, with no ownership check (see docs).",
+      "item": [
+        {
+          "name": "Get Today's Tasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/tasks/today",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "tasks",
+                "today"
+              ]
+            },
+            "description": "Today's assigned bookings + subscription deliveries for the authenticated delivery person. The ONLY delivery-person endpoint actually scoped to the caller's own id.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Task Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/tasks/{{task_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "tasks",
+                "{{task_id}}"
+              ]
+            },
+            "description": "NOT scoped to the caller \u2014 any authenticated delivery person can view any task by id.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/tasks/{{task_id}}/start",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "tasks",
+                "{{task_id}}",
+                "start"
+              ]
+            },
+            "description": "Hard-sets status to out_for_delivery (booking) / assigned (subscription) regardless of current status \u2014 no predecessor-state validation.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/tasks/{{task_id}}/complete",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "tasks",
+                "{{task_id}}",
+                "complete"
+              ]
+            },
+            "description": "payment_collected.amount presence (not its value) flips payment_status to paid for booking tasks; omit it to leave payment_status unchanged.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Delivered to security guard\",\n  \"payment_collected\": {\n    \"amount\": 200.0\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/tasks/{{task_id}}/update_location",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "tasks",
+                "{{task_id}}",
+                "update_location"
+              ]
+            },
+            "description": "Currently a stub server-side \u2014 location is not persisted; distance/ETA in the response are hardcoded placeholders, not computed from these coordinates.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Mark Done",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/bulk_mark_done",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "bulk_mark_done"
+              ]
+            },
+            "description": "Marks a batch of bookings and/or subscription tasks as delivered/completed. Per-item failures don't abort the rest of the batch.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delivery_ids\": [\n    \"{{task_id}}\"\n  ],\n  \"completed_at\": \"2026-09-02T11:30:00+05:30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Update",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/delivery/bulk_update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "delivery",
+                "bulk_update"
+              ]
+            },
+            "description": "Bookings only (not subscription tasks). WARNING: status:'failed' currently raises an invalid-enum error server-side ('failed_delivery' isn't a real Booking status) and aborts the ENTIRE batch with a 500 \u2014 avoid sending status:'failed' until fixed; use status:'delivered' or bulk_mark_done in the meantime.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"updates\": [\n    {\n      \"booking_id\": \"{{task_id}}\",\n      \"status\": \"delivered\",\n      \"delivery_notes\": \"Left at gate\",\n      \"latitude\": 12.9716,\n      \"longitude\": 77.5946\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{delivery_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Agent Dashboard, Leads & Commission",
+      "description": "Agent/sub-agent/admin facing endpoints. Requires role 'agent' or 'sub_agent' in the JWT.",
+      "item": [
+        {
+          "name": "Get Agent Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "dashboard"
+              ]
+            },
+            "description": "Summary stats + recent activity. Response shape varies by tier (admin/sub-agent/agent).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Agent Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/customers?page=1&per_page=10&filter=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": ""
+                },
+                {
+                  "key": "filter",
+                  "value": "",
+                  "description": "agent_added|system_added|all (omit for no filter)"
+                }
+              ]
+            },
+            "description": "NOTE: every row includes a plaintext demo `password` field derived from the customer's name+mobile \u2014 flagged as a security concern in the docs, not a real account password, but worth knowing before logging/displaying this response.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Agent Customer",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/customers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "customers"
+              ]
+            },
+            "description": "Creates a Customer + User login attributed to the calling agent/sub-agent. Response envelope uses `status` (boolean), not `success` \u2014 different from most other agent endpoints. Password is auto-generated if omitted (returned in password_info).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Anita\",\n  \"last_name\": \"Sharma\",\n  \"mobile\": \"9876543210\",\n  \"email\": \"anita@example.com\",\n  \"customer_type\": \"individual\",\n  \"gender\": \"female\",\n  \"address\": \"12 MG Road\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"pincode\": \"560001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Agent Form Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/form_data",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "form_data"
+              ]
+            },
+            "description": "Static dropdown data for policy/lead/customer forms. NOTE: 'health' still appears as an option in several dropdowns even though HealthInsurance was removed from the app \u2014 there is no endpoint to actually create a health policy.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Insurance Companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/insurance_companies?page=1&per_page=20&search=&status=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "insurance_companies"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "20",
+                  "description": ""
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "matches name or code"
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "active|inactive|all"
+                }
+              ]
+            },
+            "description": "Real DB-backed InsuranceCompany directory \u2014 distinct from the hardcoded static list in form_data.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Leads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/leads?page=1&per_page=10&stage=&product=&search=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": ""
+                },
+                {
+                  "key": "stage",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "product",
+                  "value": "",
+                  "description": "optional"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "optional"
+                }
+              ]
+            },
+            "description": "Every authenticated agent/sub-agent sees ALL leads system-wide \u2014 no agent-scoping is applied (explicit in code comments).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Lead",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/leads",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "leads"
+              ]
+            },
+            "description": "Response envelope uses `status` (boolean), not `success`. Duplicate contact_number/email against ANY existing lead (not scoped to caller) is rejected with 422.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Suresh Rao\",\n  \"contact_number\": \"9812345678\",\n  \"email\": \"suresh@example.com\",\n  \"product_interest\": \"life\",\n  \"address\": \"MG Road\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"lead_source\": \"agent_referral\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Commission Distribution",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/commission_distribution?page=1&per_page=10&period=&policy_type=",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "commission_distribution"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": ""
+                },
+                {
+                  "key": "period",
+                  "value": "",
+                  "description": "this_month|last_month|this_year|all"
+                },
+                {
+                  "key": "policy_type",
+                  "value": "",
+                  "description": "optional"
+                }
+              ]
+            },
+            "description": "Sub-agent-tier CommissionPayout rows only, regardless of caller tier. NOTE: policy_number/customer_name are always 'N/A' in current code \u2014 a known gap, not a bug in this collection (see docs).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Commission Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mobile/agent/commission_summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "mobile",
+                "agent",
+                "commission_summary"
+              ]
+            },
+            "description": "Aggregate earnings (total/paid/pending, this/last month) by policy_type. Computed differently for sub-agents (from LifeInsurance directly) vs. agents/admins (from CommissionPayout, unscoped).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agent_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

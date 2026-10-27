@@ -446,6 +446,21 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     existing_user_email = email && User.exists?(email: email)
     existing_user_mobile = mobile_number && User.exists?(mobile: mobile_number)
 
+    # A customer login whose Customer row is gone (e.g. the customer was deleted
+    # in admin but the login survived) has nothing behind it — let the signup
+    # reclaim it instead of blocking with "already exists".
+    orphan_user = nil
+    unless existing_customer_email || existing_customer_mobile
+      matches = []
+      matches += User.where(email: email).to_a if email
+      matches += User.where(mobile: mobile_number).to_a if mobile_number
+      matches.uniq!
+      orphan_user = matches.first if matches.size == 1 && matches.first.user_type == 'customer'
+    end
+    if orphan_user
+      existing_user_email = existing_user_mobile = false
+    end
+
     if existing_customer_email || existing_user_email
       return json_response({
         success: false,
@@ -484,7 +499,8 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
         # Create User record for login. users.email is NOT NULL, so a
         # mobile-only signup gets the same placeholder the agent flow uses;
         # the Customer row keeps its email blank.
-        user = User.new(
+        user = orphan_user || User.new
+        user.assign_attributes(
           first_name: customer_params[:first_name],
           last_name: customer_params[:last_name],
           middle_name: customer_params[:middle_name],

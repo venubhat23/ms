@@ -760,12 +760,14 @@ class Admin::CustomersController < Admin::ApplicationController
     end
 
     # 16. Delete associated User account if exists
-    if customer.email.present?
-      user = User.find_by(email: customer.email, user_type: 'customer')
-      if user
-        ActiveRecord::Base.connection.execute("DELETE FROM users WHERE id = #{user.id}")
-        deleted_items << "user account"
-      end
+    # Match by mobile too — mobile-only signups and logins whose email differs
+    # from the Customer's were left behind as orphans that block re-signup.
+    login_ids = []
+    login_ids += User.where(email: customer.email, user_type: 'customer').pluck(:id) if customer.email.present?
+    login_ids += User.where(mobile: customer.mobile, user_type: 'customer').pluck(:id) if customer.mobile.present?
+    if login_ids.any?
+      User.where(id: login_ids.uniq).delete_all
+      deleted_items << "user account"
     end
 
     # 17. Delete Active Storage attachments if any

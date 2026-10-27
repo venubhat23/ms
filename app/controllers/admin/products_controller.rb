@@ -150,9 +150,14 @@ class Admin::ProductsController < Admin::ApplicationController
     # Store vendor purchase ID for stock batch linking before updating
     vendor_purchase_id = params[:vendor_purchase_id].presence
 
+    # Variant ids before/after the save, so the success notice can say how
+    # many variants the edit added or removed (set_product preloads them).
+    variant_ids_before = @product.product_variants.map(&:id)
+
     if @product.update(product_params)
       # Clean up variants if multi-quantity was disabled
       @product.product_variants.destroy_all unless @product.has_multiple_quantities?
+      variant_ids_after = ProductVariant.where(product_id: @product.id).pluck(:id)
 
       # Handle Cloudinary uploads
       handle_cloudinary_uploads if params[:product][:cloudinary_images].present?
@@ -166,12 +171,22 @@ class Admin::ProductsController < Admin::ApplicationController
       # Handle main image reordering after update
       handle_main_image_setting if params[:main_image_id].present?
 
-      redirect_to admin_product_path(@product), notice: 'Product was successfully updated.'
+      redirect_to admin_product_path(@product),
+                  notice: product_updated_notice(variant_ids_after - variant_ids_before, variant_ids_before - variant_ids_after)
     else
       @categories = Category.active.ordered
       render :edit, status: :unprocessable_entity
     end
   end
+
+  # "Product was successfully updated. 1 variant added, 1 variant removed."
+  def product_updated_notice(added_ids, removed_ids)
+    changes = []
+    changes << "#{helpers.pluralize(added_ids.size, 'variant')} added" if added_ids.any?
+    changes << "#{helpers.pluralize(removed_ids.size, 'variant')} removed" if removed_ids.any?
+    ['Product was successfully updated.', (changes.join(', ').upcase_first + '.' if changes.any?)].compact.join(' ')
+  end
+  private :product_updated_notice
 
   # GET /admin/products/:id/dependencies — what a delete would touch, for the
   # confirmation prompt. Mirrors purge_and_destroy_product! below.

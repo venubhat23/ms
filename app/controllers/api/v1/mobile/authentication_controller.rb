@@ -54,7 +54,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
               role: 'customer',
               user_id: user.id,
               customer_id: customer.id,
-              email: user.email,
+              email: customer.email,
               mobile: user.mobile,
               customer_wallet_enabled: SystemSetting.customer_wallet_enabled?,
               wallet_balance: CustomerWallet.for_customer(customer).balance.to_f,
@@ -376,11 +376,19 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
                                    :user_type, :role, :address, :city, :state, :pincode, :whatsapp_number, :latitude, :longitude, :is_registered_by_mobile)
 
     # Validate required fields
-    if customer_params[:first_name].blank? || customer_params[:last_name].blank? ||
-       customer_params[:email].blank? || customer_params[:mobile].blank? || customer_params[:password].blank?
+    # Email or mobile — at least one is needed, both are fine
+    email = customer_params[:email].to_s.strip.presence
+    if customer_params[:first_name].blank? || customer_params[:last_name].blank? || customer_params[:password].blank?
       return json_response({
         success: false,
-        message: 'First name, last name, email, mobile number, and password are required'
+        message: 'First name, last name, and password are required'
+      }, :unprocessable_entity)
+    end
+
+    if email.nil? && customer_params[:mobile].blank?
+      return json_response({
+        success: false,
+        message: 'Please enter an email address or a mobile number'
       }, :unprocessable_entity)
     end
 
@@ -393,7 +401,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     end
 
     # Validate email format
-    unless customer_params[:email].match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
+    if email && !email.match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
       return json_response({
         success: false,
         message: 'Please enter a valid email address'
@@ -402,7 +410,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
 
     # Validate and format mobile number
     mobile_number = format_mobile_number(customer_params[:mobile])
-    unless mobile_number
+    if customer_params[:mobile].present? && !mobile_number
       return json_response({
         success: false,
         message: 'Please enter a valid Indian mobile number (10 digits starting with 6-9)'
@@ -433,10 +441,10 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     end
 
     # Check if customer or user already exists
-    existing_customer_email = Customer.exists?(email: customer_params[:email])
-    existing_customer_mobile = Customer.exists?(mobile: mobile_number)
-    existing_user_email = User.exists?(email: customer_params[:email])
-    existing_user_mobile = User.exists?(mobile: mobile_number)
+    existing_customer_email = email && Customer.exists?(email: email)
+    existing_customer_mobile = mobile_number && Customer.exists?(mobile: mobile_number)
+    existing_user_email = email && User.exists?(email: email)
+    existing_user_mobile = mobile_number && User.exists?(mobile: mobile_number)
 
     if existing_customer_email || existing_user_email
       return json_response({
@@ -460,7 +468,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           first_name: customer_params[:first_name],
           last_name: customer_params[:last_name],
           middle_name: customer_params[:middle_name],
-          email: customer_params[:email],
+          email: email,
           mobile: mobile_number,
           address: customer_params[:address],
           whatsapp_number: customer_params[:whatsapp_number],
@@ -473,12 +481,14 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
         customer.password = customer_params[:password]
         customer.save!(validate: false)
 
-        # Create User record for login
+        # Create User record for login. users.email is NOT NULL, so a
+        # mobile-only signup gets the same placeholder the agent flow uses;
+        # the Customer row keeps its email blank.
         user = User.new(
           first_name: customer_params[:first_name],
           last_name: customer_params[:last_name],
           middle_name: customer_params[:middle_name],
-          email: customer_params[:email],
+          email: email || "#{mobile_number}@no-email.invalid",
           mobile: mobile_number, # Use formatted mobile number
           user_type: 'customer',
           address: customer_params[:address],

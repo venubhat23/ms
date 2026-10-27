@@ -62,7 +62,9 @@ class User < ApplicationRecord
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
-  validates :mobile, presence: true, uniqueness: true
+  # Customers may sign up with only an email, so their login has no mobile.
+  validates :mobile, presence: true, unless: :customer?
+  validates :mobile, uniqueness: { allow_nil: true }
   validates :user_type, presence: true, inclusion: { in: ['admin', 'agent', 'sub_agent', 'customer', 'franchise', 'affiliate', 'delivery_person', 'store_admin'] }
   # Note: role validation can be added later when roles are set up
 

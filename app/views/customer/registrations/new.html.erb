@@ -201,6 +201,7 @@
   </div>
 
   <div class="form-section-title"><i class="bi bi-headset"></i>Contact Information</div>
+  <p class="text-muted small mb-2">Enter your email, your mobile number, or both. You can log in with either one.</p>
 
   <div class="form-group">
     <%= f.label :email, "Email Address", class: "form-label" %>
@@ -208,8 +209,7 @@
       <span class="input-group-text"><i class="bi bi-envelope"></i></span>
       <%= f.email_field :email,
                         class: "form-control #{'is-invalid' if @customer&.errors&.[](:email)&.any?}",
-                        placeholder: "Enter email address",
-                        required: true %>
+                        placeholder: "Enter email address (optional if mobile given)" %>
       <div class="invalid-feedback">
         <%= @customer&.errors&.[](:email)&.first || "Please enter a valid email address." %>
       </div>
@@ -222,11 +222,10 @@
       <span class="input-group-text"><i class="bi bi-telephone"></i></span>
       <%= f.text_field :mobile,
                       class: "form-control #{'is-invalid' if @customer&.errors&.[](:mobile)&.any?}",
-                      placeholder: "Enter 10-digit mobile number",
-                      pattern: "[6-9][0-9]{9}",
-                      required: true %>
+                      placeholder: "Enter 10-digit mobile number (optional if email given)",
+                      pattern: "[6-9][0-9]{9}" %>
       <div class="invalid-feedback">
-        <%= @customer&.errors&.[](:mobile)&.first || "Please enter a valid 10-digit mobile number." %>
+        <%= @customer&.errors&.full_messages_for(:mobile)&.first || "Enter a valid 10-digit mobile number, or an email address." %>
       </div>
     </div>
   </div>
@@ -335,6 +334,13 @@
       var forms = document.getElementsByClassName('needs-validation');
       var validation = Array.prototype.filter.call(forms, function(form) {
         form.addEventListener('submit', function(event) {
+          // At least one of email / mobile must be filled in
+          var email = document.getElementById('customer_email');
+          var mobile = document.getElementById('customer_mobile');
+          if (email && mobile) {
+            var neither = !email.value.trim() && !mobile.value.trim();
+            mobile.setCustomValidity(neither ? 'Enter a mobile number or an email address' : '');
+          }
           if (form.checkValidity() === false) {
             event.preventDefault();
             event.stopPropagation();

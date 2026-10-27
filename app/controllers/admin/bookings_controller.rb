@@ -80,9 +80,15 @@ class Admin::BookingsController < Admin::ApplicationController
     @bookings = ordered_scope.includes(*listing_includes)
 
     if params[:search].present?
+      # ILIKE so "pooja" finds "Pooja"; also match the linked customer's name and
+      # the booked items' product names.
+      term = "%#{ActiveRecord::Base.sanitize_sql_like(params[:search].strip)}%"
       @bookings = @bookings.where(
-        "booking_number LIKE ? OR customer_name LIKE ? OR customer_email LIKE ? OR customer_phone LIKE ?",
-        "%#{params[:search]}%", "%#{params[:search]}%", "%#{params[:search]}%", "%#{params[:search]}%"
+        "bookings.booking_number ILIKE :t OR bookings.customer_name ILIKE :t OR bookings.customer_email ILIKE :t " \
+        "OR bookings.customer_phone ILIKE :t " \
+        "OR bookings.customer_id IN (SELECT id FROM customers WHERE CONCAT_WS(' ', first_name, last_name) ILIKE :t OR mobile ILIKE :t) " \
+        "OR bookings.id IN (SELECT bi.booking_id FROM booking_items bi JOIN products p ON p.id = bi.product_id WHERE p.name ILIKE :t)",
+        t: term
       )
     end
 
@@ -631,6 +637,32 @@ class Admin::BookingsController < Admin::ApplicationController
     redirect_to admin_booking_path(@booking, list_state_params), notice: 'Booking marked as fully paid!'
   end
 
+  # Bulk "Mark as Paid" from the bookings list checkboxes — same per-booking
+  # effect as mark_fully_paid.
+  def bulk_mark_paid
+    ids = Array(params[:booking_ids]).reject(&:blank?)
+    scope = current_user.franchise? ? Booking.where(user_id: current_user.id) : Booking.all
+    bookings = scope.where(id: ids).where("bookings.payment_status IS NULL OR bookings.payment_status NOT IN ('paid', 'refunded')")
+
+    updated = 0
+    failures = []
+    bookings.find_each do |booking|
+      booking.mark_as_fully_paid!
+      updated += 1
+    rescue => e
+      failures << "##{booking.booking_number} (#{e.message})"
+    end
+
+    if updated.zero? && failures.empty?
+      redirect_to admin_bookings_path(list_state_params), alert: 'No unpaid bookings were selected.'
+    elsif failures.any?
+      redirect_to admin_bookings_path(list_state_params),
+                  alert: "Marked #{updated} booking(s) as paid. Failed: #{failures.join(', ')}"
+    else
+      redirect_to admin_bookings_path(list_state_params), notice: "Marked #{updated} booking(s) as paid."
+    end
+  end
+
   # JSON for the "Payment link" dialog on the bookings list / manage_stage:
   # a signed /pay/... link for the requested amount plus a ready WhatsApp URL.
   def payment_link
@@ -791,8 +823,13 @@ class Admin::BookingsController < Admin::ApplicationController
                        .select("products.*, COALESCE(sq.total_stock, 0) AS cached_stock")
                        .joins("LEFT JOIN (#{stock_sq.to_sql}) sq ON sq.product_id = products.id")
                        .includes(image_attachment: :blob)
-                       .where("products.name ILIKE ? OR products.sku ILIKE ?", "%#{params[:q]}%", "%#{params[:q]}%")
                        .limit(10)
+    # Every typed word must appear somewhere in the name (or SKU), in any
+    # order — "ghee", "cow ghee" or "a2" all find "DESI COW GHEE (A2)".
+    params[:q].to_s.split.each do |word|
+      term = "%#{ActiveRecord::Base.sanitize_sql_like(word)}%"
+      @products = @products.where("products.name ILIKE ? OR products.sku ILIKE ?", term, term)
+    end
 
     render json: @products.map { |p|
       {

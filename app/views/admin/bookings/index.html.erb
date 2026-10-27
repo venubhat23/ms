@@ -1,3 +1,5 @@
+<%# Inline scripts here (DOMContentLoaded) only work on a full page load — make Turbo do one. %>
+<% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
 
 <!-- Actions Column Icons Styling -->
 <style>
@@ -336,8 +338,11 @@
                 <%= form.text_field :search,
                     value: params[:search],
                     class: "form-control form-control-sm search-input",
-                    placeholder: "Booking #, customer, phone...",
+                    placeholder: "Booking #, customer, phone, item... (Enter)",
                     id: "searchInput" %>
+                <small id="searchEnterHint" class="text-muted position-absolute start-0" style="display: none; top: 100%; font-size: 0.72rem; white-space: nowrap;">
+                  No match on this page — press Enter to search all bookings
+                </small>
                 <button type="button" class="btn btn-link position-absolute top-50 end-0 translate-middle-y me-1 p-0"
                         onclick="document.getElementById('searchInput').value=''; this.form.submit();"
                         title="Clear search"
@@ -419,10 +424,26 @@
   </div>
   <div class="card-body p-0">
     <% if @bookings.any? %>
+      <%# Checkboxes in the rows point at this form via form="bulkPaidForm" (rows already hold button_to forms, which can't nest). %>
+      <%= form_with url: bulk_mark_paid_admin_bookings_path, method: :post, local: true, id: "bulkPaidForm",
+                    data: { turbo_confirm: "Mark the selected bookings as fully paid?" } do %>
+        <% params.permit(*Admin::BookingsController::LIST_STATE_PARAMS).to_h.each do |key, value| %>
+          <%= hidden_field_tag "list_state[#{key}]", value %>
+        <% end %>
+      <% end %>
+      <div id="bulkPaidBar" class="align-items-center gap-2 px-3 py-2 bg-success-subtle border-bottom" style="display: none;">
+        <span class="small fw-semibold"><span id="bulkPaidCount">0</span> selected</span>
+        <button type="submit" form="bulkPaidForm" class="btn btn-success btn-sm">
+          <i class="bi bi-check-circle me-1"></i>Mark Selected as Paid
+        </button>
+      </div>
       <div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead class="table-light">
             <tr>
+              <th class="border-0" style="width: 1%;">
+                <input class="form-check-input" type="checkbox" id="bulkPaidSelectAll" title="Select all unpaid bookings on this page">
+              </th>
               <th class="border-0 fw-semibold">
                 <%= sort_header('Booking Details', 'date') %>
                 <div class="small fw-normal"><%= sort_header('Number', 'number') %></div>
@@ -442,6 +463,12 @@
               <% first_invoice = booking.booking_invoices.first
                  booking_inv_share_token = first_invoice&.share_token.presence || booking.associated_invoice&.share_token.presence %>
               <tr class="<%= 'franchise-booking' if booking.user&.franchise? %>">
+                <td class="align-middle">
+                  <% unless booking.payment_status_paid? || booking.payment_status_refunded? %>
+                    <input class="form-check-input bulk-paid-checkbox" type="checkbox" name="booking_ids[]"
+                           value="<%= booking.id %>" form="bulkPaidForm" title="Select for bulk Mark as Paid">
+                  <% end %>
+                </td>
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
                     <div class="avatar-sm bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center me-3">
@@ -610,6 +637,13 @@
                     </span>
                     <% if booking.payment_method.present? %>
                       <small class="text-muted ms-1">(<%= booking.payment_method_display %>)</small>
+                    <% end %>
+                    <% if booking.payment_status_paid? && (thanks_url = booking_payment_thanks_whatsapp_url(booking)) %>
+                      <a href="<%= thanks_url %>" target="_blank" rel="noopener"
+                         class="btn btn-sm btn-outline-success py-0 px-2 mt-1 d-inline-flex align-items-center"
+                         title="Acknowledge payment and send a thank-you note on WhatsApp">
+                        <i class="bi bi-whatsapp me-1"></i><small>Payment Thank You</small>
+                      </a>
                     <% end %>
                   </div>
 
@@ -886,29 +920,19 @@ document.addEventListener('DOMContentLoaded', initCustomerFilterSelect2);
 document.addEventListener('turbo:load', initCustomerFilterSelect2);
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Enhanced search functionality with debounce
-  let searchTimeout;
+  // Search: rows on this page filter live as you type (see "Search functionality"
+  // below); the server-side search across all bookings only runs on Enter, so
+  // the page no longer reloads mid-word after the first letter.
   $('#searchInput').on('input', function() {
-    const searchValue = $(this).val();
-    const clearBtn = $(this).siblings('button');
-
-    // Show/hide clear button
-    if (searchValue.length > 0) {
-      clearBtn.show();
-    } else {
-      clearBtn.hide();
+    $(this).siblings('button').toggle($(this).val().length > 0);
+  });
+  $('#searchInput').on('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const form = $(this).closest('form');
+      form.addClass('loading');
+      form[0].submit();
     }
-
-    // Debounced search submission
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-      if (searchValue !== $(this).data('last-value')) {
-        $(this).data('last-value', searchValue);
-        const form = $(this).closest('form');
-        form.addClass('loading');
-        form.submit();
-      }
-    }, 500);
   });
 
   // Clear search functionality
@@ -1105,9 +1129,11 @@ document.addEventListener('DOMContentLoaded', function() {
   searchInput?.addEventListener('input', function() {
     const searchTerm = this.value.toLowerCase();
 
+    let visibleCount = 0;
     tableRows.forEach(row => {
-      const bookingNumber = row.cells[0]?.textContent.toLowerCase() || '';
-      const customerName = row.cells[1]?.textContent.toLowerCase() || '';
+      // cells[0] is the bulk-paid checkbox column
+      const bookingNumber = row.cells[1]?.textContent.toLowerCase() || '';
+      const customerName = row.cells[2]?.textContent.toLowerCase() || '';
       const paymentInfo = row.cells[3]?.textContent.toLowerCase() || '';
       const statusInfo = row.cells[4]?.textContent.toLowerCase() || '';
       const progressInfo = row.cells[5]?.textContent.toLowerCase() || '';
@@ -1118,10 +1144,36 @@ document.addEventListener('DOMContentLoaded', function() {
           statusInfo.includes(searchTerm) ||
           progressInfo.includes(searchTerm)) {
         row.style.display = '';
+        visibleCount++;
       } else {
         row.style.display = 'none';
       }
     });
+
+    const hint = document.getElementById('searchEnterHint');
+    if (hint) hint.style.display = (searchTerm && visibleCount === 0) ? '' : 'none';
+  });
+
+  // Bulk Mark as Paid: show the action bar while any row is ticked
+  const bulkPaidBoxes = document.querySelectorAll('.bulk-paid-checkbox');
+  const bulkPaidSelectAll = document.getElementById('bulkPaidSelectAll');
+  function refreshBulkPaidBar() {
+    const checked = document.querySelectorAll('.bulk-paid-checkbox:checked').length;
+    const bar = document.getElementById('bulkPaidBar');
+    if (bar) bar.style.display = checked > 0 ? 'flex' : 'none';
+    const count = document.getElementById('bulkPaidCount');
+    if (count) count.textContent = checked;
+    if (bulkPaidSelectAll) {
+      bulkPaidSelectAll.checked = checked > 0 && checked === bulkPaidBoxes.length;
+      bulkPaidSelectAll.indeterminate = checked > 0 && checked < bulkPaidBoxes.length;
+    }
+  }
+  bulkPaidBoxes.forEach(cb => cb.addEventListener('change', refreshBulkPaidBar));
+  bulkPaidSelectAll?.addEventListener('change', function() {
+    bulkPaidBoxes.forEach(cb => {
+      if (cb.closest('tr').style.display !== 'none') cb.checked = this.checked; // only rows visible under the live search
+    });
+    refreshBulkPaidBar();
   });
 
   // Cleanup interval when page is unloaded

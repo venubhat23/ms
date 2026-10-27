@@ -67,6 +67,19 @@ class Vendor < ApplicationRecord
     @outstanding_balance ||= total_purchases - total_paid + (opening_balance || 0)
   end
 
+  # "Mark vendor as Paid" from the vendors list: settles every unpaid purchase
+  # (paid_amount = total, same as VendorPurchase mark_as_paid) and clears the
+  # opening balance so the outstanding shows ₹0. payment_type (Cash/Credit
+  # terms) is left alone.
+  def mark_as_paid!
+    transaction do
+      vendor_purchases.where('COALESCE(paid_amount, 0) < COALESCE(total_amount, 0)').find_each do |purchase|
+        purchase.update!(paid_amount: purchase.total_amount)
+      end
+      update!(opening_balance: 0) if opening_balance.to_d.positive?
+    end
+  end
+
   def can_be_deleted?
     has_attribute?(:purchases_count) ? purchases_count.zero? : vendor_purchases.empty?
   end

@@ -172,6 +172,7 @@ Rails.application.routes.draw do
         post :quick_create_customer
         get :realtime_data
         get :franchise_replenish_progress
+        post :bulk_mark_paid
         # Status filters
         get :pending
         get :confirmed
@@ -533,6 +534,10 @@ Rails.application.routes.draw do
     resources :vendors do
       member do
         patch :toggle_status
+        patch :mark_paid
+      end
+      collection do
+        post :bulk_mark_paid
       end
     end
 

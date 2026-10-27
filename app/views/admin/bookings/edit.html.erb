@@ -1,3 +1,5 @@
+<%# Inline scripts here (top-level let/const / DOMContentLoaded) only work on a full page load — make Turbo do one. %>
+<% content_for :head do %><meta name="turbo-visit-control" content="reload"><% end %>
 <!-- Page Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
   <div>
@@ -23,7 +25,7 @@
 </div>
 
 <!-- Main Form -->
-<%= form_with model: [:admin, @booking], local: true do |f| %>
+<%= form_with model: [:admin, @booking], local: true, data: { turbo: false } do |f| %>
   <% (@list_state || {}).each do |key, value| %>
     <%= hidden_field_tag "list_state[#{key}]", value %>
   <% end %>
@@ -46,6 +48,89 @@
   <div class="row">
     <!-- Main Form Sections -->
     <div class="col-lg-8">
+      <!-- Payment Information (first, so Payment Status needs no scrolling) -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="mb-0">
+            <i class="bi bi-credit-card text-primary me-2"></i>
+            Payment Information
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <!-- Payment Method -->
+            <div class="col-12">
+              <label class="form-label">Payment Method</label>
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <%= f.radio_button :payment_method, 'cash', class: 'form-check-input', id: 'payment_cash', onchange: 'selectPaymentMethod("cash")' %>
+                    <label class="form-check-label" for="payment_cash">
+                      <i class="bi bi-cash-stack me-1"></i>Cash Payment
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <%= f.radio_button :payment_method, 'card', class: 'form-check-input', id: 'payment_card', onchange: 'selectPaymentMethod("card")' %>
+                    <label class="form-check-label" for="payment_card">
+                      <i class="bi bi-credit-card me-1"></i>Card Payment
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <%= f.radio_button :payment_method, 'upi', class: 'form-check-input', id: 'payment_upi', onchange: 'selectPaymentMethod("upi")' %>
+                    <label class="form-check-label" for="payment_upi">
+                      <i class="bi bi-phone me-1"></i>UPI Payment
+                    </label>
+                  </div>
+                </div>
+
+                <div class="col-md-3">
+                  <div class="form-check">
+                    <%= f.radio_button :payment_method, 'online', class: 'form-check-input', id: 'payment_online', onchange: 'selectPaymentMethod("online")' %>
+                    <label class="form-check-label" for="payment_online">
+                      <i class="bi bi-globe me-1"></i>Online Payment
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Status -->
+            <div class="col-md-6">
+              <label class="form-label">Payment Status</label>
+              <%= f.select :payment_status,
+                  options_for_select([
+                    ['Unpaid', 'unpaid'],
+                    ['Paid', 'paid'],
+                    ['Partially Paid', 'partially_paid'],
+                    ['Refunded', 'refunded']
+                  ], @booking.payment_status),
+                  {},
+                  { class: 'form-select' } %>
+            </div>
+
+            <!-- Cash Payment Details -->
+            <div id="cashSection" class="col-12" style="<%= @booking.payment_method == 'cash' ? '' : 'display: none;' %>">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label">Cash Received</label>
+                  <%= f.number_field :cash_received, class: 'form-control', placeholder: '0.00', step: '0.01', onkeyup: 'calculateChange()' %>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Change to Return</label>
+                  <%= f.number_field :change_amount, class: 'form-control', readonly: true, placeholder: '0.00' %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Customer Information -->
       <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-transparent border-0">
@@ -209,89 +294,6 @@
                   <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeNewBookingItem(this)">
                     <i class="bi bi-trash"></i>
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Payment Information -->
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-transparent border-0">
-          <h5 class="mb-0">
-            <i class="bi bi-credit-card text-primary me-2"></i>
-            Payment Information
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <!-- Payment Method -->
-            <div class="col-12">
-              <label class="form-label">Payment Method</label>
-              <div class="row g-3">
-                <div class="col-md-3">
-                  <div class="form-check">
-                    <%= f.radio_button :payment_method, 'cash', class: 'form-check-input', id: 'payment_cash', onchange: 'selectPaymentMethod("cash")' %>
-                    <label class="form-check-label" for="payment_cash">
-                      <i class="bi bi-cash-stack me-1"></i>Cash Payment
-                    </label>
-                  </div>
-                </div>
-
-                <div class="col-md-3">
-                  <div class="form-check">
-                    <%= f.radio_button :payment_method, 'card', class: 'form-check-input', id: 'payment_card', onchange: 'selectPaymentMethod("card")' %>
-                    <label class="form-check-label" for="payment_card">
-                      <i class="bi bi-credit-card me-1"></i>Card Payment
-                    </label>
-                  </div>
-                </div>
-
-                <div class="col-md-3">
-                  <div class="form-check">
-                    <%= f.radio_button :payment_method, 'upi', class: 'form-check-input', id: 'payment_upi', onchange: 'selectPaymentMethod("upi")' %>
-                    <label class="form-check-label" for="payment_upi">
-                      <i class="bi bi-phone me-1"></i>UPI Payment
-                    </label>
-                  </div>
-                </div>
-
-                <div class="col-md-3">
-                  <div class="form-check">
-                    <%= f.radio_button :payment_method, 'online', class: 'form-check-input', id: 'payment_online', onchange: 'selectPaymentMethod("online")' %>
-                    <label class="form-check-label" for="payment_online">
-                      <i class="bi bi-globe me-1"></i>Online Payment
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Payment Status -->
-            <div class="col-md-6">
-              <label class="form-label">Payment Status</label>
-              <%= f.select :payment_status,
-                  options_for_select([
-                    ['Unpaid', 'unpaid'],
-                    ['Paid', 'paid'],
-                    ['Partially Paid', 'partially_paid'],
-                    ['Refunded', 'refunded']
-                  ], @booking.payment_status),
-                  {},
-                  { class: 'form-select' } %>
-            </div>
-
-            <!-- Cash Payment Details -->
-            <div id="cashSection" class="col-12" style="<%= @booking.payment_method == 'cash' ? '' : 'display: none;' %>">
-              <div class="row g-3">
-                <div class="col-md-6">
-                  <label class="form-label">Cash Received</label>
-                  <%= f.number_field :cash_received, class: 'form-control', placeholder: '0.00', step: '0.01', onkeyup: 'calculateChange()' %>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Change to Return</label>
-                  <%= f.number_field :change_amount, class: 'form-control', readonly: true, placeholder: '0.00' %>
                 </div>
               </div>
             </div>
@@ -507,7 +509,37 @@ function addBookingItem() {
   newItem.style.display = 'block';
 
   document.getElementById('booking-items').appendChild(newItem);
+  initProductSearch(newItem.querySelector('select[onchange^="updateItemPrice"]'));
   itemIndex++;
+}
+
+// Product dropdown search matches each typed word anywhere in the name, in any
+// order — "ghee", "cow", "a2" or "cow ghee" all find "DESI COW GHEE (A2)".
+function productWordMatcher(params, data) {
+  const terms = (params.term || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return data;
+  const hit = text => terms.every(w => (text || '').toLowerCase().includes(w));
+
+  if (data.children && data.children.length) {
+    const kids = data.children.filter(c => hit(c.text) || hit(data.text + ' ' + c.text));
+    if (!kids.length) return null;
+    const match = $.extend(true, {}, data);
+    match.children = kids;
+    return match;
+  }
+  return hit(data.text) ? data : null;
+}
+
+function initProductSearch(select) {
+  if (!select || !window.jQuery || !$.fn.select2) return;
+  const $select = $(select);
+  if ($select.data('select2')) return;
+  $select.select2({
+    theme: 'bootstrap-5',
+    width: '100%',
+    placeholder: 'Search product...',
+    matcher: productWordMatcher
+  });
 }
 
 // Remove existing booking item
@@ -675,6 +707,8 @@ function fillCustomerDetails(select) {
   // Set initial payment method
   const currentPaymentMethod = '<%= @booking.payment_method %>';
   selectPaymentMethod(currentPaymentMethod);
+
+  document.querySelectorAll('#booking-items select[onchange^="updateItemPrice"]').forEach(initProductSearch);
 
   // Add listeners to existing item inputs
   document.querySelectorAll('input[name*="[quantity]"], input[name*="[price]"]').forEach(input => {

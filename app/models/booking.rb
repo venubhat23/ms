@@ -815,10 +815,10 @@ class Booking < ApplicationRecord
     return unless customer&.email.present?
 
     begin
-      CustomerMailer.booking_confirmation(self).deliver_later
-      Rails.logger.info "Booking confirmation email queued for booking ##{booking_number} to #{customer.email}"
+      CustomerMailer.booking_confirmation(self).deliver_now
+      Rails.logger.info "Booking confirmation email sent for booking ##{booking_number} to #{customer.email}"
     rescue => e
-      Rails.logger.error "Failed to queue booking confirmation email for booking ##{booking_number}: #{e.message}"
+      Rails.logger.error "Failed to send booking confirmation email for booking ##{booking_number}: #{e.message}"
     end
   end
 

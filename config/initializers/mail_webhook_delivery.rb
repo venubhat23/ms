@@ -41,5 +41,5 @@ ActiveSupport.on_load(:action_mailer) do
   add_delivery_method :webhook, MailWebhookDelivery,
                       url: ENV['MAIL_WEBHOOK_URL'], secret: ENV['MAIL_WEBHOOK_SECRET']
 
-  self.delivery_method = :webhook if ENV['MAIL_WEBHOOK_URL'].present?
+  self.delivery_method = :webhook if ENV['MAIL_WEBHOOK_URL'].present? && ENV['BREVO_API_KEY'].blank?
 end

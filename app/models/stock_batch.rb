@@ -172,7 +172,7 @@ class StockBatch < ApplicationRecord
       quantity_remaining: curr_qty,
       threshold:          threshold,
       recipient_email:    email
-    ).deliver_later
+    ).deliver_now
   rescue StandardError => e
     Rails.logger.error "LowStockMailer failed: #{e.message}"
   end

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Ecommerce Store MS - Mobile API",
-    "description": "Mobile API endpoints (/api/v1/mobile) verified against config/routes.rb and controllers in app/controllers/api/v1/mobile. Also includes the Admin App API (/api/v1/admin, folder 8) for admin@maralisanthe.com \u2014 dashboard/pricing, full bookings lifecycle (create/status transitions/cancel/deliver/invoice), full product CRUD, orders, customers, and banners.",
+    "description": "Mobile API endpoints (/api/v1/mobile) verified against config/routes.rb and controllers in app/controllers/api/v1/mobile. Also includes the Admin App API (/api/v1/admin, folder 8) for admin@maralisanthe.com \u2014 dashboard/pricing, full bookings lifecycle (create/status transitions/cancel/deliver/invoice), full product CRUD, orders, customers, banners, and view-only pending amounts and stock.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "e7a1a2b0-1f3a-4b6e-9d3e-mobileapi0001"
   },
@@ -93,6 +93,16 @@
     },
     {
       "key": "admin_banner_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "admin_pending_amount_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "admin_stock_product_id",
       "value": "1",
       "type": "string"
     }
@@ -922,7 +932,7 @@
           }
         },
         {
-          "name": "Dashboard (small)",
+          "name": "Dashboard",
           "request": {
             "method": "GET",
             "auth": {
@@ -944,7 +954,7 @@
                 "dashboard"
               ]
             },
-            "description": "Revenue/booking/product counters + 5 most recent bookings. Cached 5 minutes."
+            "description": "Admin home screen. Cached 5 minutes.\n\ndata: total_revenue, today_revenue, month_revenue, today_bookings, total_bookings, pending_bookings, shipped_bookings, completed_bookings, cancelled_bookings, bookings_by_status {status: count}, unpaid_bookings_count, unpaid_bookings_amount (payment_status unpaid/partially_paid, not cancelled), pending_amount_count, pending_amount_total (Pending Amounts with status pending), total_products, active_products, low_stock_products (total stock 1-10), out_of_stock_products (total stock <= 0; variant products count their variant stock), total_customers, new_customers_this_month, recent_bookings[5] {id, booking_number, customer_name, status, payment_status, total_amount, created_at}."
           }
         },
         {
@@ -1009,9 +1019,46 @@
                   "value": "",
                   "disabled": true,
                   "description": "e.g. confirmed, delivered, cancelled"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "booking number, customer name/email/phone, linked customer name/mobile, or product name (ILIKE)"
+                },
+                {
+                  "key": "payment_status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "unpaid, paid, partially_paid, refunded"
+                },
+                {
+                  "key": "from_date",
+                  "value": "",
+                  "disabled": true,
+                  "description": "created on/after; YYYY-MM-DD; invalid dates are ignored"
+                },
+                {
+                  "key": "to_date",
+                  "value": "",
+                  "disabled": true,
+                  "description": "created on/before; YYYY-MM-DD; invalid dates are ignored"
+                },
+                {
+                  "key": "store_id",
+                  "value": "",
+                  "disabled": true,
+                  "description": "shop id"
+                },
+                {
+                  "key": "customer_id",
+                  "value": "",
+                  "disabled": true,
+                  "description": "only this customer's bookings"
                 }
               ]
-            }
+            },
+            "description": "Newest first. Each booking: id, booking_number, status, payment_status, payment_method, total_amount, customer_name, customer_phone, delivery_address, items_count, is_pre_booking, created_at. Plus pagination."
           }
         },
         {
@@ -1037,7 +1084,8 @@
                 "bookings",
                 "{{admin_booking_id}}"
               ]
-            }
+            },
+            "description": "List fields plus: items[] {id, product_id, product_name, variant_id, variant_label, quantity, price, total}, subtotal, tax_amount, discount_amount, shipping_charges, coupon_code, coupon_discount_amount, wallet_amount_used, cash_received, payment_completed_at, customer_id, customer_email, store {id, name}, franchise {id, name}, delivery_person {id, name, mobile}, delivery_mode, delivered_at, courier_service, tracking_number, invoice_number, cancellation_reason, stage_history, notes. 404 if not found."
           }
         },
         {
@@ -1248,9 +1296,22 @@
                   "key": "search",
                   "value": "",
                   "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "active, inactive, draft"
+                },
+                {
+                  "key": "stock_status",
+                  "value": "",
+                  "disabled": true,
+                  "description": "out_of_stock (<= 0), low_stock (1-10), in_stock (> 10)"
                 }
               ]
-            }
+            },
+            "description": "Each product now also has total_stock (variant products = sum of variant stock, same as the web products page), stock_status, has_variants, unit_type."
           }
         },
         {
@@ -1277,7 +1338,7 @@
                 "{{admin_product_id}}"
               ]
             },
-            "description": "Includes the full image gallery (data.gallery) with stable gallery_ids usable in Remove Image."
+            "description": "List fields plus description, gallery, buying_price, gst_enabled, gst_percentage, b2b_price, and variants[] {id, label, weight, unit, buying_price, selling_price, b2b_selling_price, final_price_with_gst, available_stock, low_stock_threshold, is_default}."
           }
         },
         {
@@ -1684,7 +1745,8 @@
                     "customers",
                     "{{admin_customer_id}}"
                   ]
-                }
+                },
+                "description": "Profile (id, name, first_name, last_name, email, mobile, whatsapp_number, address, status, wallet_balance, created_at) plus: bookings_count, orders_count, total_spent, bookings_total (non-cancelled), unpaid_bookings_count, unpaid_bookings_amount, pending_amount_total, pending_amounts[20] {id, amount, description, pending_date, status}, addresses[] {id, name, mobile, address_type, address, landmark, city, state, pincode, is_default}, recent_bookings[10] {id, booking_number, status, payment_status, total_amount, created_at}, wallet_history[]. Email or mobile may be null (customers can register with either)."
               }
             },
             {
@@ -1842,6 +1904,200 @@
                   ]
                 },
                 "description": "image is optional and uploaded to Cloudflare R2; omit it (or pass image_url/r2_image_url as text fields instead) to link an already-hosted image."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pending Amounts",
+          "item": [
+            {
+              "name": "List Pending Amounts",
+              "request": {
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/pending_amounts?page=1&per_page=20",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "pending_amounts"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20",
+                      "description": "default 20, max 100"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true,
+                      "description": "pending, resolved, cancelled"
+                    },
+                    {
+                      "key": "customer_id",
+                      "value": "",
+                      "disabled": true,
+                      "description": "only this customer"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true,
+                      "description": "description, customer name or mobile"
+                    },
+                    {
+                      "key": "from_date",
+                      "value": "",
+                      "disabled": true,
+                      "description": "pending_date on/after; YYYY-MM-DD; invalid dates are ignored"
+                    },
+                    {
+                      "key": "to_date",
+                      "value": "",
+                      "disabled": true,
+                      "description": "pending_date on/before; YYYY-MM-DD; invalid dates are ignored"
+                    }
+                  ]
+                },
+                "description": "View-only; same data as web Admin > Pending Amounts. data: summary {pending_count, pending_total, resolved_count, cancelled_count} (for the current filters), pending_amounts[] {id, amount, description, pending_date, status, notes, created_at, customer {id, name, mobile, email}}, pagination. Newest pending_date first."
+              }
+            },
+            {
+              "name": "Show Pending Amount",
+              "request": {
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/pending_amounts/{{admin_pending_amount_id}}",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "pending_amounts",
+                    "{{admin_pending_amount_id}}"
+                  ]
+                },
+                "description": "The entry plus customer_pending_total, other_pending_amounts[] (this customer's other pending entries), unpaid_bookings_amount and unpaid_bookings[20] {id, booking_number, status, payment_status, total_amount, created_at}. 404 if not found."
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock",
+          "item": [
+            {
+              "name": "List Stock",
+              "request": {
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/stock?page=1&per_page=20",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "stock"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20",
+                      "description": "default 20, max 100"
+                    },
+                    {
+                      "key": "stock_status",
+                      "value": "",
+                      "disabled": true,
+                      "description": "out_of_stock (<= 0), low_stock (1-10), in_stock (> 10)"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true,
+                      "description": "product name or SKU"
+                    },
+                    {
+                      "key": "category_id",
+                      "value": "",
+                      "disabled": true,
+                      "description": "category id"
+                    }
+                  ]
+                },
+                "description": "View-only. Lowest stock first. data: summary {total_products, out_of_stock, low_stock, in_stock, low_stock_limit} (ignores stock_status so the tab counts stay put), products[] {id, name, sku, category {id, name}, unit_type, status, has_variants, total_stock, stock_status, main_image_url}, pagination. total_stock matches the web products page."
+              }
+            },
+            {
+              "name": "Show Stock",
+              "request": {
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/stock/{{admin_stock_product_id}}",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "stock",
+                    "{{admin_stock_product_id}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "movements_limit",
+                      "value": "",
+                      "disabled": true,
+                      "description": "how many recent stock movements, default 50, max 200"
+                    }
+                  ]
+                },
+                "description": "Stock row plus variants[] {id, label, available_stock, low_stock_threshold, stock_status} and movements[] {id, movement_type, quantity, stock_before, stock_after, reference_type, reference_id, reference_description, notes, created_at}, newest first. 404 if not found."
               }
             }
           ]

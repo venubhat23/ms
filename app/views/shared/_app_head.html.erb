@@ -1,0 +1,11 @@
+<%# Makes a page installable as a phone app and loads the phone-screen fixes.
+    Render last in <head> so mobile_app.css wins over page styles. %>
+<link rel="manifest" href="<%= pwa_manifest_path(format: :json, portal: local_assigns.fetch(:portal, 'shop')) %>">
+<meta name="theme-color" content="#3e5a1f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Marali Santhe">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<%= stylesheet_link_tag "mobile_app" %>
+<%= javascript_include_tag "mobile_app", defer: true %>

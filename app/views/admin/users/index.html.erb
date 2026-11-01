@@ -100,6 +100,7 @@
         <%= form.select :user_type, options_for_select([
           ['All Types', ''],
           ['Administrator', 'admin'],
+          ['Read-only Admin (App)', 'admin_viewer'],
           ['Agent', 'agent'],
           ['Affiliate', 'sub_agent']
         ], params[:user_type]), {}, { class: "form-select" } %>

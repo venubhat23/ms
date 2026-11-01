@@ -68,7 +68,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           })
           return
         end
-      elsif user.agent? || user.admin? || user.sub_agent?
+      elsif user.agent? || user.admin? || user.admin_viewer? || user.sub_agent?
         # Agent/Admin login
         token = generate_token(user, user.user_type)
         agent_stats = get_agent_statistics(user)
@@ -79,6 +79,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
             token: token,
             username: user.full_name,
             role: user.user_type,
+            read_only: user.admin_viewer?,
             user_id: user.id,
             email: user.email,
             mobile: user.mobile,

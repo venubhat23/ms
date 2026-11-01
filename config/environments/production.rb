@@ -65,12 +65,14 @@ Rails.application.configure do
 
   # Gmail SMTP configuration
   config.action_mailer.delivery_method = :smtp
+  # Railway (non-Pro) blocks port 587, so the host/port/login can be swapped
+  # via SMTP_* env vars (e.g. Brevo on 2525) without a code change.
   config.action_mailer.smtp_settings = {
-    address: 'smtp.gmail.com',
-    port: 587,
-    domain: 'gmail.com',
-    user_name: 'maralisanthe@gmail.com',
-    password: 'saesvpocyqoeprls',
+    address: ENV.fetch('SMTP_ADDRESS', 'smtp.gmail.com'),
+    port: ENV.fetch('SMTP_PORT', 587).to_i,
+    domain: ENV.fetch('SMTP_DOMAIN', 'gmail.com'),
+    user_name: ENV.fetch('SMTP_USERNAME', 'maralisanthe@gmail.com'),
+    password: ENV.fetch('SMTP_PASSWORD', 'saesvpocyqoeprls'),
     authentication: 'plain',
     enable_starttls_auto: true,
     open_timeout: 5,

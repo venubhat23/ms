@@ -153,6 +153,32 @@ class StoreAdmin::BookingsController < StoreAdmin::ApplicationController
     end
   end
 
+  # Bulk "Mark as Paid" from the bookings list checkboxes — same per-booking
+  # effect as Admin::BookingsController#bulk_mark_paid, scoped to this store.
+  def bulk_mark_paid
+    ids = Array(params[:booking_ids]).reject(&:blank?)
+    bookings = @current_store.bookings.where(id: ids).where("bookings.payment_status IS NULL OR bookings.payment_status NOT IN ('paid', 'refunded')")
+
+    updated = 0
+    failures = []
+    bookings.find_each do |booking|
+      booking.mark_as_fully_paid!
+      updated += 1
+    rescue => e
+      failures << "##{booking.booking_number} (#{e.message})"
+    end
+
+    list_state = params[:list_state]&.permit(:page, :status, :search, :date_from, :date_to)&.to_h || {}
+    if updated.zero? && failures.empty?
+      redirect_to store_admin_bookings_path(list_state), alert: 'No unpaid bookings were selected.'
+    elsif failures.any?
+      redirect_to store_admin_bookings_path(list_state),
+                  alert: "Marked #{updated} booking(s) as paid. Failed: #{failures.join(', ')}"
+    else
+      redirect_to store_admin_bookings_path(list_state), notice: "Marked #{updated} booking(s) as paid."
+    end
+  end
+
   private
 
   def set_booking

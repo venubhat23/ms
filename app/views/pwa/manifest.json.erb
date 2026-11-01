@@ -1,22 +1,26 @@
-{
-  "name": "Marali SantheFarmAdmin",
-  "icons": [
-    {
-      "src": "/icon.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    },
-    {
-      "src": "/icon.png",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "maskable"
-    }
-  ],
-  "start_url": "/",
-  "display": "standalone",
-  "scope": "/",
-  "description": "MS Admin Portal.",
-  "theme_color": "red",
-  "background_color": "red"
-}
+<%
+  # One manifest per portal, so each installs with its own name and opens on
+  # its own landing page instead of everyone landing on the storefront.
+  portals = {
+    "shop"        => { name: "Marali Santhe",     short_name: "Marali Santhe", start_url: "/",            description: "Shop farm-fresh products from Marali Santhe." },
+    "customer"    => { name: "Marali Santhe Account", short_name: "My Account", start_url: "/customer",   description: "Your Marali Santhe orders and account." },
+    "admin"       => { name: "Marali Santhe Admin", short_name: "MS Admin",    start_url: "/dashboard",   description: "Marali Santhe admin portal." },
+    "store_admin" => { name: "Marali Santhe Store Admin", short_name: "MS Store", start_url: "/store_admin", description: "Marali Santhe store management." },
+    "franchise"   => { name: "Marali Santhe Franchise", short_name: "MS Franchise", start_url: "/franchise", description: "Marali Santhe franchise portal." },
+    "affiliate"   => { name: "Marali Santhe Affiliate", short_name: "MS Affiliate", start_url: "/affiliate", description: "Marali Santhe affiliate portal." }
+  }
+  key = portals.key?(params[:portal]) ? params[:portal] : "shop"
+  manifest = portals[key].merge(
+    id: "/?app=#{key}",
+    scope: "/",
+    display: "standalone",
+    orientation: "any",
+    theme_color: "#3e5a1f",
+    background_color: "#f4f6f2",
+    icons: [
+      { src: "/icons/icon-192.png", type: "image/png", sizes: "192x192", purpose: "any" },
+      { src: "/icons/icon-512.png", type: "image/png", sizes: "512x512", purpose: "any" },
+      { src: "/icons/maskable-512.png", type: "image/png", sizes: "512x512", purpose: "maskable" }
+    ]
+  )
+%><%= raw JSON.pretty_generate(manifest) %>

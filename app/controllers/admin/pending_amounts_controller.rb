@@ -16,11 +16,11 @@ class Admin::PendingAmountsController < ApplicationController
     # Stats must run on the pre-pagination scope — running them on the
     # already-paginated relation (old code) both mis-reported totals (only
     # counted the current page's 20 rows) and cost 4 extra queries per load.
-    status_counts = @pending_amounts.group(:status).count
+    status_counts = @pending_amounts.reorder(nil).group(:status).count
     @pending_status_count = status_counts['pending'] || 0
     @resolved_status_count = status_counts['resolved'] || 0
     @total_entries_count = status_counts.values.sum
-    @pending_amount_total = @pending_amounts.where(status: :pending).sum(:amount)
+    @pending_amount_total = @pending_amounts.reorder(nil).where(status: :pending).sum(:amount)
 
     @pending_amounts = @pending_amounts.page(params[:page]).per(20)
 

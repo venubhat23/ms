@@ -9,6 +9,7 @@ Rails.application.routes.draw do
       end
       collection do
         get :search_products
+        post :bulk_mark_paid
       end
     end
     resources :expenses
@@ -936,6 +937,56 @@ Rails.application.routes.draw do
       post 'auth/forgot_password', to: 'authentication#forgot_password'
       post 'auth/reset_password', to: 'authentication#reset_password'
 
+      # Admin App APIs (admin@maralisanthe.com user only), served at both
+      # /api/v1/admin and /api/v1/mobile/admin.
+      concern :admin_app do
+        get 'dashboard', to: 'dashboard#index'
+        get 'pricing', to: 'pricing#index'
+
+        resources :bookings, only: [:index, :show, :create] do
+          collection do
+            post :bulk_mark_paid
+          end
+          member do
+            patch :update_status
+            patch :cancel
+            patch :mark_delivered
+            post :generate_invoice
+          end
+        end
+
+        resources :products, only: [:index, :show, :create, :update, :destroy] do
+          member do
+            post :upload_image
+            delete :remove_image
+          end
+        end
+
+        resources :orders, only: [:index, :show] do
+          member do
+            patch :update_status
+            patch :cancel
+          end
+        end
+
+        resources :customers, only: [:index, :show] do
+          member do
+            patch :toggle_status
+          end
+        end
+
+        # View-only
+        resources :pending_amounts, only: [:index, :show]
+        resources :stock, only: [:index, :show], controller: 'stock'
+
+        resources :banners, only: [:index, :create]
+      end
+
+      # Must stay above namespace :mobile, whose catch-all would swallow these.
+      scope 'mobile/admin', module: :admin, as: :mobile_admin do
+        concerns :admin_app
+      end
+
       # Mobile API Routes
       namespace :mobile do
         # Mobile Authentication APIs
@@ -1040,45 +1091,8 @@ Rails.application.routes.draw do
         match '*unmatched', to: 'base#not_found', via: :all
       end
 
-      # Admin App APIs (admin@maralisanthe.com user only)
       namespace :admin do
-        get 'dashboard', to: 'dashboard#index'
-        get 'pricing', to: 'pricing#index'
-
-        resources :bookings, only: [:index, :show, :create] do
-          member do
-            patch :update_status
-            patch :cancel
-            patch :mark_delivered
-            post :generate_invoice
-          end
-        end
-
-        resources :products, only: [:index, :show, :create, :update, :destroy] do
-          member do
-            post :upload_image
-            delete :remove_image
-          end
-        end
-
-        resources :orders, only: [:index, :show] do
-          member do
-            patch :update_status
-            patch :cancel
-          end
-        end
-
-        resources :customers, only: [:index, :show] do
-          member do
-            patch :toggle_status
-          end
-        end
-
-        # View-only
-        resources :pending_amounts, only: [:index, :show]
-        resources :stock, only: [:index, :show], controller: 'stock'
-
-        resources :banners, only: [:index, :create]
+        concerns :admin_app
       end
 
       # Sub Agent APIs
@@ -1360,4 +1374,8 @@ Rails.application.routes.draw do
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   get "up" => "rails/health#show", as: :rails_health_check
+
+  # Installable app: the manifest and service worker must stay at the site root
+  get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
+  get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 end

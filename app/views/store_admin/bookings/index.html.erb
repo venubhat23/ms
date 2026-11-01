@@ -88,11 +88,31 @@
           </div>
         <% end %>
 
+        <%# Row checkboxes point at this form via form="bulkPaidForm". %>
+        <%= form_with url: bulk_mark_paid_store_admin_bookings_path, method: :post, local: true, id: "bulkPaidForm",
+                      data: { turbo_confirm: "Mark the selected bookings as fully paid?" } do %>
+          <% params.permit(:page, :status, :search, :date_from, :date_to).to_h.each do |key, value| %>
+            <%= hidden_field_tag "list_state[#{key}]", value %>
+          <% end %>
+        <% end %>
+        <%# Pinned to the top of the screen so it stays visible while ticking rows anywhere in the list. %>
+      <div id="bulkPaidBar" class="align-items-center gap-2 px-3 py-2 bg-success-subtle border border-success rounded-pill shadow"
+           style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 2000;">
+          <span class="small fw-semibold"><span id="bulkPaidCount">0</span> selected</span>
+          <button type="submit" form="bulkPaidForm" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle me-1"></i>Mark Selected as Paid
+          </button>
+        <button type="button" class="btn btn-link btn-sm text-secondary" onclick="document.querySelectorAll('.bulk-paid-checkbox, #bulkPaidSelectAll').forEach(cb => { cb.checked = false; }); window.refreshBulkPaid?.();">Clear</button>
+        </div>
+
         <!-- Bookings Table -->
         <div class="table-responsive">
           <table class="table table-striped">
             <thead>
               <tr>
+                <th style="width: 1%;">
+                  <input class="form-check-input" type="checkbox" id="bulkPaidSelectAll" title="Select all unpaid bookings on this page">
+                </th>
                 <th>Booking #</th>
                 <th>Customer</th>
                 <th>Items</th>
@@ -106,6 +126,15 @@
             <tbody>
               <% @bookings.each do |booking| %>
                 <tr>
+                  <td>
+                    <%# Every row gets a box; already paid/refunded ones are shown disabled. %>
+                    <% if %w[paid refunded].include?(booking.payment_status.to_s) %>
+                      <input class="form-check-input" type="checkbox" checked disabled title="Already paid">
+                    <% else %>
+                      <input class="form-check-input bulk-paid-checkbox" type="checkbox" name="booking_ids[]"
+                             value="<%= booking.id %>" form="bulkPaidForm" title="Select for bulk Mark as Paid">
+                    <% end %>
+                  </td>
                   <td><strong><%= booking.booking_number || "##{booking.id}" %></strong></td>
                   <td>
                     <% if booking.customer %>
@@ -161,7 +190,7 @@
 
               <% if @bookings.empty? %>
                 <tr>
-                  <td colspan="8" class="text-center py-4">
+                  <td colspan="9" class="text-center py-4">
                     <div class="text-muted">
                       <i class="fas fa-clipboard-list fa-3x mb-3"></i>
                       <h5>No bookings found</h5>
@@ -183,3 +212,38 @@
     </div>
   </div>
 </div>
+
+<script>
+  // Bulk Mark as Paid checkboxes. Delegated on document (bound once) so it works
+  // on full loads and Turbo visits alike, and always sees the current rows.
+  if (!window.bulkPaidBound) {
+    window.bulkPaidBound = true;
+    const visibleBoxes = () => Array.from(document.querySelectorAll('.bulk-paid-checkbox'))
+      .filter(cb => cb.closest('tr')?.style.display !== 'none'); // respect the live search filter
+    const refreshBulkPaid = () => {
+      const all = visibleBoxes();
+      const checked = document.querySelectorAll('.bulk-paid-checkbox:checked').length;
+      const bar = document.getElementById('bulkPaidBar');
+      // A transformed ancestor would make position:fixed scroll with it; park the bar on <body>.
+      if (bar && bar.parentElement !== document.body) document.body.appendChild(bar);
+      if (bar) bar.style.display = checked > 0 ? 'flex' : 'none';
+      const count = document.getElementById('bulkPaidCount');
+      if (count) count.textContent = checked;
+      const selectAll = document.getElementById('bulkPaidSelectAll');
+      if (selectAll) {
+        selectAll.checked = all.length > 0 && all.every(cb => cb.checked);
+        selectAll.indeterminate = checked > 0 && !selectAll.checked;
+      }
+    };
+    window.refreshBulkPaid = refreshBulkPaid;
+    document.addEventListener('change', e => {
+      if (e.target.id === 'bulkPaidSelectAll') {
+        visibleBoxes().forEach(cb => { cb.checked = e.target.checked; });
+        refreshBulkPaid();
+      } else if (e.target.classList?.contains('bulk-paid-checkbox')) {
+        refreshBulkPaid();
+      }
+    });
+    document.addEventListener('turbo:load', refreshBulkPaid);
+  }
+</script>

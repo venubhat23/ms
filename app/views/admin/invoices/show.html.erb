@@ -551,6 +551,7 @@
         clear: both;
       }
     </style>
+  <%= render 'shared/app_head', portal: 'admin' %>
   </head>
   <body>
     <% @invoice.update_column(:share_token, SecureRandom.urlsafe_base64(32)) if @invoice.share_token.blank? %>

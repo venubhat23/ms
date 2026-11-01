@@ -37,9 +37,22 @@ class Api::V1::Admin::BaseController < Api::V1::BaseController
 
   private
 
-  # This API is only for the admin@maralisanthe.com account (user_type: admin) —
-  # agents/sub_agents/store_admins etc. are not permitted here.
+  # This API is for the admin@maralisanthe.com account (user_type: admin) with
+  # full access, and active admin_viewer users with GET/HEAD only — agents/
+  # sub_agents/store_admins etc. are not permitted here.
+  # Mobile login tokens for customers, delivery people and sub agents put their
+  # own table's id in user_id, which can equal an admin User's id, so the role
+  # claim must be checked too. /api/v1/auth/login tokens are always User ids and
+  # carry no role.
   def require_admin_user!
-    render_error('Not authorized', nil, :forbidden) unless @current_user&.admin?
+    role = JwtService.decode(request.headers['Authorization'].split(' ').last)[:role]
+    token_matches_user = @current_user && (role.blank? || role == @current_user.user_type)
+    return if token_matches_user && @current_user.admin?
+
+    unless token_matches_user && @current_user.admin_viewer? && @current_user.status
+      return render_error('Not authorized', nil, :forbidden)
+    end
+
+    render_error('Read-only access', nil, :forbidden) unless request.get? || request.head?
   end
 end

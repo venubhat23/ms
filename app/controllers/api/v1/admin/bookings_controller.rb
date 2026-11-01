@@ -1,7 +1,7 @@
 class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/bookings
   def index
-    bookings = Booking.includes(:customer)
+    bookings = Booking.includes(:customer, :booking_invoices)
     bookings = bookings.where(status: params[:status]) if params[:status].present?
     bookings = bookings.where(payment_status: params[:payment_status]) if params[:payment_status].present?
     bookings = bookings.where(store_id: params[:store_id]) if params[:store_id].present?
@@ -137,6 +137,43 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
     render_error('Booking not found', nil, :not_found)
   end
 
+  # POST /api/v1/admin/bookings/bulk_mark_paid
+  # Mirrors Admin::BookingsController#bulk_mark_paid (web). Already paid/refunded
+  # or unknown ids are reported in skipped_ids, not treated as errors.
+  def bulk_mark_paid
+    ids = Array(params[:booking_ids]).map { |id| id.to_s.to_i }.select(&:positive?).uniq
+    return render_error('Select at least one booking', nil, :unprocessable_entity) if ids.empty?
+
+    bookings = Booking.includes(:customer, :booking_invoices).where(id: ids)
+                      .where("bookings.payment_status IS NULL OR bookings.payment_status NOT IN ('paid', 'refunded')")
+
+    updated = []
+    failed = []
+    bookings.find_each do |booking|
+      booking.mark_as_fully_paid!
+      updated << booking
+    rescue => e
+      failed << { id: booking.id, booking_number: booking.booking_number, error: e.message }
+    end
+
+    if updated.empty? && failed.empty?
+      return render_error('No unpaid bookings were selected.', nil, :unprocessable_entity)
+    end
+
+    result = {
+      updated_count: updated.size,
+      failed_count: failed.size,
+      skipped_ids: ids - updated.map(&:id) - failed.pluck(:id),
+      bookings: updated.map { |b| booking_response(b) },
+      failed: failed
+    }
+    return render_error('No bookings could be marked as paid', result, :unprocessable_entity) if updated.empty?
+
+    message = "Marked #{updated.size} booking(s) as paid."
+    message += " #{failed.size} failed." if failed.any?
+    render_success(result, message)
+  end
+
   private
 
   def booking_params
@@ -166,7 +203,8 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
       delivery_address: booking.delivery_address,
       items_count: booking.booking_items_count.to_i,
       is_pre_booking: booking.is_pre_booking,
-      created_at: booking.created_at
+      created_at: booking.created_at,
+      whatsapp_thanks_url: ApplicationController.helpers.booking_payment_thanks_whatsapp_url(booking)
     }
 
     if detailed

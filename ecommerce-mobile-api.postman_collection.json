@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Ecommerce Store MS - Mobile API",
-    "description": "Mobile API endpoints (/api/v1/mobile) verified against config/routes.rb and controllers in app/controllers/api/v1/mobile. Also includes the Admin App API (/api/v1/admin, folder 8) for admin@maralisanthe.com \u2014 dashboard/pricing, full bookings lifecycle (create/status transitions/cancel/deliver/invoice), full product CRUD, orders, customers, banners, and view-only pending amounts and stock.",
+    "description": "Mobile API endpoints (/api/v1/mobile) verified against config/routes.rb and controllers in app/controllers/api/v1/mobile. Also includes the Admin App API (/api/v1/mobile/admin, also served at /api/v1/admin, folder 8) for admin@maralisanthe.com \u2014 dashboard/pricing, full bookings lifecycle (create/status transitions/cancel/deliver/invoice), full product CRUD, orders, customers, banners, and view-only pending amounts and stock.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "e7a1a2b0-1f3a-4b6e-9d3e-mobileapi0001"
   },
@@ -58,7 +58,7 @@
     },
     {
       "key": "admin_base_url",
-      "value": "{{api_v1_base_url}}/admin",
+      "value": "{{api_v1_base_url}}/mobile/admin",
       "type": "string"
     },
     {
@@ -104,6 +104,26 @@
     {
       "key": "admin_stock_product_id",
       "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@maralisanthe.com",
+      "type": "string"
+    },
+    {
+      "key": "admin_password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "viewer_email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "viewer_password",
+      "value": "",
       "type": "string"
     }
   ],
@@ -899,7 +919,7 @@
     },
     {
       "name": "8. Admin App",
-      "description": "JSON API for the admin app (/api/v1/admin). Restricted to the admin@maralisanthe.com account (User#user_type == 'admin') \u2014 login below issues the bearer token this whole folder uses via {{admin_access_token}}.",
+      "description": "JSON API for the admin app (/api/v1/mobile/admin; also served at /api/v1/admin). Restricted to the admin@maralisanthe.com account (User#user_type == 'admin', full access) and active user_type 'admin_viewer' users (GET only; any other method returns 403 'Read-only access') \u2014 login below issues the bearer token this whole folder uses via {{admin_access_token}}.",
       "item": [
         {
           "name": "Admin Login",
@@ -916,20 +936,168 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@maralisanthe.com\",\n  \"password\": \"admin@123\"\n}"
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
             },
             "url": {
-              "raw": "{{api_v1_base_url}}/auth/login",
+              "raw": "{{api_v1_base_url}}/mobile/auth/login",
               "host": [
                 "{{api_v1_base_url}}"
               ],
               "path": [
+                "mobile",
                 "auth",
                 "login"
               ]
             },
-            "description": "Returns a JWT in data.token \u2014 copy it into the {{admin_access_token}} collection variable. Requires a User record with user_type 'admin'."
-          }
+            "description": "Returns a JWT in data.token, with data.role and data.read_only (valid 30 days). Set the admin_email and admin_password collection variables first; the token is saved to {{admin_access_token}} automatically. Real responses also include agent stats fields (commission_earned etc.), which the admin app can ignore."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('admin_access_token', res.data.token);",
+                  "  pm.test('Token saved to admin_access_token', () => pm.expect(res.data.token).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Admin",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_v1_base_url}}/mobile/auth/login",
+                  "host": [
+                    "{{api_v1_base_url}}"
+                  ],
+                  "path": [
+                    "mobile",
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"token\": \"eyJhbGciOiJIUzI1NiJ9...\",\n    \"username\": \"Admin\",\n    \"role\": \"admin\",\n    \"read_only\": false,\n    \"user_id\": 1,\n    \"email\": \"admin@maralisanthe.com\",\n    \"mobile\": \"9999999999\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Read-only Admin Login",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{viewer_email}}\",\n  \"password\": \"{{viewer_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{api_v1_base_url}}/mobile/auth/login",
+              "host": [
+                "{{api_v1_base_url}}"
+              ],
+              "path": [
+                "mobile",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login for a user_type 'admin_viewer' user (Admin > Users > Read-only Admin (App)). Returns role admin_viewer and read_only true. Also saves to {{admin_access_token}}, so every request in this folder then runs as the read-only user: GET works, everything else returns 403 'Read-only access'. Run Admin Login again to switch back."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data && res.data.token) {",
+                  "  pm.collectionVariables.set('admin_access_token', res.data.token);",
+                  "  pm.test('Token saved to admin_access_token', () => pm.expect(res.data.token).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 Read-only",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{viewer_email}}\",\n  \"password\": \"{{viewer_password}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{api_v1_base_url}}/mobile/auth/login",
+                  "host": [
+                    "{{api_v1_base_url}}"
+                  ],
+                  "path": [
+                    "mobile",
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"token\": \"eyJhbGciOiJIUzI1NiJ9...\",\n    \"username\": \"Ravi Kumar\",\n    \"role\": \"admin_viewer\",\n    \"read_only\": true,\n    \"user_id\": 65,\n    \"email\": \"viewer@example.com\",\n    \"mobile\": \"9876543210\"\n  }\n}"
+            }
+          ]
         },
         {
           "name": "Dashboard",
@@ -1058,8 +1226,98 @@
                 }
               ]
             },
-            "description": "Newest first. Each booking: id, booking_number, status, payment_status, payment_method, total_amount, customer_name, customer_phone, delivery_address, items_count, is_pre_booking, created_at. Plus pagination."
-          }
+            "description": "Newest first. Each booking: id, booking_number, status, payment_status, payment_method, total_amount, customer_name, customer_phone, delivery_address, items_count, is_pre_booking, created_at, whatsapp_thanks_url (wa.me link with the thank-you text; null when the customer has no valid mobile). Plus pagination."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings?page=1&per_page=20&status=",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "per_page",
+                      "value": "20"
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true,
+                      "description": "e.g. confirmed, delivered, cancelled"
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true,
+                      "description": "booking number, customer name/email/phone, linked customer name/mobile, or product name (ILIKE)"
+                    },
+                    {
+                      "key": "payment_status",
+                      "value": "",
+                      "disabled": true,
+                      "description": "unpaid, paid, partially_paid, refunded"
+                    },
+                    {
+                      "key": "from_date",
+                      "value": "",
+                      "disabled": true,
+                      "description": "created on/after; YYYY-MM-DD; invalid dates are ignored"
+                    },
+                    {
+                      "key": "to_date",
+                      "value": "",
+                      "disabled": true,
+                      "description": "created on/before; YYYY-MM-DD; invalid dates are ignored"
+                    },
+                    {
+                      "key": "store_id",
+                      "value": "",
+                      "disabled": true,
+                      "description": "shop id"
+                    },
+                    {
+                      "key": "customer_id",
+                      "value": "",
+                      "disabled": true,
+                      "description": "only this customer's bookings"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Success\",\n  \"data\": {\n    \"bookings\": [\n      {\n        \"id\": 5,\n        \"booking_number\": \"BK20261028AE39A4\",\n        \"status\": \"confirmed\",\n        \"payment_status\": \"paid\",\n        \"payment_method\": \"upi\",\n        \"total_amount\": 500.0,\n        \"customer_name\": \"Ravi Kumar\",\n        \"customer_phone\": \"9876543210\",\n        \"delivery_address\": \"123 Main St\",\n        \"items_count\": 2,\n        \"is_pre_booking\": false,\n        \"created_at\": \"2026-10-28T10:15:00.000+05:30\",\n        \"whatsapp_thanks_url\": \"https://wa.me/919876543210?text=Dear%20Ravi%20Kumar%2C...\"\n      }\n    ],\n    \"pagination\": {\n      \"current_page\": 1,\n      \"total_pages\": 1,\n      \"total_count\": 1,\n      \"per_page\": 20\n    }\n  }\n}"
+            }
+          ]
         },
         {
           "name": "Show Booking",
@@ -1085,8 +1343,47 @@
                 "{{admin_booking_id}}"
               ]
             },
-            "description": "List fields plus: items[] {id, product_id, product_name, variant_id, variant_label, quantity, price, total}, subtotal, tax_amount, discount_amount, shipping_charges, coupon_code, coupon_discount_amount, wallet_amount_used, cash_received, payment_completed_at, customer_id, customer_email, store {id, name}, franchise {id, name}, delivery_person {id, name, mobile}, delivery_mode, delivered_at, courier_service, tracking_number, invoice_number, cancellation_reason, stage_history, notes. 404 if not found."
-          }
+            "description": "List fields (including whatsapp_thanks_url) plus: items[] {id, product_id, product_name, variant_id, variant_label, quantity, price, total}, subtotal, tax_amount, discount_amount, shipping_charges, coupon_code, coupon_discount_amount, wallet_amount_used, cash_received, payment_completed_at, customer_id, customer_email, store {id, name}, franchise {id, name}, delivery_person {id, name, mobile}, delivery_mode, delivered_at, courier_service, tracking_number, invoice_number, cancellation_reason, stage_history, notes. 404 if not found."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/{{admin_booking_id}}",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "{{admin_booking_id}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Success\",\n  \"data\": {\n    \"id\": 5,\n    \"booking_number\": \"BK20261028AE39A4\",\n    \"status\": \"confirmed\",\n    \"payment_status\": \"paid\",\n    \"payment_method\": \"upi\",\n    \"total_amount\": 500.0,\n    \"customer_name\": \"Ravi Kumar\",\n    \"customer_phone\": \"9876543210\",\n    \"delivery_address\": \"123 Main St\",\n    \"items_count\": 2,\n    \"is_pre_booking\": false,\n    \"created_at\": \"2026-10-28T10:15:00.000+05:30\",\n    \"whatsapp_thanks_url\": \"https://wa.me/919876543210?text=Dear%20Ravi%20Kumar%2C...\",\n    \"items\": [\n      {\n        \"id\": 11,\n        \"product_id\": 3,\n        \"product_name\": \"Organic Honey\",\n        \"variant_id\": null,\n        \"variant_label\": null,\n        \"quantity\": 2,\n        \"price\": 250.0,\n        \"total\": 500.0\n      }\n    ],\n    \"subtotal\": 500.0,\n    \"tax_amount\": 0.0,\n    \"discount_amount\": 0\n  }\n}"
+            }
+          ]
         },
         {
           "name": "Create Booking (quick)",
@@ -1122,7 +1419,55 @@
               ]
             },
             "description": "Minimal admin-side booking creation. Item price is optional \u2014 defaults to the product's selling_price if omitted. customer_id is optional; customer_name/email/phone are used as a walk-in fallback."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"booking\": {\n    \"customer_id\": \"\",\n    \"customer_name\": \"John Doe\",\n    \"customer_email\": \"user@example.com\",\n    \"customer_phone\": \"9999999999\",\n    \"delivery_address\": \"123 Main St\",\n    \"payment_method\": \"cod\",\n    \"notes\": \"\",\n    \"booking_items_attributes\": [\n      {\n        \"product_id\": \"{{admin_product_id}}\",\n        \"quantity\": 1\n      }\n    ]\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Update Booking Status",
@@ -1160,7 +1505,57 @@
               ]
             },
             "description": "Moves the booking to the next status. Only transitions in Booking#next_possible_statuses are allowed: draft -> ordered_and_delivery_pending/confirmed/cancelled -> processing -> packed -> shipped -> out_for_delivery -> delivered -> returned. delivered auto-completes. tracking_number is only used for the 'shipped' transition."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "PATCH",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"confirmed\",\n  \"tracking_number\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/{{admin_booking_id}}/update_status",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "{{admin_booking_id}}",
+                    "update_status"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Cancel Booking",
@@ -1198,7 +1593,57 @@
               ]
             },
             "description": "Only allowed while the booking is in draft/ordered_and_delivery_pending/confirmed/processing."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "PATCH",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/{{admin_booking_id}}/cancel",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "{{admin_booking_id}}",
+                    "cancel"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Mark Booking Delivered",
@@ -1226,7 +1671,274 @@
               ]
             },
             "description": "Only allowed while the booking is out_for_delivery. Auto-transitions to completed."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "PATCH",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/{{admin_booking_id}}/mark_delivered",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "{{admin_booking_id}}",
+                    "mark_delivered"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Bulk Mark Bookings Paid",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"booking_ids\": [5, 4, 999]\n}"
+            },
+            "url": {
+              "raw": "{{admin_base_url}}/bookings/bulk_mark_paid",
+              "host": [
+                "{{admin_base_url}}"
+              ],
+              "path": [
+                "bookings",
+                "bulk_mark_paid"
+              ]
+            },
+            "description": "Marks the given bookings fully paid (same as the web list's Mark Selected as Paid; also works for one id). Returns updated_count, failed_count, skipped_ids (already paid/refunded or not found), bookings[] and failed[] {id, booking_number, error}. 422 if booking_ids is empty, nothing selected is unpaid, or every update failed. Admin only: read-only users get 403."
+          },
+          "response": [
+            {
+              "name": "200 All marked paid",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"booking_ids\": [5, 4, 999]\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/bulk_mark_paid",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "bulk_mark_paid"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Marked 2 booking(s) as paid.\",\n  \"data\": {\n    \"updated_count\": 2,\n    \"failed_count\": 0,\n    \"skipped_ids\": [\n      999\n    ],\n    \"bookings\": [\n      {\n        \"id\": 5,\n        \"booking_number\": \"BK20261028AE39A4\",\n        \"status\": \"confirmed\",\n        \"payment_status\": \"paid\",\n        \"payment_method\": \"upi\",\n        \"total_amount\": 500.0,\n        \"customer_name\": \"Ravi Kumar\",\n        \"customer_phone\": \"9876543210\",\n        \"delivery_address\": \"123 Main St\",\n        \"items_count\": 2,\n        \"is_pre_booking\": false,\n        \"created_at\": \"2026-10-28T10:15:00.000+05:30\",\n        \"whatsapp_thanks_url\": \"https://wa.me/919876543210?text=Dear%20Ravi%20Kumar%2C...\"\n      }\n    ],\n    \"failed\": []\n  }\n}"
+            },
+            {
+              "name": "200 Some failed",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"booking_ids\": [5, 4, 999]\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/bulk_mark_paid",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "bulk_mark_paid"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Marked 1 booking(s) as paid. 1 failed.\",\n  \"data\": {\n    \"updated_count\": 1,\n    \"failed_count\": 1,\n    \"skipped_ids\": [],\n    \"bookings\": [\n      {\n        \"id\": 5,\n        \"booking_number\": \"BK20261028AE39A4\",\n        \"status\": \"confirmed\",\n        \"payment_status\": \"paid\",\n        \"payment_method\": \"upi\",\n        \"total_amount\": 500.0,\n        \"customer_name\": \"Ravi Kumar\",\n        \"customer_phone\": \"9876543210\",\n        \"delivery_address\": \"123 Main St\",\n        \"items_count\": 2,\n        \"is_pre_booking\": false,\n        \"created_at\": \"2026-10-28T10:15:00.000+05:30\",\n        \"whatsapp_thanks_url\": \"https://wa.me/919876543210?text=Dear%20Ravi%20Kumar%2C...\"\n      }\n    ],\n    \"failed\": [\n      {\n        \"id\": 4,\n        \"booking_number\": \"BK20261027XXXXXX\",\n        \"error\": \"reason\"\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "422 Nothing unpaid",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"booking_ids\": [5, 4, 999]\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/bulk_mark_paid",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "bulk_mark_paid"
+                  ]
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"No unpaid bookings were selected.\",\n  \"errors\": null\n}"
+            },
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"booking_ids\": [5, 4, 999]\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/bulk_mark_paid",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "bulk_mark_paid"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Generate Booking Invoice",
@@ -1254,7 +1966,47 @@
               ]
             },
             "description": "Fails with 422 if the booking already has an invoice, or has no items."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/bookings/{{admin_booking_id}}/generate_invoice",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "bookings",
+                    "{{admin_booking_id}}",
+                    "generate_invoice"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "List Products",
@@ -1375,7 +2127,55 @@
               ]
             },
             "description": "product_type must be one of: Milk, Grocery, Fruit & Vegetable. unit_type: Kg, Bottle, Box, Liter, Piece, Gram, Milliliter, Dozen, Packet, Bag."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"product\": {\n    \"name\": \"New Product\",\n    \"sku\": \"SKU-001\",\n    \"category_id\": \"{{admin_category_id}}\",\n    \"price\": 100,\n    \"stock\": 20,\n    \"status\": \"active\",\n    \"product_type\": \"Grocery\",\n    \"unit_type\": \"Piece\",\n    \"description\": \"\",\n    \"buying_price\": \"\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/products",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "products"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Update Product",
@@ -1411,7 +2211,56 @@
                 "{{admin_product_id}}"
               ]
             }
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "PATCH",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"product\": {\n    \"price\": 120,\n    \"stock\": 15\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/products/{{admin_product_id}}",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "products",
+                    "{{admin_product_id}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Delete Product",
@@ -1438,7 +2287,46 @@
               ]
             },
             "description": "Historical booking/order/invoice references are nullified rather than deleted. Fails with 422 if a foreign key still blocks deletion."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "DELETE",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/products/{{admin_product_id}}",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "products",
+                    "{{admin_product_id}}"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Upload Product Image",
@@ -1482,7 +2370,63 @@
               ]
             },
             "description": "Uploads to Cloudflare R2 (folder: products). Response includes the updated gallery."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "image",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "main",
+                      "value": "true",
+                      "type": "text",
+                      "description": "true = replace main image; omit/false = append to gallery"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/products/{{admin_product_id}}/upload_image",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "products",
+                    "{{admin_product_id}}",
+                    "upload_image"
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Remove Product Image",
@@ -1516,7 +2460,53 @@
               ]
             },
             "description": "gallery_id comes from the 'id' field of an entry in Show Product's data.gallery array (e.g. r2_main, r2_additional_0)."
-          }
+          },
+          "response": [
+            {
+              "name": "403 Read-only user",
+              "originalRequest": {
+                "method": "DELETE",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{admin_access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{admin_base_url}}/products/{{admin_product_id}}/remove_image?gallery_id={{admin_gallery_id}}",
+                  "host": [
+                    "{{admin_base_url}}"
+                  ],
+                  "path": [
+                    "products",
+                    "{{admin_product_id}}",
+                    "remove_image"
+                  ],
+                  "query": [
+                    {
+                      "key": "gallery_id",
+                      "value": "{{admin_gallery_id}}"
+                    }
+                  ]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+            }
+          ]
         },
         {
           "name": "Orders",
@@ -1630,7 +2620,57 @@
                   ]
                 },
                 "description": "status must be one of Order's enum values (draft, ordered_and_delivery_pending, confirmed, processing, packed, shipped, out_for_delivery, delivered, completed, cancelled, returned)."
-              }
+              },
+              "response": [
+                {
+                  "name": "403 Read-only user",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{admin_access_token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"status\": \"shipped\",\n  \"tracking_number\": \"\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{admin_base_url}}/orders/{{admin_order_id}}/update_status",
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "orders",
+                        "{{admin_order_id}}",
+                        "update_status"
+                      ]
+                    }
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+                }
+              ]
             },
             {
               "name": "Cancel Order",
@@ -1668,7 +2708,57 @@
                   ]
                 },
                 "description": "Only allowed while the order is draft/ordered_and_delivery_pending/confirmed/processing."
-              }
+              },
+              "response": [
+                {
+                  "name": "403 Read-only user",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{admin_access_token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"reason\": \"Customer requested cancellation\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{admin_base_url}}/orders/{{admin_order_id}}/cancel",
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "orders",
+                        "{{admin_order_id}}",
+                        "cancel"
+                      ]
+                    }
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+                }
+              ]
             }
           ]
         },
@@ -1775,7 +2865,47 @@
                   ]
                 },
                 "description": "Enables/disables the customer's account (flips status)."
-              }
+              },
+              "response": [
+                {
+                  "name": "403 Read-only user",
+                  "originalRequest": {
+                    "method": "PATCH",
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{admin_access_token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "url": {
+                      "raw": "{{admin_base_url}}/customers/{{admin_customer_id}}/toggle_status",
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "customers",
+                        "{{admin_customer_id}}",
+                        "toggle_status"
+                      ]
+                    }
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+                }
+              ]
             }
           ]
         },
@@ -1904,7 +3034,96 @@
                   ]
                 },
                 "description": "image is optional and uploaded to Cloudflare R2; omit it (or pass image_url/r2_image_url as text fields instead) to link an already-hosted image."
-              }
+              },
+              "response": [
+                {
+                  "name": "403 Read-only user",
+                  "originalRequest": {
+                    "method": "POST",
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{admin_access_token}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "title",
+                          "value": "New Banner",
+                          "type": "text"
+                        },
+                        {
+                          "key": "description",
+                          "value": "",
+                          "type": "text"
+                        },
+                        {
+                          "key": "redirect_link",
+                          "value": "",
+                          "type": "text"
+                        },
+                        {
+                          "key": "display_location",
+                          "value": "dashboard",
+                          "type": "text",
+                          "description": "dashboard, login, home, or sidebar"
+                        },
+                        {
+                          "key": "display_start_date",
+                          "value": "2026-01-01",
+                          "type": "text"
+                        },
+                        {
+                          "key": "display_end_date",
+                          "value": "2026-12-31",
+                          "type": "text"
+                        },
+                        {
+                          "key": "display_order",
+                          "value": "1",
+                          "type": "text"
+                        },
+                        {
+                          "key": "status",
+                          "value": "true",
+                          "type": "text"
+                        },
+                        {
+                          "key": "image",
+                          "type": "file",
+                          "src": []
+                        }
+                      ]
+                    },
+                    "url": {
+                      "raw": "{{admin_base_url}}/banners",
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "banners"
+                      ]
+                    }
+                  },
+                  "status": "Forbidden",
+                  "code": 403,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "cookie": [],
+                  "body": "{\n  \"success\": false,\n  \"message\": \"Read-only access\",\n  \"errors\": null\n}"
+                }
+              ]
             }
           ]
         },

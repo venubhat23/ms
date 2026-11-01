@@ -65,11 +65,11 @@ class User < ApplicationRecord
   # Customers may sign up with only an email, so their login has no mobile.
   validates :mobile, presence: true, unless: :customer?
   validates :mobile, uniqueness: { allow_nil: true }
-  validates :user_type, presence: true, inclusion: { in: ['admin', 'agent', 'sub_agent', 'customer', 'franchise', 'affiliate', 'delivery_person', 'store_admin'] }
+  validates :user_type, presence: true, inclusion: { in: ['admin', 'admin_viewer', 'agent', 'sub_agent', 'customer', 'franchise', 'affiliate', 'delivery_person', 'store_admin'] }
   # Note: role validation can be added later when roles are set up
 
   # Enums
-  enum :user_type, { admin: 'admin', agent: 'agent', sub_agent: 'sub_agent', customer: 'customer', franchise: 'franchise', affiliate: 'affiliate', delivery_person: 'delivery_person', store_admin: 'store_admin' }
+  enum :user_type, { admin: 'admin', admin_viewer: 'admin_viewer', agent: 'agent', sub_agent: 'sub_agent', customer: 'customer', franchise: 'franchise', affiliate: 'affiliate', delivery_person: 'delivery_person', store_admin: 'store_admin' }
 
   # Callbacks
   after_update :role_changed_callback

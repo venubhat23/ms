@@ -169,6 +169,7 @@
     <% end %>
     <%= stylesheet_link_tag "auth", "data-turbo-track": "reload" if !user_signed_in? %>
 
+  <%= render 'shared/app_head', portal: 'admin' %>
   </head>
 
   <body class="insurance-app">

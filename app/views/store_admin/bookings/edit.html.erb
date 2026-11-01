@@ -37,7 +37,7 @@
         <div class="col-md-3">
           <label class="form-label">Payment Method</label>
           <%= f.select :payment_method,
-              options_for_select([['Cash', 'cash'], ['UPI', 'upi'], ['Card', 'card'], ['Bank Transfer', 'bank_transfer']], @booking.payment_method),
+              options_for_select([['Cash', 'cash'], ['UPI', 'upi'], ['Card', 'card'], ['Bank Transfer', 'bank_transfer']], @booking.payment_method.presence || 'upi'),
               { include_blank: "Select Method" },
               { class: "form-select" } %>
         </div>
@@ -45,7 +45,7 @@
         <div class="col-md-3">
           <label class="form-label">Payment Status</label>
           <%= f.select :payment_status,
-              options_for_select([['Unpaid', 'unpaid'], ['Paid', 'paid']], @booking.payment_status),
+              options_for_select([['Unpaid', 'unpaid'], ['Paid', 'paid']], @booking.payment_status.presence || 'unpaid'),
               {},
               { class: "form-select" } %>
         </div>

@@ -257,11 +257,11 @@
       inv_wa_url = nil
       if bi&.share_token.present? && wa_phone.present?
         inv_url = "#{request.base_url}/invoice/#{bi.share_token}"
-        inv_msg = "Dear #{cname},\n\nHere is your invoice from Marali Santhe 🛒\n\nBooking #: #{booking.booking_number}\nAmount: ₹#{amount}\n\n📋 View Invoice: #{inv_url}\n\nThank you!\n🙏 Marali Santhe Team"
+        inv_msg = "Dear #{cname},\n\nHere is your invoice from Marali Santhe 🛒\n\nBooking #: #{booking.booking_number}\nAmount: ₹#{amount}\n\n📋 View Invoice: #{inv_url}\n\nThank you!\nMarali Santhe"
         inv_wa_url = "https://wa.me/#{wa_phone}?text=#{ERB::Util.url_encode(inv_msg)}"
       end
 
-      wa_thank_msg = "Dear #{cname},\n\nThank you for your booking with Marali Santhe! 🛒\n\nBooking #: #{booking.booking_number}\nDate: #{bdate}\nAmount: ₹#{amount}\n\nWe appreciate your trust in us!\n\n🙏 Marali Santhe Team"
+      wa_thank_msg = booking_payment_thanks_message(booking)
     %>
     <div class="booking-card">
       <div class="booking-card-header">

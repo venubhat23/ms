@@ -82,7 +82,8 @@
 
                 <div class="col-md-3">
                   <div class="form-check">
-                    <%= f.radio_button :payment_method, 'upi', class: 'form-check-input', id: 'payment_upi', onchange: 'selectPaymentMethod("upi")' %>
+                    <%= f.radio_button :payment_method, 'upi', class: 'form-check-input', id: 'payment_upi', onchange: 'selectPaymentMethod("upi")',
+                                       checked: @booking.payment_method.blank? || @booking.payment_method.to_s == 'upi' %><%# UPI is the default when none chosen %>
                     <label class="form-check-label" for="payment_upi">
                       <i class="bi bi-phone me-1"></i>UPI Payment
                     </label>
@@ -109,7 +110,7 @@
                     ['Paid', 'paid'],
                     ['Partially Paid', 'partially_paid'],
                     ['Refunded', 'refunded']
-                  ], @booking.payment_status),
+                  ], @booking.payment_status.presence || 'unpaid'),
                   {},
                   { class: 'form-select' } %>
             </div>
@@ -126,6 +127,44 @@
                   <%= f.number_field :change_amount, class: 'form-control', readonly: true, placeholder: '0.00' %>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking Status -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-transparent border-0">
+          <h5 class="mb-0">
+            <i class="bi bi-gear text-primary me-2"></i>
+            Booking Status
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Current Status</label>
+              <%= f.select :status,
+                  options_for_select([
+                    ['Draft', 'draft'],
+                    ['Ordered & Delivery Pending', 'ordered_and_delivery_pending'],
+                    ['Confirmed', 'confirmed'],
+                    ['Processing', 'processing'],
+                    ['Packed', 'packed'],
+                    ['Shipped', 'shipped'],
+                    ['Out for Delivery', 'out_for_delivery'],
+                    ['Delivered', 'delivered'],
+                    ['Completed', 'completed'],
+                    ['Cancelled', 'cancelled'],
+                    ['Returned', 'returned']
+                  ], @booking.status),
+                  {},
+                  { class: 'form-select' } %>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Booking Date</label>
+              <%= f.datetime_local_field :booking_date, class: 'form-control' %>
             </div>
           </div>
         </div>
@@ -296,44 +335,6 @@
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Booking Status -->
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="card-header bg-transparent border-0">
-          <h5 class="mb-0">
-            <i class="bi bi-gear text-primary me-2"></i>
-            Booking Status
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label">Current Status</label>
-              <%= f.select :status,
-                  options_for_select([
-                    ['Draft', 'draft'],
-                    ['Ordered & Delivery Pending', 'ordered_and_delivery_pending'],
-                    ['Confirmed', 'confirmed'],
-                    ['Processing', 'processing'],
-                    ['Packed', 'packed'],
-                    ['Shipped', 'shipped'],
-                    ['Out for Delivery', 'out_for_delivery'],
-                    ['Delivered', 'delivered'],
-                    ['Completed', 'completed'],
-                    ['Cancelled', 'cancelled'],
-                    ['Returned', 'returned']
-                  ], @booking.status),
-                  {},
-                  { class: 'form-select' } %>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Booking Date</label>
-              <%= f.datetime_local_field :booking_date, class: 'form-control' %>
             </div>
           </div>
         </div>
@@ -705,7 +706,7 @@ function fillCustomerDetails(select) {
 // Runs on full loads and Turbo visits (script sits after the form)
 (function() {
   // Set initial payment method
-  const currentPaymentMethod = '<%= @booking.payment_method %>';
+  const currentPaymentMethod = '<%= @booking.payment_method.presence || 'upi' %>';
   selectPaymentMethod(currentPaymentMethod);
 
   document.querySelectorAll('#booking-items select[onchange^="updateItemPrice"]').forEach(initProductSearch);

@@ -431,11 +431,14 @@
           <%= hidden_field_tag "list_state[#{key}]", value %>
         <% end %>
       <% end %>
-      <div id="bulkPaidBar" class="align-items-center gap-2 px-3 py-2 bg-success-subtle border-bottom" style="display: none;">
+      <%# Pinned to the top of the screen so it stays visible while ticking rows anywhere in the list. %>
+      <div id="bulkPaidBar" class="align-items-center gap-2 px-3 py-2 bg-success-subtle border border-success rounded-pill shadow"
+           style="display: none; position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 2000;">
         <span class="small fw-semibold"><span id="bulkPaidCount">0</span> selected</span>
         <button type="submit" form="bulkPaidForm" class="btn btn-success btn-sm">
           <i class="bi bi-check-circle me-1"></i>Mark Selected as Paid
         </button>
+        <button type="button" class="btn btn-link btn-sm text-secondary" onclick="document.querySelectorAll('.bulk-paid-checkbox, #bulkPaidSelectAll').forEach(cb => { cb.checked = false; }); window.refreshBulkPaid?.();">Clear</button>
       </div>
       <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -464,16 +467,16 @@
                  booking_inv_share_token = first_invoice&.share_token.presence || booking.associated_invoice&.share_token.presence %>
               <tr class="<%= 'franchise-booking' if booking.user&.franchise? %>">
                 <td class="align-middle">
-                  <% unless booking.payment_status_paid? || booking.payment_status_refunded? %>
+                  <%# Every row gets a box; already paid/refunded ones are shown disabled. %>
+                  <% if booking.payment_status_paid? || booking.payment_status_refunded? %>
+                    <input class="form-check-input" type="checkbox" checked disabled title="Already paid">
+                  <% else %>
                     <input class="form-check-input bulk-paid-checkbox" type="checkbox" name="booking_ids[]"
                            value="<%= booking.id %>" form="bulkPaidForm" title="Select for bulk Mark as Paid">
                   <% end %>
                 </td>
                 <td class="align-middle">
                   <div class="d-flex align-items-center">
-                    <div class="avatar-sm bg-primary-subtle rounded-circle d-flex align-items-center justify-content-center me-3">
-                      <i class="bi bi-cart text-primary"></i>
-                    </div>
                     <div>
                       <h6 class="mb-0">#<%= booking.booking_number %></h6>
                       <small class="text-muted"><%= booking.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p IST") if booking.created_at %></small>
@@ -640,7 +643,8 @@
                     <% end %>
                     <% if booking.payment_status_paid? && (thanks_url = booking_payment_thanks_whatsapp_url(booking)) %>
                       <a href="<%= thanks_url %>" target="_blank" rel="noopener"
-                         class="btn btn-sm btn-outline-success py-0 px-2 mt-1 d-inline-flex align-items-center"
+                         class="btn btn-sm py-0 px-2 mt-1 d-inline-flex align-items-center"
+                         style="background:#25D366;border-color:#25D366;color:#fff;font-weight:600;"
                          title="Acknowledge payment and send a thank-you note on WhatsApp">
                         <i class="bi bi-whatsapp me-1"></i><small>Payment Thank You</small>
                       </a>
@@ -768,7 +772,7 @@
                         wa_date   = (booking.booking_date.presence || booking.created_at)&.strftime('%d %b %Y')
                         wa_inv_link = booking_inv_share_token.present? ? "\n📋 View Invoice: #{request.base_url}/invoice/#{booking_inv_share_token}" : ""
                         wa_pdf_line = booking_inv_share_token.present? ? "\n📄 Download PDF: #{request.base_url}/invoice/#{booking_inv_share_token}/download" : ""
-                        wa_msg = "Dear #{wa_cname},\n\nThank you for your booking with Marali Santhe! 🛒\n\nBooking #: #{booking.booking_number}\nDate: #{wa_date}\nAmount: ₹#{wa_amount}#{wa_inv_link}#{wa_pdf_line}\n\nWe appreciate your trust in us!\n\n🙏 Marali Santhe Team"
+                        wa_msg = booking_payment_thanks_message(booking)
                       %>
                       <% if wa_phone_full.present? %>
                         <a href="https://wa.me/<%= wa_phone_full %>?text=<%= ERB::Util.url_encode(wa_msg) %>"
@@ -785,7 +789,7 @@
                         <% if booking_inv_share_token.present? %>
                           <% wa_inv_url     = public_invoice_url(token: booking_inv_share_token) %>
                           <% wa_inv_pdf_url = "#{request.base_url}/invoice/#{booking_inv_share_token}/download" %>
-                          <% wa_inv_text    = "Dear #{wa_cname},\n\nHere is your invoice from Marali Santhe 🛒\n\nBooking #: #{booking.booking_number}\nAmount: ₹#{wa_amount}\n\n📋 View Invoice: #{wa_inv_url}\n📄 Download PDF: #{wa_inv_pdf_url}\n\nThank you!\n🙏 Marali Santhe Team" %>
+                          <% wa_inv_text    = "Dear #{wa_cname},\n\nHere is your invoice from Marali Santhe 🛒\n\nBooking #: #{booking.booking_number}\nAmount: ₹#{wa_amount}\n\n📋 View Invoice: #{wa_inv_url}\n📄 Download PDF: #{wa_inv_pdf_url}\n\nThank you!\nMarali Santhe" %>
                           <a href="https://wa.me/<%= wa_phone_full.present? ? wa_phone_full : '' %>?text=<%= ERB::Util.url_encode(wa_inv_text) %>"
                              class="action-icon whatsapp"
                              target="_blank"
@@ -1154,27 +1158,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (hint) hint.style.display = (searchTerm && visibleCount === 0) ? '' : 'none';
   });
 
-  // Bulk Mark as Paid: show the action bar while any row is ticked
-  const bulkPaidBoxes = document.querySelectorAll('.bulk-paid-checkbox');
-  const bulkPaidSelectAll = document.getElementById('bulkPaidSelectAll');
-  function refreshBulkPaidBar() {
-    const checked = document.querySelectorAll('.bulk-paid-checkbox:checked').length;
-    const bar = document.getElementById('bulkPaidBar');
-    if (bar) bar.style.display = checked > 0 ? 'flex' : 'none';
-    const count = document.getElementById('bulkPaidCount');
-    if (count) count.textContent = checked;
-    if (bulkPaidSelectAll) {
-      bulkPaidSelectAll.checked = checked > 0 && checked === bulkPaidBoxes.length;
-      bulkPaidSelectAll.indeterminate = checked > 0 && checked < bulkPaidBoxes.length;
-    }
-  }
-  bulkPaidBoxes.forEach(cb => cb.addEventListener('change', refreshBulkPaidBar));
-  bulkPaidSelectAll?.addEventListener('change', function() {
-    bulkPaidBoxes.forEach(cb => {
-      if (cb.closest('tr').style.display !== 'none') cb.checked = this.checked; // only rows visible under the live search
-    });
-    refreshBulkPaidBar();
-  });
 
   // Cleanup interval when page is unloaded
   window.addEventListener('beforeunload', function() {
@@ -1915,3 +1898,38 @@ td .d-flex.gap-2 {
 </style>
 
 <%= render "admin/bookings/payment_link_modal" %>
+
+<script>
+  // Bulk Mark as Paid checkboxes. Delegated on document (bound once) so it works
+  // on full loads and Turbo visits alike, and always sees the current rows.
+  if (!window.bulkPaidBound) {
+    window.bulkPaidBound = true;
+    const visibleBoxes = () => Array.from(document.querySelectorAll('.bulk-paid-checkbox'))
+      .filter(cb => cb.closest('tr')?.style.display !== 'none'); // respect the live search filter
+    const refreshBulkPaid = () => {
+      const all = visibleBoxes();
+      const checked = document.querySelectorAll('.bulk-paid-checkbox:checked').length;
+      const bar = document.getElementById('bulkPaidBar');
+      // A transformed ancestor would make position:fixed scroll with it; park the bar on <body>.
+      if (bar && bar.parentElement !== document.body) document.body.appendChild(bar);
+      if (bar) bar.style.display = checked > 0 ? 'flex' : 'none';
+      const count = document.getElementById('bulkPaidCount');
+      if (count) count.textContent = checked;
+      const selectAll = document.getElementById('bulkPaidSelectAll');
+      if (selectAll) {
+        selectAll.checked = all.length > 0 && all.every(cb => cb.checked);
+        selectAll.indeterminate = checked > 0 && !selectAll.checked;
+      }
+    };
+    window.refreshBulkPaid = refreshBulkPaid;
+    document.addEventListener('change', e => {
+      if (e.target.id === 'bulkPaidSelectAll') {
+        visibleBoxes().forEach(cb => { cb.checked = e.target.checked; });
+        refreshBulkPaid();
+      } else if (e.target.classList?.contains('bulk-paid-checkbox')) {
+        refreshBulkPaid();
+      }
+    });
+    document.addEventListener('turbo:load', refreshBulkPaid);
+  }
+</script>

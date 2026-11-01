@@ -648,6 +648,12 @@
         display: none;
       }
     }
+    /* Items section fully bold */
+    .items-table td, .items-table td * { font-weight: bold; color: #000; }
+    .items-table .tax-rate { color: #333; }
+    .items-table .product-name { font-size: 13px; }
+    /* All amounts bold */
+    .tax-line span:last-child { font-weight: bold; color: #000; }
   </style>
 </head>
 <body>
@@ -959,7 +965,7 @@
             <span>TOTAL AMOUNT</span>
             <span>₹<%= number_with_delimiter(final_total.round(2), delimiter: ',') %></span>
           </div>
-          <div class="tax-line" style="font-weight: normal; font-size: 12px;">
+          <div class="tax-line" style="font-size: 12px;">
             <span>Received Amount</span>
             <span>₹<%= @invoice.status == 'paid' ? number_with_delimiter(final_total.round(2), delimiter: ',') : '0' %></span>
           </div>

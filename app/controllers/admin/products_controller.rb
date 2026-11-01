@@ -1,7 +1,7 @@
 class Admin::ProductsController < Admin::ApplicationController
   include LocationHelper
 
-  before_action :set_product, only: [:show, :edit, :update, :destroy, :toggle_status, :detail, :dependencies,
+  before_action :set_product, only: [:show, :edit, :update, :edit_variants, :update_variants, :destroy, :toggle_status, :detail, :dependencies,
                                       :manage_images, :upload_main_image, :upload_additional_image, :destroy_gallery_image]
   before_action :authenticate_user!
 
@@ -42,6 +42,13 @@ class Admin::ProductsController < Admin::ApplicationController
 
     if params[:category_id].present?
       @products = @products.by_category(params[:category_id])
+      @selected_category_name = Category.where(id: params[:category_id]).pick(:name)
+    end
+
+    # Set by picking one product in the quick-search dropdown.
+    if params[:product_id].present?
+      @products = @products.where(id: params[:product_id])
+      @selected_product_name = Product.where(id: params[:product_id]).pick(:name)
     end
 
     if params[:status].present?
@@ -75,7 +82,7 @@ class Admin::ProductsController < Admin::ApplicationController
     # Kaminari memoizes total_count in this ivar on first access, so pre-seeding
     # it from a short-lived cache avoids a COUNT(*) round trip on every unfiltered
     # load (the "Total Products" stat tolerates a minute or two of staleness).
-    if params[:search].blank? && params[:category_id].blank? && params[:status].blank? && params[:stock_status].blank?
+    if params[:search].blank? && params[:category_id].blank? && params[:product_id].blank? && params[:status].blank? && params[:stock_status].blank?
       @products.instance_variable_set(:@total_count, Rails.cache.fetch('admin_products/total_count', expires_in: 2.minutes) { Product.count })
     end
 
@@ -187,6 +194,47 @@ class Admin::ProductsController < Admin::ApplicationController
     ['Product was successfully updated.', (changes.join(', ').upcase_first + '.' if changes.any?)].compact.join(' ')
   end
   private :product_updated_notice
+
+  # GET /admin/products/:id/edit_variants — variants only, separate from the
+  # full product form.
+  def edit_variants
+    unless @product.has_multiple_quantities?
+      redirect_to admin_product_path(@product), alert: 'This product does not use variants.' and return
+    end
+
+    @variants = @product.sorted_variants
+  end
+
+  # PATCH /admin/products/:id/update_variants
+  def update_variants
+    rows = variant_rows
+    @product.assign_attributes(product_variants_attributes: rows)
+    @variants = @product.product_variants.target
+
+    added = @variants.count(&:new_record?)
+    removed = @variants.count(&:marked_for_destruction?)
+    updated = @variants.count { |variant| variant_edited?(variant) }
+
+    if added.zero? && removed.zero? && updated.zero?
+      redirect_to admin_product_path(@product), notice: 'No variant changes to save.' and return
+    end
+
+    @variant_errors = variant_row_errors(rows)
+    if @variant_errors.empty? && @product.save
+      summary = { 'added' => added, 'removed' => removed, 'updated' => updated }
+                .select { |_, count| count.positive? }.map { |label, count| "#{count} #{label}" }
+      redirect_to admin_product_path(@product), notice: "Variants saved: #{summary.join(', ')}."
+    else
+      @variant_errors = @product.errors.full_messages if @variant_errors.empty?
+      render :edit_variants, status: :unprocessable_entity
+    end
+  rescue ActiveRecord::RecordNotUnique
+    @variant_errors = ['Two variants cannot have the same weight and unit.']
+    render :edit_variants, status: :unprocessable_entity
+  rescue ActiveRecord::RecordNotFound
+    redirect_to edit_variants_admin_product_path(@product),
+                alert: 'A variant was changed by someone else. Check the list and try again.'
+  end
 
   # GET /admin/products/:id/dependencies — what a delete would touch, for the
   # confirmation prompt. Mirrors purge_and_destroy_product! below.
@@ -598,6 +646,7 @@ class Admin::ProductsController < Admin::ApplicationController
                       .search(params[:q])
                       .order(Arel.sql("CASE WHEN name ILIKE #{Product.connection.quote("#{Product.sanitize_sql_like(params[:q].to_s.strip)}%")} THEN 0 ELSE 1 END, name ASC"))
                       .limit(20)
+    products = products.by_category(params[:category_id]) if params[:category_id].present?
 
     render json: {
       results: products.map { |p|
@@ -613,6 +662,24 @@ class Admin::ProductsController < Admin::ApplicationController
           image: p.main_image_url(width: 80, height: 80),
           url: admin_product_path(p)
         }
+      }
+    }
+  end
+
+  # Select2 source for the catalog's category filter. Lives here rather than on
+  # CategoriesController so it needs no more access than the products page does.
+  # Inactive categories are included because their products are still listed.
+  def categories_for_select
+    categories = Category.select(:id, :name, :status).ordered.limit(30)
+    if params[:q].present?
+      categories = categories.where('name ILIKE ?', "%#{Category.sanitize_sql_like(params[:q].to_s.strip)}%")
+    end
+    categories = categories.to_a
+    counts = Product.where(category_id: categories.map(&:id)).group(:category_id).count
+
+    render json: {
+      results: categories.map { |c|
+        { id: c.id, text: c.name, active: c.status, count: counts.fetch(c.id, 0) }
       }
     }
   end
@@ -942,6 +1009,48 @@ class Admin::ProductsController < Admin::ApplicationController
   end
 
   private
+
+  def variant_rows
+    rows = params.fetch(:product, {}).permit(product_variants_attributes: [
+      :id, :weight, :unit, :buying_price, :selling_price, :b2b_selling_price,
+      :discount_enabled, :discount_type, :discount_value,
+      :available_stock, :stock_loaded, :gst_percentage, :_destroy
+    ]).to_h.fetch('product_variants_attributes', {})
+
+    kept_keys = rows.reject { |_, row| row['_destroy'] == '1' }.keys
+    default_key = kept_keys.include?(params[:default_variant]) ? params[:default_variant] : kept_keys.first
+
+    rows.each do |key, row|
+      row['is_default'] = key == default_key
+      row['discount_type'] = row['discount_type'].presence
+      # Bookings lower variant stock while this page sits open, so a box the
+      # admin left alone must not write its old number back over those sales.
+      row.delete('available_stock') if row['id'].present? && row['available_stock'] == row['stock_loaded']
+      row.delete('stock_loaded')
+    end
+  end
+
+  # Losing the default flag only follows from another row taking it, so that
+  # row isn't an edit of its own.
+  def variant_edited?(variant)
+    return false if variant.new_record? || variant.marked_for_destruction?
+
+    (variant.changed - (variant.is_default? ? [] : ['is_default'])).any?
+  end
+
+  # accepts_nested_attributes_for silently drops rows with no weight or price,
+  # and the database rejects a repeated weight + unit with an exception.
+  def variant_row_errors(rows)
+    errors = []
+    if rows.values.any? { |row| row['_destroy'] != '1' && (row['weight'].blank? || row['selling_price'].blank?) }
+      errors << 'Every variant needs a weight and a selling price.'
+    end
+
+    @variants.reject(&:marked_for_destruction?).group_by { |v| [v.weight&.to_d, v.unit] }.each do |(weight, unit), same|
+      errors << "Only one #{weight.to_f.to_s.sub(/\.0$/, '')} #{unit} variant is allowed." if weight && same.size > 1
+    end
+    errors
+  end
 
   def handle_cloudinary_uploads
     return unless params[:product][:cloudinary_images].is_a?(Array)

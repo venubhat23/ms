@@ -1,0 +1,69 @@
+<%
+  removed = variant.marked_for_destruction?
+  field = ->(name) { "product[product_variants_attributes][#{key}][#{name}]" }
+  number = ->(value) { value.nil? ? nil : value.to_f.to_s.sub(/\.0$/, '') }
+  units = ProductVariant::UNIT_TYPES.map(&:last) | [variant.unit].compact
+%>
+<div class="variant-row <%= 'is-removed' if removed %>" data-variant-row data-new="<%= variant.new_record? %>">
+  <% if variant.persisted? %>
+    <%= hidden_field_tag field.call(:id), variant.id, id: nil %>
+    <%= hidden_field_tag field.call(:stock_loaded), variant.available_stock_was, id: nil %>
+  <% end %>
+  <%= hidden_field_tag field.call(:_destroy), removed ? '1' : '0', id: nil, data: { destroy_field: true } %>
+
+  <div class="variant-row-head">
+    <label class="variant-default">
+      <%= radio_button_tag :default_variant, key, variant.is_default?, id: nil %>
+      <span>Default</span>
+    </label>
+    <span class="variant-removed-note">Will be removed when you save</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" data-remove-variant>
+      <i class="bi bi-trash me-1"></i>Remove
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-undo-remove>
+      <i class="bi bi-arrow-counterclockwise me-1"></i>Undo
+    </button>
+  </div>
+
+  <div class="variant-fields">
+    <div>
+      <label class="form-label">Weight *</label>
+      <%= number_field_tag field.call(:weight), number.call(variant.weight), id: nil, class: 'form-control', step: 'any', min: 0.001, required: true %>
+    </div>
+    <div>
+      <label class="form-label">Unit *</label>
+      <%= select_tag field.call(:unit), options_for_select(units, variant.unit), id: nil, class: 'form-select' %>
+    </div>
+    <div>
+      <label class="form-label">Selling Price ₹ *</label>
+      <%= number_field_tag field.call(:selling_price), number.call(variant.selling_price), id: nil, class: 'form-control', step: 0.01, min: 0, required: true %>
+    </div>
+    <div>
+      <label class="form-label">Buying Price ₹</label>
+      <%= number_field_tag field.call(:buying_price), number.call(variant.buying_price), id: nil, class: 'form-control', step: 0.01, min: 0 %>
+    </div>
+    <div>
+      <label class="form-label">B2B Price ₹</label>
+      <%= number_field_tag field.call(:b2b_selling_price), number.call(variant.b2b_selling_price), id: nil, class: 'form-control', step: 0.01, min: 0.01, placeholder: 'Same as selling' %>
+    </div>
+    <div>
+      <label class="form-label">Stock</label>
+      <%= number_field_tag field.call(:available_stock), variant.available_stock, id: nil, class: 'form-control', step: 1, min: 0 %>
+    </div>
+    <div>
+      <label class="form-label">GST %</label>
+      <%= number_field_tag field.call(:gst_percentage), number.call(variant.gst_percentage), id: nil, class: 'form-control', step: 0.01, min: 0, placeholder: 'Product GST' %>
+    </div>
+    <div>
+      <label class="form-label">Discount</label>
+      <div class="input-group">
+        <div class="input-group-text">
+          <%= hidden_field_tag field.call(:discount_enabled), '0', id: nil %>
+          <%= check_box_tag field.call(:discount_enabled), '1', variant.discount_enabled?, id: nil, class: 'form-check-input mt-0', 'aria-label': 'Discount on' %>
+        </div>
+        <%= select_tag field.call(:discount_type), options_for_select([['%', 'percentage'], ['₹', 'fixed']], variant.discount_type), id: nil, include_blank: '-', class: 'form-select', 'aria-label': 'Discount type' %>
+        <%= number_field_tag field.call(:discount_value), number.call(variant.discount_value), id: nil, class: 'form-control', step: 0.01, min: 0, 'aria-label': 'Discount value' %>
+      </div>
+    </div>
+  </div>
+</div>

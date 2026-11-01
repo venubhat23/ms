@@ -1,0 +1,226 @@
+<div class="variant-editor">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div>
+      <h2 class="h4 mb-1"><i class="bi bi-layers me-2 text-primary"></i>Edit Variants</h2>
+      <div class="text-muted"><%= @product.name %></div>
+    </div>
+    <%= link_to admin_product_path(@product), class: 'btn btn-outline-secondary' do %>
+      <i class="bi bi-arrow-left me-1"></i>Back to Product
+    <% end %>
+  </div>
+
+  <% if @variant_errors.present? %>
+    <div class="alert alert-danger" role="alert">
+      <% @variant_errors.each do |message| %>
+        <div><%= message %></div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= form_with url: update_variants_admin_product_path(@product), method: :patch, id: 'variant-form' do %>
+    <div id="variant-rows">
+      <% @variants.each_with_index do |variant, index| %>
+        <%= render 'variant_row', variant: variant, key: index %>
+      <% end %>
+    </div>
+
+    <div class="alert alert-warning py-2" id="variant-last-warning" hidden>A product needs at least one variant.</div>
+
+    <button type="button" class="btn btn-outline-primary w-100 mb-3" id="add-variant">
+      <i class="bi bi-plus-lg me-1"></i>Add Variant
+    </button>
+
+    <div class="variant-save-bar">
+      <%= link_to 'Cancel', admin_product_path(@product), class: 'btn btn-outline-secondary' %>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-check-lg me-1"></i>Save Variants
+      </button>
+    </div>
+  <% end %>
+
+  <template id="variant-row-template">
+    <%= render 'variant_row', variant: ProductVariant.new(unit: @product.unit_type, available_stock: 0), key: 'NEW_ROW' %>
+  </template>
+</div>
+
+<div class="variant-saving" id="variant-saving" role="status" aria-live="polite" hidden>
+  <div class="variant-saving-card">
+    <div class="variant-saving-spinner">
+      <span></span><span></span><span></span>
+      <i class="bi bi-layers"></i>
+    </div>
+    <h4>Saving variants</h4>
+    <p>Updating prices and stock. This won't take long.</p>
+    <div class="variant-saving-bar"><div></div></div>
+  </div>
+</div>
+
+<style>
+  .variant-row {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .variant-row-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .variant-default { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+  .variant-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  .variant-fields > div:last-child { grid-column: span 2; }
+  .variant-fields .form-label { margin-bottom: 0.2rem; font-size: 0.8rem; color: #64748b; }
+  .variant-removed-note, .variant-row [data-undo-remove] { display: none; }
+  .variant-row.is-removed { background: #fef2f2; border-color: #fecaca; }
+  .variant-row.is-removed .variant-fields, .variant-row.is-removed .variant-default { opacity: 0.45; pointer-events: none; }
+  .variant-row.is-removed .variant-removed-note { display: inline; color: #b91c1c; font-size: 0.85rem; }
+  .variant-row.is-removed [data-undo-remove] { display: inline-block; }
+  .variant-row.is-removed [data-remove-variant] { display: none; }
+  .variant-save-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    background: #f7fafc;
+  }
+  .variant-saving {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+  }
+  .variant-saving[hidden] { display: none; }
+  .variant-saving-card {
+    width: 100%;
+    max-width: 340px;
+    padding: 2rem 1.5rem;
+    border: 1px solid #e9ecef;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+    text-align: center;
+    animation: variantRise 0.25s ease-out;
+  }
+  .variant-saving-card h4 { margin: 1rem 0 0.25rem; font-size: 1.15rem; }
+  .variant-saving-card p { margin-bottom: 1rem; color: #6c757d; font-size: 0.9rem; }
+  .variant-saving-spinner { position: relative; width: 88px; height: 88px; margin: 0 auto; }
+  .variant-saving-spinner span {
+    position: absolute;
+    inset: 0;
+    border: 3px solid transparent;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: variantSpin 1.1s linear infinite;
+  }
+  .variant-saving-spinner span:nth-child(2) { inset: 10px; border-top-color: #764ba2; animation-duration: 0.9s; animation-direction: reverse; }
+  .variant-saving-spinner span:nth-child(3) { inset: 20px; border-top-color: #22c55e; animation-duration: 0.7s; }
+  .variant-saving-spinner i {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #667eea;
+    font-size: 1.4rem;
+    animation: variantPulse 1.2s ease-in-out infinite;
+  }
+  .variant-saving-bar { height: 6px; overflow: hidden; border-radius: 3px; background: #e9ecef; }
+  .variant-saving-bar div {
+    width: 40%;
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    animation: variantSlide 1.2s ease-in-out infinite;
+  }
+  @keyframes variantSpin { to { transform: rotate(360deg); } }
+  @keyframes variantPulse { 50% { transform: scale(1.15); } }
+  @keyframes variantSlide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+  @keyframes variantRise { from { opacity: 0; transform: translateY(12px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .variant-saving-spinner span, .variant-saving-spinner i, .variant-saving-bar div { animation-duration: 3s; }
+  }
+  @media (max-width: 576px) {
+    .variant-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .variant-row { padding: 0.75rem; }
+    .variant-save-bar .btn { flex: 1; }
+  }
+</style>
+
+<script>
+  (function () {
+    var form = document.getElementById('variant-form')
+    var rows = document.getElementById('variant-rows')
+    var saving = document.getElementById('variant-saving')
+    var warning = document.getElementById('variant-last-warning')
+    // Rails only permits numeric keys on nested rows, so new rows can't use a prefix.
+    var nextKey = Date.now()
+
+    function activeRows() {
+      return rows.querySelectorAll('[data-variant-row]:not(.is-removed)')
+    }
+
+    function setRemoved(row, removed) {
+      row.classList.toggle('is-removed', removed)
+      row.querySelector('[data-destroy-field]').value = removed ? '1' : '0'
+      row.querySelectorAll('[required], [data-was-required]').forEach(function (input) {
+        input.required = !removed
+        input.toggleAttribute('data-was-required', removed)
+      })
+    }
+
+    // A removed row can't stay the default, so hand it to the next one.
+    function ensureDefault() {
+      var active = activeRows()
+      var hasDefault = Array.prototype.some.call(active, function (row) {
+        return row.querySelector('input[type=radio]').checked
+      })
+      if (active.length && !hasDefault) active[0].querySelector('input[type=radio]').checked = true
+    }
+
+    document.getElementById('add-variant').addEventListener('click', function () {
+      var html = document.getElementById('variant-row-template').innerHTML.replace(/NEW_ROW/g, nextKey++)
+      rows.insertAdjacentHTML('beforeend', html)
+      warning.hidden = true
+      ensureDefault()
+      var added = rows.lastElementChild
+      added.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      added.querySelector('input[type=number]').focus({ preventScroll: true })
+    })
+
+    rows.addEventListener('click', function (event) {
+      var row = event.target.closest('[data-variant-row]')
+      if (event.target.closest('[data-undo-remove]')) {
+        setRemoved(row, false)
+        warning.hidden = true
+      } else if (event.target.closest('[data-remove-variant]')) {
+        if (activeRows().length === 1) {
+          warning.hidden = false
+          return
+        }
+        if (row.dataset.new === 'true') row.remove()
+        else setRemoved(row, true)
+        ensureDefault()
+      }
+    })
+
+    form.addEventListener('submit', function () { saving.hidden = false })
+    // The Back button can restore this page from the browser cache mid-save.
+    window.addEventListener('pageshow', function () { saving.hidden = true })
+  })()
+</script>

@@ -29,7 +29,9 @@
   .pm-catalog thead th { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: #64748b; }
   .pm-catalog tbody tr { transition: background-color .12s ease; }
   .pm-catalog tbody tr:hover { background-color: #f8f7ff; }
+  .pm-filters { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem; flex: 1 1 560px; }
   .pm-search-wrap { min-width: 340px; max-width: 460px; flex: 1 1 340px; }
+  .pm-search-wrap.pm-cat-wrap { min-width: 240px; max-width: 300px; flex: 1 1 240px; }
   .pm-search-wrap .select2-container .select2-selection--single {
     height: 42px; border-radius: 999px; border: 1px solid #dfe3ea; padding-left: 2.1rem; display: flex; align-items: center;
   }
@@ -107,9 +109,19 @@
     const escapeHtml = (str) => String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const highlight = (text, term) => {
       const safe = escapeHtml(text);
-      if (!term) return safe;
+      if (!term || !term.trim()) return safe;
       const re = new RegExp('(' + term.trim().split(/\s+/).map(w => escapeHtml(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'ig');
       return safe.replace(re, '<mark>$1</mark>');
+    };
+    const pageParams = new URLSearchParams(window.location.search);
+    // Changes the catalog filters, always going back to the first page.
+    const applyFilters = (changes) => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('page');
+      Object.entries(changes).forEach(([key, value]) => {
+        if (value === null) url.searchParams.delete(key); else url.searchParams.set(key, value);
+      });
+      window.location.href = url.toString();
     };
     let lastTerm = '';
 
@@ -124,7 +136,8 @@
         url: '<%= search_admin_products_path(format: :json) %>',
         dataType: 'json',
         delay: 200,
-        data: params => ({ q: params.term }),
+        // Only offer products inside the category currently being viewed.
+        data: params => ({ q: params.term, category_id: pageParams.get('category_id') || undefined }),
         processResults: (data, params) => {
           lastTerm = params.term || '';
           const results = data.results || [];
@@ -163,25 +176,58 @@
 
     $search.on('select2:select', function(e) {
       const item = e.params.data;
-      const url = new URL(window.location.href);
-      url.searchParams.delete('page');
       if (item.filter) {
-        url.searchParams.set('search', item.text);
-        window.location.href = url.toString();
-      } else if (item.url) {
-        window.location.href = item.url;
+        applyFilters({ search: item.text, product_id: null });
+      } else {
+        applyFilters({ product_id: item.id, search: null });
       }
     });
 
-    $search.on('select2:clear', function() {
-      const url = new URL(window.location.href);
-      if (!url.searchParams.has('search')) return;
-      url.searchParams.delete('search');
-      url.searchParams.delete('page');
-      window.location.href = url.toString();
+    $search.on('select2:clear', () => applyFilters({ search: null, product_id: null }));
+
+    // Category filter: opens with the category list, narrows as you type, and
+    // picking one reloads the catalog. A single picked product is dropped since
+    // it may not belong to the new category.
+    const $category = jQuery('#productCategoryFilter');
+    let lastCategoryTerm = '';
+
+    $category.select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      placeholder: 'All categories',
+      allowClear: true,
+      dropdownCssClass: 'pm-s2-dropdown',
+      ajax: {
+        url: '<%= categories_for_select_admin_products_path(format: :json) %>',
+        dataType: 'json',
+        delay: 200,
+        data: params => ({ q: params.term }),
+        processResults: (data, params) => {
+          lastCategoryTerm = params.term || '';
+          return { results: data.results || [] };
+        },
+        cache: true
+      },
+      language: {
+        searching: () => 'Searching…',
+        noResults: () => 'No categories found'
+      },
+      escapeMarkup: m => m,
+      templateResult: item => {
+        if (item.loading) return item.text;
+        const inactiveBadge = item.active ? '' : '<span class="badge bg-secondary-subtle text-secondary ms-1">Inactive</span>';
+        return '<div class="pm-s2-item"><div class="pm-s2-ph"><i class="bi bi-tag"></i></div>' +
+               '<div class="text-truncate"><div class="pm-s2-name text-truncate">' + highlight(item.text, lastCategoryTerm) + inactiveBadge + '</div></div>' +
+               '<div class="pm-s2-price">' + Number(item.count || 0).toLocaleString('en-IN') +
+               '<div class="pm-s2-meta">' + (item.count === 1 ? 'product' : 'products') + '</div></div></div>';
+      },
+      templateSelection: item => escapeHtml(item.text || 'All categories')
     });
 
-    $search.on('select2:open', () => document.querySelector('.select2-container--open .select2-search__field')?.focus());
+    $category.on('select2:select', e => applyFilters({ category_id: e.params.data.id, product_id: null }));
+    $category.on('select2:clear', () => applyFilters({ category_id: null }));
+
+    jQuery('#productQuickSearch, #productCategoryFilter').on('select2:open', () => document.querySelector('.select2-container--open .select2-search__field')?.focus());
   }
 
   // Select All checkbox + bulk action bar
@@ -250,13 +296,25 @@
           </span>
         <% end %>
       </div>
-      <div class="pm-search-wrap position-relative">
-        <i class="bi bi-search pm-search-icon"></i>
-        <select id="productQuickSearch" class="form-select">
-          <% if params[:search].present? %>
-            <option value="__filter__" selected><%= params[:search] %></option>
-          <% end %>
-        </select>
+      <div class="pm-filters">
+        <div class="pm-search-wrap position-relative">
+          <i class="bi bi-search pm-search-icon"></i>
+          <select id="productQuickSearch" class="form-select">
+            <% if @selected_product_name %>
+              <option value="<%= params[:product_id] %>" selected><%= @selected_product_name %></option>
+            <% elsif params[:search].present? %>
+              <option value="__filter__" selected><%= params[:search] %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="pm-search-wrap pm-cat-wrap position-relative">
+          <i class="bi bi-tag pm-search-icon"></i>
+          <select id="productCategoryFilter" class="form-select">
+            <% if @selected_category_name %>
+              <option value="<%= params[:category_id] %>" selected><%= @selected_category_name %></option>
+            <% end %>
+          </select>
+        </div>
       </div>
     </div>
   </div>
@@ -515,6 +573,9 @@
           <%= link_to new_admin_product_path(name: params[:search]), class: "btn btn-primary" do %>
             <i class="bi bi-plus-lg me-1"></i>Create "<%= params[:search] %>"
           <% end %>
+        <% elsif @selected_category_name %>
+          <h5 class="text-muted mb-3">No products in <%= @selected_category_name %></h5>
+          <%= link_to "Add Product", new_admin_product_path(category_id: params[:category_id]), class: "btn btn-primary" %>
         <% else %>
           <h5 class="text-muted mb-3">No Products Found</h5>
           <p class="text-muted mb-4">Start by adding your first product to build your catalog and manage inventory.</p>

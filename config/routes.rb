@@ -743,6 +743,8 @@ Rails.application.routes.draw do
         get :detail
         get :dependencies
         get :manage_images
+        get :edit_variants
+        patch :update_variants
         post :upload_main_image
         post :upload_additional_image
         delete :destroy_gallery_image

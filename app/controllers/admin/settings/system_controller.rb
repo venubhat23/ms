@@ -83,6 +83,7 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
 
     # Razorpay: only whether a secret is saved reaches the view, never the secret
     @razorpay_key_id = SystemSetting.razorpay_key_id
+    @razorpay_key_id_masked = SystemSetting.razorpay_key_id_masked
     @razorpay_key_secret_saved = SystemSetting.razorpay_key_secret.present?
     @razorpay_webhook_secret_saved = SystemSetting.razorpay_webhook_secret.present?
 
@@ -291,7 +292,8 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
 
     # Handle Razorpay credentials
     if params[:razorpay_settings_update] == "true"
-      key_id = params[:razorpay_key_id].to_s.strip
+      # A blank box keeps the saved Key ID: the form never shows it to re-submit.
+      key_id = params[:razorpay_key_id].to_s.strip.presence || SystemSetting.razorpay_key_id.to_s
       unless key_id.match?(SystemSetting::RAZORPAY_KEY_ID_FORMAT)
         redirect_to admin_settings_system_path, alert: 'Enter a Razorpay Key ID starting with rzp_live_ or rzp_test_.'
         return

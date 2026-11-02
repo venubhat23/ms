@@ -1,5 +1,8 @@
-<%# Secrets are never sent to the browser: their boxes stay empty, and blank means keep the saved one. %>
+<%# Once saved, the keys show as a locked summary and Edit opens the form.
+    Secrets and the full Key ID are never sent to the browser: blank boxes keep
+    what is saved. %>
 <% mode = @razorpay_key_id.to_s.start_with?('rzp_live_') ? 'Live' : (@razorpay_key_id.present? ? 'Test' : nil) %>
+<% configured = @razorpay_key_id.present? && @razorpay_key_secret_saved %>
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-transparent border-0 d-flex align-items-center justify-content-between">
     <h5 class="mb-0"><i class="bi bi-credit-card-2-front me-2"></i>Razorpay</h5>
@@ -16,35 +19,81 @@
       </div>
     <% end %>
 
-    <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "razorpay-settings-form" do |form| %>
-      <%= form.hidden_field :razorpay_settings_update, value: "true" %>
+    <div class="mb-3">
+      <label class="form-label">Webhook URL</label>
+      <input type="text" class="form-control" value="<%= razorpay_webhook_url %>" readonly onclick="this.select()">
+      <div class="form-text">Add this in Razorpay → Webhooks with the events payment.authorized, payment.captured and order.paid.</div>
+    </div>
 
-      <div class="mb-3">
-        <label class="form-label" for="razorpay_key_id">Key ID *</label>
-        <%= text_field_tag :razorpay_key_id, @razorpay_key_id, id: "razorpay_key_id", class: "form-control", placeholder: "rzp_live_xxxxxxxx", required: true, autocomplete: "off" %>
-        <div class="form-text">Razorpay Dashboard → Account &amp; Settings → API Keys.</div>
+    <% if configured %>
+      <div id="razorpay-locked">
+        <div class="mb-3">
+          <label class="form-label">Key ID</label>
+          <input type="text" class="form-control" value="<%= @razorpay_key_id_masked %>" disabled>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Key Secret</label>
+          <input type="text" class="form-control" value="Saved" disabled>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Webhook Secret</label>
+          <input type="text" class="form-control <%= 'is-invalid' unless @razorpay_webhook_secret_saved %>" value="<%= @razorpay_webhook_secret_saved ? 'Saved' : 'Not set' %>" disabled>
+          <% unless @razorpay_webhook_secret_saved %>
+            <div class="invalid-feedback">Without this, payments are not confirmed if a customer's browser closes after paying.</div>
+          <% end %>
+        </div>
+        <button type="button" class="btn btn-outline-primary" id="razorpay-edit">
+          <i class="bi bi-pencil me-1"></i>Edit
+        </button>
       </div>
-
-      <div class="mb-3">
-        <label class="form-label" for="razorpay_key_secret">Key Secret *</label>
-        <%= password_field_tag :razorpay_key_secret, nil, id: "razorpay_key_secret", class: "form-control", autocomplete: "new-password",
-              required: !@razorpay_key_secret_saved,
-              placeholder: @razorpay_key_secret_saved ? "Saved. Leave blank to keep it" : "Paste the key secret" %>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label" for="razorpay_webhook_secret">Webhook Secret</label>
-        <%= password_field_tag :razorpay_webhook_secret, nil, id: "razorpay_webhook_secret", class: "form-control", autocomplete: "new-password",
-              placeholder: @razorpay_webhook_secret_saved ? "Saved. Leave blank to keep it" : "The secret you set on the Razorpay webhook" %>
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Webhook URL</label>
-        <input type="text" class="form-control" value="<%= razorpay_webhook_url %>" readonly onclick="this.select()">
-        <div class="form-text">Add this in Razorpay → Webhooks with the events payment.authorized, payment.captured and order.paid.</div>
-      </div>
-
-      <%= form.submit "Save Razorpay Settings", class: "btn btn-primary" %>
     <% end %>
+
+    <div id="razorpay-edit-form" <%= 'hidden' if configured %>>
+      <%= form_with url: admin_settings_system_path, method: :patch, local: true, id: "razorpay-settings-form" do |form| %>
+        <%= form.hidden_field :razorpay_settings_update, value: "true" %>
+
+        <div class="mb-3">
+          <label class="form-label" for="razorpay_key_id">Key ID *</label>
+          <%= text_field_tag :razorpay_key_id, nil, id: "razorpay_key_id", class: "form-control", autocomplete: "off",
+                required: @razorpay_key_id.blank?,
+                placeholder: @razorpay_key_id.present? ? "Saved. Leave blank to keep it" : "rzp_live_xxxxxxxx" %>
+          <div class="form-text">Razorpay Dashboard → Account &amp; Settings → API Keys.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="razorpay_key_secret">Key Secret *</label>
+          <%= password_field_tag :razorpay_key_secret, nil, id: "razorpay_key_secret", class: "form-control", autocomplete: "new-password",
+                required: !@razorpay_key_secret_saved,
+                placeholder: @razorpay_key_secret_saved ? "Saved. Leave blank to keep it" : "Paste the key secret" %>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="razorpay_webhook_secret">Webhook Secret</label>
+          <%= password_field_tag :razorpay_webhook_secret, nil, id: "razorpay_webhook_secret", class: "form-control", autocomplete: "new-password",
+                placeholder: @razorpay_webhook_secret_saved ? "Saved. Leave blank to keep it" : "The secret you set on the Razorpay webhook" %>
+        </div>
+
+        <%= form.submit "Save Razorpay Settings", class: "btn btn-primary" %>
+        <% if configured %>
+          <button type="button" class="btn btn-outline-secondary" id="razorpay-cancel">Cancel</button>
+        <% end %>
+      <% end %>
+    </div>
   </div>
 </div>
+
+<% if configured %>
+  <script>
+    (function () {
+      var locked = document.getElementById('razorpay-locked')
+      var form = document.getElementById('razorpay-edit-form')
+      function editing(on) {
+        locked.hidden = on
+        form.hidden = !on
+        if (!on) document.getElementById('razorpay-settings-form').reset()
+      }
+      document.getElementById('razorpay-edit').addEventListener('click', function () { editing(true) })
+      document.getElementById('razorpay-cancel').addEventListener('click', function () { editing(false) })
+    })()
+  </script>
+<% end %>

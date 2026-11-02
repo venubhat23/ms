@@ -163,6 +163,11 @@ class SystemSetting < ApplicationRecord
     find_by(key: 'razorpay_key_id')&.value
   end
 
+  # e.g. rzp_live_••••Wwn, for the locked view on the settings page.
+  def self.razorpay_key_id_masked
+    razorpay_key_id.to_s.sub(/\A(rzp_(?:test|live)_).*(.{4})\z/, '\1••••\2').presence
+  end
+
   def self.razorpay_key_secret
     razorpay_secret('razorpay_key_secret')
   end

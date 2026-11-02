@@ -943,6 +943,7 @@ Rails.application.routes.draw do
       # /api/v1/admin and /api/v1/mobile/admin.
       concern :admin_app do
         get 'dashboard', to: 'dashboard#index'
+        get 'all_data', to: 'all_data#index'
         get 'pricing', to: 'pricing#index'
 
         resources :bookings, only: [:index, :show, :create] do

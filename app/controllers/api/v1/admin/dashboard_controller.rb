@@ -1,7 +1,11 @@
 class Api::V1::Admin::DashboardController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/dashboard
   def index
-    data = Rails.cache.fetch('api:admin:dashboard:v2', expires_in: 5.minutes) do
+    render_success(self.class.summary)
+  end
+
+  def self.summary
+    Rails.cache.fetch('api:admin:dashboard:v2', expires_in: 5.minutes) do
       today = Date.current
       booking_counts = Booking.group(:status).count
       unpaid = Booking.where(payment_status: %w[unpaid partially_paid]).where.not(status: 'cancelled')
@@ -41,7 +45,5 @@ class Api::V1::Admin::DashboardController < Api::V1::Admin::BaseController
         end
       }
     end
-
-    render_success(data)
   end
 end

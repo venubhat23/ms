@@ -853,7 +853,15 @@
       </div>
 
       <!-- Variants table (visible when toggle ON) -->
+      <%# Saved variants are edited only on the Edit Variants page. New products,
+          and products getting their first variants, still enter them here
+          because that page needs a saved multi-quantity product. %>
+      <% variants_read_only = @product.persisted? && @product.has_multiple_quantities_in_database && @product.product_variants.any?(&:persisted?) %>
       <div id="variants_section" style="<%= @product.has_multiple_quantities? ? '' : 'display:none;' %>" class="mb-4">
+        <% if variants_read_only %>
+          <%= render 'admin/products/variants_summary', product: @product %>
+          <small class="text-muted d-block mt-2">Save any changes on this page before opening Edit Variants.</small>
+        <% else %>
         <!-- Vertical variant cards -->
         <div id="variants_body" class="d-flex flex-column gap-3">
           <% if @product.product_variants.any? %>
@@ -964,6 +972,7 @@
         <button type="button" id="add_variant_row" class="btn btn-outline-primary mt-3">
           <i class="bi bi-plus-circle me-1"></i>Add Quantity Option
         </button>
+        <% end %>
       </div>
 
       <!-- Template for new variant cards -->

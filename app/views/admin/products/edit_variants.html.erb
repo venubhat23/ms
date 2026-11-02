@@ -18,7 +18,7 @@
   <% end %>
 
   <%= form_with url: update_variants_admin_product_path(@product), method: :patch, id: 'variant-form' do %>
-    <div id="variant-rows">
+    <div id="variant-rows" data-product-gst="<%= @product.gst_percentage.to_f %>">
       <% @variants.each_with_index do |variant, index| %>
         <%= render 'variant_row', variant: variant, key: index %>
       <% end %>
@@ -78,8 +78,29 @@
   }
   .variant-fields > div:last-child { grid-column: span 2; }
   .variant-fields .form-label { margin-bottom: 0.2rem; font-size: 0.8rem; color: #64748b; }
+  .variant-price-preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 8px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    font-size: 0.85rem;
+    color: #475569;
+  }
+  .variant-pay { display: flex; flex-direction: column; line-height: 1.2; }
+  .variant-pay span { font-size: 0.75rem; color: #64748b; }
+  .variant-pay strong { font-size: 1.25rem; color: #15803d; }
+  .variant-price-lines { flex: 1; min-width: 200px; }
+  .variant-price-warning { color: #b91c1c; font-weight: 600; }
+  .variant-price-preview.has-warning { background: #fef2f2; border-color: #fecaca; }
+  .variant-price-preview.has-warning .variant-pay strong { color: #b91c1c; }
   .variant-removed-note, .variant-row [data-undo-remove] { display: none; }
   .variant-row.is-removed { background: #fef2f2; border-color: #fecaca; }
+  .variant-row.is-removed .variant-price-preview { display: none; }
   .variant-row.is-removed .variant-fields, .variant-row.is-removed .variant-default { opacity: 0.45; pointer-events: none; }
   .variant-row.is-removed .variant-removed-note { display: inline; color: #b91c1c; font-size: 0.85rem; }
   .variant-row.is-removed [data-undo-remove] { display: inline-block; }
@@ -193,12 +214,96 @@
       if (active.length && !hasDefault) active[0].querySelector('input[type=radio]').checked = true
     }
 
+    function round2(value) {
+      return Math.round((value + Number.EPSILON) * 100) / 100
+    }
+
+    function rupees(value) {
+      return '₹' + value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    }
+
+    function decimal(row, name) {
+      return parseFloat(row.querySelector('input[name$="[' + name + ']"]').value)
+    }
+
+    // Mirrors ProductVariant#effective_price and the GST-inclusive split in
+    // Booking#calculate_totals: GST sits inside the price, so only a discount
+    // changes what the customer pays. Keep the three in step.
+    function updatePricePreview(row) {
+      var preview = row.querySelector('[data-price-preview]')
+      var pay = preview.querySelector('[data-preview-pay]')
+      var discountLine = preview.querySelector('[data-preview-discount]')
+      var gstLine = preview.querySelector('[data-preview-gst]')
+      var warningLine = preview.querySelector('[data-preview-warning]')
+      var problem = ''
+      var selling = decimal(row, 'selling_price')
+
+      if (isNaN(selling)) {
+        pay.textContent = '—'
+        discountLine.textContent = 'Enter a selling price to see the final price.'
+        gstLine.textContent = ''
+        warningLine.hidden = true
+        preview.classList.remove('has-warning')
+        return
+      }
+
+      var discountOn = row.querySelector('input[type=checkbox][name$="[discount_enabled]"]').checked
+      var discountType = row.querySelector('select[name$="[discount_type]"]').value
+      var discountValue = decimal(row, 'discount_value')
+      var discount = 0
+      var discountLabel = ''
+
+      if (discountOn && discountType && !isNaN(discountValue)) {
+        if (discountType === 'percentage') {
+          discount = round2(selling * discountValue / 100)
+          discountLabel = discountValue + '% off'
+        } else {
+          discount = round2(Math.min(discountValue, selling))
+          discountLabel = 'flat off'
+        }
+      } else if (discountOn) {
+        problem = 'Discount is ticked but not applied: choose % or ₹ and enter a value.'
+      }
+
+      var finalPrice = round2(selling - discount)
+      if (discount > 0 && finalPrice <= 0) problem = 'Discount is equal to or more than the selling price.'
+
+      pay.textContent = rupees(finalPrice)
+      discountLine.textContent = discount > 0
+        ? rupees(selling) + ' − ' + rupees(discount) + ' (' + discountLabel + ') = ' + rupees(finalPrice)
+        : 'No discount'
+
+      var ownGst = decimal(row, 'gst_percentage')
+      var gstRate = isNaN(ownGst) ? parseFloat(rows.dataset.productGst) || 0 : ownGst
+      if (gstRate > 0 && finalPrice > 0) {
+        var gst = round2(finalPrice * gstRate / (100 + gstRate))
+        gstLine.textContent = 'Includes GST ' + gstRate + '%: ' + rupees(gst) +
+          ' (price before GST ' + rupees(round2(finalPrice - gst)) + ')'
+      } else {
+        gstLine.textContent = 'No GST'
+      }
+
+      warningLine.textContent = problem
+      warningLine.hidden = !problem
+      preview.classList.toggle('has-warning', !!problem)
+    }
+
+    rows.querySelectorAll('[data-variant-row]').forEach(updatePricePreview)
+
+    ;['input', 'change'].forEach(function (type) {
+      rows.addEventListener(type, function (event) {
+        var row = event.target.closest('[data-variant-row]')
+        if (row) updatePricePreview(row)
+      })
+    })
+
     document.getElementById('add-variant').addEventListener('click', function () {
       var html = document.getElementById('variant-row-template').innerHTML.replace(/NEW_ROW/g, nextKey++)
       rows.insertAdjacentHTML('beforeend', html)
       warning.hidden = true
       ensureDefault()
       var added = rows.lastElementChild
+      updatePricePreview(added)
       added.scrollIntoView({ behavior: 'smooth', block: 'center' })
       added.querySelector('input[type=number]').focus({ preventScroll: true })
     })

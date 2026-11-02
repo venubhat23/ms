@@ -108,7 +108,13 @@ class ProductVariant < ApplicationRecord
 
   def calculate_discount_amount
     return unless discount_enabled?
-    return unless discount_type.present? && discount_value.present? && selling_price.present?
+
+    # effective_price trusts discount_amount, so clearing the type or value
+    # must not leave the old discount being charged.
+    unless discount_type.present? && discount_value.present? && selling_price.present?
+      self.discount_amount = 0
+      return
+    end
 
     self.discount_amount = if discount_type == 'percentage'
       (selling_price * discount_value / 100.0).round(2)

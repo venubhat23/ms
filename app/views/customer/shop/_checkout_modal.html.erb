@@ -1,5 +1,5 @@
-<!-- Cashfree Payment Integration Modal -->
-<%# Cashfree JS SDK is already loaded in the customer layout <head>. %>
+<!-- Razorpay Payment Integration Modal -->
+<%# The Razorpay popup helper is already loaded in the customer layout. %>
 
 <style>
   .checkout-modal {
@@ -238,9 +238,9 @@
           </h6>
 
           <!-- Online Payment Option -->
-          <div class="payment-option selected" id="payment-option-cashfree" data-method="cashfree">
-            <input type="radio" name="modal_payment_method" id="payment_cashfree" value="cashfree" checked>
-            <label for="payment_cashfree" class="mb-0">
+          <div class="payment-option selected" id="payment-option-razorpay" data-method="razorpay">
+            <input type="radio" name="modal_payment_method" id="payment_razorpay" value="razorpay" checked>
+            <label for="payment_razorpay" class="mb-0">
               <i class="bi bi-credit-card me-2"></i>
               <strong>Pay Online</strong>
               <small class="d-block text-muted">UPI, Cards, Net Banking, Wallets</small>
@@ -347,37 +347,19 @@ function getCleanCart() {
   }
 }
 
-let selectedPaymentMethod = 'cashfree'; // Default to online payment
+let selectedPaymentMethod = 'razorpay'; // Default to online payment
 let selectedDeliveryMethod = 'pickup';
 let orderTotal = 0;
 let validatedDeliveryCharge = 0;   // set after pincode check
 let pincodeValidated = false;      // must be true before checkout (home delivery only)
 
-// Initialize Cashfree SDK
-let cashfree;
-const initializeCashfree = async () => {
-  try {
-    cashfree = await Cashfree({
-      mode: '<%= Rails.env.production? ? "production" : "sandbox" %>'
-    });
-    console.log('✅ Cashfree SDK initialized successfully');
-  } catch (error) {
-    console.error('❌ Failed to initialize Cashfree:', error);
-    // Ensure this doesn't throw an uncaught error
-    return Promise.resolve(null);
-  }
-};
-
 // Payment System - Isolated from browser extension conflicts
 const PaymentSystem = {
-  selectedMethod: 'cashfree', // Default to online payment
+  selectedMethod: 'razorpay', // Default to online payment
   orderTotal: 0,
 
   init: function() {
     try {
-      initializeCashfree().catch(error => {
-        console.error('❌ Cashfree initialization failed:', error);
-      });
       this.setupPaymentHandlers();
       this.updatePayButton();
       console.log('✅ Payment System Initialized Successfully');
@@ -448,7 +430,7 @@ const PaymentSystem = {
       const payBtn = document.getElementById('payNowBtn');
       if (!payBtn) return;
 
-      if (this.selectedMethod === 'cashfree') {
+      if (this.selectedMethod === 'razorpay') {
         payBtn.innerHTML = `<i class="bi bi-credit-card me-2"></i>Pay Now - ₹${this.orderTotal.toFixed(2)}`;
         payBtn.className = 'btn btn-pay-now';
       } else {
@@ -486,7 +468,7 @@ const PaymentSystem = {
         animation: slideIn 0.3s ease-out;
       `;
 
-      if (method === 'cashfree') {
+      if (method === 'razorpay') {
         notification.textContent = '💳 Online Payment Selected!';
         notification.style.background = '#007bff';
       } else {
@@ -514,7 +496,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function showCheckout() {
-  console.log('🛒 showCheckout() called - Cashfree Modal System');
+  console.log('🛒 showCheckout() called - Razorpay Modal System');
 
   const cart = getCleanCart();
 
@@ -611,7 +593,7 @@ async function showCheckout() {
   const modal = new bootstrap.Modal(modalElement);
   modal.show();
 
-  console.log('✅ Cashfree checkout modal displayed');
+  console.log('✅ Razorpay checkout modal displayed');
 }
 
 function updateOrderSummary(cart) {
@@ -765,7 +747,7 @@ function updatePayButtonText() {
   const payBtnText = document.getElementById('payBtnText');
   let payBtn = document.getElementById('payNowBtn');
 
-  if (selectedPaymentMethod === 'cashfree') {
+  if (selectedPaymentMethod === 'razorpay') {
     payBtnText.textContent = `Pay Now - ₹${orderTotal.toFixed(2)}`;
     payBtn.innerHTML = '<i class="bi bi-credit-card me-2"></i>' + payBtnText.textContent;
     payBtn.className = 'btn btn-pay-now';
@@ -1159,7 +1141,7 @@ async function processPayment() {
   try {
     // Get the currently selected payment method from radio buttons
     const selectedRadio = document.querySelector('input[name="modal_payment_method"]:checked');
-    const currentMethod = selectedRadio ? selectedRadio.value : 'cashfree';
+    const currentMethod = selectedRadio ? selectedRadio.value : 'razorpay';
 
     console.log('🎯 Selected payment method from radio:', currentMethod);
     console.log('🎯 PaymentSystem.selectedMethod:', PaymentSystem.selectedMethod);
@@ -1171,16 +1153,16 @@ async function processPayment() {
     const finalMethod = (selectedRadio ? selectedRadio.value : null) || PaymentSystem.selectedMethod || selectedPaymentMethod || 'cod';
     console.log('🎯 FINAL METHOD TO USE:', finalMethod);
 
-    // Handle both cashfree and upi as online payment methods
-    if (finalMethod === 'cashfree' || finalMethod === 'upi') {
-      console.log('🎯 Will route to: Cashfree Payment Gateway');
-      await processCashfreePayment(cart, deliveryInfo);
+    // Handle both razorpay and upi as online payment methods
+    if (finalMethod === 'razorpay' || finalMethod === 'upi') {
+      console.log('🎯 Will route to: Razorpay Payment Gateway');
+      await processRazorpayPayment(cart, deliveryInfo);
     } else if (finalMethod === 'cod') {
       console.log('🎯 Will route to: COD Order');
       await processCODOrder(cart, deliveryInfo);
     } else {
-      console.log('🎯 Unknown payment method, defaulting to Cashfree');
-      await processCashfreePayment(cart, deliveryInfo);
+      console.log('🎯 Unknown payment method, defaulting to Razorpay');
+      await processRazorpayPayment(cart, deliveryInfo);
     }
   } catch (error) {
     console.error('❌ Payment processing error:', error);
@@ -1197,8 +1179,8 @@ async function processPayment() {
   }
 }
 
-async function processCashfreePayment(cart, deliveryInfo) {
-  console.log('🚀 processCashfreePayment called!');
+async function processRazorpayPayment(cart, deliveryInfo) {
+  console.log('🚀 processRazorpayPayment called!');
   console.log('🛒 Cart items:', cart.length);
   console.log('📍 Delivery info:', deliveryInfo);
 
@@ -1239,7 +1221,7 @@ async function processCashfreePayment(cart, deliveryInfo) {
         delivery_store: deliveryInfo.type === 'pickup' ? getSelectedPickupLocation(deliveryInfo.location) : null,
         pincode: deliveryInfo.pincode || null,
         delivery_charge: deliveryInfo.delivery_charge || 0,
-        payment_method: 'cashfree'
+        payment_method: 'razorpay'
       })
     });
 
@@ -1259,57 +1241,23 @@ async function processCashfreePayment(cart, deliveryInfo) {
       throw new Error(orderData.error || orderData.message || 'Failed to create order');
     }
 
-    // Check if this is a Cashfree payment that needs redirection
-    if (orderData.redirect_to_payment && orderData.payment_session_id) {
-      console.log('🎯 Redirecting to Cashfree payment gateway...');
-
-      // Initialize Cashfree payment
-      if (!cashfree) {
-        try {
-          await initializeCashfree();
-          if (!cashfree) {
-            throw new Error('Cashfree SDK failed to initialize');
-          }
-        } catch (initError) {
-          console.error('❌ Failed to initialize Cashfree SDK:', initError);
-          throw new Error('Payment gateway initialization failed');
-        }
-      }
-
-      const checkoutOptions = {
-        paymentSessionId: orderData.payment_session_id,
-        redirectTarget: '_self'
-      };
-
-      // Open Cashfree checkout
-      try {
-
-        await cashfree.checkout(checkoutOptions);
-        console.log('✅ Payment gateway opened successfully');
-
-        // Payment gateway opened - button state will be reset when page redirects
-        // No need to manually restore here as the page will navigate away
-
-      } catch (checkoutError) {
-        console.error('❌ Cashfree checkout error:', checkoutError);
-
-        // Restore button on error
+    // Online orders come back with what the Razorpay popup needs
+    if (orderData.redirect_to_payment && orderData.razorpay) {
+      openRazorpayCheckout(orderData.razorpay, function (message) {
         const payBtn = document.getElementById('payNowBtn');
         if (payBtn) {
           payBtn.disabled = false;
           payBtn.innerHTML = payBtn.originalContent || 'Pay Now';
           payBtn.classList.remove('btn-loading');
         }
-
-        throw new Error('Failed to open payment gateway: ' + checkoutError.message);
-      }
+        alert(message);
+      });
     } else {
-      // This shouldn't happen for Cashfree payments, but handle gracefully
       throw new Error('Payment session not created properly');
     }
 
   } catch (error) {
-    console.error('❌ Cashfree payment error:', error);
+    console.error('❌ Razorpay payment error:', error);
     throw error;
   }
 }
@@ -1779,11 +1727,11 @@ function hidePaymentMethodsAndShowProcessing() {
     deliveryStep.insertAdjacentHTML('afterend', processingSectionHtml);
 
     // Update messages based on payment method
-    const currentMethod = PaymentSystem.selectedMethod || selectedPaymentMethod || 'cashfree';
+    const currentMethod = PaymentSystem.selectedMethod || selectedPaymentMethod || 'razorpay';
     const messageElement = document.getElementById('processing-message');
     const stepTextElement = document.getElementById('processing-step-text');
 
-    if (currentMethod === 'cashfree') {
+    if (currentMethod === 'razorpay') {
       if (messageElement) messageElement.innerHTML = '💳 Preparing secure payment...<br>🔐 Connecting to payment gateway...';
       if (stepTextElement) stepTextElement.textContent = 'Processing Payment';
     } else {
@@ -1956,14 +1904,14 @@ window.addEventListener('unhandledrejection', function(event) {
 
   // Handle specific payment-related promise rejections
   if (event.reason && event.reason.message) {
-    if (event.reason.message.includes('Cashfree') || event.reason.message.includes('payment')) {
+    if (event.reason.message.includes('Razorpay') || event.reason.message.includes('payment')) {
       console.error('💳 Payment system error caught:', event.reason.message);
       // Could show user-friendly error message here if needed
     }
   }
 });
 
-console.log('💰 Cashfree Payment System Loaded Successfully');
+console.log('💰 Razorpay Payment System Loaded Successfully');
 
 function showStockErrorModal(outOfStockItems, insufficientStockItems) {
   // Remove any existing stock error modal

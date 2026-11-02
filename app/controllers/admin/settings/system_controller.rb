@@ -81,6 +81,11 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     # Get split feature settings
     @split_feature_enabled = system_config&.split_feature_enabled || false
 
+    # Razorpay: only whether a secret is saved reaches the view, never the secret
+    @razorpay_key_id = SystemSetting.razorpay_key_id
+    @razorpay_key_secret_saved = SystemSetting.razorpay_key_secret.present?
+    @razorpay_webhook_secret_saved = SystemSetting.razorpay_webhook_secret.present?
+
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']
     @website_theme = SystemSetting::WEBSITE_THEMES.key?(website_theme_setting&.value) ? website_theme_setting.value : 'classic-organic'
@@ -282,6 +287,28 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
         redirect_to admin_settings_system_path, alert: "Error updating Franchise Commission settings: #{e.message}"
         return
       end
+    end
+
+    # Handle Razorpay credentials
+    if params[:razorpay_settings_update] == "true"
+      key_id = params[:razorpay_key_id].to_s.strip
+      unless key_id.match?(SystemSetting::RAZORPAY_KEY_ID_FORMAT)
+        redirect_to admin_settings_system_path, alert: 'Enter a Razorpay Key ID starting with rzp_live_ or rzp_test_.'
+        return
+      end
+
+      SystemSetting.update_razorpay_settings(
+        key_id: key_id,
+        key_secret: params[:razorpay_key_secret],
+        webhook_secret: params[:razorpay_webhook_secret]
+      )
+      Rails.logger.info("[Razorpay] Settings changed by user #{current_user.id}")
+
+      unless RazorpayService.credentials_valid?
+        redirect_to admin_settings_system_path, alert: 'Saved, but Razorpay rejected these keys. Online payments will fail until the Key ID and Key Secret match.'
+        return
+      end
+      success_messages << 'Razorpay settings saved and keys verified!'
     end
 
     # Handle OTP login feature toggle

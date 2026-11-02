@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_27_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_02_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -282,6 +282,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_000001) do
     t.string "cashfree_order_id"
     t.string "payment_session_id"
     t.string "cashfree_payment_id"
+    t.string "razorpay_order_id"
+    t.string "razorpay_payment_id"
     t.text "gateway_response"
     t.string "payment_gateway", default: "cash"
     t.datetime "payment_initiated_at"
@@ -312,6 +314,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_27_000001) do
     t.index ["booking_schedule_id"], name: "index_bookings_on_booking_schedule_id"
     t.index ["cashfree_order_id"], name: "index_bookings_on_cashfree_order_id"
     t.index ["cashfree_payment_id"], name: "index_bookings_on_cashfree_payment_id"
+    t.index ["razorpay_order_id"], name: "index_bookings_on_razorpay_order_id"
+    t.index ["razorpay_payment_id"], name: "index_bookings_on_razorpay_payment_id"
     t.index ["coupon_id"], name: "index_bookings_on_coupon_id"
     t.index ["courier_service"], name: "index_bookings_on_courier_service"
     t.index ["created_at"], name: "index_bookings_on_created_at"

@@ -218,26 +218,11 @@ class Customer::CheckoutController < Customer::BaseController
               redirect_url: customer_orders_path
             }
           else
-            # Online Payment — Cashfree
-            Rails.logger.info "🚀 Initiating Cashfree payment for booking #{@booking.id}"
-
-            cashfree_order_id = Booking.generate_cashfree_order_id
-
-            # Combine cashfree_order_id + mark_payment_initiated into ONE update
-            @booking.update!(
-              cashfree_order_id: cashfree_order_id,
-              payment_gateway: 'cashfree',
-              payment_initiated_at: Time.current,
-              payment_status: 'unpaid'
-            )
-
-            response = CashfreeService.create_order(@booking)
+            # Online Payment — Razorpay
+            response = RazorpayService.start_checkout(@booking)
 
             if response[:success]
-              order_data = response[:data]
-              @booking.update!(payment_session_id: order_data['payment_session_id'])
-
-              Rails.logger.info "✅ Cashfree order created: #{order_data['order_id']}"
+              Rails.logger.info "✅ Razorpay order created: #{@booking.razorpay_order_id}"
 
               render json: {
                 success: true,
@@ -245,14 +230,13 @@ class Customer::CheckoutController < Customer::BaseController
                 booking_number: @booking.booking_number,
                 booking_id: @booking.id,
                 total_amount: @booking.total_amount,
-                payment_method: 'cashfree',
-                payment_session_id: order_data['payment_session_id'],
-                cashfree_order_id: cashfree_order_id,
+                payment_method: 'razorpay',
+                razorpay: response[:checkout],
                 redirect_to_payment: true
               }
             else
               @booking.mark_payment_failed!(response[:message])
-              Rails.logger.error "❌ Cashfree order creation failed: #{response[:message]}"
+              Rails.logger.error "❌ Razorpay order creation failed: #{response[:message]}"
 
               render json: {
                 success: false,
@@ -320,7 +304,7 @@ class Customer::CheckoutController < Customer::BaseController
 
     # Normalise payment method from form to valid enum key
     raw_pm = params[:payment_method].to_s.strip
-    payment_method_key = %w[card upi bank_transfer online cashfree cloudflare].include?(raw_pm) ? raw_pm : 'cod'
+    payment_method_key = %w[card upi bank_transfer online razorpay cashfree cloudflare].include?(raw_pm) ? raw_pm : 'cod'
 
     # Create booking with minimal attributes first (like admin controller)
     booking_attributes = {

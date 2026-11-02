@@ -120,19 +120,28 @@
 
         <button type="button" class="pl-btn" id="plPay"><i class="bi bi-shield-lock"></i> Pay ₹<%= number_with_delimiter(format("%.2f", @amount)) %></button>
         <div class="pl-error" id="plError"></div>
-        <div class="pl-secure"><i class="bi bi-lock-fill"></i> Secure payment by Cashfree · UPI, cards, net banking</div>
+        <div class="pl-secure"><i class="bi bi-lock-fill"></i> Secure payment by Razorpay · UPI, cards, net banking</div>
       <% end %>
     </div>
   </div>
 
   <% if %i[pay failed].include?(state) %>
-    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <%= render 'shared/razorpay_checkout' %>
     <script>
       (function () {
         var btn = document.getElementById("plPay");
         var err = document.getElementById("plError");
         var label = btn.innerHTML;
         var token = document.querySelector('meta[name="csrf-token"]');
+        function reset() {
+          btn.disabled = false;
+          btn.innerHTML = label;
+        }
+        function showError(message) {
+          err.textContent = message;
+          err.style.display = "block";
+          reset();
+        }
         btn.addEventListener("click", async function () {
           btn.disabled = true;
           btn.textContent = "Opening payment…";
@@ -146,13 +155,9 @@
             var data = await res.json();
             if (data.already_paid) { location.reload(); return; }
             if (!data.success) throw new Error(data.message || "Could not start the payment.");
-            var cashfree = await Cashfree({ mode: data.mode });
-            await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: "_self" });
+            openRazorpayCheckout(data.razorpay, showError, reset);
           } catch (e) {
-            err.textContent = e.message || "Something went wrong. Please try again.";
-            err.style.display = "block";
-            btn.disabled = false;
-            btn.innerHTML = label;
+            showError(e.message || "Something went wrong. Please try again.");
           }
         });
       })();

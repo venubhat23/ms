@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://res.cloudinary.com">
-    <link rel="dns-prefetch" href="https://sdk.cashfree.com">
+    <link rel="dns-prefetch" href="https://checkout.razorpay.com">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <%= csrf_meta_tags %>
@@ -370,7 +370,7 @@
       }
     </style>
 
-  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+  <%= render 'shared/razorpay_checkout' %>
   <%= render 'shared/app_head', portal: 'customer' %>
   </head>
 
@@ -2210,19 +2210,13 @@
         .then(async data => {
           console.log('Order response data:', data);
           if (data && data.success) {
-            // Online payment — open Cashfree SDK
-            if (data.redirect_to_payment && data.payment_session_id) {
-              try {
-                const cashfree = await Cashfree({ mode: 'production' });
-                await cashfree.checkout({
-                  paymentSessionId: data.payment_session_id,
-                  redirectTarget: '_self'
-                });
-              } catch (e) {
-                console.error('Cashfree checkout error:', e);
+            // Online payment — open the Razorpay popup
+            if (data.redirect_to_payment && data.razorpay) {
+              hidePlaceOrderLoader();
+              openRazorpayCheckout(data.razorpay, function (message) {
                 restoreBtn();
-                alert('Failed to open payment gateway. Please try again.');
-              }
+                alert(message);
+              });
               return;
             }
 

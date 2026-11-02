@@ -1,6 +1,6 @@
 # Public "pay for your order" page behind a WhatsApp payment link
 # (see PaymentLinkService). No login: the signed token in the URL is the
-# authorisation. GET never talks to Cashfree (link previews hit it); the
+# authorisation. GET never talks to Razorpay (link previews hit it); the
 # Pay button POSTs to start a gateway order.
 class PaymentLinksController < ActionController::Base
   include TracksPageViews
@@ -20,17 +20,17 @@ class PaymentLinksController < ActionController::Base
 
     result = PaymentLinkService.start(@booking, @amount, return_to: "#{payment_link_url(params[:token])}/done?order_id={order_id}")
     if result[:success]
-      render json: { success: true, payment_session_id: result[:payment_session_id], mode: CashfreeService.production_credentials? ? "production" : "sandbox" }
+      render json: { success: true, razorpay: result[:checkout] }
     else
       render json: { success: false, message: result[:message] }, status: :bad_gateway
     end
   end
 
-  # Cashfree sends the customer back here after the attempt.
+  # The customer lands here after the popup.
   def done
     @result =
-      if @booking && params[:order_id].to_s.start_with?("#{PaymentLinkService::ORDER_PREFIX}_#{@booking.id}_")
-        PaymentLinkService.confirm(params[:order_id])
+      if @booking && params[:order_id].present? && params[:order_id] == @booking.razorpay_order_id
+        RazorpayService.confirm(params[:order_id])
       else
         :invalid
       end

@@ -39,6 +39,12 @@
     </button>
   </li>
   <li class="nav-item" role="presentation">
+    <button class="nav-link" id="payment-gateway-tab" data-bs-toggle="pill" data-bs-target="#payment-gateway"
+            type="button" role="tab" aria-controls="payment-gateway" aria-selected="false">
+      <i class="bi bi-credit-card-2-front me-2"></i>Payment Gateway
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
     <button class="nav-link" id="website-theme-tab" data-bs-toggle="pill" data-bs-target="#website-theme"
             type="button" role="tab" aria-controls="website-theme" aria-selected="false">
       <i class="bi bi-globe me-2"></i>Website Theme
@@ -1464,6 +1470,10 @@
   </div> <!-- End of Invoice Template Tab -->
 
   <!-- Website Theme Tab -->
+  <div class="tab-pane fade" id="payment-gateway" role="tabpanel" aria-labelledby="payment-gateway-tab">
+    <%= render 'razorpay_settings' %>
+  </div>
+
   <div class="tab-pane fade" id="website-theme" role="tabpanel" aria-labelledby="website-theme-tab">
     <%= form_with url: admin_settings_system_path, method: :patch, local: true do |form| %>
       <%= hidden_field_tag :website_theme_update, "true" %>

@@ -1,0 +1,49 @@
+<%# Shared by every page that takes an online payment. `checkout` is built by
+    RazorpayService#checkout_payload. onError shows a message on the page;
+    onDismiss is optional and defaults to leaving for checkout.return_url, since
+    a checkout's booking already exists by the time the popup opens. %>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  window.openRazorpayCheckout = function (checkout, onError, onDismiss) {
+    if (typeof Razorpay === 'undefined') {
+      onError('Could not load the payment window. Please check your connection and try again.')
+      return
+    }
+
+    var leave = function () { window.location.href = checkout.return_url }
+    var rzp = new Razorpay({
+      key: checkout.key,
+      order_id: checkout.order_id,
+      amount: checkout.amount,
+      currency: checkout.currency,
+      name: checkout.name,
+      description: checkout.description,
+      prefill: checkout.prefill,
+      handler: function (response) {
+        fetch('<%= razorpay_verify_path %>', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          })
+        }).then(function (res) {
+          if (res.ok) return leave()
+          return res.json().then(function (body) {
+            onError(body.message || 'Payment could not be verified. Please contact support.')
+          })
+        // The return page asks Razorpay again, so a dropped connection here loses nothing.
+        }).catch(leave)
+      },
+      modal: { ondismiss: onDismiss || leave }
+    })
+
+    // The popup stays open so the customer can retry another way.
+    rzp.on('payment.failed', function (response) {
+      onError((response.error && response.error.description) || 'Payment failed. Please try again.')
+    })
+    rzp.open()
+  }
+</script>

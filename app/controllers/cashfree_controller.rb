@@ -89,11 +89,10 @@ class CashfreeController < ApplicationController
     order_id = payment_data['order']['order_id']
     payment_id = payment_data['payment']['cf_payment_id']
 
-    # WhatsApp payment links: only flip payment_status (never the order
-    # status), and only after Cashfree itself confirms the order is PAID.
+    # Links now run on Razorpay; one paid through Cashfree mid-switch is
+    # reconciled by hand.
     if PaymentLinkService.link_order?(order_id)
-      result = PaymentLinkService.confirm(order_id)
-      Rails.logger.info "🔗 Payment link #{order_id}: #{result}"
+      Rails.logger.warn "🔗 Cashfree payment link #{order_id} paid after the Razorpay switch: mark it paid manually"
       return
     end
 

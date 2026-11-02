@@ -1,7 +1,7 @@
 <%# WhatsApp payment link for one booking (dialog: _payment_link_modal). %>
 <% if booking.payment_status_paid? %>
   <small class="text-success d-inline-flex align-items-center mt-1" title="<%= booking.payment_completed_at&.in_time_zone&.strftime('Paid %-d %b %Y, %-l:%M %p') %>">
-    <i class="bi bi-check-circle-fill me-1"></i>Paid<%= " online" if booking.payment_gateway == "cashfree" && booking.payment_completed_at %>
+    <i class="bi bi-check-circle-fill me-1"></i>Paid<%= " online" if %w[razorpay cashfree].include?(booking.payment_gateway) && booking.payment_completed_at %>
   </small>
 <% elsif PaymentLinkService.payable?(booking) %>
   <button type="button" class="btn btn-sm mt-1 py-1 px-2 pay-link-btn d-inline-flex align-items-center"

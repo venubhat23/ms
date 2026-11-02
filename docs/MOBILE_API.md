@@ -1424,11 +1424,11 @@ There are **two separate ways to place an order** in this controller, with diffe
 
 | | `POST ecommerce/bookings` (`create_booking`) | `POST ecommerce/checkout/cart_order` (`cart_order`) |
 |---|---|---|
-| Intended use | General booking creation; supports wallet payment | Cart checkout with COD or Cashfree online payment |
+| Intended use | General booking creation; supports wallet payment | Cart checkout with COD or Razorpay online payment |
 | Customer resolution | Required `booking[customer_id]` param | `booking[customer_id]` if given, else the authenticated customer |
 | Stock/availability check | Validates every product exists first; returns `422` listing unavailable products before creating anything | No pre-check; raises `404` if a product isn't found mid-transaction |
-| Payment | Cash/whatever `payment_method` string is passed, optionally topped up from wallet (`use_wallet`) | `cod` (immediate `confirmed` booking) or any other value → routed through Cashfree (`draft` booking + payment session) |
-| Booking status on creation | `ordered_and_delivery_pending` | `confirmed` (COD) or `draft` (Cashfree, until payment completes) |
+| Payment | Cash/whatever `payment_method` string is passed, optionally topped up from wallet (`use_wallet`) | `cod` (immediate `confirmed` booking) or any other value → routed through Razorpay (`draft` booking + payment order) |
+| Booking status on creation | `ordered_and_delivery_pending` | `confirmed` (COD) or `draft` (Razorpay, until payment completes) |
 
 Booking `status` values: `draft`, `ordered_and_delivery_pending`, `confirmed`, `processing`, `packed`, `shipped`, `out_for_delivery`, `delivered`, `completed`, `cancelled`, `returned`.
 
@@ -1438,7 +1438,7 @@ Booking `payment_status` values: `unpaid`, `paid`, `partially_paid`, `refunded`.
 
 ### POST /ecommerce/bookings
 
-Creates a booking directly (not via the Cashfree checkout flow). Controller action: `create_booking`.
+Creates a booking directly (not via the Razorpay checkout flow). Controller action: `create_booking`.
 
 #### Request body
 
@@ -1590,7 +1590,7 @@ Ordered most-recent-first (`.recent`).
 
 ### GET /ecommerce/bookings/:id/payment_status
 
-Lightweight polling endpoint for Cashfree payment status on a single booking. Controller action: `payment_status`.
+Lightweight polling endpoint for Razorpay payment status on a single booking. Controller action: `payment_status`.
 
 Requires `@current_user` to be a `Customer` directly (no separate lookup by email); scoped to `customer.bookings`.
 
@@ -1604,10 +1604,10 @@ Requires `@current_user` to be a `Customer` directly (no separate lookup by emai
     "booking_number": "MKS_20260823101522_AB12CD34",
     "status": "confirmed",
     "payment_status": "paid",
-    "payment_method": "cashfree",
-    "payment_gateway": "cashfree",
-    "cashfree_order_id": "MKS_20260823101522_AB12CD34",
-    "cashfree_payment_id": "1234567890",
+    "payment_method": "razorpay",
+    "payment_gateway": "razorpay",
+    "razorpay_order_id": "order_xxxxxxxxxxxxxx",
+    "razorpay_payment_id": "pay_xxxxxxxxxxxxxx",
     "total_amount": 240.0,
     "payment_initiated_at": "2026-08-23T10:15:22+05:30",
     "payment_completed_at": "2026-08-23T10:16:05+05:30",
@@ -1631,7 +1631,7 @@ Requires `@current_user` to be a `Customer` directly (no separate lookup by emai
 
 ### POST /ecommerce/checkout/cart_order
 
-Cart checkout endpoint — creates a booking from cart items and either confirms it immediately (COD) or opens a Cashfree payment session. Controller action: `cart_order`.
+Cart checkout endpoint — creates a booking from cart items and either confirms it immediately (COD) or opens a Razorpay payment order. Controller action: `cart_order`.
 
 #### Request body
 
@@ -1641,7 +1641,7 @@ All fields nested under `booking`, same shape as `booking_items_attributes` abov
 |---|---|---|---|
 | `booking[customer_id]` | integer | No | Falls back to the authenticated customer if omitted. |
 | `booking[booking_items_attributes]` | array | **Yes** | `422`-equivalent (`400`) if blank — see errors below. Each item: `product_id`, `product_variant_id`, `quantity`, `price`. |
-| `booking[payment_method]` | string | No | Defaults to `"cod"`. Any other value routes through Cashfree. |
+| `booking[payment_method]` | string | No | Defaults to `"cod"`. Any other value routes through Razorpay. |
 | `booking[delivery_address]` | string | No | |
 | `booking[pincode]` | string | No | Used to look up `DeliveryCharge.charge_for_pincode`, applied as `shipping_charges` if > 0. |
 | `booking[customer_name]` / `[customer_email]` / `[customer_phone]` | string | No | Default to the customer's own `display_name`/`email`/`mobile`. |
@@ -1671,23 +1671,31 @@ The booking is created directly with `status: "confirmed"`, `payment_status: "un
 
 #### Success response — online payment (`200`)
 
-Booking is created with `status: "draft"`, a Cashfree order is opened via `CashfreeService.create_order`:
+Booking is created with `status: "draft"`, a Razorpay order is opened via `RazorpayService.start_checkout`:
 
 ```json
 {
   "success": true,
-  "message": "Payment session created. Complete payment using Cashfree SDK.",
+  "message": "Payment order created. Complete payment using the Razorpay SDK.",
   "booking_number": "BK20260823A1B3D4",
   "booking_id": 4522,
   "total_amount": 240.0,
-  "payment_method": "cashfree",
-  "payment_session_id": "session_abc123...",
-  "cashfree_order_id": "MKS_20260823101522_AB12CD34",
+  "payment_method": "razorpay",
+  "razorpay": {
+    "key": "rzp_live_xxxxxxxx",
+    "order_id": "order_xxxxxxxxxxxxxx",
+    "amount": 24000,
+    "currency": "INR",
+    "name": "Marali Santhe",
+    "description": "Order BK20260823A1B3D4",
+    "prefill": { "name": "Asha", "email": "asha@example.com", "contact": "9876543210" }
+  },
+  "razorpay_order_id": "order_xxxxxxxxxxxxxx",
   "redirect_to_payment": true
 }
 ```
 
-`cashfree_order_id` is generated by `Booking.generate_cashfree_order_id`. The client is expected to hand `payment_session_id` to the Cashfree Mobile SDK to complete payment, then poll `GET .../payment_status` or call `POST /verify_payment`.
+`razorpay.amount` is in paise. The client passes the `razorpay` object to the Razorpay Mobile SDK (`key`, `order_id`, `amount`, `currency`, `name`, `description`, `prefill`) to complete payment, then polls `GET .../payment_status` or calls `POST /verify_payment`.
 
 #### Error responses
 
@@ -1697,14 +1705,14 @@ Booking is created with `status: "draft"`, a Cashfree order is opened via `Cashf
 | 400 | `booking_items_attributes` blank | `{ "success": false, "message": "Cart is empty" }` |
 | 422 | A cart item references a product that doesn't resolve to a `Product` (raised as `ActiveRecord::RecordNotFound`) | `{ "success": false, "message": "Product not found in cart" }` |
 | 422 | Booking fails model validation | `{ "success": false, "message": "<validation error message>" }` |
-| 422 | Cashfree order creation fails (`CashfreeService.create_order` returns `success: false`) | `{ "success": false, "message": "<gateway message, e.g. Client Error detail>" }` — booking is marked `mark_payment_failed!` first |
+| 422 | Razorpay order creation fails (`RazorpayService.start_checkout` returns `success: false`) | `{ "success": false, "message": "<gateway message, e.g. Client Error detail>" }` — booking is marked `mark_payment_failed!` first |
 | 500 | Unexpected error | `{ "success": false, "message": "An unexpected error occurred" }` |
 
 ---
 
 ### POST /ecommerce/verify_payment
 
-Confirms/refreshes a booking's Cashfree payment status by querying Cashfree directly. Controller action: `verify_payment`.
+Confirms/refreshes a booking's Razorpay payment status by querying Razorpay directly. Controller action: `verify_payment`.
 
 Requires `@current_user` to be a `Customer`; booking scoped to `customer.bookings`.
 
@@ -1716,8 +1724,8 @@ Requires `@current_user` to be a `Customer`; booking scoped to `customer.booking
 
 #### Behavior
 
-1. If the booking is already `payment_successful?` (paid + has `cashfree_payment_id`), short-circuits and returns the current state.
-2. Otherwise, if `cashfree_order_id` is present, calls `CashfreeService.get_order(cashfree_order_id)`. If Cashfree reports `order_status == "PAID"`, the booking is marked `mark_payment_completed!` (sets `payment_status: paid`, `status: confirmed`, `cashfree_payment_id`, sends the booking confirmation email, generates the invoice).
+1. If the booking is already `payment_successful?` (paid + has a gateway payment id), short-circuits and returns the current state.
+2. Otherwise, if `razorpay_order_id` is present, calls `RazorpayService.confirm(razorpay_order_id)`. If Razorpay reports the order paid, the booking is marked `mark_payment_completed!` (sets `payment_status: paid`, `status: confirmed`, `razorpay_payment_id`, sends the booking confirmation email, generates the invoice).
 3. Reloads the booking and returns its (possibly now-updated) status.
 
 #### Response `200` — success is tied to actual payment state, not the HTTP call succeeding
@@ -1730,8 +1738,8 @@ Requires `@current_user` to be a `Customer`; booking scoped to `customer.booking
     "booking_number": "BK20260823A1B2C3",
     "status": "confirmed",
     "payment_status": "paid",
-    "cashfree_order_id": "MKS_20260823101522_AB12CD34",
-    "cashfree_payment_id": "1234567890",
+    "razorpay_order_id": "order_xxxxxxxxxxxxxx",
+    "razorpay_payment_id": "pay_xxxxxxxxxxxxxx",
     "total_amount": 240.0,
     "payment_completed_at": "2026-08-23T10:16:05+05:30",
     "is_paid": true
@@ -1740,7 +1748,7 @@ Requires `@current_user` to be a `Customer`; booking scoped to `customer.booking
 }
 ```
 
-If Cashfree hasn't confirmed payment yet, the same shape is returned with `"success": false`, `payment_status: "unpaid"`, `is_paid: false`, `message: "Payment not yet completed"` — note this is a `200` response with `success: false` in the body, not an HTTP error status.
+If Razorpay hasn't confirmed payment yet, the same shape is returned with `"success": false`, `payment_status: "unpaid"`, `is_paid: false`, `message: "Payment not yet completed"` — note this is a `200` response with `success: false` in the body, not an HTTP error status.
 
 #### Error responses
 
@@ -1749,7 +1757,7 @@ If Cashfree hasn't confirmed payment yet, the same shape is returned with `"succ
 | 404 | `@current_user` isn't a `Customer` | `{ "success": false, "message": "Customer not found" }` |
 | 400 | `booking_id` missing | `{ "success": false, "message": "booking_id is required" }` |
 | 404 | No booking with that id owned by this customer | `{ "success": false, "message": "Booking not found" }` |
-| 500 | Unexpected error (e.g. Cashfree call raises) | `{ "success": false, "message": "Unable to verify payment" }` |
+| 500 | Unexpected error (e.g. Razorpay call raises) | `{ "success": false, "message": "Unable to verify payment" }` |
 
 ---
 
@@ -2090,9 +2098,9 @@ Controller action: `cancel_subscription`. Succeeds from any status except `cance
 ### Notes for client implementation
 
 - **Bookings vs Orders are separate resources.** `Booking` (created via `create_booking`/`cart_order`) is the milk-delivery/franchise-style order, while `Order` (listed via `GET /orders`) appears to be a distinct e-commerce order record — the mobile API never creates an `Order` directly; check with backend whether/how orders get created before assuming `cart_order` results show up there.
-- **Two payment-initiating endpoints, one gateway.** Only `cart_order` opens a Cashfree session; `create_booking` never talks to Cashfree — its `payment_method` is stored as-is and, if `use_wallet` isn't used, the booking is left `unpaid` for the client/backend to reconcile out of band.
+- **Two payment-initiating endpoints, one gateway.** Only `cart_order` opens a Razorpay session; `create_booking` never talks to Razorpay — its `payment_method` is stored as-is and, if `use_wallet` isn't used, the booking is left `unpaid` for the client/backend to reconcile out of band.
 - **`verify_payment` can return `200` with `"success": false`** — always check the `success` key and `payment_status`/`is_paid`, not just HTTP status, when polling payment completion.
-- Cashfree order ids are generated as `MKS_<timestamp>_<hex>` (`Booking.generate_cashfree_order_id`) — despite the `MKS` prefix (a holdover naming choice), this is used for the general Cashfree checkout flow, not specifically milk subscriptions.
+- Razorpay generates order ids (`order_...`). Older bookings keep their `cashfree_*` values in the database, but the API no longer returns them.
 - For subscriptions, `pause`/`resume` only flip `status` — they do **not** bulk-update already-generated `milk_delivery_tasks` the way the model's own `pause_all_tasks!`/`resume_all_tasks!` would. A paused subscription's existing pending delivery tasks are left untouched by this API.
 ## Customer Portfolio
 

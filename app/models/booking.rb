@@ -56,14 +56,16 @@ class Booking < ApplicationRecord
     cod: 5,
     cashfree: 6,
     cloudflare: 7,
-    wallet: 8
+    wallet: 8,
+    razorpay: 9
   }, prefix: true
 
   enum :payment_gateway, {
     cash: 'cash',
     cashfree: 'cashfree',
     cloudflare: 'cloudflare',
-    upi_direct: 'upi_direct'
+    upi_direct: 'upi_direct',
+    razorpay: 'razorpay'
   }, prefix: true
 
   # Validations
@@ -606,7 +608,7 @@ class Booking < ApplicationRecord
   end
 
   # Manual admin action for cash/offline payments collected outside the
-  # gateway flow (see mark_payment_completed! for the Cashfree equivalent).
+  # gateway flow (see mark_payment_completed! for the gateway equivalent).
   # The existing after_update :sync_invoice_payment_status callback handles
   # keeping the linked Invoice in sync — no extra work needed here.
   def mark_as_fully_paid!
@@ -678,7 +680,9 @@ class Booking < ApplicationRecord
   end
 
   def payment_method_display
-    raw_value = read_attribute(:payment_method)
+    # The column is a string but the enum is integer-mapped, so the cast value
+    # is nil for anything saved through the enum. Read what was actually stored.
+    raw_value = payment_method_before_type_cast
     return 'Cash on Delivery' if raw_value.blank?
 
     case raw_value.to_s
@@ -690,15 +694,16 @@ class Booking < ApplicationRecord
     when 'cod', '5'           then 'Cash on Delivery'
     when 'cashfree', '6'      then 'Online Payment'
     when 'cloudflare', '7'    then 'Online Payment'
+    when 'razorpay', '9'      then 'Online Payment'
     when 'wallet', '8'        then 'Wallet'
     else 'Cash on Delivery'
     end
   end
 
   def payment_method_label
-    raw_value = read_attribute(:payment_method).to_s
+    raw_value = payment_method_before_type_cast.to_s
     return 'Wallet' if %w[wallet 8].include?(raw_value)
-    %w[card 1 upi 2 bank_transfer 3 online 4 cashfree 6 cloudflare 7].include?(raw_value) ? 'Online Payment' : 'Cash on Delivery'
+    %w[card 1 upi 2 bank_transfer 3 online 4 cashfree 6 cloudflare 7 razorpay 9].include?(raw_value) ? 'Online Payment' : 'Cash on Delivery'
   end
 
   def wallet_used?
@@ -1265,12 +1270,8 @@ class Booking < ApplicationRecord
   # FranchiseDeliveryAssignmentService (franchise takes over delivery).
   public :central_stock_allocated?, :allocate_central_quantity!, :restore_central_quantity!, :release_central_allocation!
 
-  # Cashfree Payment Methods
-  def self.generate_cashfree_order_id
-    "MKS_#{Time.current.strftime('%Y%m%d%H%M%S')}_#{SecureRandom.hex(4).upcase}"
-  end
-
-  def mark_payment_initiated!(gateway = 'cashfree')
+  # Payment gateway methods
+  def mark_payment_initiated!(gateway = 'razorpay')
     update!(
       payment_gateway: gateway,
       payment_initiated_at: Time.current,
@@ -1287,8 +1288,9 @@ class Booking < ApplicationRecord
     update!(
       payment_status: 'paid',
       payment_completed_at: Time.current,
+      razorpay_payment_id: payment_details[:razorpay_payment_id],
       cashfree_payment_id: payment_details[:cf_payment_id],
-      payment_method: payment_details[:payment_method] || 'cashfree',
+      payment_method: payment_details[:payment_method] || 'razorpay',
       gateway_response: payment_details.to_json,
       status: post_payment_status
     )
@@ -1323,7 +1325,7 @@ class Booking < ApplicationRecord
   end
 
   def payment_successful?
-    payment_status_paid? && cashfree_payment_id.present?
+    payment_status_paid? && (razorpay_payment_id.present? || cashfree_payment_id.present?)
   end
 
   def gateway_response_hash

@@ -55,7 +55,7 @@ class Storefront::CheckoutController < Storefront::BaseController
 
   # JSON endpoint the checkout page's "Place Order" button posts to. Mirrors
   # Customer::CheckoutController#cart_order's shape (redirect_url for COD,
-  # payment_session_id for online) so the same Cashfree JS SDK flow used on
+  # razorpay checkout details for online) so the same Razorpay popup used on
   # the customer checkout modal works here unchanged.
   def create
     if cart_items.blank?
@@ -151,25 +151,14 @@ class Storefront::CheckoutController < Storefront::BaseController
         redirect_url: confirmation_storefront_checkout_path(booking_id: @booking.id)
       }
     else
-      cashfree_order_id = Booking.generate_cashfree_order_id
-      @booking.update!(
-        cashfree_order_id: cashfree_order_id,
-        payment_gateway: 'cashfree',
-        payment_initiated_at: Time.current,
-        payment_status: 'unpaid'
-      )
-
-      response = CashfreeService.create_order(@booking)
+      response = RazorpayService.start_checkout(@booking)
 
       if response[:success]
-        order_data = response[:data]
-        @booking.update!(payment_session_id: order_data['payment_session_id'])
-
         render json: {
           success: true,
           booking_number: @booking.booking_number,
           booking_id: @booking.id,
-          payment_session_id: order_data['payment_session_id'],
+          razorpay: response[:checkout],
           redirect_to_payment: true
         }
       else
@@ -220,7 +209,7 @@ class Storefront::CheckoutController < Storefront::BaseController
     # case that's been tampered with.
     return 'cod' if params[:delivery_option] == 'pre_booking' && SystemSetting.allow_pre_booking_enabled?
 
-    params[:payment_method] == 'online' ? 'cashfree' : 'cod'
+    params[:payment_method] == 'online' ? 'razorpay' : 'cod'
   end
 
   def delivery_address_text

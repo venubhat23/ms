@@ -1371,7 +1371,12 @@ Rails.application.routes.draw do
     end
   end
 
-  # Cashfree webhook
+  # Razorpay checkout
+  post '/razorpay/verify', to: 'razorpay#verify', as: :razorpay_verify
+  get '/razorpay/return', to: 'razorpay#finish', as: :razorpay_return
+  post '/razorpay/webhook', to: 'razorpay#webhook'
+
+  # Cashfree webhook: only for payments already in progress at the switch
   post '/cashfree/webhook', to: 'cashfree#webhook'
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.

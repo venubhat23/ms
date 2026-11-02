@@ -1570,28 +1570,22 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       })
     end
 
-    cashfree_order_id = Booking.generate_cashfree_order_id
-    booking.update!(cashfree_order_id: cashfree_order_id)
-    booking.mark_payment_initiated!('cashfree')
+    razorpay_response = RazorpayService.start_checkout(booking)
 
-    cashfree_response = CashfreeService.create_order(booking)
-
-    unless cashfree_response[:success]
-      booking.mark_payment_failed!(cashfree_response[:message])
-      return json_response({ success: false, message: cashfree_response[:message] || 'Payment gateway error. Please try again.' }, :unprocessable_entity)
+    unless razorpay_response[:success]
+      booking.mark_payment_failed!(razorpay_response[:message])
+      return json_response({ success: false, message: razorpay_response[:message] || 'Payment gateway error. Please try again.' }, :unprocessable_entity)
     end
-
-    booking.update!(payment_session_id: cashfree_response[:data]['payment_session_id'])
 
     json_response({
       success: true,
-      message: 'Payment session created. Complete payment using Cashfree SDK.',
+      message: 'Payment order created. Complete payment using the Razorpay SDK.',
       booking_number: booking.booking_number,
       booking_id: booking.id,
       total_amount: booking.total_amount.to_f,
-      payment_method: 'cashfree',
-      payment_session_id: cashfree_response[:data]['payment_session_id'],
-      cashfree_order_id: cashfree_order_id,
+      payment_method: 'razorpay',
+      razorpay: razorpay_response[:checkout].except(:return_url),
+      razorpay_order_id: booking.razorpay_order_id,
       redirect_to_payment: true
     })
   rescue ActiveRecord::RecordNotFound
@@ -1620,8 +1614,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         payment_status: booking.payment_status,
         payment_method: booking.payment_method,
         payment_gateway: booking.payment_gateway,
-        cashfree_order_id: booking.cashfree_order_id,
-        cashfree_payment_id: booking.cashfree_payment_id,
+        razorpay_order_id: booking.razorpay_order_id,
+        razorpay_payment_id: booking.razorpay_payment_id,
         total_amount: booking.total_amount.to_f,
         payment_initiated_at: booking.payment_initiated_at,
         payment_completed_at: booking.payment_completed_at,
@@ -1656,20 +1650,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       })
     end
 
-    # Query Cashfree for current order status
-    if booking.cashfree_order_id.present?
-      cashfree_response = CashfreeService.get_order(booking.cashfree_order_id)
-
-      if cashfree_response[:success]
-        order_data = cashfree_response[:data]
-        if order_data['order_status'] == 'PAID' && !booking.payment_successful?
-          booking.mark_payment_completed!(
-            cf_payment_id: order_data.dig('cf_order_id')&.to_s,
-            payment_method: 'cashfree'
-          )
-        end
-      end
-    end
+    # Query Razorpay for current order status
+    RazorpayService.confirm(booking.razorpay_order_id) if booking.razorpay_order_id.present?
 
     booking.reload
 
@@ -1753,8 +1735,8 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       booking_number: booking.booking_number,
       status: booking.status,
       payment_status: booking.payment_status,
-      cashfree_order_id: booking.cashfree_order_id,
-      cashfree_payment_id: booking.cashfree_payment_id,
+      razorpay_order_id: booking.razorpay_order_id,
+      razorpay_payment_id: booking.razorpay_payment_id,
       total_amount: booking.total_amount.to_f,
       payment_completed_at: booking.payment_completed_at,
       is_paid: booking.payment_successful?

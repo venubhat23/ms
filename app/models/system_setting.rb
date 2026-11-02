@@ -153,6 +153,52 @@ class SystemSetting < ApplicationRecord
     )
   end
 
+  # Razorpay credentials, entered on Admin > Settings > System. Read from the
+  # database every time rather than LOCAL_CACHE, so saved keys apply at once in
+  # every process. The secrets are encrypted at rest with a key derived from
+  # secret_key_base, so changing that means entering them again.
+  RAZORPAY_KEY_ID_FORMAT = /\Arzp_(test|live)_[A-Za-z0-9]+\z/
+
+  def self.razorpay_key_id
+    find_by(key: 'razorpay_key_id')&.value
+  end
+
+  def self.razorpay_key_secret
+    razorpay_secret('razorpay_key_secret')
+  end
+
+  def self.razorpay_webhook_secret
+    razorpay_secret('razorpay_webhook_secret')
+  end
+
+  # A blank secret keeps the saved one: the form never shows it to re-submit.
+  def self.update_razorpay_settings(key_id:, key_secret: nil, webhook_secret: nil)
+    transaction do
+      set_value('razorpay_key_id', key_id, description: 'Razorpay Key ID', setting_type: 'configuration')
+      { 'razorpay_key_secret' => key_secret, 'razorpay_webhook_secret' => webhook_secret }.each do |key, secret|
+        next if secret.to_s.strip.empty?
+
+        set_value(key, razorpay_encryptor.encrypt_and_sign(secret.to_s.strip),
+                  description: 'Razorpay secret (encrypted)', setting_type: 'configuration')
+      end
+    end
+  end
+
+  def self.razorpay_secret(key)
+    stored = find_by(key: key)&.value
+    stored && razorpay_encryptor.decrypt_and_verify(stored)
+  rescue ActiveSupport::MessageEncryptor::InvalidMessage, ActiveSupport::MessageVerifier::InvalidSignature
+    Rails.logger.error("[Razorpay] #{key} cannot be decrypted: enter it again in System Settings")
+    nil
+  end
+  private_class_method :razorpay_secret
+
+  def self.razorpay_encryptor
+    length = ActiveSupport::MessageEncryptor.key_len
+    ActiveSupport::MessageEncryptor.new(Rails.application.key_generator.generate_key('razorpay_settings', length))
+  end
+  private_class_method :razorpay_encryptor
+
   # Get default pagination per page as integer
   def self.default_pagination_per_page
     value = get_value('default_pagination_per_page')

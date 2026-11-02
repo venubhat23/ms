@@ -5,7 +5,7 @@
 # Paying it marks the booking's payment_status 'paid' (the same flag as
 # "Mark as Paid" on manage_stage) WITHOUT touching the order status — unlike
 # Booking#mark_payment_completed!, which is for checkout and resets status to
-# confirmed. Payment is only trusted after asking Cashfree for the order
+# confirmed. Payment is only trusted after asking Razorpay for the order
 # status server side, whether the trigger is the customer's return redirect
 # or the webhook.
 class PaymentLinkService
@@ -37,74 +37,57 @@ class PaymentLinkService
       !booking.payment_status_paid? && !%w[cancelled returned].include?(booking.status)
     end
 
-    # Creates a fresh Cashfree order for this attempt. `return_to` may contain
-    # "{order_id}", filled in with the new order id.
-    # => { success: true, payment_session_id:, order_id: } | { success: false, message: }
+    # Creates a fresh Razorpay order for this attempt. Razorpay picks the order
+    # id, so the MKSPL_ marker that identifies a link order goes in the receipt.
+    # `return_to` may contain "{order_id}", filled in with the new order id.
+    # => { success: true, checkout:, order_id: } | { success: false, message: }
     def start(booking, amount, return_to:)
-      order_id = "#{ORDER_PREFIX}_#{booking.id}_#{Time.current.strftime('%y%m%d%H%M%S')}_#{SecureRandom.hex(3).upcase}"
-      response = CashfreeService.create_order(booking, amount: amount, order_id: order_id, return_to: return_to.sub("{order_id}", order_id))
-      unless response[:success] && response.dig(:data, "payment_session_id").present?
-        return { success: false, message: response[:message] || "Could not reach the payment gateway." }
-      end
+      receipt = "#{ORDER_PREFIX}_#{booking.id}_#{Time.current.strftime('%y%m%d%H%M%S')}_#{SecureRandom.hex(3).upcase}"
+      response = RazorpayService.create_order(booking, amount: amount, receipt: receipt)
+      return { success: false, message: response[:message] || "Could not reach the payment gateway." } unless response[:success]
 
-      booking.update_columns(cashfree_order_id: order_id, payment_session_id: response.dig(:data, "payment_session_id"),
-                             payment_initiated_at: Time.current, updated_at: Time.current)
-      { success: true, payment_session_id: response.dig(:data, "payment_session_id"), order_id: order_id }
+      order = response[:data]
+      booking.update_columns(razorpay_order_id: order["id"], payment_initiated_at: Time.current, updated_at: Time.current)
+      checkout = RazorpayService.checkout_payload(booking, order, return_url: return_to.sub("{order_id}", order["id"]))
+      { success: true, checkout: checkout, order_id: order["id"] }
     end
 
-    def link_order?(order_id)
-      order_id.to_s.match?(ORDER_ID_FORMAT)
+    def link_order?(receipt)
+      receipt.to_s.match?(ORDER_ID_FORMAT)
     end
 
-    # Asks Cashfree whether the order is paid and, if so, marks the booking
-    # paid. Safe to call repeatedly (return page + webhook both do).
+    # Marks the booking paid from a settled order (RazorpayService#settle).
+    # Called for link orders only, by RazorpayService#confirm, which the return
+    # page and the webhook both go through.
     # => :paid, :already_paid, :pending, :failed, :invalid
-    def confirm(order_id)
-      booking_id = order_id.to_s[ORDER_ID_FORMAT, 1]
-      booking = booking_id && Booking.find_by(id: booking_id)
+    def record(order, settled)
+      booking = Booking.find_by(id: order["receipt"].to_s[ORDER_ID_FORMAT, 1])
       return :invalid unless booking
       return :already_paid if booking.payment_status_paid?
+      return settled[:status] unless settled[:status] == :paid
 
-      order = CashfreeService.get_order(order_id)
-      return :pending unless order[:success]
-
-      case order.dig(:data, "order_status")
-      when "PAID"
-        payment = successful_payment(order_id)
-        marked = mark_paid(booking, order_id, order[:data], payment)
-        marked ? :paid : :already_paid
-      when "ACTIVE" then :pending
-      else :failed
-      end
+      mark_paid(booking, order, settled[:payment]) ? :paid : :already_paid
     end
 
     private
 
-    def successful_payment(order_id)
-      response = CashfreeService.get_order_payments(order_id)
-      payments = response[:success] ? Array(response[:data]) : []
-      payments.find { |p| p["payment_status"] == "SUCCESS" } || {}
-    end
-
-    def mark_paid(booking, order_id, order, payment)
+    def mark_paid(booking, order, payment)
       booking.with_lock do
         return false if booking.payment_status_paid?
 
-        method = payment["payment_group"].presence || payment["payment_method"]&.keys&.first
         booking.update!(
           payment_status: :paid,
           payment_completed_at: Time.current,
-          payment_gateway: "cashfree",
-          cashfree_order_id: order_id,
-          cashfree_payment_id: payment["cf_payment_id"]&.to_s,
+          payment_gateway: "razorpay",
+          razorpay_order_id: order["id"],
+          razorpay_payment_id: payment["id"],
           gateway_response: {
-            source: "payment_link", order_id: order_id, order_amount: order["order_amount"],
-            cf_payment_id: payment["cf_payment_id"], payment_method: method,
-            bank_reference: payment["bank_reference"], paid_at: Time.current
+            source: "payment_link", order_id: order["id"], order_amount: order["amount"].to_i / 100.0,
+            razorpay_payment_id: payment["id"], payment_method: payment["method"], paid_at: Time.current
           }.to_json
         )
       end
-      Rails.logger.info("[PaymentLink] booking #{booking.booking_number} marked paid via #{order_id}")
+      Rails.logger.info("[PaymentLink] booking #{booking.booking_number} marked paid via #{order['id']}")
       true
     end
 

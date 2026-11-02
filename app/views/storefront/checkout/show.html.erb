@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Checkout</title>
-<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+<%= render 'shared/razorpay_checkout' %>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f6f5f2;color:#232323;line-height:1.5}
@@ -416,16 +416,6 @@ function selectPayment(method) {
   document.getElementById('pay-online').classList.toggle('selected', method === 'online');
 }
 
-let cashfree;
-async function initCashfree() {
-  try {
-    cashfree = await Cashfree({ mode: '<%= Rails.env.production? ? "production" : "sandbox" %>' });
-  } catch (e) {
-    console.error('Cashfree init failed', e);
-  }
-}
-initCashfree();
-
 function showError(message) {
   const box = document.getElementById('error-box');
   box.textContent = message;
@@ -483,9 +473,8 @@ async function placeOrder() {
       throw new Error(data.error || 'Failed to place order.');
     }
 
-    if (data.redirect_to_payment && data.payment_session_id) {
-      if (!cashfree) await initCashfree();
-      await cashfree.checkout({ paymentSessionId: data.payment_session_id, redirectTarget: '_self' });
+    if (data.redirect_to_payment && data.razorpay) {
+      openRazorpayCheckout(data.razorpay, showError);
       return;
     }
 

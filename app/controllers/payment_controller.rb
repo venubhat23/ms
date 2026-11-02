@@ -35,8 +35,8 @@ class PaymentController < Customer::BaseController
           customer_email: params[:customer_email] || current_customer&.email,
           customer_phone: params[:customer_phone] || current_customer&.mobile,
           delivery_address: delivery_address,
-          payment_method: params[:payment_method] == 'cod' ? 'cod' : 'cashfree',
-          payment_gateway: params[:payment_method] == 'cod' ? 'cash' : 'cashfree',
+          payment_method: params[:payment_method] == 'cod' ? 'cod' : 'razorpay',
+          payment_gateway: params[:payment_method] == 'cod' ? 'cash' : 'razorpay',
           status: 'draft'
         )
 
@@ -114,29 +114,14 @@ class PaymentController < Customer::BaseController
               error: response[:error]
             }, status: :unprocessable_entity
           end
-        elsif @booking.payment_method == 'cashfree'
-          # Keep existing Cashfree logic for backward compatibility
-          @booking.mark_payment_initiated!('cashfree')
-
-          # Generate unique Cashfree order ID
-          cashfree_order_id = Booking.generate_cashfree_order_id
-          @booking.update!(cashfree_order_id: cashfree_order_id)
-
-          # Create order with Cashfree
-          response = CashfreeService.create_order(@booking)
+        elsif @booking.payment_method == 'razorpay'
+          response = RazorpayService.start_checkout(@booking)
 
           if response[:success]
-            order_data = response[:data]
-
-            # Store payment session ID
-            @booking.update!(
-              payment_session_id: order_data['payment_session_id']
-            )
-
             render json: {
               success: true,
-              payment_session_id: order_data['payment_session_id'],
-              order_id: @booking.cashfree_order_id,
+              razorpay: response[:checkout],
+              order_id: @booking.razorpay_order_id,
               amount: @booking.total_amount,
               customer_id: @booking.customer.id,
               booking_id: @booking.id

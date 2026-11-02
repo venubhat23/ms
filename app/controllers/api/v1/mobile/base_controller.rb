@@ -53,12 +53,19 @@ class Api::V1::Mobile::BaseController < ApplicationController
         # Same rule as "User exists ? Customer by that user's email :
         # Customer by id", resolved in ONE query instead of two sequential
         # round trips on every authenticated mobile request.
-        @current_user = Customer.where(<<~SQL.squish, uid: user_id).take
-          CASE WHEN EXISTS (SELECT 1 FROM users WHERE users.id = :uid)
-               THEN customers.email IS NOT DISTINCT FROM (SELECT users.email FROM users WHERE users.id = :uid)
-               ELSE customers.id = :uid
-          END
-        SQL
+        # That rule can't tell the two shapes apart when a Customer's id equals
+        # an unrelated User's id, so tokens now carry customer_record_id and
+        # only older tokens fall through to it.
+        @current_user = if decoded_token['customer_record_id']
+          Customer.find_by(id: decoded_token['customer_record_id'])
+        else
+          Customer.where(<<~SQL.squish, uid: user_id).take
+            CASE WHEN EXISTS (SELECT 1 FROM users WHERE users.id = :uid)
+                 THEN customers.email IS NOT DISTINCT FROM (SELECT users.email FROM users WHERE users.id = :uid)
+                 ELSE customers.id = :uid
+            END
+          SQL
+        end
         if @current_user.nil?
           return render json: {
             success: false,

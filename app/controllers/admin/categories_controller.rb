@@ -19,6 +19,7 @@ class Admin::CategoriesController < Admin::ApplicationController
 
   def show
     @products = Product.preload_batch_stock(@category.products.includes(:category, image_attachment: :blob).recent.limit(10))
+    @products_count = @category.products_count
   end
 
   def new

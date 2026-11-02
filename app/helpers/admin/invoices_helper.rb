@@ -5,7 +5,8 @@ module Admin::InvoicesHelper
   def invoice_product_options(selected_product_id: nil, selected_unit_price: nil)
     options = [content_tag(:option, 'Select Product...', value: '')]
 
-    Product.active.includes(:category, :product_variants).order(:name).each do |product|
+    @invoice_option_products ||= Product.active.includes(:category, :product_variants).order(:name).to_a
+    @invoice_option_products.each do |product|
       gst_rate = product.gst_enabled ? product.gst_percentage.to_f : 0
 
       if product.has_multiple_quantities? && product.product_variants.any?

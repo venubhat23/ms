@@ -270,6 +270,7 @@
     </div>
   </div>
 
+  <% if @cart_items.any? %>
   <div class="container">
     <div class="row">
       <!-- Cart Items -->
@@ -323,13 +324,11 @@
                 <!-- Item Total & Remove -->
                 <div class="col-md-2 col-6 text-md-end">
                   <p class="item-total mb-2">₹<%= (item['price'].to_f * item['quantity'].to_i).round(2) %></p>
-                  <%= link_to remove_item_customer_cart_path,
-                             method: :delete,
-                             data: {
-                               confirm: 'Remove this item from cart?',
-                               params: { product_id: item['product_id'], variant_id: item['variant_id'] }
-                             },
-                             class: "remove-btn" do %>
+                  <%= button_to remove_item_customer_cart_path,
+                               method: :delete,
+                               params: { product_id: item['product_id'], variant_id: item['variant_id'] },
+                               form: { onsubmit: "return confirm('Remove this item from cart?')" },
+                               class: "remove-btn" do %>
                     <i class="fas fa-trash"></i>
                   <% end %>
                 </div>
@@ -339,10 +338,10 @@
 
           <!-- Clear Cart -->
           <div class="text-end p-3">
-            <%= link_to clear_customer_cart_path,
-                       method: :delete,
-                       data: { confirm: 'Are you sure you want to clear your cart?' },
-                       class: "clear-cart-btn" do %>
+            <%= button_to clear_customer_cart_path,
+                         method: :delete,
+                         form: { onsubmit: "return confirm('Are you sure you want to clear your cart?')" },
+                         class: "clear-cart-btn" do %>
               <i class="fas fa-trash me-2"></i>Clear Cart
             <% end %>
           </div>
@@ -405,7 +404,7 @@
 
             <!-- Checkout Button -->
             <div class="d-grid gap-2 mt-4">
-              <%= link_to customer_checkout_path, class: "checkout-btn" do %>
+              <%= link_to customer_checkout_path('cart'), class: "checkout-btn" do %>
                 <i class="fas fa-credit-card me-2"></i>Proceed to Checkout
               <% end %>
             </div>

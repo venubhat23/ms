@@ -49,6 +49,10 @@ has_many :pending_amounts, dependent: :destroy
   # Virtual attribute for status if column doesn't exist yet
   attr_accessor :status unless column_names.include?('status')
 
+  # The customer profile form's names for these columns.
+  alias_attribute :emergency_contact_mobile, :emergency_contact_number
+  alias_attribute :business_job, :occupation
+
   # Validate password presence and confirmation only when password is set
   validates :password, presence: true, length: { minimum: 6 }, if: :password_required?
   validates :password_confirmation, presence: true, if: :password_required?

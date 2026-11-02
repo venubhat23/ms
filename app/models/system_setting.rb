@@ -163,9 +163,17 @@ class SystemSetting < ApplicationRecord
     find_by(key: 'razorpay_key_id')&.value
   end
 
-  # e.g. rzp_live_••••Wwn, for the locked view on the settings page.
-  def self.razorpay_key_id_masked
-    razorpay_key_id.to_s.sub(/\A(rzp_(?:test|live)_).*(.{4})\z/, '\1••••\2').presence
+  # What the settings page shows, from one query. e.g. rzp_live_••••Wwn for the
+  # locked view.
+  def self.razorpay_status
+    stored = where(key: %w[razorpay_key_id razorpay_key_secret razorpay_webhook_secret]).pluck(:key, :value).to_h
+    key_id = stored['razorpay_key_id']
+    {
+      key_id: key_id,
+      key_id_masked: key_id.to_s.sub(/\A(rzp_(?:test|live)_).*(.{4})\z/, '\1••••\2').presence,
+      key_secret_saved: razorpay_decrypt('razorpay_key_secret', stored['razorpay_key_secret']).present?,
+      webhook_secret_saved: razorpay_decrypt('razorpay_webhook_secret', stored['razorpay_webhook_secret']).present?
+    }
   end
 
   def self.razorpay_key_secret
@@ -190,13 +198,17 @@ class SystemSetting < ApplicationRecord
   end
 
   def self.razorpay_secret(key)
-    stored = find_by(key: key)&.value
+    razorpay_decrypt(key, find_by(key: key)&.value)
+  end
+  private_class_method :razorpay_secret
+
+  def self.razorpay_decrypt(key, stored)
     stored && razorpay_encryptor.decrypt_and_verify(stored)
   rescue ActiveSupport::MessageEncryptor::InvalidMessage, ActiveSupport::MessageVerifier::InvalidSignature
     Rails.logger.error("[Razorpay] #{key} cannot be decrypted: enter it again in System Settings")
     nil
   end
-  private_class_method :razorpay_secret
+  private_class_method :razorpay_decrypt
 
   def self.razorpay_encryptor
     length = ActiveSupport::MessageEncryptor.key_len

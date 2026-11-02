@@ -61,8 +61,12 @@ class Customer::BaseController < ApplicationController
 
   # Cart helper methods
   def cart_count
-    return 0 unless session[:cart].present? && session[:cart][:items].present?
-    session[:cart][:items].sum { |item| item['quantity'].to_i }
+    session_cart[:items].to_a.sum { |item| item['quantity'].to_i }
+  end
+
+  # The session cookie turns the cart's symbol keys into strings between requests.
+  def session_cart
+    (session[:cart].presence || { items: [] }).to_h.with_indifferent_access
   end
 
   # Override authorization check from ApplicationController

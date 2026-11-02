@@ -39,8 +39,24 @@ class StockMovement < ApplicationRecord
   scope :from_purchases, -> { where(reference_type: 'vendor_purchase') }
   scope :from_adjustments, -> { where(reference_type: 'adjustment') }
 
+  attr_writer :preloaded_reference
+
+  # One query per reference type for a page of movements, so the list does not
+  # look each reference up separately.
+  def self.preload_references(movements)
+    { 'vendor_purchase' => VendorPurchase, 'booking' => Booking }.each do |type, model|
+      rows = movements.select { |movement| movement.reference_type == type }
+      next if rows.empty?
+
+      found = model.where(id: rows.filter_map(&:reference_id).uniq).index_by(&:id)
+      rows.each { |movement| movement.preloaded_reference = found[movement.reference_id] }
+    end
+  end
+
   # Get the reference object
   def reference_object
+    return @preloaded_reference if defined?(@preloaded_reference)
+
     case reference_type
     when 'vendor_purchase'
       VendorPurchase.find_by(id: reference_id)

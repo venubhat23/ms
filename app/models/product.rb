@@ -143,6 +143,16 @@ class Product < ApplicationRecord
     end
   }
 
+  # Counts for the current scope in one query.
+  def self.stock_status_counts
+    total, out_of_stock, low_stock = pick(
+      Arel.sql('COUNT(*)'),
+      Arel.sql("COUNT(*) FILTER (WHERE (#{TOTAL_STOCK_SQL}) <= 0)"),
+      Arel.sql("COUNT(*) FILTER (WHERE (#{TOTAL_STOCK_SQL}) > 0 AND (#{TOTAL_STOCK_SQL}) <= #{LOW_STOCK_LIMIT})")
+    )
+    { total: total, out_of_stock: out_of_stock, low_stock: low_stock, in_stock: total - out_of_stock - low_stock }
+  end
+
   def self.stock_status_for(total)
     if total.to_f <= 0 then 'out_of_stock'
     elsif total.to_f <= LOW_STOCK_LIMIT then 'low_stock'

@@ -31,6 +31,7 @@ class Admin::StockMovementsController < Admin::ApplicationController
 
     # Order by most recent
     @stock_movements = @stock_movements.recent.page(params[:page]).per(50)
+    StockMovement.preload_references(@stock_movements)
 
     # For filter options
     @products = Product.joins(:stock_movements).distinct.order(:name)

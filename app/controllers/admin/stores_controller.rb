@@ -5,9 +5,9 @@ class Admin::StoresController < Admin::ApplicationController
   before_action :check_collect_from_store_enabled, only: [:index, :new, :create]
 
   def index
-    @stores = Store.all.order(:name)
-    @can_add_more = Store.can_add_more_stores?
-    @remaining_slots = Store.remaining_store_slots
+    @stores = Store.all.order(:name).to_a
+    @can_add_more = @stores.size < Store::MAX_STORES_LIMIT
+    @remaining_slots = Store::MAX_STORES_LIMIT - @stores.size
     @collect_from_store_enabled = SystemSetting.collect_from_store_enabled?
     # One grouped query for every store's booking count instead of one
     # `store.bookings.count` round trip per card in the view.

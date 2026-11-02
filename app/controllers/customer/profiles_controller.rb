@@ -26,10 +26,10 @@ class Customer::ProfilesController < Customer::BaseController
   def customer_params
     params.require(:customer).permit(
       :first_name, :last_name, :middle_name, :email, :mobile, :whatsapp_number,
-      :birth_date, :gender, :marital_status, :pan_no, :aadhar_no, :gst_no,
-      :company_name, :address, :city, :state, :pincode, :country,
+      :birth_date, :gender, :marital_status, :pan_no, :gst_no,
+      :company_name, :address,
       :emergency_contact_name, :emergency_contact_mobile, :business_job,
-      :annual_income, :height, :weight
+      :annual_income
     )
   end
 end

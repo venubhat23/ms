@@ -1,6 +1,6 @@
 class Admin::BookingsController < Admin::ApplicationController
   before_action :authenticate_user!
-  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :payment_link, :manage_stage, :update_stage, :approve_pre_booking, :reject_pre_booking]
+  before_action :set_booking, only: [:show, :edit, :update, :destroy, :generate_invoice, :invoice, :convert_to_order, :update_status, :cancel_order, :mark_delivered, :mark_completed, :mark_fully_paid, :payment_link, :manage_stage, :update_stage, :approve_pre_booking, :reject_pre_booking, :stage_transition, :process_stage_transition]
 
   LIST_STATE_PARAMS = %i[page search status date_from date_to customer_id b2b booked_by affiliate_id category_id sort direction].freeze
 

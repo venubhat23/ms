@@ -82,10 +82,11 @@ class Admin::Settings::SystemController < Admin::Settings::BaseController
     @split_feature_enabled = system_config&.split_feature_enabled || false
 
     # Razorpay: only whether a secret is saved reaches the view, never the secret
-    @razorpay_key_id = SystemSetting.razorpay_key_id
-    @razorpay_key_id_masked = SystemSetting.razorpay_key_id_masked
-    @razorpay_key_secret_saved = SystemSetting.razorpay_key_secret.present?
-    @razorpay_webhook_secret_saved = SystemSetting.razorpay_webhook_secret.present?
+    razorpay = SystemSetting.razorpay_status
+    @razorpay_key_id = razorpay[:key_id]
+    @razorpay_key_id_masked = razorpay[:key_id_masked]
+    @razorpay_key_secret_saved = razorpay[:key_secret_saved]
+    @razorpay_webhook_secret_saved = razorpay[:webhook_secret_saved]
 
     # Get selected public storefront theme
     website_theme_setting = settings_by_key['website_theme']

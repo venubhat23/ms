@@ -244,8 +244,17 @@ class Api::V1::Admin::AllDataController < Api::V1::Admin::BaseController
     data = { generated_at: Time.current, from_date: dates.begin, to_date: dates.end, limit: limit, page: page,
              section_errors: {} }
 
+    scopes = (wanted - COMPUTED_SECTIONS).index_with { |name| section_scope(SECTIONS[name], dates) }
+    totals = list_totals(scopes)
+    # Fired together so their round trips overlap.
+    pages = scopes.transform_values { |scope| scope.order(id: :desc).limit(limit).offset((page - 1) * limit).load_async }
+
     wanted.each do |name|
-      data[name] = COMPUTED_SECTIONS.include?(name) ? computed_section(name) : list_section(SECTIONS[name], dates, limit, page)
+      data[name] = if COMPUTED_SECTIONS.include?(name)
+                     computed_section(name)
+                   else
+                     list_section(name, scopes[name], pages[name], totals)
+                   end
     rescue StandardError => e
       # One broken module must not blank the whole app screen.
       Rails.logger.error("[AllData] #{name}: #{e.class}: #{e.message}")
@@ -281,15 +290,32 @@ class Api::V1::Admin::AllDataController < Api::V1::Admin::BaseController
     name == :summary ? Api::V1::Admin::DashboardController.summary : cash_in_hand
   end
 
-  def list_section(section, dates, limit, page)
+  def section_scope(section, dates)
     scope = section[:scope].call
-    date_column = section[:date_column]
-    scope = scope.where(date_column => dates.begin.beginning_of_day..dates.end.end_of_day) if date_column
-    records = scope.order(id: :desc).limit(limit).offset((page - 1) * limit)
+    return scope unless section[:date_column]
 
+    scope.where(section[:date_column] => dates.begin.beginning_of_day..dates.end.end_of_day)
+  end
+
+  # Every list's count in one query. If that fails, each list counts itself so
+  # one broken table only costs its own section.
+  def list_totals(scopes)
+    return {} if scopes.empty?
+
+    counts = scopes.map do |name, scope|
+      "(#{scope.except(:select, :includes).select('COUNT(*)').to_sql}) AS \"#{name}\""
+    end
+    ActiveRecord::Base.connection.select_one("SELECT #{counts.join(', ')}").to_h.symbolize_keys
+  rescue ActiveRecord::StatementInvalid => e
+    Rails.logger.error("[AllData] totals: #{e.message}")
+    {}
+  end
+
+  def list_section(name, scope, records, totals)
+    section = SECTIONS[name]
     {
-      date_filtered: date_column.present?,
-      total_count: scope.except(:select, :includes).count,
+      date_filtered: section[:date_column].present?,
+      total_count: totals[name] || scope.except(:select, :includes).count,
       items: records.map { |record| row(record, section) }
     }
   end

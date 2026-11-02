@@ -1,7 +1,7 @@
 require 'set'
 
 class Admin::InvoicesController < Admin::ApplicationController
-  before_action :set_invoice, only: [:show, :edit, :update, :destroy, :mark_as_paid, :download_pdf]
+  before_action :set_invoice, only: [:show, :show_premium, :edit, :update, :destroy, :mark_as_paid, :download_pdf]
 
   def index
     # Show only regular invoices by default (exclude booking invoices)

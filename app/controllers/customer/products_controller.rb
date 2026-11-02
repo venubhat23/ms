@@ -67,6 +67,7 @@ class Customer::ProductsController < Customer::BaseController
                               .where.not(id: @product.id)
                               .where(category: @product.category)
                               .eager_load(:category, image_attachment: :blob)
+                              .preload(:product_variants)
                               .limit(4)
     @related_products = Product.preload_batch_stock(@related_products)
   end
@@ -94,7 +95,7 @@ class Customer::ProductsController < Customer::BaseController
     # into the product query itself; has_many ones stay as preloads.
     @product = Product.active
                       .eager_load(:category, image_attachment: :blob)
-                      .preload(:approved_reviews, :stock_batches)
+                      .preload(:approved_reviews, :stock_batches, :product_variants)
                       .find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to customer_products_path, alert: 'Product not found.'

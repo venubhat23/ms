@@ -1,6 +1,7 @@
 class Admin::ClientRequestsController < Admin::ApplicationController
   before_action :authenticate_user!
   before_action :set_client_request, only: [:show, :edit, :update, :destroy, :update_status, :assign_to, :add_response]
+  before_action :load_stats, only: [:pending, :in_progress, :resolved, :search]
 
   def index
     @client_requests = ClientRequest.includes(:resolved_by).recent
@@ -21,15 +22,7 @@ class Admin::ClientRequestsController < Admin::ApplicationController
     # trip overlaps with the status GROUP BY below instead of stacking after it.
     @client_requests.load_async
 
-    # Single GROUP BY replaces 5 separate COUNT queries.
-    status_counts = ClientRequest.group(:status).count
-    @stats = {
-      total: status_counts.values.sum,
-      pending: status_counts['pending'] || 0,
-      in_progress: status_counts['in_progress'] || 0,
-      resolved: status_counts['resolved'] || 0,
-      closed: status_counts['closed'] || 0
-    }
+    load_stats
 
     # Reuse the GROUP BY total instead of a second COUNT(*) round trip when no
     # filter narrows the result set.
@@ -101,6 +94,18 @@ class Admin::ClientRequestsController < Admin::ApplicationController
   end
 
   private
+
+  def load_stats
+    # Single GROUP BY replaces 5 separate COUNT queries.
+    status_counts = ClientRequest.group(:status).count
+    @stats = {
+      total: status_counts.values.sum,
+      pending: status_counts['pending'] || 0,
+      in_progress: status_counts['in_progress'] || 0,
+      resolved: status_counts['resolved'] || 0,
+      closed: status_counts['closed'] || 0
+    }
+  end
 
   def set_client_request
     @client_request = ClientRequest.find(params[:id])

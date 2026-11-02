@@ -137,12 +137,12 @@ class Admin::ReportsController < Admin::ApplicationController
     end
 
     @leads_data = {
-      total_leads: Lead.where(created_date: start_date..Time.current).count,
+      total_leads: Lead.where(created_at: start_date..Time.current).count,
       conversion_rate: 0
     }
 
     if Lead.column_names.include?('current_stage')
-      @leads_by_stage = Lead.where(created_date: start_date..Time.current)
+      @leads_by_stage = Lead.where(created_at: start_date..Time.current)
                            .group(:current_stage)
                            .count
     else
@@ -506,9 +506,13 @@ class Admin::ReportsController < Admin::ApplicationController
     end
 
     # Commission calculations
-    @total_commissions = CommissionPayout.where(created_at: start_date..Time.current).sum(:payout_amount) rescue 0
-    @pending_commissions = CommissionPayout.where(created_at: start_date..Time.current, status: 'pending').sum(:payout_amount) rescue 0
-    @paid_commissions = CommissionPayout.where(created_at: start_date..Time.current, status: 'paid').sum(:payout_amount) rescue 0
+    @total_commissions = @pending_commissions = @paid_commissions = 0
+    if CommissionPayout.table_exists?
+      commissions = CommissionPayout.where(created_at: start_date..Time.current)
+      @total_commissions = commissions.sum(:payout_amount)
+      @pending_commissions = commissions.where(status: 'pending').sum(:payout_amount)
+      @paid_commissions = commissions.where(status: 'paid').sum(:payout_amount)
+    end
 
     # Insurance premium calculations
     @life_premiums = LifeInsurance.where(created_at: start_date..Time.current).sum(:total_premium) rescue 0

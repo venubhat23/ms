@@ -16,6 +16,8 @@ module ExceptionHandler
     rescue_from ExceptionHandler::ExpiredSignature, with: :four_ninety_eight
 
     rescue_from ActiveRecord::RecordNotFound do |e|
+      raise e unless respond_to?(:json_response, true)
+
       json_response({ message: e.message }, :not_found)
     end
 

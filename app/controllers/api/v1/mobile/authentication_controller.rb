@@ -43,7 +43,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
           end
         end
         if customer
-          token = generate_token(user, 'customer')
+          token = generate_token(user, 'customer', customer: customer)
           portfolio_stats = get_customer_portfolio_stats(customer)
 
           json_response({
@@ -113,7 +113,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     end
 
     if customer && customer.authenticate(password) && customer.status
-      token = generate_token(customer, 'customer')
+      token = generate_token(customer, 'customer', customer: customer)
       portfolio_stats = get_customer_portfolio_stats(customer)
 
       json_response({
@@ -717,7 +717,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     case OtpVerification.verify(mobile, otp_code, purpose: 'login')
     when :verified
       user, customer, is_new_user = find_or_create_otp_account(mobile)
-      token = generate_token(user, 'customer')
+      token = generate_token(user, 'customer', customer: customer)
 
       json_response({
         success: true,
@@ -802,7 +802,10 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
     [new_user, new_customer, true]
   end
 
-  def generate_token(user, role)
+  # user_id and customer_id hold a User id or a Customer id depending on the
+  # login path, and the two tables' ids overlap. customer_record_id is always
+  # the Customer id, so authenticate_customer! can't land on the wrong account.
+  def generate_token(user, role, customer: nil)
     payload = {
       user_id: user.id,
       role: role,
@@ -815,6 +818,7 @@ class Api::V1::Mobile::AuthenticationController < Api::V1::BaseController
       payload[:delivery_person_id] = user.id
     when 'customer'
       payload[:customer_id] = user.id
+      payload[:customer_record_id] = customer.id if customer
     when 'sub_agent'
       payload[:sub_agent_id] = user.id
     end

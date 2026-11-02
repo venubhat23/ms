@@ -93,7 +93,7 @@ class Lead < ApplicationRecord
   scope :by_source, ->(source) { where(lead_source: source) }
   scope :by_product_category, ->(category) { where(product_category: category) }
   scope :by_product_subcategory, ->(subcategory) { where(product_subcategory: subcategory) }
-  scope :recent, -> { order(created_date: :desc) }
+  scope :recent, -> { order(created_at: :desc) }
   scope :pending_conversion, -> { where(current_stage: ['consultation_scheduled', 'one_on_one', 'follow_up', 're_follow_up']) }
   scope :converted_leads, -> { where(current_stage: 'converted') }
   scope :active_follow_up, -> { where(current_stage: ['follow_up', 're_follow_up']) }
@@ -431,13 +431,17 @@ class Lead < ApplicationRecord
     affiliate&.display_name || 'N/A'
   end
 
+  # There is no created_date column: the lead date is created_at.
+  def created_date
+    created_at&.to_date
+  end
+
   def created_date=(value)
     if value.is_a?(String) && value.match(/^\d{2}\/\d{2}\/\d{4}$/)
-      parts = value.split('/')
-      day, month, year = parts[0].to_i, parts[1].to_i, parts[2].to_i
-      super(Date.new(year, month, day))
+      day, month, year = value.split('/').map(&:to_i)
+      self.created_at = Date.new(year, month, day)
     else
-      super(value)
+      self.created_at = value
     end
   end
 

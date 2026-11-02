@@ -63,7 +63,7 @@ class Customer::CheckoutController < Customer::BaseController
     if SystemSetting.delivery_only_at_shop_enabled?
       delivery_store = params[:delivery_store] || session[:delivery_store]
       if delivery_store.blank?
-        redirect_to customer_checkout_path, alert: 'Please select a pickup location.'
+        redirect_to customer_checkout_path('cart'), alert: 'Please select a pickup location.'
         return
       end
       session[:delivery_store] = delivery_store
@@ -266,7 +266,7 @@ class Customer::CheckoutController < Customer::BaseController
   private
 
   def initialize_cart
-    @cart = session[:cart] ||= { items: [] }
+    @cart = session[:cart] = session_cart
   end
 
   def check_cart_not_empty

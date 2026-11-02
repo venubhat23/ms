@@ -10,11 +10,12 @@ class Api::V1::Admin::StockController < Api::V1::Admin::BaseController
       products = products.where('products.name ILIKE :t OR products.sku ILIKE :t', t: term)
     end
 
+    counts = products.stock_status_counts
     summary = {
-      total_products: products.count,
-      out_of_stock: products.where_stock_status('out_of_stock').count,
-      low_stock: products.where_stock_status('low_stock').count,
-      in_stock: products.where_stock_status('in_stock').count,
+      total_products: counts[:total],
+      out_of_stock: counts[:out_of_stock],
+      low_stock: counts[:low_stock],
+      in_stock: counts[:in_stock],
       low_stock_limit: Product::LOW_STOCK_LIMIT
     }
 

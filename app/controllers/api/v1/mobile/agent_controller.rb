@@ -1797,7 +1797,7 @@ class Api::V1::Mobile::AgentController < Api::V1::Mobile::BaseController
 
     {
       total_leads: Lead.count,
-      this_month_leads: Lead.where(created_date: current_month_start..current_month_end).count,
+      this_month_leads: Lead.where(created_at: current_month_start..current_month_end).count,
       pending_leads: Lead.pending_conversion.count,
       converted_leads: Lead.converted_leads.count,
       conversion_rate: calculate_conversion_rate,

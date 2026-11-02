@@ -1928,7 +1928,7 @@
           <div class="product-gallery">
             <div class="main-image-container">
               <div class="main-product-image" id="mainProductImage">
-                <% if @product.images.attached? && @product.images.any? %>
+                <% if @product.images.any? %>
                   <%= image_tag @product.images.first,
                       class: "product-main-image",
                       style: "width: 100%; height: 100%; object-fit: cover;",
@@ -1977,8 +1977,8 @@
 
             <!-- Thumbnail Gallery -->
             <div class="thumbnail-gallery">
-              <% if @product.images.attached? && @product.images.any? %>
-                <% @product.images.limit(6).each_with_index do |image, index| %>
+              <% if @product.images.any? %>
+                <% @product.images.first(6).each_with_index do |image, index| %>
                   <div class="thumbnail-item <%= 'active' if index == 0 %>"
                        data-image-url="<%= url_for(image) %>"
                        onclick="changeMainImage('<%= url_for(image) %>')">

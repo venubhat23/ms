@@ -180,7 +180,7 @@
           </div>
           <div>
             <div class="text-muted small fw-medium">Total Stores</div>
-            <div class="fw-bold fs-4"><%= @stores.count %></div>
+            <div class="fw-bold fs-4"><%= @stores.size %></div>
           </div>
         </div>
       </div>
@@ -193,7 +193,7 @@
           </div>
           <div>
             <div class="text-muted small fw-medium">Active</div>
-            <div class="fw-bold fs-4 text-success"><%= @stores.where(status: true).count %></div>
+            <div class="fw-bold fs-4 text-success"><%= @stores.count { |store| store.status == true } %></div>
           </div>
         </div>
       </div>
@@ -206,7 +206,7 @@
           </div>
           <div>
             <div class="text-muted small fw-medium">Inactive</div>
-            <div class="fw-bold fs-4 text-danger"><%= @stores.where(status: false).count %></div>
+            <div class="fw-bold fs-4 text-danger"><%= @stores.count { |store| store.status == false } %></div>
           </div>
         </div>
       </div>
@@ -231,7 +231,7 @@
     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center px-4 py-3">
       <h5 class="mb-0 fw-semibold">
         <i class="bi bi-building me-2 text-muted"></i>All Stores
-        <span class="badge bg-secondary-subtle text-secondary ms-2" style="font-size:0.75rem;"><%= @stores.count %></span>
+        <span class="badge bg-secondary-subtle text-secondary ms-2" style="font-size:0.75rem;"><%= @stores.size %></span>
       </h5>
       <div class="d-flex gap-2 align-items-center">
         <div class="position-relative">

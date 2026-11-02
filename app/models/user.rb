@@ -46,6 +46,12 @@ class User < ApplicationRecord
   include PgSearch::Model
 
   # Associations
+  # The admin Users pages and params use these names; the columns are pan_no,
+  # gst_no and birth_date.
+  alias_attribute :pan_number, :pan_no
+  alias_attribute :gst_number, :gst_no
+  alias_attribute :date_of_birth, :birth_date
+
   belongs_to :role, optional: true
   belongs_to :user_role, optional: true
   belongs_to :authenticatable, polymorphic: true, optional: true
@@ -81,7 +87,7 @@ class User < ApplicationRecord
 
   # Search
   pg_search_scope :search_users,
-    against: [:first_name, :last_name, :email, :mobile, :pan_number],
+    against: [:first_name, :last_name, :email, :mobile, :pan_no],
     using: {
       tsearch: { prefix: true, any_word: true }
     }

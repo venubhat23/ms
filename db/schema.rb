@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_02_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_02_000002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -603,6 +603,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_02_000001) do
     t.datetime "updated_at", null: false
     t.index ["category"], name: "index_expenses_on_category"
     t.index ["created_by_id"], name: "index_expenses_on_created_by_id"
+    t.index ["expense_date"], name: "index_expenses_on_expense_date"
     t.index ["store_id", "expense_date"], name: "index_expenses_on_store_id_and_expense_date"
     t.index ["store_id"], name: "index_expenses_on_store_id"
   end
@@ -1453,6 +1454,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_02_000001) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["payment_date"], name: "index_staff_payments_on_payment_date"
     t.index ["staff_member_id", "year", "month"], name: "index_staff_payments_on_member_and_period"
     t.index ["staff_member_id"], name: "index_staff_payments_on_staff_member_id"
   end
@@ -1804,6 +1806,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_02_000001) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["payment_date"], name: "index_vendor_payments_on_payment_date"
     t.index ["vendor_id"], name: "index_vendor_payments_on_vendor_id"
     t.index ["vendor_purchase_id"], name: "index_vendor_payments_on_vendor_purchase_id"
   end
@@ -1833,6 +1836,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_02_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["created_at"], name: "index_vendor_purchases_on_created_at"
+    t.index ["purchase_date"], name: "index_vendor_purchases_on_purchase_date"
     t.index ["status"], name: "index_vendor_purchases_on_status"
     t.index ["vendor_id"], name: "index_vendor_purchases_on_vendor_id"
   end

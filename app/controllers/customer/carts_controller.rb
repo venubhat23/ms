@@ -4,7 +4,8 @@ class Customer::CartsController < Customer::BaseController
   def show
     @cart_items = @cart[:items] || []
     @cart_total = calculate_cart_total
-    @cart_count = @cart_items.sum { |item| item['quantity'] }
+    @cart_count = @cart_items.sum { |item| item['quantity'].to_i }
+    render 'customer/cart/show'
   end
 
   def add_item
@@ -210,7 +211,7 @@ class Customer::CartsController < Customer::BaseController
   end
 
   def initialize_cart
-    @cart = session[:cart] ||= { items: [] }
+    @cart = session[:cart] = session_cart
   end
 
   def save_cart

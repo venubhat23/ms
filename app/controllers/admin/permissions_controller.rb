@@ -150,7 +150,7 @@ class Admin::PermissionsController < Admin::ApplicationController
 
   def ensure_super_admin
     unless current_user.has_permission?('roles', 'manage') || current_user.super_admin?
-      redirect_to admin_dashboard_index_path, alert: "You don't have permission to manage permissions."
+      redirect_to dashboard_path, alert: "You don't have permission to manage permissions."
       return false
     end
   end

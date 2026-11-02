@@ -165,7 +165,7 @@
                       <%= user.user_type&.humanize || 'User' %>
                     </span>
                     <% if user.role.present? %>
-                      <div><small class="text-muted"><%= user.role.humanize %></small></div>
+                      <div><small class="text-muted"><%= user.role.name.to_s.humanize %></small></div>
                     <% end %>
                   </div>
                 </td>

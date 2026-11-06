@@ -1,4 +1,5 @@
 class Api::CitiesController < ApplicationController
+  include ApiAmountRounding
   include LocationData
 
   # Skip authentication for this API endpoint

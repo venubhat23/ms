@@ -1,4 +1,5 @@
 class Api::V1::BaseController < ActionController::API
+  include ApiAmountRounding
   include ExceptionHandler
 
   before_action :authorize_request

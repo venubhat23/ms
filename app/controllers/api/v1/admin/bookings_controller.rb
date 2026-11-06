@@ -24,6 +24,9 @@ class Api::V1::Admin::BookingsController < Api::V1::Admin::BaseController
     page = params[:page] || 1
     per_page = params[:per_page] || 20
     bookings = bookings.page(page).per(per_page)
+    # The WhatsApp thank-you text quotes the invoice number of paid bookings;
+    # look those up in one query instead of one LIKE query per booking.
+    Booking.preload_associated_invoices(bookings.select(&:payment_status_paid?))
 
     render_success(
       bookings: bookings.map { |b| booking_response(b) },

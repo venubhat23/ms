@@ -861,7 +861,7 @@ Rails.application.routes.draw do
     end
 
     # Delivery Settings Management
-    resources :delivery_settings, only: [:index, :new, :create, :update, :edit] do
+    resources :delivery_settings, only: [:index, :new, :create, :update, :edit, :destroy] do
       collection do
         get :edit_pincode_charges
         patch :update_pincode_charges

@@ -79,14 +79,15 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         scope = scope.by_stock_availability
       end
 
-      count_result = scope.count
-      total_count = count_result.is_a?(Hash) ? count_result.size : count_result
+      count_result = scope.async_count # overlaps with the page-id query below
       # Page ids only, from the (possibly grouped/sorted) filter scope above —
       # the actual product rows (with stock/review/image preloads) are fetched
       # separately below so the cached_stock LEFT JOIN/select never has to
       # coexist with a GROUP BY in the same query (Rails' .count breaks when
       # a custom .select and .group are combined on the same relation).
       page_ids = scope.offset((page - 1) * per_page).limit(per_page).pluck(:id)
+      count_result = count_result.value
+      total_count = count_result.is_a?(Hash) ? count_result.size : count_result
 
       { products_data: fetch_products_for_listing(page_ids).map { |p| format_product_data(p) }, total_count: total_count }
     end
@@ -140,10 +141,11 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       @products = @products.order(:name)
     end
 
-    count_result = @products.count
-    total_count = count_result.is_a?(Hash) ? count_result.size : count_result
+    count_result = @products.async_count # overlaps with the page-id query below
 
     page_ids = @products.offset((page - 1) * per_page).limit(per_page).pluck(:id)
+    count_result = count_result.value
+    total_count = count_result.is_a?(Hash) ? count_result.size : count_result
 
     products_data = fetch_products_for_listing(page_ids).map { |product| format_product_data(product) }
 
@@ -751,10 +753,11 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         @products = @products.by_stock_availability
       end
 
-      count_result = @products.count
-      total_count = count_result.is_a?(Hash) ? count_result.size : count_result
+      count_result = @products.async_count # overlaps with the page-id query below
 
       page_ids = @products.offset((page - 1) * per_page).limit(per_page).pluck(:id)
+      count_result = count_result.value
+      total_count = count_result.is_a?(Hash) ? count_result.size : count_result
       products_data = fetch_products_for_listing(page_ids).map { |product| format_product_data(product) }
 
       json_response({
@@ -1044,10 +1047,11 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     # Filter by status if provided
     @subscriptions = @subscriptions.where(status: params[:status]) if params[:status].present?
 
-    total_count = @subscriptions.count
+    total_count = @subscriptions.async_count # overlaps with the page query below
     @subscriptions = @subscriptions.offset((page - 1) * per_page).limit(per_page)
 
     subscriptions_data = @subscriptions.map { |subscription| format_milk_subscription_data(subscription) }
+    total_count = total_count.value
 
     render json: {
       success: true,

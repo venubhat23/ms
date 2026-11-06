@@ -103,6 +103,12 @@
                             class: "btn btn-sm btn-outline-primary" do %>
                         <i class="fas fa-edit"></i> Edit
                       <% end %>
+                      <%= button_to admin_delivery_setting_path(delivery_charge, page: params[:page]),
+                            method: :delete,
+                            form: { class: "d-inline", data: { turbo: false }, onsubmit: "return confirm('Delete the delivery charge for pincode #{j delivery_charge.pincode}?');" },
+                            class: "btn btn-sm btn-outline-danger ms-1" do %>
+                        <i class="fas fa-trash"></i> Delete
+                      <% end %>
                     </td>
                   </tr>
                 <% end %>

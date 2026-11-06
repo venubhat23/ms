@@ -2,6 +2,7 @@ module Api
   module V1
     module Mobile
       class DeliveryController < ApplicationController
+        include ApiAmountRounding
         before_action :authenticate_delivery_person!
 
         # GET /api/v1/mobile/delivery/tasks/today

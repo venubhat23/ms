@@ -1,4 +1,5 @@
 class Api::DeliveryController < ApplicationController
+  include ApiAmountRounding
   protect_from_forgery with: :null_session
   before_action :set_default_format
 

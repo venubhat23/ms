@@ -11,10 +11,13 @@ class Admin::VendorPurchasesController < Admin::ApplicationController
     @vendor_purchases = @vendor_purchases.where(vendor_id: params[:vendor_id]) if params[:vendor_id].present?
     @vendor_purchases = @vendor_purchases.where(status: params[:status]) if params[:status].present?
 
-    @pending_count, @total_value, @outstanding_value = @vendor_purchases.pick(
-      Arel.sql("COUNT(*) FILTER (WHERE status = 'pending')"),
-      Arel.sql("COALESCE(SUM(total_amount), 0)"),
-      Arel.sql("COALESCE(SUM(total_amount - paid_amount), 0)")
+    # Aggregate without the includes (pluck/pick would eager-load-JOIN every
+    # included table, making columns ambiguous and fanning out the SUMs per
+    # line item) and without the ORDER BY (invalid alongside aggregates).
+    @pending_count, @total_value, @outstanding_value = @vendor_purchases.except(:includes, :order).pick(
+      Arel.sql("COUNT(*) FILTER (WHERE vendor_purchases.status = 'pending')"),
+      Arel.sql("COALESCE(SUM(vendor_purchases.total_amount), 0)"),
+      Arel.sql("COALESCE(SUM(vendor_purchases.total_amount - vendor_purchases.paid_amount), 0)")
     )
 
     @vendor_purchases = @vendor_purchases.page(params[:page]).per(20)

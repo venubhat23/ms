@@ -1,4 +1,5 @@
 class Api::V1::PublicController < ActionController::Base
+  include ApiAmountRounding
   # CORS headers for cross-origin requests
   before_action :set_cors_headers
 

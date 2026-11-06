@@ -763,6 +763,26 @@ class Booking < ApplicationRecord
                                  .first
   end
 
+  # Fills #associated_invoice for many bookings with ONE query instead of one
+  # LIKE query per booking (same match: the invoice of the lowest-id invoice
+  # item whose description contains the booking number). Bookings that
+  # already memoized it, or have no booking number, are left alone.
+  def self.preload_associated_invoices(bookings)
+    pending = bookings.reject { |b| b.instance_variable_defined?(:@associated_invoice) || b.booking_number.blank? }
+    return bookings if pending.empty?
+
+    numbers = pending.map(&:booking_number).uniq
+    matches = Invoice.joins(:invoice_items)
+                     .joins(sanitize_sql_array([
+                       "JOIN unnest(ARRAY[?]::text[]) AS bn(num) ON invoice_items.description LIKE '%' || bn.num || '%'", numbers
+                     ]))
+                     .select('DISTINCT ON (bn.num) invoices.*, bn.num AS matched_booking_number')
+                     .order(Arel.sql('bn.num, invoice_items.id'))
+                     .index_by(&:matched_booking_number)
+    pending.each { |b| b.instance_variable_set(:@associated_invoice, matches[b.booking_number]) }
+    bookings
+  end
+
   # Check if this booking has an associated invoice (either BookingInvoice or regular Invoice)
   def has_invoice?
     booking_invoices.any? || associated_invoice.present?

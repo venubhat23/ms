@@ -26,8 +26,19 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
   # GET /api/v1/admin/customers/:id
   def show
     customer = Customer.find(params[:id])
-    wallet = CustomerWallet.find_by(customer_id: customer.id)
-    render_success(customer_response(customer, detailed: true, wallet_balance: wallet&.balance, wallet_history: wallet_history(wallet)))
+    # Every list below is independent, so fire them all now and let their
+    # round trips overlap with the one aggregate query in customer_response.
+    @detail_lists = {
+      wallet: CustomerWallet.where(customer_id: customer.id).limit(1).load_async,
+      wallet_txns: WalletTransaction.joins(:customer_wallet).where(customer_wallets: { customer_id: customer.id })
+                                    .includes(:booking).recent.load_async,
+      pending_amounts: customer.pending_amounts.order(pending_date: :desc).limit(20).load_async,
+      addresses: customer.customer_addresses.order(is_default: :desc).load_async,
+      recent_bookings: customer.bookings.order(created_at: :desc).limit(10).load_async
+    }
+    wallet = @detail_lists[:wallet].first
+    render_success(customer_response(customer, detailed: true, wallet_balance: wallet&.balance,
+                                     wallet_history: wallet && wallet_history_rows(@detail_lists[:wallet_txns])))
   rescue ActiveRecord::RecordNotFound
     render_error('Customer not found', nil, :not_found)
   end
@@ -61,24 +72,24 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
     if detailed
       data[:whatsapp_number] = customer.whatsapp_number
       data[:address] = customer.address
-      data[:bookings_count] = customer.bookings.count
-      orders_count, total_spent = customer.orders.pick(
-        Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(total_amount), 0)")
-      )
-      data[:orders_count] = orders_count
+      lists = @detail_lists || {}
+      # All six booking/order/pending figures in one round trip (was six).
+      bookings_count, bookings_total, unpaid_count, unpaid_amount, orders_count, total_spent, pending_total =
+        customer_totals(customer)
+      data[:bookings_count] = bookings_count.to_i
+      data[:orders_count] = orders_count.to_i
       data[:total_spent] = total_spent.to_f
-      data[:bookings_total] = customer.bookings.where.not(status: 'cancelled').sum(:total_amount).to_f
-      unpaid = customer.bookings.where(payment_status: %w[unpaid partially_paid]).where.not(status: 'cancelled')
-      data[:unpaid_bookings_count] = unpaid.count
-      data[:unpaid_bookings_amount] = unpaid.sum(:total_amount).to_f
-      data[:pending_amount_total] = customer.pending_amounts.where(status: :pending).sum(:amount).to_f
-      data[:pending_amounts] = customer.pending_amounts.order(pending_date: :desc).limit(20).map do |pa|
+      data[:bookings_total] = bookings_total.to_f
+      data[:unpaid_bookings_count] = unpaid_count.to_i
+      data[:unpaid_bookings_amount] = unpaid_amount.to_f
+      data[:pending_amount_total] = pending_total.to_f
+      data[:pending_amounts] = (lists[:pending_amounts] || customer.pending_amounts.order(pending_date: :desc).limit(20)).map do |pa|
         { id: pa.id, amount: pa.amount.to_f, description: pa.description, pending_date: pa.pending_date, status: pa.status }
       end
-      data[:addresses] = customer.customer_addresses.order(is_default: :desc).map do |a|
+      data[:addresses] = (lists[:addresses] || customer.customer_addresses.order(is_default: :desc)).map do |a|
         a.slice(:id, :name, :mobile, :address_type, :address, :landmark, :city, :state, :pincode, :is_default)
       end
-      data[:recent_bookings] = customer.bookings.order(created_at: :desc).limit(10).map do |b|
+      data[:recent_bookings] = (lists[:recent_bookings] || customer.bookings.order(created_at: :desc).limit(10)).map do |b|
         {
           id: b.id,
           booking_number: b.booking_number,
@@ -94,10 +105,32 @@ class Api::V1::Admin::CustomersController < Api::V1::Admin::BaseController
     data
   end
 
+  # Same figures the old per-figure queries returned: != 'cancelled' (NULL
+  # statuses excluded, as before), SUM over no rows -> 0 via to_f.
+  def customer_totals(customer)
+    not_cancelled = "bookings.status <> 'cancelled'"
+    unpaid = "#{not_cancelled} AND bookings.payment_status IN ('unpaid', 'partially_paid')"
+    id = customer.id.to_i
+    Booking.where(customer_id: id).pick(
+      Arel.sql('COUNT(*)'),
+      Arel.sql("SUM(bookings.total_amount) FILTER (WHERE #{not_cancelled})"),
+      Arel.sql("COUNT(*) FILTER (WHERE #{unpaid})"),
+      Arel.sql("SUM(bookings.total_amount) FILTER (WHERE #{unpaid})"),
+      Arel.sql("(SELECT COUNT(*) FROM orders WHERE orders.customer_id = #{id})"),
+      Arel.sql("(SELECT COALESCE(SUM(orders.total_amount), 0) FROM orders WHERE orders.customer_id = #{id})"),
+      Arel.sql("(SELECT SUM(pending_amounts.amount) FROM pending_amounts WHERE pending_amounts.customer_id = #{id} " \
+               "AND pending_amounts.status = #{PendingAmount.statuses.fetch('pending').to_i})")
+    )
+  end
+
   def wallet_history(wallet)
     return [] unless wallet
 
-    wallet.wallet_transactions.includes(:booking).recent.map do |txn|
+    wallet_history_rows(wallet.wallet_transactions.includes(:booking).recent)
+  end
+
+  def wallet_history_rows(transactions)
+    transactions.map do |txn|
       {
         id: txn.id,
         transaction_type: txn.transaction_type,

@@ -5,7 +5,7 @@ class Admin::DeliverySettingsController < ApplicationController
     next if current_user&.has_sidebar_permission?('delivery_people')
     require_sidebar_permission!('delivery_settings')
   end
-  before_action :set_delivery_charge, only: [:edit, :update]
+  before_action :set_delivery_charge, only: [:edit, :update, :destroy]
 
   def index
     load_bangalore_pincodes_index_data
@@ -45,6 +45,16 @@ class Admin::DeliverySettingsController < ApplicationController
 
   def edit
     # @delivery_charge set by before_action
+  end
+
+  def destroy
+    pincode = @delivery_charge.pincode
+    if @delivery_charge.destroy
+      redirect_to admin_delivery_settings_path(page: params[:page]), notice: "Delivery charge for #{pincode} deleted.", status: :see_other
+    else
+      redirect_to admin_delivery_settings_path(page: params[:page]),
+                  alert: "Could not delete #{pincode}: #{@delivery_charge.errors.full_messages.join(', ')}", status: :see_other
+    end
   end
 
   def edit_pincode_charges

@@ -1,4 +1,5 @@
 class Api::V1::ClientRequestsController < ApplicationController
+  include ApiAmountRounding
   before_action :authenticate_user!, except: [:create]
   before_action :set_client_request, only: [:show, :update, :destroy, :transition_stage, :assign_to_user, :update_priority, :stage_history]
 

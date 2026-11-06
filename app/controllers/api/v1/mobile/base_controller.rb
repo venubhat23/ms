@@ -1,4 +1,5 @@
 class Api::V1::Mobile::BaseController < ApplicationController
+  include ApiAmountRounding
   skip_before_action :verify_authenticity_token
   skip_before_action :authenticate_user!
   skip_load_and_authorize_resource

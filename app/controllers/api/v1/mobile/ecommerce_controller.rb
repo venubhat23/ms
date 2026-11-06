@@ -937,6 +937,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
     # Check if product can be delivered to pincode
     delivery_info = @product.delivery_info_for(pincode)
+    free_info = DeliveryCharge.free_delivery_info_for(DeliveryCharge.for_pincode(pincode.to_s.strip), request_order_amount)
 
     json_response({
       success: true,
@@ -949,7 +950,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         message: delivery_info[:deliverable] ?
           "Delivery available in #{delivery_info[:delivery_days]} days" :
           "Delivery not available in this area"
-      },
+      }.merge(free_info),
       message: delivery_info[:deliverable] ? 'Delivery available' : 'Delivery not available'
     })
   rescue ActiveRecord::RecordNotFound
@@ -963,6 +964,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
     charge_record = DeliveryCharge.for_pincode(pincode)
     deliverable = charge_record.present?
+    order_amount = request_order_amount
 
     json_response({
       success: true,
@@ -972,7 +974,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         delivery_charge: deliverable ? charge_record.charge_amount.to_f : nil,
         area: deliverable ? charge_record.area : nil,
         message: deliverable ? "Delivery available to #{pincode}" : "Delivery not available to this pincode"
-      },
+      }.merge(DeliveryCharge.free_delivery_info_for(charge_record, order_amount)),
       message: deliverable ? 'Delivery available' : 'Delivery not available'
     })
   end
@@ -1329,7 +1331,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
           unavailable_products: unavailable_products.length,
           total_delivery_charge: products_results.sum { |p| p[:delivery_charge] }
         }
-      }
+      }.merge(DeliveryCharge.free_delivery_info_for(DeliveryCharge.for_pincode(pincode.to_s.strip), request_order_amount))
 
       message = if all_deliverable
         "All products can be delivered to #{pincode}"
@@ -1433,6 +1435,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
 
       # Find delivery charge for the pincode
       delivery_charge_record = DeliveryCharge.for_pincode(sanitized_pincode)
+      free_info = DeliveryCharge.free_delivery_info_for(delivery_charge_record, request_order_amount)
 
       if delivery_charge_record
         # Pincode is deliverable
@@ -1447,7 +1450,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
             formatted_charge: delivery_charge_record.formatted_charge,
             is_deliverable: true,
             delivery_available: true
-          }
+          }.merge(free_info)
         })
       else
         # Pincode not available for delivery
@@ -1462,7 +1465,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
             is_deliverable: false,
             delivery_available: false,
             suggested_message: "We don't currently deliver to pincode #{sanitized_pincode}. Please contact support for more information."
-          }
+          }.merge(free_info)
         }, :unprocessable_entity)
       end
 
@@ -1512,9 +1515,10 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
     pincode  = booking_params[:pincode]
     booking = nil
 
-    # Look up delivery charge for this pincode
-    delivery_charge_amount = DeliveryCharge.charge_for_pincode(pincode.to_s) if pincode.present?
-    delivery_charge_amount = delivery_charge_amount.to_f
+    # Look up delivery charge for this pincode; free delivery (if enabled
+    # for the pincode) is applied once the cart total is known, below.
+    delivery_charge_record = pincode.present? ? DeliveryCharge.for_pincode(pincode.to_s.strip) : nil
+    free_info = nil
 
     ActiveRecord::Base.transaction do
       booking = Booking.new(
@@ -1542,6 +1546,9 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         booking.booking_items.build(product: product, product_variant_id: variant_id, quantity: quantity, price: price)
         total_amount += price * quantity
       end
+
+      free_info = DeliveryCharge.free_delivery_info_for(delivery_charge_record, total_amount)
+      delivery_charge_amount = delivery_charge_record ? delivery_charge_record.effective_charge_for(total_amount) : 0.0
 
       booking.subtotal = total_amount
       booking.total_amount = total_amount
@@ -1571,7 +1578,7 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
         delivery_charge: booking.shipping_charges.to_f,
         total_amount: booking.total_amount.to_f,
         payment_method: 'cod'
-      })
+      }.merge(free_info || {}))
     end
 
     razorpay_response = RazorpayService.start_checkout(booking)
@@ -1590,8 +1597,9 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
       payment_method: 'razorpay',
       razorpay: razorpay_response[:checkout].except(:return_url),
       razorpay_order_id: booking.razorpay_order_id,
-      redirect_to_payment: true
-    })
+      redirect_to_payment: true,
+      delivery_charge: booking.shipping_charges.to_f
+    }.merge(free_info || {}))
   rescue ActiveRecord::RecordNotFound
     json_response({ success: false, message: 'Product not found in cart' }, :unprocessable_entity)
   rescue ActiveRecord::RecordInvalid => e
@@ -1670,6 +1678,13 @@ class Api::V1::Mobile::EcommerceController < Api::V1::Mobile::BaseController
   end
 
   private
+
+  # Optional cart/order amount sent by the app so delivery endpoints can
+  # return the charge after free delivery is applied. nil when not sent.
+  def request_order_amount
+    raw = params[:order_amount].presence || params.dig(:ecommerce, :order_amount).presence
+    raw.nil? ? nil : raw.to_f
+  end
 
   # Per-product active stock, aggregated once instead of once per product —
   # format_product_data calls in_stock?/low_stock?/stock_status per product,

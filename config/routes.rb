@@ -946,11 +946,13 @@ Rails.application.routes.draw do
         get 'all_data', to: 'all_data#index'
         get 'pricing', to: 'pricing#index'
 
-        resources :bookings, only: [:index, :show, :create] do
+        resources :bookings, only: [:index, :show, :create, :update] do
           collection do
             post :bulk_mark_paid
           end
           member do
+            get :stage_options
+            patch :update_stage
             patch :update_status
             patch :cancel
             patch :mark_delivered

@@ -985,6 +985,30 @@ Rails.application.routes.draw do
         resources :stock, only: [:index, :show], controller: 'stock'
 
         resources :banners, only: [:index, :create]
+
+        resources :vendors, only: [:index, :show, :create, :update, :destroy] do
+          collection do
+            post :bulk_mark_paid
+          end
+          member do
+            patch :toggle_status
+            patch :mark_paid
+          end
+        end
+        resources :vendor_purchases, only: [:index, :show, :create, :update, :destroy] do
+          collection do
+            get :form_options
+            get :products
+            post :bulk_mark_paid
+            get :batch_inventory
+            post :mark_batches_sold
+          end
+          member do
+            patch :complete
+            patch :mark_paid
+            post :generate_invoice
+          end
+        end
       end
 
       # Must stay above namespace :mobile, whose catch-all would swallow these.
